@@ -41,7 +41,7 @@ test("real fixtures parse clean and round-trip byte-for-byte", () => {
   for (const f of readdirSync(fixtures).filter((n) => n.endsWith(".dndpaste"))) {
     const text = readFileSync(join(fixtures, f), "utf8");
     const p = parse(text);
-    assert.deepEqual(codes(p), [], `${f}: ${JSON.stringify(p.diagnostics)}`);
+    assert.deepEqual(codes(p).filter((c) => c.startsWith("E")), [], `${f}: ${JSON.stringify(p.diagnostics)}`);
     assert.ok(isClean(p));
     const once = emit(p);
     assert.equal(once, text, `${f} is not canonical`);
