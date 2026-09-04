@@ -1,12 +1,13 @@
 # STATE — dndpaste
 
-## TL;DR (2026-09-04 · SPEC 0.3 after his review + a 5-persona panel · no code yet)
-- Interview → D1–D17; his fixture review → D18–D24; panel (5–0 change) + two AskUserQuestion rounds → D25–D32.
-  Superseded decisions are marked AMENDED in place. O1–O4 open.
-- `SPEC.md` 0.3: brackets for details with quoted names as fallback (D25); Species/Background are
-  entity blocks (D26); one `Options` key for all optional features, `Feature` for named picks (D27);
-  no class qualifier on unplaced lines (D28); list arity in header scope (D29); data-free emit,
-  normalise in the checker (D30); `Paste:` + `X-` reserved (D31). Fixtures rewritten to 0.3.
-- **Next action:** Francesco reads SPEC 0.3 §5 and the two fixtures (M1 🔶). Then `src/parse.ts`.
-- **Waiting on Francesco:** that read; ⚑ whether Spellfire Spark / Fey Sentinel ask an ability pick;
-  the GitHub remote.
+## TL;DR (2026-09-04 · M1 essentially done · parser + emitter green)
+- SPEC 0.3 signed off by Francesco after his review and a 5-persona panel (D1–D32; O1–O4 open).
+- `src/dndpaste.ts`: `parse`, `emit`, `isClean`, `KEYS`; zero deps; `npm run build` → ESM + `.d.ts`
+  and `dist/dndpaste.umd.cjs` (global `dndpaste` in a browser, `require`-able in Node).
+  `npm run verify` green: typecheck, eslint, 33 node:test cases incl. byte-for-byte round-trip of
+  `fixtures/vice.dndpaste` and `fixtures/shigen.dndpaste`. UMD smoke-tested via `require`.
+- **Next action:** M1 tail — add the two remaining fixture files (flat multiclass, SPEC §8.4), then
+  M2 🔶 O2: the checker's data extract (`scripts/extract-slots`) from the 5etools mirror + the
+  hand-kept supplement for prose-only slots (D30).
+- **Waiting on Francesco:** GitHub remote (his account); ⚑ whether Spellfire Spark / Fey Sentinel
+  ask an ability pick; O2 (extract shape) before M2 starts.

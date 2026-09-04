@@ -38,12 +38,12 @@ L<n> <Class>                   level block, n = character level
 ### M1 — SPEC v0 + parser + fixtures (D17) · size M
 - [x] **SPEC.md v0** (0.1 → 0.3 after his review and the panel, 2026-09-04): core grammar (EBNF), 5e profile (keys, value shapes, detail-group orders), canonical emit rules, error classes, versioning (`formatVersion` in spec, not in paste).
 - [x] 🔍 **/panel on SPEC 0.2** (5 personas, 5–0 change) → D25–D32, SPEC 0.3. A second, cheaper panel pass on 0.3 is optional; his read is the gate.
-- [ ] `src/parse.ts` → AST (SPEC §4: header scope, entity blocks, level blocks, typed values, diagnostics); never throws; line on every diagnostic.
-- [ ] `src/emit.ts` → canonical text, data-free (SPEC §5.5); `emit(parse(emit(a))) === emit(a)`.
-- [ ] Zero deps; ESM + `dist/dndpaste.umd.js`; strict TS; `npm run verify` = typecheck + lint + test.
-- [ ] Fixtures: sparse (class only), flat, mixed, full multiclass, homebrew refs, custom background, spell swap, every error class.
-- [~] **Vice** and **Shigen** hand-written as dndpastes (`fixtures/`, rewritten for 0.3; round-trip pending the parser) from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
-- [ ] 🔶 Francesco reads the two real pastes and signs the shape off.
+- [x] `src/dndpaste.ts` `parse` → AST (SPEC §4); never throws; line on every diagnostic. (2026-09-04)
+- [x] `emit` → canonical text, data-free (SPEC §5.5); fixtures round-trip byte-for-byte.
+- [x] Zero deps; ESM + `dist/dndpaste.umd.cjs` (derived by `scripts/umd.mjs`; `.cjs` because the package is `type: module`); strict TS; `npm run verify` = typecheck + lint + test (33 tests).
+- [x] Tests cover: sparse, identifier, quoting, quantity, drop, empty groups, `@n`, case, `X-` keys, every E-code. ⏳ Still to add as `.dndpaste` fixture files: a flat multiclass and SPEC §8.4 (species block + custom background).
+- [x] **Vice** and **Shigen** hand-written as dndpastes (`fixtures/`), parse clean and round-trip byte-for-byte from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
+- [x] 🔶 Francesco read SPEC 0.3 + fixtures: "looks right" (2026-09-04).
 
 ### M2 — Checker · size M/L · 🔶 O2 first
 - [ ] `scripts/extract-slots.*` from the 5etools mirror → compact "choice slots" JSON (class, subclass, species, background, feat: what is chosen, how many, at which level, from which pool). SRD subset committed, rest gitignored.
@@ -51,7 +51,7 @@ L<n> <Class>                   level block, n = character level
 - [ ] Homebrew: accepts any 5etools-format JSON as extra slot data (a homebrew file brings its own slots).
 
 ### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo
-- [ ] Copies the UMD file; `levelGains`/`timelinePicks` → AST → `emit`. Scores line omitted. Logged in that repo's DECISIONS as the format L5.5 was waiting for.
+- [ ] Copies `dist/dndpaste.umd.cjs` (global `dndpaste`); `levelGains`/`timelinePicks` → AST → `emit`. Scores line omitted. Logged in that repo's DECISIONS as the format L5.5 was waiting for.
 
 ### M4 — character-forge interview seeding · size M in that repo
 - [ ] Paste → pre-filled chassis sections; interview asks only what the paste left unplaced or missing. References resolve against the KB at compile time as today.

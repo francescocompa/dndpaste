@@ -27,7 +27,7 @@ Cantrips: Blade Ward, True Strike
 - **Library:** `src/dndpaste.ts`, zero dependencies. `parse(text)` → AST with diagnostics
   (never throws); `emit(ast)` → canonical text, data-free; `isClean(ast)`.
 - **Builds:** `npm run build` → `dist/src/dndpaste.js` (ESM + `.d.ts`) and
-  `dist/dndpaste.umd.js` (single file for no-build pages, global `dndpaste`).
+  `dist/dndpaste.umd.cjs` (single file for no-build pages, global `dndpaste`).
 - **Verify:** `npm run verify` (typecheck, lint, tests incl. byte-for-byte round-trip of
   `fixtures/`).
 

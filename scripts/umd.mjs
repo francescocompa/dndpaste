@@ -1,4 +1,4 @@
-// Derive dist/dndpaste.umd.js from the compiled single-file ESM build.
+// Derive dist/dndpaste.umd.cjs from the compiled single-file ESM build.
 // The library is one module with no imports, so the transform is textual:
 // strip `export` keywords, collect the exported names, wrap in a UMD shell.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -25,5 +25,5 @@ return { ${[...names].join(", ")} };
 });
 `;
 mkdirSync(new URL("../dist/", import.meta.url), { recursive: true });
-writeFileSync(new URL("../dist/dndpaste.umd.js", import.meta.url), out);
-console.log(`dist/dndpaste.umd.js: ${[...names].length} exports`);
+writeFileSync(new URL("../dist/dndpaste.umd.cjs", import.meta.url), out);
+console.log(`dist/dndpaste.umd.cjs: ${[...names].length} exports`);
