@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.1 (draft, 2026-09-04) · **Status:** pre-panel · Decisions: `DECISIONS.md` D1–D19.
+**Version:** 0.2 (draft, 2026-09-04) · **Status:** pre-panel · Decisions: `DECISIONS.md` D1–D24.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -34,6 +34,11 @@ Two conformance layers consume it (D11):
 4. **References, not text.** Every entity is a name plus an optional source code (D7, D9).
 5. **No free text**, except the optional identifier line (D12).
 6. **Emitters write canonical form.** `parse(emit(parse(x)))` equals `parse(emit(x))`.
+7. **No redundancy.** A fact is written once, in one place. A choice belongs to the entity
+   that asks for it (species, background, feat, subclass, invocation, class feature), written
+   as that entity's detail groups — not to the level it happens to be made at (D22).
+8. **Defaults are silent.** When the rules present one option as the default, an absent choice
+   means the default. Only choices without a default are "undecided" when absent (D24).
 
 ---
 
@@ -110,6 +115,7 @@ Some keys take exactly one item (§5.1, column *arity*); a list there is `E007`.
 
 ```
 [-]<Name>[|<SOURCE>][ (<detail>[; <detail>]...)][ x<qty>]
+<detail> := <item>[ @<n>]     // a sub-choice made later, at character level n
 ```
 
 | Part | Meaning |
@@ -117,7 +123,7 @@ Some keys take exactly one item (§5.1, column *arity*); a list there is `E007`.
 | `-` prefix | **Drop**: the item leaves the build at this level (a spell swap, an invocation replaced). Only valid inside a level block on list keys (`E008` elsewhere). |
 | `Name` | Entity name as printed in its source. May contain spaces, apostrophes, hyphens, digits and `'`. May not contain `,` `;` `(` `)` `|` `:`. |
 | `\|SOURCE` | Optional source code, 5etools convention (`XPHB`, `PHB`, `TCE`, `AAG`, …). Homebrew uses the source code declared by its homebrew file, or `HB` when it has none (D9). |
-| `(detail; detail)` | Optional **detail groups**: sub-choices belonging to this item, groups separated by `;`, items inside a group separated by `,`. Each detail is itself an item (recursion allowed one level deep: a detail may carry `\|SOURCE` but not further parentheses). |
+| `(detail; detail)` | Optional **detail groups**: sub-choices belonging to this item, groups separated by `;`, items inside a group separated by `,`. Each detail is itself an item (recursion allowed one level deep: a detail may carry `\|SOURCE` but not further parentheses). A detail may end in `@<n>`: the sub-choice is made at character level *n* (a feature gained early that asks again later — a Battle Master's fourth manoeuvre at 7, a feat's later upgrade). `@<n>` is valid **only on details** (`E013` elsewhere). |
 | `x<qty>` | Optional quantity, integer ≥ 2, `Equipment` only (`E009` elsewhere). |
 
 The parser keeps detail groups as **ordered lists of lists**. Their *meaning* (which group is
@@ -143,7 +149,8 @@ interface Paste {
   diagnostics: Diagnostic[];                  // never thrown
 }
 interface Level { n: number; class: Ref; lines: Record<CanonicalKey, Item[]>; }
-interface Item  { ref: Ref; drop: boolean; details: Ref[][]; qty: number | null; }
+interface Item  { ref: Ref; drop: boolean; details: Detail[][]; qty: number | null; }
+interface Detail { ref: Ref; at: number | null; }
 interface Ref   { name: string; source: string | null; }
 interface Diagnostic { code: `E${string}`; line: number; message: string; }
 ```
@@ -167,12 +174,11 @@ the parser never fills it in.
 | Key | Arity | Scope | Value | Notes |
 |---|---|---|---|---|
 | `Rules` | 1 | H | `2014` \| `2024` | default edition for source-less refs |
-| `Level` | 1 | H | integer 1–20 | *current* character level; blocks above it are planned |
-| `Species` | 1 | H | ref (+ details) | details = lineage / size / other species-level picks, **data order** (§5.2) |
-| `Background` | 1 | H | ref (+ details) | details fixed order (§5.2) |
+| `Species` | 1 | H | ref (+ details) | **every choice the species asks**: lineage, size, trait picks (an Autognome's Specialized Design tools), in **data order** (§5.2) |
+| `Background` | 1 | H | ref (+ details) | official: only the picks it asks; **custom or homebrew: fully specified** in the fixed order (§5.2) |
 | `Scores` | 1 | H | `S/D/C/I/W/C` | six integers, `/`-separated, **base** scores before any bonus |
-| `Classes` | list | H | `Class[\|SRC] <levels>` items separated by ` / ` | order = order taken; total may exceed `Level` (planned) |
-| `Subclass` | 1 | H/L | ref | belongs to the block's class; unplaced when in header |
+| `Classes` | list | H | `Class[\|SRC] <levels>` items separated by ` / ` | order = order taken; levels **as played now**. A level block above the total is a **planned** level (§5.4) |
+| `Subclass` | 1 | H/L | ref (+ details) | belongs to the block's class; details = every choice the subclass asks, at any level, with `@n` when later |
 | `Skills` | list | H/L | refs | proficiencies chosen (not granted) |
 | `Tools` | list | H/L | refs | chosen tool proficiencies |
 | `Languages` | list | H/L | refs | chosen languages |
@@ -182,43 +188,51 @@ the parser never fills it in.
 | `Invocations` | list | H/L | refs (+ details) | details = the invocation's own picks (e.g. the cantrip Agonizing Blast targets) |
 | `Metamagic` | list | H/L | refs | |
 | `ASI` | list | H/L | `+<n> <ABI>` items | e.g. `+2 CHA` or `+1 INT, +1 CON` |
-| `Feat` | 1 | H/L | ref (+ details) | any feat slot: ASI-slot feat, origin feat from a species or custom background; details **data order** |
+| `Feat` | 1 | H/L | ref (+ details) | any feat slot: ASI-slot feat, origin feat from a species; details **data order**, **ability bonus first when the feat grants one** |
 | `Cantrips` | list | H/L | spell refs | chosen cantrips (class or feature) |
 | `Spells` | list | H/L | spell refs | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster |
-| `Prepared` | list | H/L | spell refs | **default prepared loadout** when the repertoire exceeds the prepare count |
+| `Prepared` | list | H/L | spell refs | default prepared loadout, **only for casters whose repertoire exceeds the prepare count** (a full-list preparer, a wizard's spellbook). Redundant — and an emitter never writes it — for a caster that picks its prepared spells on level-up, where `Spells` already says it (D23) |
 | `Equipment` | list | H/L | option letter `A`/`B`/`C`, or item refs with `x<qty>` | a letter selects that starting-equipment option of the scope's grantor (background in header, class in its first block) |
-| `Option` | list | H/L | `<Feature> (<picks>)` items | **generic escape hatch** for any other feature that asks for a pick (§5.3) |
+| `Option` | list | H/L | `<Feature> (<picks>)` items | **class features only**: a class feature with a pick and no dedicated key (§5.3). Species, background, feat, subclass and invocation picks are details of that entity, never `Option` |
 
 Abilities are written `STR DEX CON INT WIS CHA` (case-insensitive).
 
 ### 5.2 Fixed detail orders
 
 - `Background`: `(<ability bonuses>; <skills>; <tools>; <feat>)`. Official backgrounds carry
-  only the first group (2024) or none (2014). A custom 2024 background carries all four:
-  `Background: Custom (+2 INT, +1 CON; Arcana, History; Calligrapher's Supplies; Magic Initiate (Wizard))`.
-  Ability bonuses use the `ASI` item shape.
+  only the first group (2024) or none (2014). A **custom or homebrew** background carries all
+  four, so the paste is complete without the homebrew file:
+  `Background: Archer Priest|HB (+2 CHA, +1 DEX; Religion, Persuasion; Woodcarver's Tools; Mark of Making|EFA)`.
+  Ability bonuses use the `ASI` item shape. A group the background does not have is left empty
+  between its `;` (`(; Arcana, History; ; Alert)`).
 - `Species`: **data order** — groups follow the species' own choice structure (lineage first
-  when it has one). `Species: Elf (High Elf; Prestidigitation)`.
-- `Feat`: **data order** — groups follow the feat's own choice structure. `Feat: Magic Initiate (Cleric; Guidance, Sacred Flame; Bless; WIS)`; `Feat: Resilient (CON)`.
+  when it has one). `Species: Elf (High Elf; Prestidigitation)`,
+  `Species: Autognome|AAG (Thieves' Tools, Forgery Kit)`.
+- `Feat`: **data order**, ability bonus first when the feat grants a choice of one.
+  `Feat: Resilient (CON)`, `Feat: Magic Initiate (Cleric; Guidance, Sacred Flame; Bless; WIS)`,
+  `Feat: Potent Dragonmark|EFA (CHA)`.
+- `Subclass`: data order, later picks stamped.
+  `Subclass: Battle Master (Riposte, Trip Attack, Precision Attack; Menacing Attack @7, Parry @7)`.
 - `Invocations` item details: the invocation's own picks. `Agonizing Blast (True Strike)`.
-- `Classes` item: `Fighter 1`, `Warlock|PHB 5`. The level count is required; `Fighter` alone
-  (no count) is allowed only when the paste has no level blocks and means "levels unknown".
+- `Classes` item: `Fighter 1`, `Warlock|PHB 5`. `Fighter` alone (no count) means "levels
+  unknown" and is allowed only when the paste has no level blocks.
 
 ### 5.3 `Option` — the escape hatch
 
-Many features ask for a pick without being a feat, spell or optional feature: a Cleric's
-Divine Order, a 2014 Pact Boon, an Autognome's Specialized Design, a Dragonborn's ancestry, a
-Ranger's Favored Enemy. New books add more every year and 5etools often encodes them as prose
-options, not structured data. Rather than a key per feature, the profile has one:
+Some **class features** ask for a pick without being a feat, spell or optional feature: a
+Cleric's Divine Order, a Druid's Primal Order, a 2014 Pact Boon, a Ranger's Favored Enemy. New
+books add more every year and 5etools often encodes them as prose options, not structured
+data. Rather than a key per feature, the profile has one:
 
 ```
 Option: <Feature name>[|SRC] (<pick>[, <pick>][; <group>]...)
 ```
 
-`Feature name` is the feature as printed (its 5etools `classFeature`/trait name); the details
-are the picks. Placed in a block, the feature belongs to that block's class at that level;
-unplaced, it belongs to whatever grants it. `Option` is a list key: several features may be
-answered on one line.
+`Feature name` is the class feature as printed (its 5etools `classFeature` name); the details
+are the picks, later ones stamped `@n`. Placed in a block, the feature belongs to that block's
+class; unplaced, to whichever class has it. `Option` is a list key: several features may be
+answered on one line. Picks asked by a species, background, feat, subclass or invocation are
+**never** `Option` lines: they are details of that entity (rule 7).
 
 Rule of thumb for authors and emitters: **use the dedicated key when one exists** (`Fighting
 Style`, not `Option: Fighting Style (Archery)`); a parser accepts both, a linter (checker)
@@ -226,6 +240,13 @@ reports the redundancy. Canonical emit rewrites an `Option` whose feature has a 
 into that key.
 
 ### 5.4 Placement semantics
+
+- `Classes` states the levels **as played now**. A level block whose `n` exceeds the sum of
+  `Classes` is a **planned** level; its class must appear in `Classes` (a class taken only in
+  the future is listed there with `0`: `Classes: Warlock 2 / Fighter 0`).
+- **Defaults are silent** (rule 8): `Equipment` absent means option A; a feat's spellcasting
+  ability absent means the feat's stated default; a size choice absent means the printed
+  default. The checker knows which slots have a default and never reports those as missing.
 
 - A placed line belongs to the **character level** of its block and to the **class** named in
   the header. Species and background choices are naturally unplaced or placed at `L1`.
@@ -238,11 +259,13 @@ into that key.
 ### 5.5 Canonical form
 
 1. Identifier line, if any.
-2. Header keys in this order: `Rules`, `Level`, `Species`, `Background`, `Scores`, `Classes`,
+2. Header keys in this order: `Rules`, `Species`, `Background`, `Scores`, `Classes`,
    then unplaced choice keys in §5.1 table order.
 3. One blank line, then each level block: header `L<n> <Class>`, then its keys in §5.1 order.
 4. Keys in canonical case; one space after `:`; items separated by `, `; groups by `; `.
 5. `Option` items whose feature has a dedicated key are rewritten to it.
+6. Redundant lines are dropped: a `Prepared` line for a pick-on-level-up caster, a choice
+   equal to its default, a `Species`/`Background`/`Feat` pick restated as `Option`.
 
 ---
 
@@ -281,6 +304,7 @@ is why `Option` stays generic.
 | E010 | reserved line `---` |
 | E011 | malformed item (unbalanced parentheses, nested detail groups, empty name) |
 | E012 | malformed `Scores` / `ASI` / `Classes` value shape |
+| E013 | `@<n>` stamp outside a detail |
 
 ---
 
@@ -302,8 +326,8 @@ Subclass: Celestial
 ```
 Shigen
 Rules: 2024
-Species: Human
-Background: Archer Priest|HB
+Species: Human (Spellfire Spark|FRHoF)
+Background: Archer Priest|HB (+2 CHA, +1 DEX; Religion, Persuasion; Woodcarver's Tools; Mark of Making|EFA)
 Scores: 8/13/14/12/10/15
 Classes: Fighter 1 / Warlock 5
 Subclass: Celestial
@@ -312,6 +336,7 @@ Masteries: Longbow, Rapier, Warhammer
 Invocations: Agonizing Blast (True Strike), Repelling Blast (True Strike), Pact of the Blade, Ascendant Step, Eldritch Smite
 Feat: Potent Dragonmark|EFA (CHA)
 Cantrips: Blade Ward, True Strike, Prestidigitation
+Spells: Detect Magic, Misty Step, Suggestion, Borrowed Knowledge|SCC, Dispel Magic, Fear
 ```
 
 ### 8.3 Full timeline
@@ -333,7 +358,7 @@ Skills: Nature, Survival
 Cantrips: Produce Flame, Thorn Whip
 Prepared: Cure Wounds, Entangle, Faerie Fire, Healing Word
 
-L2 Druid
+L3 Druid
 Subclass: Circle of the Moon
 
 L4 Druid
@@ -346,4 +371,5 @@ ASI: +2 WIS
 
 - `---` multi-build separator (variants, parties) — D6, D18.
 - `Game:` header selecting a profile other than `dnd5e` — O1.
+- A played-level marker, if `Classes` + planned blocks ever proves insufficient (D20 removed `Level:`).
 - A `Paste:` format-version header, only if a breaking change ever forces one.

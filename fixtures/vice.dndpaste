@@ -1,17 +1,14 @@
 Vice
 Rules: 2024
-Level: 2
-Species: Autognome|AAG
-Background: Fey Puppet|HB
+Species: Autognome|AAG (Thieves' Tools, Forgery Kit)
+Background: Fey Puppet|HB (+2 CHA, +1 DEX; Performance, Stealth; Disguise Kit; Fey Pact|HB (CHA))
 Scores: 8/15/14/10/8/15
-Classes: Warlock 10
+Classes: Warlock 2
 
 L1 Warlock
-Option: Specialized Design (Thieves' Tools, Forgery Kit)
 Invocations: Pact of the Chain
 Cantrips: Mind Sliver, Minor Illusion
 Spells: Hex, Armor of Agathys
-Prepared: Hex, Armor of Agathys
 
 L2 Warlock
 Invocations: Mask of Many Faces, Misty Visions
