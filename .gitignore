@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+# 5etools-derived data stays local; an SRD subset may be committed under data/srd/ at M2
+data/*
+!data/srd/
+.DS_Store
