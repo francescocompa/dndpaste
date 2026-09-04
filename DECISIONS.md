@@ -47,7 +47,7 @@
 ## OPEN
 
 - **O1 — trpgpaste.** Game-neutral core + per-game profiles is a design constraint from D8; which other games, and what a "level" means there, is unevaluated. Unblocked by: someone with expertise in a second system.
-- **O2 — Checker data source.** Recommended: a compact "choice slots" extract built from the 5etools mirror, SRD subset committed, rest gitignored (same content boundary as my-spellbook). Decide at M2.
+- ~~**O2 — Checker data source.**~~ **DECIDED → D35.**
 - **O3 — Package distribution.** npm package vs. copied file into consumers. Decide at M3 when the first consumer lands.
 
 - **D18 — Blank lines are insignificant; the multi-build separator reserved by D6 is the line `---`. DECIDED (2026-09-04, spec drafting).** Level blocks already use blank lines cosmetically, so the blank line cannot double as the variant/party separator D6 reserved. Amends D6; `---` is an error (E010) in v0.
@@ -76,7 +76,7 @@
 
 - **D28 — Unplaced lines carry no class qualifier; the consumer assigns them. DECIDED (2026-09-04).** Parser records no class; a consumer assigns to the class that can own the pick, and to any of them when several can. *Raw note:* "If they can be inferred without any class qualifier, than do that, otherwise if the classes share for example the skill picked, assign it to any of the two. There should be no specific vocabulary for less detailed builds." *Rejected:* class-qualified keys (`Warlock Subclass:`); class as a detail; flat form only for single-class builds.
 
-- **D29 — `Subclass`, `Feat`, `Fighting Style` are lists in header scope, single items in a level block. DECIDED (2026-09-04, panel finding, 3 panelists).** Otherwise a flat multiclass or a two-feat build is unwritable, contradicting D4.
+- **D29 — `Subclass`, `Feat`, `Fighting Style` are lists in header scope, single items in a level block. DECIDED (2026-09-04, panel finding, 3 panelists).** **AMENDED → D34 (`Feat` and `Fighting Style` are lists everywhere, so an extra granted at a level is writable; only `Subclass` stays single per level block).** Otherwise a flat multiclass or a two-feat build is unwritable, contradicting D4.
 
 - **D30 — `emit` is data-free and lossless; data-aware `normalise` lives in the checker. DECIDED (2026-09-04, panel finding, 2 panelists).** Amends D11: the checker also carries a small hand-kept supplement for prose-only slots (Divine Order, Draconic Ancestry, Mystic Arcanum, 2014 equipment, invocation sub-picks) — the Domain Purist showed the pure-data premise does not hold for those.
 
@@ -87,3 +87,11 @@
 ## OPEN (added)
 
 - **O4 — Feat detail slot order.** Ability first, then printed order, is the rule; a per-feat table in the checker supplement will be needed for feats whose printed order is unclear. Decide at M2.
+
+- **D33 — `Items` key for magic items and gear acquired in play, distinct from starting `Equipment`. DECIDED (2026-09-04).** Placed at the level gained, details for the item's own picks; never owed, so never "missing". *Raw note:* "include the possibility to mark magic items". *Rejected:* folding them into `Equipment` (conflates a rules choice with a table event); a `Magic Items` key (2024 has non-magic acquired gear too).
+
+- **D34 — Extras are accepted and flagged at info severity. DECIDED (2026-09-04).** A pick with no slot (extra feat, second fighting style, bonus invocation) is reported as `extra` and otherwise treated as part of the build. Every checker finding is warning or info; only grammar is an error. *Raw note:* "allow the checker to accept for example extra feats or other extras (they are flagged, but nonetheless accepted, perhaps a boon from the dm)". *Rejected:* an explicit `boon` marker in the syntax (adds vocabulary for a case the checker can classify by itself).
+
+- **D35 — The checker's data is a compact slot table extracted from the 5etools mirror, plus a hand-kept supplement. DECIDED (2026-09-04, closes O2).** `scripts/extract-slots.mjs` emits names, counts, levels and option lists per class, subclass, species, background, feat, optional feature, spell and magic item — no rules text. Edition is taken from the entity when present, else inferred from the source's publication date (XPHB shipped 2024-09-17); ties between sources prefer the core group. `data/slots.json` is gitignored; `data/srd/slots.json` (SRD-flagged entities) is committed and drives the tests. `data/supplement.json` holds prose-only slots (Divine Order options come from data; lineage trait names, spellbook sizes, invocation sub-picks, Mystic Arcanum do not). *Rejected:* reading raw 5etools JSON at check time (schema coupling, not shippable); a hand-maintained profile table (D11).
+
+- **D36 — Missing is judged against played levels only; extras against every level present. DECIDED (2026-09-04).** A planned level above the `Classes` total owes nothing yet, but a pick written there counts toward the build, so a planned subclass at `L3` on a `Warlock 2` is neither missing nor extra.

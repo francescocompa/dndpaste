@@ -17,3 +17,14 @@ Fidelity notes:
   form (D4, D28). Skills chosen at Fighter 1 are not on the compiled sheet and are omitted. Whether
   Spellfire Spark or Fey Sentinel ask for an ability pick is unverified (⚑ Francesco): if so, it
   goes in the feat's first detail slot.
+
+## What the checker says about them (full extract, 2026-09-04)
+
+The checker caught two genuine defects in the source sheets, which is the proof point M1 wanted:
+- `shigen`: **Agonizing Blast at Warlock 1** — the 2024 invocation needs Warlock level 2 (misplaced).
+- `vice`: **one prepared spell short** at Warlock 2 (the 2024 table gives 3; the sheet lists Hex and
+  Armor of Agathys). Hex is also flagged redundant: the 2024 Great Old One grants it.
+
+`flat-multiclass` shows the extras policy: `Feat: Resilient` on a Fighter 3 / Warlock 3 has no ASI
+slot to fill, so it is reported as an accepted extra, not an error (D34). `druid-custom-background`
+shows a level-4 Druid still owing its third cantrip.

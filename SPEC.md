@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.3 (draft, 2026-09-04) · **Status:** post-panel, awaiting Francesco's read · Decisions: `DECISIONS.md` D1–D32.
+**Version:** 0.4 (draft, 2026-09-04) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy · Decisions: `DECISIONS.md` D1–D34.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -157,7 +157,7 @@ A value that does not match its type is `E012`.
 | `\|SOURCE` | Optional source code, 5etools convention (`XPHB`, `PHB`, `TCE`, `AAG`, …). Homebrew uses the code its file declares, or `HB` when it has none (D9). |
 | `[group; group]` | **Details**: the sub-choices this item asks for, in the **slot order the profile fixes for that key** (§5.3). Groups are `;`-separated, details inside a group `,`-separated. An empty group keeps its `;` so later groups keep their slot; trailing empty groups are dropped. A detail has no details of its own (no nested brackets, `E011`). |
 | `@<n>` | On a detail only (`E013`): the sub-choice is made at character level *n*, for an item gained earlier that asks again later. |
-| `x<qty>` | Quantity ≥ 2, `Equipment` only (`E009`). |
+| `x<qty>` | Quantity ≥ 2, `Equipment` and `Items` only (`E009`). |
 
 ### 3.2 References
 
@@ -226,15 +226,16 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Tools` | items | H, S, B, L | tool proficiencies chosen |
 | `Languages` | items | H, S, B, L | languages chosen |
 | `Expertise` | items | H, L | |
-| `Feat` | items¹ | H, S, B, L | any feat: origin feat asked by a species or custom background, ASI-slot feat at a level. Details per §5.3 |
-| `Fighting Style` | items¹ | H, L | 2014 optional feature or 2024 feat, same key either way |
+| `Feat` | items | H, S, B, L | any feat: origin feat asked by a species or custom background, ASI-slot feat at a level. Details per §5.3 |
+| `Fighting Style` | items | H, L | 2014 optional feature or 2024 feat, same key either way. A list even in a level block, so an extra style granted by the DM is writable (D34) |
 | `Masteries` | items | H, L | weapon-mastery loadout from that level on (a snapshot: masteries swap on long rests) |
 | `Options` | items | H, L | **every optional feature** regardless of family: invocations, metamagic, manoeuvres, infusions, arcane shots, runes, elemental disciplines, 2014 pact boons, … 5etools tags each one's family, so the format never needs a new key for a new family (D27). Details = the option's own picks |
 | `Feature` | items | S, B, L | a **named feature with a pick and no dedicated key**: `Feature: Divine Order [Warden]`, `Feature: Elven Lineage [High]`, `Feature: Draconic Ancestry [Red]`, `Feature: Size [Small]`. Details = the picks (§5.3). Placed in S/B/L, it belongs to that entity; never in H |
 | `Cantrips` | items | H, S, B, L | cantrips chosen |
 | `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster |
 | `Prepared` | items | H, L | default prepared loadout, **only** for casters whose repertoire exceeds the prepare count (a full-list preparer, a wizard's spellbook). The checker's normalise step removes it where `Spells` already says it (D23) |
-| `Equipment` | items | H, B, L | in B: the background's starting option letter (`A`/`B`) or items; in the **first level block**: the class's option letter (`A`/`B`/`C`) or items; in H: unplaced items. Letters exist only under 2024 rules; 2014 builds list items |
+| `Equipment` | items | H, B, L | **starting gear**: in B the background's option letter (`A`/`B`) or items; in the **first level block** the class's option letter (`A`/`B`/`C`) or items; in H unplaced items. Letters exist only under 2024 rules; 2014 builds list items |
+| `Items` | items | H, L | **magic items and other gear acquired in play**, placed at the level gained (`Items: Flame Tongue, Cloak of Protection`). Details = the item's own picks (`Items: Instrument of the Bards [Doss Lute]`). Never a choice the rules owe, so the checker never reports it missing; it resolves the name and flags nothing else (D33) |
 
 Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
 
@@ -281,7 +282,7 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
 
 1. Identifier line, if any.
 2. Header scope in this order: `Paste`, `Rules`, `Scores`, `Classes`, then unplaced choice
-   keys in §5.1 table order, then `X-` keys alphabetically.
+   keys in §5.1 table order (`Items` last), then `X-` keys alphabetically.
 3. Blank line, `Species` block; blank line, `Background` block; each with its lines in §5.1
    order.
 4. Each level block, ascending, header `L<n> <Class>`, lines in §5.1 order.
@@ -295,6 +296,12 @@ species skill written in H into the Species block — is **normalise**, in the c
 
 ## 6. Checker (scope note)
 
+**Extras are accepted.** A pick the rules do not owe at that point — a third feat at level 4, a
+second fighting style, a bonus invocation, an `Items` line — is reported as **extra** at *info*
+severity and otherwise treated as part of the build: a DM boon is a legitimate build fact, and the
+paste's job is to replay the build, not to adjudicate it (D34). Only grammar problems are errors;
+every checker finding is a warning or an info.
+
 Given the AST, a slot table derived from 5etools-format data (`choose`, `featProgression`,
 `optionalfeatureProgression`, `additionalSpells`, `_versions`, equipment `defaultData`) **plus
 a hand-kept supplement for prose-only slots** (Divine Order, Draconic Ancestry, Mystic
@@ -303,7 +310,7 @@ checker reports: **missing** (a default-less slot owed at or below the played le
 line), **misplaced** (a slot that does not exist at that level or class), **unresolved** (no
 match, or several), **redundant** (a granted item written as a choice; `Prepared` for a
 pick-on-level-up caster; a written default), **unplaced** (a header choice more than one class
-could own). It never edits the paste; `normalise` is a separate, explicit step that returns a
+could own), **extra** (a pick with no slot, accepted — see above). It never edits the paste; `normalise` is a separate, explicit step that returns a
 new AST.
 
 ---
@@ -320,7 +327,7 @@ new AST.
 | E006 | empty value |
 | E007 | list given to an `item`-typed key |
 | E008 | drop prefix outside a level scope or on a non-`items` key |
-| E009 | quantity on a key other than `Equipment` |
+| E009 | quantity on a key other than `Equipment` or `Items` |
 | E010 | reserved line `---` |
 | E011 | malformed item: unbalanced brackets or quotes, nested brackets, empty name |
 | E012 | value does not match the key's type (`classes`, `scores`, `asi`, `enum`, `int`) |

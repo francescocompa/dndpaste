@@ -3,8 +3,9 @@
 // strip `export` keywords, collect the exported names, wrap in a UMD shell.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
-const src = readFileSync(new URL("../dist/src/dndpaste.js", import.meta.url), "utf8");
-if (/^\s*import\s/m.test(src)) throw new Error("dndpaste.js must stay import-free for the UMD build");
+// Both modules are concatenated: check.js imports only types from dndpaste.js, so nothing survives at runtime.
+const src = ["dndpaste.js", "check.js"].map((f) => readFileSync(new URL(`../dist/src/${f}`, import.meta.url), "utf8")).join("\n");
+if (/^\s*import\s/m.test(src)) throw new Error("library modules must stay import-free for the UMD build");
 
 const names = new Set();
 for (const m of src.matchAll(/^export\s+(?:const|function|class|let|var)\s+([A-Za-z_$][\w$]*)/gm)) names.add(m[1]);

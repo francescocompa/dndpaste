@@ -31,5 +31,15 @@ Cantrips: Blade Ward, True Strike
 - **Verify:** `npm run verify` (typecheck, lint, tests incl. byte-for-byte round-trip of
   `fixtures/`).
 
-A data-driven **checker** (what a build still owes, given 5etools-format data) is the next
-milestone — see `PLAN.md`.
+- **Checker:** `src/check.ts` — `check(paste, slots, supplement)` reports what a build still
+  owes (**missing**), what sits at an impossible level (**misplaced**), names that do not resolve
+  (**unresolved**), choices the rules grant anyway (**redundant**), header picks that could belong
+  to several classes (**unplaced**) and picks the rules never granted (**extra** — accepted, a DM
+  boon is a build fact). Findings are warnings or infos, never errors. `normalise` returns a new
+  paste with the redundant lines folded away.
+- **Slot table:** `node scripts/extract-slots.mjs [mirror/data]` reads a 5etools data mirror and
+  writes `data/slots.json` (full, gitignored) and `data/srd/slots.json` (SRD-flagged entities,
+  committed). Names, counts, levels and option lists only — no rules text. `data/supplement.json`
+  is the hand-kept list of choice slots 5etools encodes only as prose.
+
+The UMD file bundles parser, emitter and checker under one global.

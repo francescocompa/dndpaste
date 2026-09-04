@@ -1,6 +1,6 @@
 {
   "name": "dndpaste",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Pokepaste-style plain-text format for D&D 5e builds: reference parser and canonical emitter",
   "license": "MIT",
   "type": "module",

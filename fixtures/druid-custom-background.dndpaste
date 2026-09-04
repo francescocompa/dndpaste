@@ -1,0 +1,26 @@
+Rules: 2024
+Scores: 10/14/13/8/16/12
+Classes: Druid 4
+
+Species: Elf
+Ability: WIS
+Skills: Perception
+Feature: Elven Lineage [Wood]
+
+Background: Custom
+ASI: +2 WIS, +1 DEX
+Skills: Insight, Stealth
+Tools: Herbalism Kit
+Feat: Magic Initiate [WIS; Druid; Guidance, Shillelagh; Goodberry]
+
+L1 Druid
+Skills: Nature, Survival
+Feature: Primal Order [Warden]
+Cantrips: Produce Flame, Thorn Whip
+Prepared: Cure Wounds, Entangle, Faerie Fire, Healing Word
+
+L3 Druid
+Subclass: Circle of the Moon
+
+L4 Druid
+ASI: +2 WIS

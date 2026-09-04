@@ -41,14 +41,15 @@ L<n> <Class>                   level block, n = character level
 - [x] `src/dndpaste.ts` `parse` → AST (SPEC §4); never throws; line on every diagnostic. (2026-09-04)
 - [x] `emit` → canonical text, data-free (SPEC §5.5); fixtures round-trip byte-for-byte.
 - [x] Zero deps; ESM + `dist/dndpaste.umd.cjs` (derived by `scripts/umd.mjs`; `.cjs` because the package is `type: module`); strict TS; `npm run verify` = typecheck + lint + test (33 tests).
-- [x] Tests cover: sparse, identifier, quoting, quantity, drop, empty groups, `@n`, case, `X-` keys, every E-code. ⏳ Still to add as `.dndpaste` fixture files: a flat multiclass and SPEC §8.4 (species block + custom background).
+- [x] Tests cover: sparse, identifier, quoting, quantity, drop, empty groups, `@n`, case, `X-` keys, every E-code. Fixture files: vice, shigen, flat-multiclass, druid-custom-background.
 - [x] **Vice** and **Shigen** hand-written as dndpastes (`fixtures/`), parse clean and round-trip byte-for-byte from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
 - [x] 🔶 Francesco read SPEC 0.3 + fixtures: "looks right" (2026-09-04).
 
-### M2 — Checker · size M/L · 🔶 O2 first
-- [ ] `scripts/extract-slots.*` from the 5etools mirror → compact "choice slots" JSON (class, subclass, species, background, feat: what is chosen, how many, at which level, from which pool). SRD subset committed, rest gitignored.
-- [ ] `src/check.ts(ast, slots)` → missing / misplaced / unresolved / redundant / unplaced findings, plus `normalise(ast, slots)` (D30). Slot table = data extract **+ hand-kept supplement** for prose-only slots (D30).
-- [ ] Homebrew: accepts any 5etools-format JSON as extra slot data (a homebrew file brings its own slots).
+### M2 — Checker · size M/L · ✅ first cut shipped 2026-09-04 (D35, D36)
+- [x] `scripts/extract-slots.mjs` → `data/slots.json` + `data/srd/slots.json` (D35).
+- [x] `src/check.ts` → missing / misplaced / unresolved / redundant / unplaced / **extra** findings + `normalise` (D30, D34). 15 tests on the SRD table; the two real builds run against the full table when present.
+- [ ] M2 tail: 2014 starting-equipment picks; Tasha's optional class features (pickless, change other slots); spell-list legality (is this spell on that class's list); ability-score arithmetic once `Scores` + ASI are worth validating; a `bin/dndpaste` CLI (`check <file>`).
+- [ ] Homebrew: run the extract over a 5etools-format homebrew file and merge its slots (a homebrew file brings its own slots).
 
 ### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo
 - [ ] Copies `dist/dndpaste.umd.cjs` (global `dndpaste`); `levelGains`/`timelinePicks` → AST → `emit`. Scores line omitted. Logged in that repo's DECISIONS as the format L5.5 was waiting for.

@@ -65,8 +65,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Tools", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Languages", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Expertise", type: "items", scopes: ["H", "L"] },
-  { key: "Feat", type: "items¹", scopes: ["H", "S", "B", "L"] },
-  { key: "Fighting Style", type: "items¹", scopes: ["H", "L"] },
+  { key: "Feat", type: "items", scopes: ["H", "S", "B", "L"] },
+  { key: "Fighting Style", type: "items", scopes: ["H", "L"] },
   { key: "Masteries", type: "items", scopes: ["H", "L"] },
   { key: "Options", type: "items", scopes: ["H", "L"] },
   { key: "Feature", type: "items", scopes: ["S", "B", "L"] },
@@ -74,6 +74,7 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Spells", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Prepared", type: "items", scopes: ["H", "L"] },
   { key: "Equipment", type: "items", scopes: ["H", "B", "L"] },
+  { key: "Items", type: "items", scopes: ["H", "L"] },
 ];
 
 const KEY_BY_LOWER = new Map(KEYS.map((k) => [k.key.toLowerCase(), k]));
@@ -98,7 +99,7 @@ const MESSAGES: Record<string, string> = {
   E006: "empty value",
   E007: "list given to a single-item key",
   E008: "drop prefix outside a level scope or on a non-list key",
-  E009: "quantity on a key other than Equipment",
+  E009: "quantity on a key other than Equipment or Items",
   E010: "reserved line ---",
   E011: "malformed item",
   E012: "value does not match the key's type",
@@ -292,7 +293,7 @@ function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line
       if (single && items.length > 1) { diag.add("E007", line); return null; }
       for (const it of items) {
         if (it.drop && (scope !== "L" || single)) { diag.add("E008", line); return null; }
-        if (it.qty !== null && def.key !== "Equipment") { diag.add("E009", line); return null; }
+        if (it.qty !== null && def.key !== "Equipment" && def.key !== "Items") { diag.add("E009", line); return null; }
       }
       return { type: "items", items };
     }
