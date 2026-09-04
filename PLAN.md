@@ -35,7 +35,7 @@ L<n> <Class>                   level block, n = character level
 - [x] `~/Documents/GitHub/dndpaste` public repo (2026-09-04, not yet on GitHub): CLAUDE.md, PLAN.md, DECISIONS.md, STATE.md, SPEC.md skeleton, LICENSE (MIT), `.gitignore` reserving `data/` for future non-SRD extracts.
 - [x] Content boundary stated up front: fixtures name WotC entities, never quote rules text.
 
-### M1 — SPEC v0 + parser + fixtures (D17) · size M
+### M1 — SPEC v0 + parser + fixtures (D17) · ✅ DONE 2026-09-04
 - [x] **SPEC.md v0** (0.1 → 0.3 after his review and the panel, 2026-09-04): core grammar (EBNF), 5e profile (keys, value shapes, detail-group orders), canonical emit rules, error classes, versioning (`formatVersion` in spec, not in paste).
 - [x] 🔍 **/panel on SPEC 0.2** (5 personas, 5–0 change) → D25–D32, SPEC 0.3. A second, cheaper panel pass on 0.3 is optional; his read is the gate.
 - [x] `src/dndpaste.ts` `parse` → AST (SPEC §4); never throws; line on every diagnostic. (2026-09-04)
@@ -49,7 +49,8 @@ L<n> <Class>                   level block, n = character level
 - [x] `scripts/extract-slots.mjs` → `data/slots.json` + `data/srd/slots.json` (D35).
 - [x] `src/check.ts` → missing / misplaced / unresolved / redundant / unplaced / **extra** findings + `normalise` (D30, D34). 15 tests on the SRD table; the two real builds run against the full table when present.
 - [x] Stress wave 2026-09-04 (`stress/REPORT.md`): 65 pastes, 11 fixes, 9 open calls.
-- [ ] M2 tail: 2014 starting-equipment picks; spell-list legality (is this spell on that class's list); `+N` magic-variant prefix; name-alias fallback (`Jallarzi's Storm of Radiance`); size default; ability-score arithmetic; a `bin/dndpaste` CLI (`check <file>`); promote stress pastes to fixtures.
+- [x] `+N` magic-variant prefix (D40); Medium default size (D39); six stress pastes promoted to fixtures (2026-09-04).
+- [ ] M2 tail: 2014 starting-equipment picks; spell-list legality (is this spell on that class's list); name-alias fallback (`Jallarzi's Storm of Radiance`); dangling `Class 0` in `Classes` → unplaced info; ability-score arithmetic; a `bin/dndpaste` CLI (`check <file>`).
 - [ ] Homebrew: run the extract over a 5etools-format homebrew file and merge its slots (a homebrew file brings its own slots).
 
 ### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo
