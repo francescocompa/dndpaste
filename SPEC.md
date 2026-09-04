@@ -220,12 +220,12 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Species` | item · **opens block** | H | the species; its picks are the block's lines |
 | `Background` | item · **opens block** | H | the background; official: block holds only the picks it asks (2024: `ASI`); custom/homebrew: the block holds everything (`ASI`, `Skills`, `Tools`, `Feat`, `Equipment`) so the paste is complete without the homebrew file (D21, D26) |
 | `Subclass` | items¹ | H, L | the class's subclass; in L it belongs to the block's class |
+| `ASI` | asi | H, S, B, L | ability bonuses: `+2 CHA` or `+1 INT, +1 CON`. In S/B: the species (2014) or background (2024) bonuses. In L: the ASI taken at that level |
+| `Ability` | item | S, B, L | a **casting-ability pick** (INT/WIS/CHA) asked by a species trait or feature. A feat's casting ability goes in the feat's details (§5.3) |
 | `Skills` | items | H, S, B, L | skill proficiencies **chosen** |
 | `Tools` | items | H, S, B, L | tool proficiencies chosen |
 | `Languages` | items | H, S, B, L | languages chosen |
 | `Expertise` | items | H, L | |
-| `ASI` | asi | H, S, B, L | ability bonuses: `+2 CHA` or `+1 INT, +1 CON`. In S/B: the species (2014) or background (2024) bonuses. In L: the ASI taken at that level |
-| `Ability` | item | S, B, L | a **casting-ability pick** (INT/WIS/CHA) asked by a species trait or feature. A feat's casting ability goes in the feat's details (§5.3) |
 | `Feat` | items¹ | H, S, B, L | any feat: origin feat asked by a species or custom background, ASI-slot feat at a level. Details per §5.3 |
 | `Fighting Style` | items¹ | H, L | 2014 optional feature or 2024 feat, same key either way |
 | `Masteries` | items | H, L | weapon-mastery loadout from that level on (a snapshot: masteries swap on long rests) |
