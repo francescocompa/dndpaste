@@ -1,17 +1,24 @@
 Vice
 Rules: 2024
-Species: Autognome|AAG (Thieves' Tools, Forgery Kit)
-Background: Fey Puppet|HB (+2 CHA, +1 DEX; Performance, Stealth; Disguise Kit; Fey Pact|HB (CHA))
 Scores: 8/15/14/10/8/15
 Classes: Warlock 2
 
+Species: Autognome|AAG
+Tools: Thieves' Tools, Forgery Kit
+
+Background: Fey Puppet|HB
+ASI: +2 CHA, +1 DEX
+Skills: Performance, Stealth
+Tools: Disguise Kit
+Feat: Fey Pact|HB [CHA]
+
 L1 Warlock
-Invocations: Pact of the Chain
+Options: Pact of the Chain
 Cantrips: Mind Sliver, Minor Illusion
 Spells: Hex, Armor of Agathys
 
 L2 Warlock
-Invocations: Mask of Many Faces, Misty Visions
+Options: Mask of Many Faces, Misty Visions
 
 L3 Warlock
 Subclass: Great Old One
@@ -20,4 +27,4 @@ L4 Warlock
 Feat: Fey Sentinel|HB
 
 L5 Warlock
-Invocations: Repelling Blast
+Options: Repelling Blast

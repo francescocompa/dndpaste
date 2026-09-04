@@ -4,7 +4,7 @@
 > parser/checker. Spec-first project; public repo; no rules text ever lands here.
 
 ## Read first
-`STATE.md` (resume block) → `PLAN.md` (queue) → `DECISIONS.md` (D1–D17, append-only) → `SPEC.md`.
+`STATE.md` (resume block) → `PLAN.md` (queue) → `DECISIONS.md` (append-only; superseded entries are marked AMENDED in place) → `SPEC.md`.
 
 ## What it is / is not
 - A **format** (`SPEC.md`) + a **zero-dependency TypeScript library**: `parse`, `emit`, later `check`.

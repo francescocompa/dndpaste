@@ -1,28 +1,35 @@
 Shigen
 Rules: 2024
-Species: Human (Spellfire Spark|FRHoF)
-Background: Archer Priest|HB (+2 CHA, +1 DEX; Religion, Persuasion; Woodcarver's Tools; Mark of Making|EFA)
 Scores: 8/13/14/12/10/15
 Classes: Fighter 1 / Warlock 5
 Spells: Detect Magic, Misty Step, Suggestion, Borrowed Knowledge|SCC, Dispel Magic, Fear
+
+Species: Human
+Feat: Spellfire Spark|FRHoF
+
+Background: Archer Priest|HB
+ASI: +2 CHA, +1 DEX
+Skills: Religion, Persuasion
+Tools: Woodcarver's Tools
+Feat: Mark of Making|EFA
 
 L1 Fighter
 Fighting Style: Archery
 Masteries: Longbow, Rapier, Warhammer
 
 L2 Warlock
-Invocations: Agonizing Blast (True Strike)
+Options: Agonizing Blast [True Strike]
 Cantrips: Blade Ward, True Strike
 
 L3 Warlock
-Invocations: Repelling Blast (True Strike), Pact of the Blade
+Options: Repelling Blast [True Strike], Pact of the Blade
 Cantrips: Prestidigitation
 
 L4 Warlock
 Subclass: Celestial
 
 L5 Warlock
-Feat: Potent Dragonmark|EFA (CHA)
+Feat: Potent Dragonmark|EFA [CHA]
 
 L6 Warlock
-Invocations: Ascendant Step, Eldritch Smite
+Options: Ascendant Step, Eldritch Smite

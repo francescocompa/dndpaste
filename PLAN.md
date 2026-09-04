@@ -10,23 +10,24 @@ first-class: a class name alone is valid. Two layers: a data-free **parser** (gr
 emit, round-trip) and a data-driven **checker** (which choices a build owes, from 5etools-format
 data, official or homebrew). Core grammar is game-neutral; D&D 5e is the first **profile**.
 
-## Grammar sketch that SPEC v0 must pin down (D4, D7, D12–D15)
+## Grammar sketch (SPEC 0.3 is the truth; this is the shape)
 
 ```
-<identifier line>?                       one line, free-form, no key — optional
-<Key>: <value>                           header/unplaced lines
-<blank>
-L<n> <Class>[|SOURCE]                    level block header; n = character level
-<Key>: <value>                           placed lines
+<identifier line>?
+<Key>: <value>                 header scope: Rules · Scores · Classes · unplaced choices
+
+Species: <ref>                 entity block — its picks as key lines
+<Key>: <value>
+Background: <ref>              entity block
+<Key>: <value>
+
+L<n> <Class>                   level block, n = character level
+<Key>: <value>
 ```
-- Value = item list, `,`-separated. Item = `Name[|SOURCE][ (detail; detail, item)]`. Leading `-` = dropped at this level.
-- 5e profile keys (canonical): Rules · Species · Background · Scores · Classes · Subclass ·
-  Skills · Tools · Languages · Expertise · Fighting Style · Masteries · Invocations · Metamagic ·
-  Pact · ASI · Feat · Cantrips · Spells · Prepared · Equipment. Unknown keys: parse error (D1).
-- Header-only keys: Rules, Species, Background, Scores, Classes. Everything else may be placed or unplaced.
-- `Classes:` is the class order with levels (`Fighter 1 / Warlock 5`); blocks refine, never contradict.
-- Custom background: `Background: Custom (+2 INT, +1 CON; Arcana, History; Calligrapher's Supplies; Magic Initiate (Wizard))` — detail groups in a fixed profile-defined order.
-- Reserved, not in v1: blank-line-separated second block (variants/party, D6); `Game:` header (O1).
+- Item: `[-]Name[|SRC] [slot; slot] x<qty>`; brackets for details, quotes for names containing `, ; : [ ]`.
+- Choice keys: Subclass · Skills · Tools · Languages · Expertise · ASI · Ability · Feat · Fighting Style ·
+  Masteries · Options (all optional-feature families) · Feature (named feature with a pick) · Cantrips ·
+  Spells · Prepared · Equipment. Reserved: `---`, `Game:`, `Paste:`, `X-` keys.
 
 ## Milestones
 
@@ -35,18 +36,18 @@ L<n> <Class>[|SOURCE]                    level block header; n = character level
 - [x] Content boundary stated up front: fixtures name WotC entities, never quote rules text.
 
 ### M1 — SPEC v0 + parser + fixtures (D17) · size M
-- [x] **SPEC.md v0** (0.1 draft, 2026-09-04): core grammar (EBNF), 5e profile (keys, value shapes, detail-group orders), canonical emit rules, error classes, versioning (`formatVersion` in spec, not in paste).
-- [ ] 🔍 **/panel on SPEC v0** before code (grammar regrets are the expensive kind). Personas: a parser author, a Discord user pasting by hand, a 5etools data maintainer, a homebrew DM.
-- [ ] `src/parse.ts` → AST (`header`, `unplaced[]`, `levels[]`, diagnostics); never throws; positions on every diagnostic.
-- [ ] `src/emit.ts` → canonical text; `parse(emit(parse(x)))` is a fixed point.
+- [x] **SPEC.md v0** (0.1 → 0.3 after his review and the panel, 2026-09-04): core grammar (EBNF), 5e profile (keys, value shapes, detail-group orders), canonical emit rules, error classes, versioning (`formatVersion` in spec, not in paste).
+- [x] 🔍 **/panel on SPEC 0.2** (5 personas, 5–0 change) → D25–D32, SPEC 0.3. A second, cheaper panel pass on 0.3 is optional; his read is the gate.
+- [ ] `src/parse.ts` → AST (SPEC §4: header scope, entity blocks, level blocks, typed values, diagnostics); never throws; line on every diagnostic.
+- [ ] `src/emit.ts` → canonical text, data-free (SPEC §5.5); `emit(parse(emit(a))) === emit(a)`.
 - [ ] Zero deps; ESM + `dist/dndpaste.umd.js`; strict TS; `npm run verify` = typecheck + lint + test.
 - [ ] Fixtures: sparse (class only), flat, mixed, full multiclass, homebrew refs, custom background, spell swap, every error class.
-- [~] **Vice** and **Shigen** hand-written as dndpastes (`fixtures/`, written; round-trip pending the parser) from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
+- [~] **Vice** and **Shigen** hand-written as dndpastes (`fixtures/`, rewritten for 0.3; round-trip pending the parser) from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
 - [ ] 🔶 Francesco reads the two real pastes and signs the shape off.
 
 ### M2 — Checker · size M/L · 🔶 O2 first
 - [ ] `scripts/extract-slots.*` from the 5etools mirror → compact "choice slots" JSON (class, subclass, species, background, feat: what is chosen, how many, at which level, from which pool). SRD subset committed, rest gitignored.
-- [ ] `src/check.ts(ast, slots)` → missing / unplaced / illegal-level / unknown-reference findings. No inference (D4).
+- [ ] `src/check.ts(ast, slots)` → missing / misplaced / unresolved / redundant / unplaced findings, plus `normalise(ast, slots)` (D30). Slot table = data extract **+ hand-kept supplement** for prose-only slots (D30).
 - [ ] Homebrew: accepts any 5etools-format JSON as extra slot data (a homebrew file brings its own slots).
 
 ### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo
