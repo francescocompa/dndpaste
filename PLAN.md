@@ -31,17 +31,17 @@ L<n> <Class>[|SOURCE]                    level block header; n = character level
 ## Milestones
 
 ### M0 — Seed the repo · size S
-- [ ] `~/Documents/GitHub/dndpaste` public repo: CLAUDE.md, PLAN.md, DECISIONS.md, STATE.md, SPEC.md skeleton, LICENSE (MIT), `.gitignore` reserving `data/` for future non-SRD extracts.
-- [ ] Content boundary stated up front: fixtures name WotC entities, never quote rules text.
+- [x] `~/Documents/GitHub/dndpaste` public repo (2026-09-04, not yet on GitHub): CLAUDE.md, PLAN.md, DECISIONS.md, STATE.md, SPEC.md skeleton, LICENSE (MIT), `.gitignore` reserving `data/` for future non-SRD extracts.
+- [x] Content boundary stated up front: fixtures name WotC entities, never quote rules text.
 
 ### M1 — SPEC v0 + parser + fixtures (D17) · size M
-- [ ] **SPEC.md v0**: core grammar (EBNF), 5e profile (keys, value shapes, detail-group orders), canonical emit rules, error classes, versioning (`formatVersion` in spec, not in paste).
+- [x] **SPEC.md v0** (0.1 draft, 2026-09-04): core grammar (EBNF), 5e profile (keys, value shapes, detail-group orders), canonical emit rules, error classes, versioning (`formatVersion` in spec, not in paste).
 - [ ] 🔍 **/panel on SPEC v0** before code (grammar regrets are the expensive kind). Personas: a parser author, a Discord user pasting by hand, a 5etools data maintainer, a homebrew DM.
 - [ ] `src/parse.ts` → AST (`header`, `unplaced[]`, `levels[]`, diagnostics); never throws; positions on every diagnostic.
 - [ ] `src/emit.ts` → canonical text; `parse(emit(parse(x)))` is a fixed point.
 - [ ] Zero deps; ESM + `dist/dndpaste.umd.js`; strict TS; `npm run verify` = typecheck + lint + test.
 - [ ] Fixtures: sparse (class only), flat, mixed, full multiclass, homebrew refs, custom background, spell swap, every error class.
-- [ ] **Vice** and **Shigen** hand-written as dndpastes from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
+- [~] **Vice** and **Shigen** hand-written as dndpastes (`fixtures/`, written; round-trip pending the parser) from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
 - [ ] 🔶 Francesco reads the two real pastes and signs the shape off.
 
 ### M2 — Checker · size M/L · 🔶 O2 first

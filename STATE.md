@@ -1,6 +1,9 @@
 # STATE — dndpaste
 
-## TL;DR (2026-09-04 · pre-repo · scoped)
-- Scoping interview done (8 rounds) → D1–D17 in `DECISIONS.md`; O1–O3 open.
-- Next action: **M0** (seed repo) then **M1** (SPEC v0 → /panel → parser → fixtures → Vice/Shigen).
-- Waiting on Francesco: sign-off to create the repo.
+## TL;DR (2026-09-04 · repo seeded, SPEC 0.1 drafted · no code yet)
+- Scoping interview (8 rounds) → D1–D17; spec drafting added D18–D19. O1–O3 open.
+- `SPEC.md` 0.1 written: core grammar §1–4, `dnd5e` profile §5, error codes §7. `fixtures/vice.dndpaste`
+  and `fixtures/shigen.dndpaste` written from the compiled sheets (fidelity notes in `fixtures/README.md`).
+- **Next action:** 🔍 /panel on SPEC 0.1 (personas in PLAN M1), fold findings, then the parser.
+- **Waiting on Francesco:** read the two fixtures and say whether the shape survives contact with his
+  real builds (M1 🔶); OK to run the panel; create the GitHub remote (his account).

@@ -1,0 +1,31 @@
+Shigen
+Rules: 2024
+Level: 6
+Species: Human
+Background: Archer Priest|HB
+Scores: 8/13/14/12/10/15
+Classes: Fighter 1 / Warlock 9
+
+L1 Fighter
+Feat: Spellfire Spark|FRHoF
+Fighting Style: Archery
+Masteries: Longbow, Rapier, Warhammer
+
+L2 Warlock
+Invocations: Agonizing Blast (True Strike)
+Cantrips: Blade Ward, True Strike
+Prepared: Detect Magic, Hex
+
+L3 Warlock
+Invocations: Repelling Blast (True Strike), Pact of the Blade
+Cantrips: Prestidigitation
+
+L4 Warlock
+Subclass: Celestial
+
+L5 Warlock
+Feat: Potent Dragonmark|EFA (CHA)
+
+L6 Warlock
+Invocations: Ascendant Step, Eldritch Smite
+Prepared: Detect Magic, Misty Step, Suggestion, Borrowed Knowledge|SCC, Dispel Magic, Fear
