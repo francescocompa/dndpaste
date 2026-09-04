@@ -217,7 +217,7 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Rules` | enum `2014`/`2024` | H | default edition |
 | `Scores` | scores | H | six **base** scores `STR/DEX/CON/INT/WIS/CHA`, e.g. `8/13/14/12/10/15` |
 | `Classes` | classes | H | classes in the order taken, with levels **as played now**; `Fighter 1 / Warlock 5` |
-| `Species` | item · **opens block** | H | the species; its picks are the block's lines |
+| `Species` | item · **opens block** | H | the species; its picks are the block's lines. 2024 lineages are a `Feature` line in the block; 2014 subraces are part of the name, the 5etools way: `Species: Elf (Wood)|PHB`, `Species: Human (Variant)|PHB` |
 | `Background` | item · **opens block** | H | the background; official: block holds only the picks it asks (2024: `ASI`); custom/homebrew: the block holds everything (`ASI`, `Skills`, `Tools`, `Feat`, `Equipment`) so the paste is complete without the homebrew file (D21, D26) |
 | `Subclass` | items¹ | H, L | the class's subclass; in L it belongs to the block's class |
 | `ASI` | asi | H, S, B, L | ability bonuses: `+2 CHA` or `+1 INT, +1 CON`. In S/B: the species (2014) or background (2024) bonuses. In L: the ASI taken at that level |
@@ -230,12 +230,12 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Fighting Style` | items | H, L | 2014 optional feature or 2024 feat, same key either way. A list even in a level block, so an extra style granted by the DM is writable (D34) |
 | `Masteries` | items | H, L | weapon-mastery loadout from that level on (a snapshot: masteries swap on long rests) |
 | `Options` | items | H, L | **every optional feature** regardless of family: invocations, metamagic, manoeuvres, infusions, arcane shots, runes, elemental disciplines, 2014 pact boons, … 5etools tags each one's family, so the format never needs a new key for a new family (D27). Details = the option's own picks |
-| `Feature` | items | S, B, L | a **named feature with a pick and no dedicated key**: `Feature: Divine Order [Warden]`, `Feature: Elven Lineage [High]`, `Feature: Draconic Ancestry [Red]`, `Feature: Size [Small]`. Details = the picks (§5.3). Placed in S/B/L, it belongs to that entity; never in H |
+| `Feature` | items | H, S, B, L | a **named feature with a pick and no dedicated key**: `Feature: Divine Order [Warden]`, `Feature: Elven Lineage [High]`, `Feature: Draconic Ancestry [Red]`, `Feature: Size [Small]`; also an **optional class feature adopted** with no pick (`Feature: Favored Foe|TCE`). Details = the picks (§5.3). Placed in S/B/L it belongs to that entity; unplaced in H the consumer finds the owner (D28) |
 | `Cantrips` | items | H, S, B, L | cantrips chosen |
-| `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster |
+| `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster. A caster that prepares from its whole list (2024 Cleric, Druid, Paladin) adds nothing, so it has no `Spells` lines — its default loadout is `Prepared` |
 | `Prepared` | items | H, L | default prepared loadout, **only** for casters whose repertoire exceeds the prepare count (a full-list preparer, a wizard's spellbook). The checker's normalise step removes it where `Spells` already says it (D23) |
 | `Equipment` | items | H, B, L | **starting gear**: in B the background's option letter (`A`/`B`) or items; in the **first level block** the class's option letter (`A`/`B`/`C`) or items; in H unplaced items. Letters exist only under 2024 rules; 2014 builds list items |
-| `Items` | items | H, L | **magic items and other gear acquired in play**, placed at the level gained (`Items: Flame Tongue, Cloak of Protection`). Details = the item's own picks (`Items: Instrument of the Bards [Doss Lute]`). Never a choice the rules owe, so the checker never reports it missing; it resolves the name and flags nothing else (D33) |
+| `Items` | items | H, L | **magic items and other gear acquired in play**, placed at the level gained (`Items: Cloak of Protection, +1 Longsword`). Details = the item's own picks when 5etools models them as such (most variants are baked into the name: `"Instrument of the Bards, Doss Lute"`). Generic magic variants (`+1 Longsword`, `Flame Tongue Greatsword`) are not 5etools entities and resolve only by their base item. Never a choice the rules owe, so the checker never reports it missing (D33) |
 
 Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
 
@@ -335,6 +335,7 @@ new AST.
 | E014 | entity block after a level block, or a second block for the same key |
 | E015 | unsupported `Paste` version |
 | W001 | extension key (`X-`) kept but not understood |
+| W002 | hint: a bare name on `Feat`/`Options`/`Feature`/`Subclass`/`Fighting Style` ends in a parenthesised group — details go in `[brackets]` (`Resilient (CON)` → `Resilient [CON]`) |
 
 ---
 

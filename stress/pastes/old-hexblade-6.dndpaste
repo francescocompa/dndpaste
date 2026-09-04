@@ -1,0 +1,36 @@
+old-hexblade-6
+Rules: 2014
+Scores: 10/13/14/8/10/16
+Classes: Warlock 6
+
+Species: Human
+ASI: +1 DEX, +1 CHA
+Skills: Insight
+Feat: War Caster
+
+Background: Charlatan
+
+L1 Warlock
+Subclass: Hexblade|XGE
+Cantrips: Eldritch Blast, Minor Illusion
+Spells: Hex, Armor of Agathys
+
+L2 Warlock
+Options: Agonizing Blast [Eldritch Blast], Devil's Sight
+Spells: Suggestion
+
+L3 Warlock
+Options: Pact of the Blade
+Spells: Hold Person
+
+L4 Warlock
+ASI: +2 CHA
+Cantrips: Prestidigitation
+Spells: Mirror Image
+
+L5 Warlock
+Options: Thirsting Blade
+Spells: Counterspell
+
+L6 Warlock
+Spells: -Armor of Agathys, Fear, Vampiric Touch

@@ -1,0 +1,33 @@
+Graveyard Hound
+Rules: 2024
+Scores: 12/13/14/10/15/8
+Classes: Cleric 12
+
+Species: Orc
+Feature: Heritage [Hound]
+
+Background: Custom
+ASI: +2 WIS, +1 DEX
+Skills: Survival, Perception
+Tools: Herbalism Kit
+Feat: Mark of Sentinel|EFA
+
+L1 Cleric
+Skills: Insight, Religion
+Feature: Divine Order [Thaumaturge; Religion]
+Equipment: Breastplate, Shield
+
+L3 Cleric
+Subclass: Grave Domain
+
+L4 Cleric
+Feat: Lich Initiate|HB [WIS]
+
+L7 Cleric
+Feature: Blessed Strikes [Potent Spellcasting]
+
+L9 Cleric
+Feat: Undead Grasp|HB [WIS]
+
+L12 Cleric
+Feat: War Caster [WIS]

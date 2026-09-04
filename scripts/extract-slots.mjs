@@ -128,10 +128,13 @@ for (const f of listDir("class", "class-")) {
       const i = (g.colLabels ?? []).findIndex((l) => /Weapon Mastery/i.test(stripTags(l)));
       if (i >= 0 && g.rows) masteries = g.rows.map((r) => Number(r[i]) || 0);
     }
+    const optionalClassFeatures = {};
+    for (const cf of Object.values(classFeatures)) if (cf.isClassFeatureVariant && cf.className === c.name && cf.classSource === c.source) optionalClassFeatures[cf.name] = { level: cf.level, source: cf.source };
     const sp = c.startingProficiencies ?? {};
     classes[uid(c)] = {
       name: c.name, source: c.source, edition: edition(c), srd: isSrd(c), hd: c.hd?.faces ?? null,
-      subclassLevel, asiLevels, expertiseLevels, features, options, featProgression: featProg, masteries,
+      subclassLevel, asiLevels, expertiseLevels, features, optionalClassFeatures, options, featProgression: featProg, masteries,
+      hasMastery: feats.some((x) => /^Weapon Mastery\|/.test(x.uid)),
       skills: chooseSpec(sp.skills), tools: chooseSpec(sp.tools), multiclassSkills: chooseSpec(c.multiclassing?.proficienciesGained?.skills),
       equipmentOptions: (c.startingEquipment?.defaultData ?? []).flatMap((o) => Object.keys(o).filter((k) => /^[A-Z]$/.test(k))),
       casting: c.spellcastingAbility ? {
@@ -172,6 +175,23 @@ for (const r of load("races.json").race ?? []) {
   };
 }
 
+// 2014-style subraces become their own species entries, named the 5etools way: "Elf (Wood)|PHB".
+for (const s of load("races.json").subrace ?? []) {
+  if (!s.name || !s.raceName) continue;
+  const base = species[`${s.raceName}|${s.raceSource ?? s.source}`];
+  if (!base) continue;
+  const sp = additionalSpellsSpec(s.additionalSpells);
+  const merge = (a, b) => (a && b ? { fixed: [...a.fixed, ...b.fixed], choose: b.choose ?? a.choose, any: a.any + b.any } : b ?? a);
+  species[`${s.raceName} (${s.name})|${s.source}`] = {
+    ...base, name: `${s.raceName} (${s.name})`, source: s.source, edition: edition({ source: s.source }) ?? base.edition, srd: Boolean(base.srd || isSrd(s)),
+    subraceOf: `${s.raceName}|${s.raceSource ?? s.source}`,
+    skills: merge(base.skills, chooseSpec(s.skillProficiencies)), tools: merge(base.tools, chooseSpec(s.toolProficiencies)), languages: merge(base.languages, chooseSpec(s.languageProficiencies)),
+    ability: abilitySpec([...(load("races.json").race.find((r) => r.name === s.raceName && r.source === (s.raceSource ?? s.source))?.ability ?? []), ...(s.ability ?? [])]),
+    versions: (s._versions ?? []).map((v) => v.name).filter(Boolean),
+    spellGroups: sp?.groups ?? base.spellGroups, spellAbility: sp?.ability ?? base.spellAbility, cantripChoose: sp?.cantripChoose ?? base.cantripChoose, grantedSpells: [...new Set([...base.grantedSpells, ...(sp?.fixed ?? [])])],
+  };
+}
+
 // ── backgrounds ───────────────────────────────────────────────────────────────
 const backgrounds = {};
 for (const b of load("backgrounds.json").background ?? []) {
@@ -206,7 +226,7 @@ Object.assign(families, { EI: "Eldritch Invocations", MM: "Metamagic", "MV:B": "
 const spells = {};
 for (const f of listDir("spells", "spells-")) for (const s of load(join("spells", f)).spell ?? []) spells[uid(s)] = { name: s.name, source: s.source, edition: edition(s), srd: isSrd(s), level: s.level };
 const items = {};
-for (const i of load("items.json").item ?? []) if (i.rarity && i.rarity !== "none") items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: i.rarity, attune: Boolean(i.reqAttune) };
+for (const i of load("items.json").item ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: i.rarity ?? "none", attune: Boolean(i.reqAttune) };
 for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false };
 
 for (const tbl of [classes, subclasses, species, backgrounds, feats, optionalFeatures, spells, items]) for (const e of Object.values(tbl)) e.core = core(e);

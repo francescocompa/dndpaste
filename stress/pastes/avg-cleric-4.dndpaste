@@ -1,0 +1,18 @@
+Rules: 2024
+Scores: 8/10/14/12/16/13
+Classes: Cleric 4
+
+Species: Dwarf|XPHB
+Skills: Religion
+
+Background: Acolyte|XPHB
+Skills: Insight
+
+L1 Cleric
+Subclass: Life Domain
+Cantrips: Guidance, Mending
+Spells: Cure Wounds, Bless, Healing Word
+Prepared: Cure Wounds, Bless, Healing Word, Sanctuary
+
+L4 Cleric
+ASI: +2 WIS

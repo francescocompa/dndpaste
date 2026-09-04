@@ -112,7 +112,7 @@ const errorCases: [string, string, string[]][] = [
   ["E003 duplicate key", "Skills: Arcana\nSkills: History", ["E003"]],
   ["E004 non-increasing", "L3 Bard\nL2 Bard", ["E004"]],
   ["E004 out of range", "L21 Bard", ["E004"]],
-  ["E005 wrong scope", "Feature: Divine Order [Warden]", ["E005"]],
+  ["E005 wrong scope", "Ability: WIS", ["E005"]],
   ["E005 header-only in block", "L1 Bard\nRules: 2024", ["E005"]],
   ["E006 empty value", "Skills:", ["E006"]],
   ["E007 list on item key", "Species: Elf, Human", ["E007"]],

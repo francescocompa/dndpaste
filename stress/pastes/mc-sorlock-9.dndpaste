@@ -1,0 +1,42 @@
+Rules: 2024
+Scores: 8/13/14/10/12/16
+Classes: Sorcerer 6 / Warlock 3
+
+Species: Tiefling|XPHB
+Feature: Fiendish Legacy [Abyssal]
+
+Background: Charlatan|XPHB
+ASI: +2 CHA, +1 DEX
+
+L1 Sorcerer
+Cantrips: Fire Bolt, Prestidigitation, Minor Illusion, Light
+Spells: Chromatic Orb, Shield
+
+L3 Sorcerer
+Subclass: Draconic Sorcery
+Options: Twinned Spell, Quickened Spell
+Feature: Draconic Ancestry [Red]
+Spells: Scorching Ray
+
+L4 Sorcerer
+Feat: Fey Touched|TCE [CHA]
+Cantrips: Ray of Frost
+Spells: -Chromatic Orb, Fireball
+
+L5 Sorcerer
+Spells: Hold Person
+
+L6 Sorcerer
+Spells: Counterspell
+
+L7 Warlock
+Subclass: Fiend Patron
+Cantrips: Eldritch Blast
+Spells: Armor of Agathys
+
+L8 Warlock
+Options: Agonizing Blast [Eldritch Blast], Devil's Sight
+
+L9 Warlock
+Options: Pact of the Chain
+Spells: -Armor of Agathys, Hex

@@ -69,7 +69,7 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Fighting Style", type: "items", scopes: ["H", "L"] },
   { key: "Masteries", type: "items", scopes: ["H", "L"] },
   { key: "Options", type: "items", scopes: ["H", "L"] },
-  { key: "Feature", type: "items", scopes: ["S", "B", "L"] },
+  { key: "Feature", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Cantrips", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Spells", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Prepared", type: "items", scopes: ["H", "L"] },
@@ -107,6 +107,7 @@ const MESSAGES: Record<string, string> = {
   E014: "entity block after a level block, or repeated",
   E015: "unsupported Paste version",
   W001: "extension key kept but not understood",
+  W002: "parenthesised suffix looks like a detail — details go in [brackets]",
 };
 
 class Diag {
@@ -291,7 +292,9 @@ function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line
       if (!items) return null;
       const single = def.type === "item" || (def.type === "items¹" && scope === "L");
       if (single && items.length > 1) { diag.add("E007", line); return null; }
+      const hintKeys = ["Feat", "Options", "Feature", "Subclass", "Fighting Style"];
       for (const it of items) {
+        if (hintKeys.includes(def.key) && !it.details.length && /\s\([^()]*\)$/.test(it.ref.name)) diag.add("W002", line, it.ref.name);
         if (it.drop && (scope !== "L" || single)) { diag.add("E008", line); return null; }
         if (it.qty !== null && def.key !== "Equipment" && def.key !== "Items") { diag.add("E009", line); return null; }
       }

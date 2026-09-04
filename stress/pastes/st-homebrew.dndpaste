@@ -1,0 +1,24 @@
+Rules: 2024
+Scores: 8/14/12/16/10/13
+Classes: Wizard 4
+
+Species: Starkin|HB
+Feat: Starlit Heritage|HB
+
+Background: Wandering Scholar|HB
+ASI: +2 INT
+Skills: Arcana, Investigation
+Tools: Cartographer's Tools
+Feat: Hearthbound Resolve|HB
+Equipment: Quarterstaff, Component Pouch
+
+L1 Wizard
+Cantrips: Fire Bolt, Starfall Bolt|HB
+Spells: Magic Missile, Detect Magic
+
+L3 Wizard
+Subclass: Order of the Star Weaver|MYBREW
+Feature: Starweave Focus [Radiant]
+
+L4 Wizard
+ASI: +2 INT

@@ -1,0 +1,35 @@
+Arcane Spy V1
+Rules: 2024
+Scores: 8/14/13/15/12/10
+Classes: Rogue 10
+
+Species: Elf
+Skills: Perception
+Feature: Elven Lineage [High Elf]
+Cantrips: True Strike
+
+Background: Custom
+ASI: +2 INT, +1 CON
+Skills: Arcana, History
+Tools: Tinker's Tools
+Feat: Mark of Warding|EFA
+
+L1 Rogue
+Skills: Acrobatics, Investigation, Sleight of Hand, Stealth
+Expertise: Investigation, Stealth
+Masteries: Rapier, Light Crossbow
+
+L3 Rogue
+Subclass: Magic Stealer|HB
+
+L4 Rogue
+Feat: Potent Dragonmark|EFA [INT]
+
+L6 Rogue
+Expertise: Arcana, Sleight of Hand
+
+L8 Rogue
+ASI: +2 INT
+
+L10 Rogue
+Feat: Mage Slayer [DEX]

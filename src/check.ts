@@ -13,8 +13,8 @@ interface Progression { name: string; progression: number[] }
 interface FeatureSlot { level: number; options: string[] }
 export interface ClassSlots {
   name: string; source: string; edition: string | null; subclassLevel: number | null; asiLevels: number[]; expertiseLevels: number[];
-  features: Record<string, FeatureSlot>; options: Record<string, Progression>; featProgression: Record<string, Progression>;
-  masteries: number[] | null; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[];
+  features: Record<string, FeatureSlot>; optionalClassFeatures?: Record<string, { level: number; source: string }>; options: Record<string, Progression>; featProgression: Record<string, Progression>;
+  masteries: number[] | null; hasMastery?: boolean; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[];
   casting: { ability: string; progression: string | null; preparedChange: string | null; cantrips: number[] | null; prepared: number[] | null; known: number[] | null } | null;
 }
 export interface SubclassSlots {
@@ -184,7 +184,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       const cnt = (sk?.choose?.count ?? 0) + (sk?.any ?? 0);
       if (cnt) owe(cls, "Skills", n, cnt);
       if (n === 1 && cd.equipmentOptions.length && rules !== "2014") owe(cls, "Equipment", n, 0); // default A is silent
-      if (cd.masteries && cd.masteries[0]) owe(cls, "Masteries", n, 1);
+      if ((cd.masteries && cd.masteries[0]) || cd.hasMastery) owe(cls, "Masteries", n, 1);
     }
     if (cd.subclassLevel === k) owe(cls, "Subclass", n, 1);
     if (cd.asiLevels.includes(k)) owe(cls, "ASI/Feat", n, 1);
@@ -196,7 +196,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     }
     for (const [fam, p] of [...Object.entries(cd.options), ...Object.entries(sc?.options ?? {})]) {
       const d = delta(p.progression, k);
-      if (d) owe(cls, `Options:${fam}`, n, d);
+      if (d) owe(cls, fam.startsWith("FS") ? "Fighting Style" : `Options:${fam}`, n, d);
     }
     const cast = cd.casting;
     const scast = sc?.casting;
@@ -230,22 +230,32 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     const cls = lc(lv.class.name); const where = `L${lv.n}`;
     const cd = classData.get(cls);
     const beyond = played !== null && lv.n > played;
-    for (const key of ["Skills", "Tools", "Languages", "Expertise", "Fighting Style", "Cantrips", "Spells"]) countInto(cls, key, lv.lines, where);
+    const fullList = Boolean(cd?.casting && cd.casting.preparedChange === "restLong" && !supplement.spellbook?.[uidOf(cd)]);
+    const knownCaster = Boolean(cd?.casting?.known && !supplement.spellbook?.[uidOf(cd)]);
+    for (const key of ["Skills", "Tools", "Languages", "Expertise", "Fighting Style", "Cantrips"]) countInto(cls, key, lv.lines, where);
+    if (lv.lines.get("Spells") && fullList) add("redundant", "info", where, `${cd?.name} prepares from its whole list; write the default loadout as Prepared, not Spells`, "Spells");
+    else countInto(cls, "Spells", lv.lines, where);
+    if (lv.lines.get("Prepared") && knownCaster) add("redundant", "info", where, `${cd?.name} knows a fixed list of spells and does not prepare; drop Prepared`, "Prepared");
     if (lv.lines.get("Masteries")) { const s = slot(cls, "Masteries"); s.picked = Math.max(s.picked, 1); s.where.push(where); }
     if (featOrAsi(lv.lines)) { const s = slot(cls, "ASI/Feat"); s.picked += featOrAsi(lv.lines); s.where.push(where); }
     for (const it of items(lv.lines, "Options")) {
+      const ocf = Object.entries(cd?.optionalClassFeatures ?? {}).find(([n]) => lc(n) === lc(it.ref.name));
+      if (ocf) { add("redundant", "info", where, `"${ocf[0]}" is an optional class feature (${ocf[1].source}); write it as Feature, not Options`, "Options", ocf[0]); continue; }
       const of = resolveRef(ix.options, it.ref, where, "Options");
       const fam = of ? of.types.join("/") : "?";
-      const s = slot(cls, `Options:${fam}`); if (it.drop) s.dropped++; else s.picked++; s.where.push(where);
+      const s = slot(cls, fam.startsWith("FS") ? "Fighting Style" : `Options:${fam}`); if (it.drop) s.dropped++; else s.picked++; s.where.push(where);
       if (of?.prereqLevel && classLevelAt(lv.n, cls) < of.prereqLevel && !beyond) add("misplaced", "warning", where, `"${of.name}" needs class level ${of.prereqLevel}`, "Options", of.name);
       const picks = supplement.optionPicks?.[uidOf(of ?? { name: it.ref.name, source: "" })] ?? 0;
       if (of && picks && !it.drop && (it.details[0]?.length ?? 0) < picks) add("missing", "info", where, `"${of.name}" asks for ${picks} pick(s) in brackets`, "Options", of.name);
     }
     for (const it of adds(lv.lines, "Feature")) {
+      const ocf = Object.entries(cd?.optionalClassFeatures ?? {}).find(([n]) => lc(n) === lc(it.ref.name));
+      if (ocf) { if (ocf[1].level > classLevelAt(lv.n, cls) && !beyond) add("misplaced", "warning", where, `"${ocf[0]}" is available from class level ${ocf[1].level}`, "Feature", ocf[0]); continue; }
       const fs = featureNames.get(cls)?.get(lc(it.ref.name));
+      const any = cd ? Object.entries(cd.features).find(([n]) => lc(n) === lc(it.ref.name)) : undefined;
+      if (!fs && !any) { add("extra", "info", where, `Feature "${it.ref.name}" is not a pick the data knows for ${cd?.name ?? cls} — accepted`, "Feature", it.ref.name); continue; }
       const s = slot(cls, `Feature:${lc(it.ref.name)}`);
       s.picked++; s.where.push(where);
-      const any = cd ? Object.entries(cd.features).find(([n]) => lc(n) === lc(it.ref.name)) : undefined;
       if (!fs && any) add("misplaced", "warning", where, `"${it.ref.name}" is chosen at class level ${any[1].level}`, "Feature", it.ref.name);
       if (fs && fs.options.length && it.details[0]?.length && !it.details[0].some((d) => fs.options.some((o) => lc(o) === lc(d.ref.name)))) add("unresolved", "info", where, `"${it.ref.name}" pick "${it.details[0][0].ref.name}" is not one of: ${fs.options.join(", ")}`, "Feature", it.ref.name);
     }
@@ -278,6 +288,11 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   distribute("Feat", () => "ASI/Feat", adds(paste.header, "Feat"));
   if (paste.header.get("ASI")) distribute("ASI", () => "ASI/Feat", [{ ref: { name: "ASI", source: null }, drop: false, details: [], qty: null }]);
   distribute("Options", (it) => { const of = resolveRef(ix.options, it.ref, "header", "Options"); return `Options:${of ? of.types.join("/") : "?"}`; }, adds(paste.header, "Options"));
+  for (const it of adds(paste.header, "Feature")) {
+    const owner = classNames.find((c) => Object.keys(classData.get(c)?.features ?? {}).some((n) => lc(n) === lc(it.ref.name)));
+    if (owner) { const s = slot(owner, `Feature:${lc(it.ref.name)}`); s.picked++; s.where.push("header"); continue; }
+    add("unplaced", "info", "header", `Feature "${it.ref.name}" has no class that asks for it; a species, subclass or homebrew pick — accepted`, "Feature", it.ref.name);
+  }
   for (const it of adds(paste.header, "Feat")) checkFeat(it, "header", "H", null, false);
   for (const it of adds(paste.header, "Spells")) checkSpell(it, "header", "Spells", null);
   for (const it of adds(paste.header, "Cantrips")) checkSpell(it, "header", "Cantrips", null);
@@ -318,7 +333,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       const feats = adds(sp.lines, "Feature");
       const extraFeatures = new Set(Object.keys(supplement.speciesFeatures?.[uidOf(sd)] ?? {}).map(lc));
       if (trait) {
-        const f = feats.find((x) => lc(x.ref.name) === lc(trait));
+        const f = feats.find((x) => lc(x.ref.name) === lc(trait)) ?? feats.find((x) => x.details[0]?.length && sd.versions.some((v) => looseEq(v, x.details[0][0].ref.name)));
+        if (f) extraFeatures.add(lc(f.ref.name));
         if (!f) add("missing", "warning", where, `${sd.name} asks for a Feature: ${trait} [${sd.versions.join(" | ")}]`, "Feature", trait);
         else if (f.details[0]?.length && sd.versions.length && !sd.versions.some((v) => looseEq(v, f.details[0][0].ref.name))) add("unresolved", "info", where, `"${trait}" pick "${f.details[0][0].ref.name}" is not one of: ${sd.versions.join(", ")}`, "Feature", trait);
         extraFeatures.add(lc(trait));
@@ -368,7 +384,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     }
   }
 
-  return F;
+  const seen = new Set<string>();
+  return F.filter((f) => { const k = `${f.kind}|${f.where}|${f.message}`; if (seen.has(k)) return false; seen.add(k); return true; });
 
   // ── shared checks ─────────────────────────────────────────────────────────
   function checkFeat(it: Item, where: string, scope: "H" | "S" | "B" | "L", n: number | null, beyond: boolean) {

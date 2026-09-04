@@ -1,0 +1,48 @@
+Failed Lich
+Rules: 2024
+Scores: 8/13/14/15/12/10
+Classes: Fighter 14
+
+Species: Elf|LFL
+Skills: Perception
+Feature: Elven Lineage [Lorwyn]
+Cantrips: Shillelagh
+
+Background: Custom
+ASI: +2 CON, +1 INT
+Skills: Arcana, Performance
+Feat: Musician
+
+L1 Fighter
+Skills: History, Insight
+Fighting Style: Dueling
+Masteries: Quarterstaff, Club, Heavy Crossbow
+Equipment: Breastplate, Quarterstaff, Club, Heavy Crossbow
+
+L3 Fighter
+Subclass: Eldritch Knight
+Cantrips: Blade Ward, True Strike
+Spells: Cause Fear, Find Familiar, Sleep
+
+L4 Fighter
+Feat: Lich Initiate|HB [INT]
+Spells: Shield
+
+L6 Fighter
+Feat: Undead Grasp|HB [INT; Chill Touch]
+
+L7 Fighter
+Spells: Mirror Image
+
+L8 Fighter
+Feat: Arcane Restoration|HB [INT]
+Spells: Ray of Enfeeblement
+
+L10 Fighter
+Cantrips: Toll the Dead
+
+L12 Fighter
+Feat: Lich Ascension|HB [INT]
+
+L14 Fighter
+Feat: Polearm Master [DEX]

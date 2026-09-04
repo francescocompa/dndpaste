@@ -1,0 +1,36 @@
+Rules: 2024
+Scores: 8/13/14/10/10/16
+Classes: Paladin 2 / Bard 6
+
+Species: Human|XPHB
+Skills: Performance
+
+Background: Entertainer|XPHB
+ASI: +2 CHA, +1 DEX
+
+L1 Paladin
+Spells: Bless
+
+L2 Paladin
+Fighting Style: Dueling|XPHB
+
+L3 Bard
+Cantrips: Vicious Mockery, Minor Illusion
+Spells: Healing Word, Dissonant Whispers
+
+L4 Bard
+Spells: Faerie Fire
+
+L5 Bard
+Subclass: College of Lore
+Expertise: Persuasion, Deception
+Spells: Suggestion
+
+L6 Bard
+ASI: +2 CHA
+
+L7 Bard
+Spells: -Dissonant Whispers, Hypnotic Pattern
+
+L8 Bard
+Spells: Fireball, Counterspell

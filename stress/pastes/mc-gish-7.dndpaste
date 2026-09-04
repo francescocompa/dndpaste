@@ -1,0 +1,30 @@
+Rules: 2024
+Scores: 15/10/14/14/8/10
+Classes: Fighter 5 / Wizard 2
+
+Species: Dwarf|XPHB
+
+Background: Soldier|XPHB
+ASI: +2 STR, +1 CON
+
+L1 Fighter
+Fighting Style: Dueling|XPHB
+Masteries: Longsword, Shortbow, Handaxe
+
+L3 Fighter
+Subclass: Eldritch Knight
+Cantrips: Fire Bolt, Prestidigitation
+Spells: Shield, Magic Missile
+
+L4 Fighter
+Feat: War Caster|XPHB
+
+L6 Wizard
+Cantrips: Ray of Frost, Mage Hand, Minor Illusion
+Spells: Mage Armor, Detect Magic, Feather Fall, Find Familiar, Chromatic Orb, Silent Image
+Prepared: Mage Armor, Detect Magic, Chromatic Orb, Silent Image
+Items: Sun Blade|XDMG, "Instrument of the Bards, Doss Lute"|XDMG
+
+L7 Wizard
+Spells: Web, Invisibility
+Prepared: Mage Armor, Chromatic Orb, Web, Invisibility, Silent Image

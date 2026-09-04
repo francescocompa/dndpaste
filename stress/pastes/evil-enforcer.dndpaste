@@ -1,0 +1,44 @@
+Evil Enforcer
+Rules: 2024
+Scores: 13/10/15/8/10/15
+Classes: Fighter 9 / Warlock 3
+Cantrips: Eldritch Blast, Booming Blade
+
+Species: Dragonborn
+Feature: Draconic Ancestry [Black]
+
+Background: Custom
+ASI: +2 CHA, +1 STR
+Skills: Intimidation, Perception
+Tools: Forgery Kit|HB
+Feat: Shadowmoor Hexer|LFL
+
+L1 Fighter
+Skills: Athletics, Persuasion
+Fighting Style: Great Weapon Fighting
+Masteries: Greatsword, Glaive, Halberd
+Equipment: Chain Shirt
+
+L2 Warlock
+Options: Pact of the Blade
+
+L4 Fighter
+Subclass: Gladiator|HB
+Skills: Deception
+
+L5 Fighter
+Feat: War Caster [CHA]
+Masteries: Greatsword, Glaive, Halberd, Whip
+
+L7 Fighter
+Feat: Great Weapon Master [STR]
+Items: Plate Armor
+
+L9 Fighter
+ASI: +2 CHA
+
+L11 Warlock
+Options: Otherworldly Leap, Lessons of the First Ones [Tough]
+
+L12 Warlock
+Subclass: Hexblade

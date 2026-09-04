@@ -1,0 +1,25 @@
+Rules: 2024
+Scores: 8/14/12/13/10/15
+Classes: Bard 6
+
+Species: Halfling|XPHB
+Skills: Performance
+
+Background: Entertainer|XPHB
+Skills: Acrobatics
+Feat: Musician|XPHB
+
+L1 Bard
+Cantrips: Prestidigitation, Vicious Mockery
+Spells: Charm Person, Tasha's Hideous Laughter, Healing Word
+
+L3 Bard
+Subclass: College of Lore
+
+L4 Bard
+ASI: +2 CHA
+
+L5 Bard
+Spells: Lesser Restoration, Suggestion
+
+L6 Bard

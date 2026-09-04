@@ -1,0 +1,27 @@
+Rules: 2024
+Scores: 8/12/13/14/16/10
+Classes: Druid 7
+
+Species: Elf|XPHB
+Skills: Survival
+
+Background: Hermit|XPHB
+Skills: Medicine
+Feat: Healer|XPHB
+
+L1 Druid
+Subclass: Circle of the Moon
+Cantrips: Produce Flame, Thorn Whip
+Spells: Entangle, Goodberry, Healing Word, Moonbeam
+Prepared: Entangle, Goodberry, Healing Word, Moonbeam, Faerie Fire
+
+L4 Druid
+ASI: +2 WIS
+
+L5 Druid
+Spells: Conjure Animals
+
+L6 Druid
+
+L7 Druid
+Spells: True Polymorph

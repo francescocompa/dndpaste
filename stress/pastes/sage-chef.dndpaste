@@ -1,0 +1,31 @@
+Sage Chef
+Rules: 2024
+Scores: 8/15/14/8/15/10
+Classes: Monk 12 / Ranger 1
+Feat: Greater Mark of Hospitality|EFA
+
+Species: Gnome
+Feature: Gnomish Lineage [Rock Gnome]
+
+Background: Tavern Cook|HB
+ASI: +2 DEX, +1 WIS
+Skills: Persuasion, Perception
+Tools: Cook's Utensils
+Feat: Mark of Hospitality|EFA
+
+L1 Monk
+Skills: Acrobatics, Insight
+Tools: Tinker's Tools
+
+L3 Monk
+Subclass: Warrior of Intoxication Monk|HB
+
+L4 Monk
+Feat: Potent Dragonmark|EFA [DEX]
+
+L7 Ranger
+Skills: Survival
+Masteries: Club, Light Hammer
+
+L9 Monk
+Feat: Inspiring Leader [WIS]

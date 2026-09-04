@@ -1,0 +1,27 @@
+Rules: 2024
+Scores: 8/13/14/10/12/16
+Classes: Warlock 5 / Fighter 0
+
+Species: Tiefling|XPHB
+Feature: Fiendish Legacy [Infernal]
+
+Background: Charlatan|XPHB
+ASI: +2 CHA, +1 DEX
+
+L1 Warlock
+Subclass: Archfey Patron
+Cantrips: Eldritch Blast, Minor Illusion
+Spells: Hex, Comprehend Languages
+
+L2 Warlock
+Options: Fiendish Vigor, Mask of Many Faces
+
+L3 Warlock
+Options: Pact of the Chain
+
+L4 Warlock
+Feat: Fey Touched|TCE [CHA]
+Cantrips: Prestidigitation
+
+L5 Warlock
+Spells: Suggestion

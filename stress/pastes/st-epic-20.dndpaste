@@ -1,0 +1,45 @@
+Rules: 2024
+Scores: 15/14/15/8/10/12
+Classes: Fighter 20
+
+Species: Dwarf|XPHB
+
+Background: Soldier|XPHB
+ASI: +2 STR
+
+L1 Fighter
+Fighting Style: Great Weapon Fighting
+Masteries: Greatsword, Maul, Halberd
+
+L3 Fighter
+Subclass: Battle Master|XPHB
+Options: Trip Attack, Precision Attack, Riposte
+
+L4 Fighter
+Masteries: Greatsword, Maul, Halberd, Longbow
+ASI: +2 STR
+
+L6 Fighter
+Feat: Great Weapon Master|XPHB
+
+L8 Fighter
+ASI: +2 CON
+
+L10 Fighter
+Masteries: Greatsword, Maul, Halberd, Longbow, Warhammer
+
+L12 Fighter
+Feat: Polearm Master|XPHB
+
+L14 Fighter
+ASI: +1 STR, +1 CON
+
+L16 Fighter
+Feat: Tough|XPHB
+Masteries: Greatsword, Maul, Halberd, Longbow, Warhammer, Handaxe
+
+L19 Fighter
+Feat: Boon of Combat Prowess|XPHB [STR]
+
+L20 Fighter
+Items: Belt of Fire Giant Strength|XDMG, Ring of Protection|XDMG, Boots of Elvenkind|XDMG

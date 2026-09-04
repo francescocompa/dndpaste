@@ -1,0 +1,17 @@
+Rules: 2024
+Scores: 8/15/13/10/12/14
+Classes: Rogue 3
+
+Species: Human|XPHB
+Feature: Size [Small]
+Feat: Alert|XPHB
+
+Background: Soldier|XPHB
+ASI: +2 DEX
+
+L1 Rogue
+Skills: Stealth, Sleight of Hand
+Expertise: Stealth, Thieves' Tools
+
+L3 Rogue
+Subclass: Thief|XPHB

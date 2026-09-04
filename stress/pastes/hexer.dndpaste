@@ -1,0 +1,38 @@
+Hexer
+Rules: 2024
+Scores: 10/15/14/13/8/12
+Classes: Fighter 12
+
+Species: Human
+Skills: Sleight of Hand
+Feat: Shadowmoor Hexer|HB
+
+Background: Custom
+ASI: +2 DEX, +1 INT
+Skills: Investigation, Stealth
+Tools: Thieves' Tools
+Feat: Mark of Warding|EFA
+
+L1 Fighter
+Skills: Acrobatics, History
+Fighting Style: Two-Weapon Fighting
+Masteries: Shortsword, Scimitar, Longbow
+
+L3 Fighter
+Subclass: Eldritch Knight
+
+L4 Fighter
+Feat: Dual Wielder [DEX]
+Masteries: Rapier
+
+L6 Fighter
+Feat: Potent Dragonmark|EFA [DEX]
+
+L8 Fighter
+Feat: War Caster [INT]
+
+L10 Fighter
+Masteries: Trident
+
+L12 Fighter
+Feat: Sentinel [DEX]

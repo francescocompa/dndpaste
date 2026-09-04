@@ -1,0 +1,35 @@
+Rules: 2024
+Scores: 15/12/16/8/10/13
+Classes: Fighter 5 / Rogue 4 / Barbarian 3
+
+Species: Goliath|XPHB
+Feature: Giant Ancestry [Stone's Endurance]
+
+Background: Soldier|XPHB
+ASI: +2 STR, +1 CON
+
+L1 Fighter
+Fighting Style: Archery|XPHB
+Masteries: Longbow, Greatsword
+
+L3 Fighter
+Subclass: Battle Master
+Options: Riposte, Trip Attack, Precision Attack
+
+L4 Fighter
+Feat: Crusher|XPHB [STR]
+
+L6 Rogue
+Skills: Stealth, Deception, Sleight of Hand, Investigation
+Expertise: Stealth, Thieves' Tools
+
+L8 Rogue
+Subclass: Thief
+
+L9 Rogue
+ASI: +2 DEX
+
+L10 Barbarian
+
+L12 Barbarian
+Subclass: Path of the Berserker

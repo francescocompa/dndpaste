@@ -1,0 +1,23 @@
+Dhampir Brute
+Rules: 2024
+Scores: 15/13/14/10/8/12
+Classes: Barbarian 4
+Feat: Tough
+
+Species: Dhampir|VRGR
+
+Background: Custom
+ASI: +2 STR, +1 DEX
+Skills: Sleight of Hand, Stealth
+Tools: Thieves' Tools|HB
+Feat: Vampire's Plaything|ABH
+
+L1 Barbarian
+Skills: Athletics, Perception
+Masteries: Lance, Trident
+
+L3 Barbarian
+Subclass: Berserker
+
+L4 Barbarian
+Feat: Charger [STR]
