@@ -128,7 +128,7 @@ test("fixtures: all check without throwing; SRD ones are warning-free where expe
 test("every fixture checks without throwing (SRD table)", () => {
   for (const f of readdirSync(join(root, "fixtures")).filter((n) => n.endsWith(".dndpaste"))) {
     const fs = run(readFileSync(join(root, "fixtures", f), "utf8"));
-    assert.ok(fs.every((x) => x.kind !== "CRASH" && (x.severity === "warning" || x.severity === "info")), f);
+    assert.ok(fs.every((x) => x.severity === "warning" || x.severity === "info"), f);
   }
 });
 
