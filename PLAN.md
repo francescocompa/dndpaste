@@ -48,7 +48,8 @@ L<n> <Class>                   level block, n = character level
 ### M2 — Checker · size M/L · ✅ first cut shipped 2026-09-04 (D35, D36)
 - [x] `scripts/extract-slots.mjs` → `data/slots.json` + `data/srd/slots.json` (D35).
 - [x] `src/check.ts` → missing / misplaced / unresolved / redundant / unplaced / **extra** findings + `normalise` (D30, D34). 15 tests on the SRD table; the two real builds run against the full table when present.
-- [ ] M2 tail: 2014 starting-equipment picks; Tasha's optional class features (pickless, change other slots); spell-list legality (is this spell on that class's list); ability-score arithmetic once `Scores` + ASI are worth validating; a `bin/dndpaste` CLI (`check <file>`).
+- [x] Stress wave 2026-09-04 (`stress/REPORT.md`): 65 pastes, 11 fixes, 9 open calls.
+- [ ] M2 tail: 2014 starting-equipment picks; spell-list legality (is this spell on that class's list); `+N` magic-variant prefix; name-alias fallback (`Jallarzi's Storm of Radiance`); size default; ability-score arithmetic; a `bin/dndpaste` CLI (`check <file>`); promote stress pastes to fixtures.
 - [ ] Homebrew: run the extract over a 5etools-format homebrew file and merge its slots (a homebrew file brings its own slots).
 
 ### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo
