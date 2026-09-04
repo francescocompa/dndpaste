@@ -235,7 +235,7 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster. A caster that prepares from its whole list (2024 Cleric, Druid, Paladin) adds nothing, so it has no `Spells` lines — its default loadout is `Prepared` |
 | `Prepared` | items | H, L | default prepared loadout, **only** for casters whose repertoire exceeds the prepare count (a full-list preparer, a wizard's spellbook). The checker's normalise step removes it where `Spells` already says it (D23) |
 | `Equipment` | items | H, B, L | **starting gear**: in B the background's option letter (`A`/`B`) or items; in the **first level block** the class's option letter (`A`/`B`/`C`) or items; in H unplaced items. Letters exist only under 2024 rules; 2014 builds list items |
-| `Items` | items | H, L | **magic items and other gear acquired in play**, placed at the level gained (`Items: Cloak of Protection, +1 Longsword`). Details = the item's own picks when 5etools models them as such (most variants are baked into the name: `"Instrument of the Bards, Doss Lute"`). Generic magic variants (`+1 Longsword`, `Flame Tongue Greatsword`) are not 5etools entities and resolve only by their base item. Never a choice the rules owe, so the checker never reports it missing (D33) |
+| `Items` | items | H, L | **magic items and other gear acquired in play**, placed at the level gained (`Items: Cloak of Protection, +1 Longsword`). Details = the item's own picks when 5etools models them as such (most variants are baked into the name: `"Instrument of the Bards, Doss Lute"`). Generic magic variants are not 5etools entities: a `+N ` prefix is stripped and the base item resolved (`+1 Longsword` → `Longsword`, D40); named variants (`Flame Tongue Greatsword`) resolve only if a data source lists them. Never a choice the rules owe, so the checker never reports it missing (D33) |
 
 Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
 
@@ -276,7 +276,8 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
 - `Prepared` and `Masteries` in a level block describe the default loadout from that level
   until the next such line.
 - **Defaults are silent** (rule 8): `Equipment` absent means option A under 2024 rules; a
-  size or lineage with a printed default means that default.
+  lineage with a printed default means that default; a species that offers Small or Medium is
+  **Medium unless `Feature: Size [Small]` says otherwise** (D39).
 
 ### 5.5 Canonical form (data-free)
 

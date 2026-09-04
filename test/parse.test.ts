@@ -49,6 +49,16 @@ test("real fixtures parse clean and round-trip byte-for-byte", () => {
   }
 });
 
+test("non-canonical originals canonicalise to their fixture", () => {
+  const dir = join(fixtures, "noncanonical");
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".dndpaste"))) {
+    const raw = readFileSync(join(dir, f), "utf8");
+    const canon = readFileSync(join(fixtures, f), "utf8");
+    assert.notEqual(raw, canon, `${f} should differ from its canonical form`);
+    assert.equal(emit(parse(raw)), canon, f);
+  }
+});
+
 test("shigen: structure", () => {
   const p = parse(readFileSync(join(fixtures, "shigen.dndpaste"), "utf8"));
   assert.equal(p.identifier, "Shigen");

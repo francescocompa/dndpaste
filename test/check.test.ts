@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, emit } from "../src/dndpaste.js";
@@ -123,6 +123,27 @@ test("fixtures: all check without throwing; SRD ones are warning-free where expe
   const f = run(readFileSync(join(root, "fixtures", "druid-custom-background.dndpaste"), "utf8"));
   // Circle of the Moon and Thorn Whip are not SRD: unresolved, plus the consequent "owes a Subclass/Cantrip" — nothing else may warn.
   for (const w of f.filter((x) => x.severity === "warning")) assert.match(w.message, /Circle of the Moon|Thorn Whip|Subclass|Cantrips/, JSON.stringify(f));
+});
+
+test("every fixture checks without throwing (SRD table)", () => {
+  for (const f of readdirSync(join(root, "fixtures")).filter((n) => n.endsWith(".dndpaste"))) {
+    const fs = run(readFileSync(join(root, "fixtures", f), "utf8"));
+    assert.ok(fs.every((x) => x.kind !== "CRASH" && (x.severity === "warning" || x.severity === "info")), f);
+  }
+});
+
+test("size: Medium is silent, an invalid size is reported", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 1\n\nSpecies: Human\nSkills: Athletics\nFeat: Alert");
+  assert.equal(f.filter((x) => /size/i.test(x.message)).length, 0, JSON.stringify(f));
+  const g = run("Rules: 2024\nClasses: Fighter 1\n\nSpecies: Human\nFeature: Size [Large]");
+  assert.ok(has(g, "unresolved", /size must be one of/));
+});
+
+test("+N prefix resolves the base item", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nItems: +1 Longsword, +2 Nonsense Blade");
+  const u = kinds(f, "unresolved").filter((x) => /matches nothing/.test(x.message));
+  assert.equal(u.length, 1, JSON.stringify(f));
+  assert.match(u[0].message, /Nonsense/);
 });
 
 test("real builds against the full extract (skipped when data/slots.json is absent)", { skip: !full }, () => {

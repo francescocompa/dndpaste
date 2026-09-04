@@ -28,3 +28,13 @@ The checker caught two genuine defects in the source sheets, which is the proof 
 `flat-multiclass` shows the extras policy: `Feat: Resilient` on a Fighter 3 / Warlock 3 has no ASI
 slot to fill, so it is reported as an accepted extra, not an error (D34). `druid-custom-background`
 shows a level-4 Druid still owing its third cantrip.
+
+## Promoted from the stress wave (2026-09-04)
+
+`st-quoting` (quoted and parenthesised names), `st-extension` (`Paste:`, `X-` keys, lower-case,
+blank runs — the original tolerance-testing text is in `noncanonical/`), `st-drops` (a `-` swap at
+every level-up), `old-subrace-cleric-5` (2014 subrace naming), `mc-planned-20` (planned levels to
+20, a class listed with `0`, Mystic Arcanum, an Epic Boon) and `heavenly-archer-v3` (Francesco's
+three-class 20-level build from Notion, with the source's own defects intact). Files in
+`fixtures/` are canonical; `fixtures/noncanonical/` holds originals that differ from canonical
+form, and the test asserts they canonicalise to their sibling.

@@ -99,3 +99,7 @@
 - **D37 — `Feature` may be unplaced (header scope); the parser hints on `Name (X)` typos. DECIDED (2026-09-04, stress wave).** A flat snapshot must carry Draconic Ancestry; the consumer resolves the owner as for any unplaced line (D28). `Resilient (CON)` cannot be an error (parentheses are legal in names), so W002 hints on picky keys. *Rejected:* forbidding parentheses on those keys (real names have them).
 
 - **D38 — 2014 subraces are species names the 5etools way (`Elf (Wood)|PHB`); Tasha's optional class features are pickless `Feature` lines (`Feature: Favored Foe|TCE`). DECIDED (2026-09-04, stress wave).** The extract now emits subraces as species entries and class-feature variants per class. *Rejected:* a `Subrace` key (2024 has lineages as features already); `Options` for Tasha's features (they are class features, not optional-feature entities).
+
+- **D39 — Medium is the silent default size. DECIDED (2026-09-04, Francesco).** A 2024 species offering Small/Medium is Medium unless `Feature: Size [Small]` is written; the checker no longer reports the absent pick. Applies D24.
+
+- **D40 — A `+N ` prefix on `Items`/`Equipment` is stripped for resolution. DECIDED (2026-09-04, Francesco).** `+1 Longsword` resolves as `Longsword`; the paste keeps the prefix. Named variants still need a data source.

@@ -111,7 +111,10 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     items: new Index(slots.items),
   };
   const resolveRef = <T extends { name: string; source: string; edition?: string | null; core?: boolean }>(index: Index<T>, ref: Ref, where: string, key: string, sev: "warning" | "info" = "warning", extra?: (t: T) => boolean): T | null => {
-    const r = index.resolve(ref, rules, extra);
+    let r = index.resolve(ref, rules, extra);
+    // Generic magic variants ("+1 Longsword") are not 5etools entities: strip the bonus and resolve the base item (D40).
+    const plus = /^\+\d+\s+(.+)$/.exec(ref.name);
+    if (r.status === "none" && plus && (key === "Items" || key === "Equipment")) r = index.resolve({ name: plus[1], source: ref.source }, rules, extra);
     if (r.status === "none") add("unresolved", sev, where, `${key}: "${refStr(ref)}" matches nothing in the loaded data`, key, refStr(ref));
     else if (r.status === "ambiguous") add("unresolved", "info", where, `${key}: "${refStr(ref)}" matches several sources; add |SOURCE`, key, refStr(ref));
     return r.hit;
@@ -339,7 +342,9 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
         else if (f.details[0]?.length && sd.versions.length && !sd.versions.some((v) => looseEq(v, f.details[0][0].ref.name))) add("unresolved", "info", where, `"${trait}" pick "${f.details[0][0].ref.name}" is not one of: ${sd.versions.join(", ")}`, "Feature", trait);
         extraFeatures.add(lc(trait));
       }
-      if (sd.size && sd.size.length > 1 && !feats.some((x) => lc(x.ref.name) === "size")) add("missing", "info", where, `${sd.name} chooses a size (${sd.size.join("/")}) — Feature: Size [..] if not the default`, "Feature", "Size");
+      // Size: Medium is the silent default (D39); only an invalid explicit pick is reported.
+      const sizeLine = feats.find((x) => lc(x.ref.name) === "size");
+      if (sizeLine && sd.size && sizeLine.details[0]?.length && !sd.size.some((s) => lc(s) === lc(sizeLine.details[0][0].ref.name[0]))) add("unresolved", "info", where, `${sd.name} size must be one of ${sd.size.join("/")}`, "Feature", "Size");
       extraFeatures.add("size");
       for (const f of feats) if (!extraFeatures.has(lc(f.ref.name))) add("extra", "info", where, `Feature "${f.ref.name}" is not a pick the data knows for ${sd.name} — accepted`, "Feature", f.ref.name);
       for (const it of adds(sp.lines, "Feat")) checkFeat(it, where, "S", null, false);

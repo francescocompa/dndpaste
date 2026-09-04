@@ -1,0 +1,21 @@
+paste: 1
+rules: 2024
+scores: 10/14/12/13/8/15   
+classes: fighter 3
+
+
+species: Human|XPHB
+feat: Alert|XPHB
+
+
+background: Soldier|XPHB
+asi: +2 STR   
+
+
+l3 fighter
+subclass: Battle Master|XPHB
+fighting style: Great Weapon Fighting
+masteries: Greatsword, Handaxe   
+
+x-portrait: a half-orc with a chipped tusk
+x-campaign: Foglie Silenti
