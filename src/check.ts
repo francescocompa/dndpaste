@@ -14,7 +14,7 @@ interface FeatureSlot { level: number; options: string[] }
 export interface ClassSlots {
   name: string; source: string; edition: string | null; subclassLevel: number | null; asiLevels: number[]; expertiseLevels: number[];
   features: Record<string, FeatureSlot>; optionalClassFeatures?: Record<string, { level: number; source: string }>; options: Record<string, Progression>; featProgression: Record<string, Progression>;
-  masteries: number[] | null; hasMastery?: boolean; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[];
+  masteries: number[] | null; hasMastery?: boolean; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
   casting: { ability: string; progression: string | null; preparedChange: string | null; cantrips: number[] | null; prepared: number[] | null; known: number[] | null } | null;
 }
 export interface SubclassSlots {
@@ -28,7 +28,7 @@ export interface SpeciesSlots {
 }
 export interface BackgroundSlots {
   name: string; source: string; edition: string | null; ability: { choose: { from: string[]; weights?: number[] } | null } | null;
-  skills: ChooseSpec | null; tools: ChooseSpec | null; languages: ChooseSpec | null; feats: string[]; equipmentOptions: string[];
+  skills: ChooseSpec | null; tools: ChooseSpec | null; languages: ChooseSpec | null; feats: string[]; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
 }
 export interface FeatSlots { name: string; source: string; category: string | null; repeatable: boolean; abilityChoose: string[] | null; versions: string[]; cantripChoose: number; spellChoose: number; grantedSpells: string[]; prereqLevel: number | null }
 export interface OptionalFeatureSlots { name: string; source: string; types: string[]; prereqLevel: number | null }
@@ -409,6 +409,9 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     }
   }
 
+  // T2.2 — 2014 starting-equipment picks (see dedicated section near end of file).
+  checkStartingEquipment2014(paste, slots, rules, add);
+
   const seen = new Set<string>();
   return F.filter((f) => { const k = `${f.kind}|${f.where}|${f.message}`; if (seen.has(k)) return false; seen.add(k); return true; });
 
@@ -471,6 +474,56 @@ export function normalise(paste: Paste, slots: Slots, supplement: Supplement = {
     if (kept.length) scope.set(f.key, { type: "items", items: kept } as Value); else scope.delete(f.key);
   }
   return out;
+}
+
+// ─── T2.2: 2014 starting-equipment picks (self-contained; one call site in check()) ──
+// 2024 lets a paste name a lettered `Equipment: A`/`B`/`C` option (handled above, alongside the
+// letter-validity check). 2014 classes and backgrounds instead offer "(a) X or (b) Y" choices —
+// the paste names the chosen item(s) directly (SPEC §5.1 `Equipment`). `equipmentGroups`
+// (scripts/extract-slots.mjs) holds each such choice as { letter → item-name-ref[] }; a group is
+// satisfied when any item on the Equipment line names one of its options. Items the rules don't
+// owe are never flagged (D33/D34), so unmatched Equipment lines are left alone — only an unmet
+// group produces a finding, at the same severity the 2024 letter check uses (info).
+function findByName<T extends { name: string; source: string }>(table: Record<string, T>, ref: Ref): T | null {
+  const name = lc(ref.name);
+  let cands = Object.values(table).filter((t) => lc(t.name) === name);
+  if (ref.source) { const withSrc = cands.filter((t) => lc(t.source) === lc(ref.source as string)); if (withSrc.length) cands = withSrc; }
+  return cands[0] ?? null;
+}
+function chosenEquipmentNames(scope: Scope): Set<string> {
+  const out = new Set<string>();
+  for (const it of adds(scope, "Equipment")) {
+    const plus = /^\+\d+\s+(.+)$/.exec(it.ref.name); // strip a generic magic-item bonus prefix (D40)
+    out.add(lc(plus ? plus[1] : it.ref.name));
+  }
+  return out;
+}
+function checkStartingEquipment2014(
+  paste: Paste,
+  slots: Slots,
+  rules: string | null,
+  add: (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string) => void,
+): void {
+  if (rules !== "2014") return;
+  const reportGroups = (where: string, scope: Scope, ownerName: string, groups: Record<string, string[]>[]) => {
+    const have = chosenEquipmentNames(scope);
+    groups.forEach((group, i) => {
+      const met = Object.values(group).some((names) => names.some((n) => have.has(lc(n.split("|")[0]))));
+      if (met) return;
+      const options = Object.entries(group).filter(([, names]) => names.length).map(([letter, names]) => `(${letter}) ${names.map((n) => n.split("|")[0]).join(" and ")}`);
+      add("missing", "info", where, `${ownerName} starting equipment: no item chosen for pick ${i + 1}${options.length ? ` — ${options.join(" or ")}` : ""}`, "Equipment");
+    });
+  };
+  const l1 = paste.levels.find((lv) => lv.n === 1);
+  if (l1) {
+    const cd = findByName(slots.classes, l1.class);
+    if (cd?.equipmentGroups?.length) reportGroups("L1", l1.lines, cd.name, cd.equipmentGroups);
+  }
+  const bg = paste.entities.find((e) => e.key === "Background");
+  if (bg && lc(bg.item.ref.name) !== "custom") {
+    const bd = findByName(slots.backgrounds, bg.item.ref);
+    if (bd?.equipmentGroups?.length) reportGroups("Background", bg.lines, bd.name, bd.equipmentGroups);
+  }
 }
 
 export type { Paste, LevelBlock };
