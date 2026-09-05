@@ -4,7 +4,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, emit } from "../src/dndpaste.js";
-import { check, normalise, type Slots, type Supplement, type Finding } from "../src/check.js";
+import { check, normalise, finalScores, type Slots, type Supplement, type Finding } from "../src/check.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..", "..");
@@ -269,6 +269,41 @@ describe("spell-list legality (T2.1)", () => {
       for (const f of fs.filter((x) => x.kind === "misplaced")) assert.doesNotMatch(f.message, /is not on .*'s spell list/, `${name}: ${f.message}`);
     }
   });
+});
+
+// ─── T2.4: ability-score arithmetic (finalScores) ──────────────────────────
+
+test("finalScores: no Scores line means no scores and no findings", () => {
+  const { scores, findings } = finalScores(parse("Classes: Fighter 1"), srd, supplement);
+  assert.equal(scores, null);
+  assert.deepEqual(findings, []);
+});
+
+test("finalScores: Vice and Shigen compute to their sheet values (skipped when data/slots.json is absent)", { skip: !full }, () => {
+  // Vice: base 8/15/14/10/8/15; Fey Puppet background ASI +2 CHA/+1 DEX; no ASI reached at Warlock 2
+  // (next at 4) and both homebrew feats (Fey Pact, Fey Sentinel) are unresolved, so neither bumps a score.
+  const vice = finalScores(parse(readFileSync(join(root, "fixtures", "vice.dndpaste"), "utf8")), full as Slots, supplement);
+  assert.deepEqual(vice.scores, { str: 8, dex: 16, con: 14, int: 10, wis: 8, cha: 17 });
+
+  // Shigen: base 8/13/14/12/10/15; Archer Priest background ASI +2 CHA/+1 DEX; Potent Dragonmark|EFA
+  // (a General feat) picks CHA for its half-feat +1 at L5, within the played Fighter1/Warlock5 range.
+  const shigen = finalScores(parse(readFileSync(join(root, "fixtures", "shigen.dndpaste"), "utf8")), full as Slots, supplement);
+  assert.deepEqual(shigen.scores, { str: 8, dex: 14, con: 14, int: 12, wis: 10, cha: 18 });
+});
+
+test("finalScores: an increment past the 20 cap is warned and the score is capped", () => {
+  const p = parse("Rules: 2024\nScores: 8/13/14/12/10/19\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.equal(scores?.cha, 20);
+  assert.ok(findings.some((f) => f.severity === "warning" && /past the 20 cap/.test(f.message)), JSON.stringify(findings));
+});
+
+test("finalScores: an illegal background ability pick is warned", () => {
+  const p = parse("Rules: 2024\nScores: 10/10/10/10/10/10\nClasses: Wizard 1\n\nBackground: Sage\nASI: +2 STR, +1 DEX\nSkills: Arcana, History");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.equal(scores?.str, 12); // still applied — the paste's own stated fact
+  assert.equal(scores?.dex, 11);
+  assert.ok(findings.some((f) => f.severity === "warning" && f.kind === "unresolved" && /not offered/.test(f.message)), JSON.stringify(findings));
 });
 
 test("real builds against the full extract (skipped when data/slots.json is absent)", { skip: !full }, () => {

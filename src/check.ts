@@ -412,6 +412,9 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   // T2.2 — 2014 starting-equipment picks (see dedicated section near end of file).
   checkStartingEquipment2014(paste, slots, rules, add);
 
+  // T2.4 — ability-score arithmetic findings (cap-20, illegal ability picks).
+  F.push(...finalScores(paste, slots, supplement).findings);
+
   const seen = new Set<string>();
   return F.filter((f) => { const k = `${f.kind}|${f.where}|${f.message}`; if (seen.has(k)) return false; seen.add(k); return true; });
 
@@ -548,6 +551,98 @@ function checkStartingEquipment2014(
     const bd = findByName(slots.backgrounds, bg.item.ref);
     if (bd?.equipmentGroups?.length) reportGroups("Background", bg.lines, bd.name, bd.equipmentGroups);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// T2.4 — ability-score arithmetic (finalScores)
+// Pure: Scores → species fixed increments + species/background ASI lines
+// (SPEC §5.1 ASI, D36 "only played levels count") + every level ASI line +
+// feat ability picks (half-feats, Feat's abilityChoose §5.3). Never edits the
+// paste. A pick already reported "missing" elsewhere is not re-flagged here.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
+const ABILITY_KEYS: readonly AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
+interface AbilityGrant { fixed?: Record<string, number>; choose?: { from: string[]; count?: number; amount?: number; weights?: number[] } | null }
+
+export function finalScores(paste: Paste, slots: Slots, supplement: Supplement = {}): { scores: Record<AbilityKey, number> | null; findings: Finding[] } {
+  const F: Finding[] = [];
+  const add = (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string) => F.push({ kind, severity, where, key, ref, message });
+
+  const scoresV = paste.header.get("Scores");
+  if (!scoresV || scoresV.type !== "scores") return { scores: null, findings: [] };
+  const scores: Record<AbilityKey, number> = { str: scoresV.values[0], dex: scoresV.values[1], con: scoresV.values[2], int: scoresV.values[3], wis: scoresV.values[4], cha: scoresV.values[5] };
+
+  const rulesV = paste.header.get("Rules");
+  const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
+  const speciesIx = new Index(slots.species);
+  const featsIx = new Index(slots.feats);
+  const backgroundsIx = new Index(slots.backgrounds);
+  void supplement; // reserved: no supplement data feeds ability arithmetic today
+
+  // "As played now" (D36): a class with an unknown level count means no level blocks exist at all.
+  const clsV = paste.header.get("Classes");
+  const classEntries = clsV && clsV.type === "classes" ? clsV.entries : [];
+  const known = classEntries.every((e) => e.levels !== null);
+  const played = known ? classEntries.reduce((a, e) => a + (e.levels ?? 0), 0) : null;
+  const isPlayed = (n: number) => played === null || n <= played;
+
+  const bump = (ability: string, amount: number, where: string) => {
+    const key = ability.toLowerCase() as AbilityKey;
+    if (!ABILITY_KEYS.includes(key)) return;
+    const next = scores[key] + amount;
+    if (next > 20) add("extra", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the 20 cap (+${amount})`, "ASI", key.toUpperCase());
+    scores[key] = Math.min(20, next);
+  };
+  const applyAsi = (v: Value | undefined, where: string, entityName?: string, allowedFrom?: string[] | null) => {
+    if (!v || v.type !== "asi") return;
+    for (const b of v.bonuses) {
+      if (allowedFrom && !allowedFrom.some((a) => a.toLowerCase() === b.ability.toLowerCase())) add("unresolved", "warning", where, `${entityName ?? "this pick"}: ability bonus to ${b.ability} is not offered (expected ${allowedFrom.map((a) => a.toUpperCase()).join(", ")})`, "ASI", b.ability);
+      bump(b.ability, b.amount, where);
+    }
+  };
+  const applyFeatPicks = (list: Item[], where: string) => {
+    for (const it of list) {
+      const r = featsIx.resolve(it.ref, rules);
+      // Origin feats (Magic Initiate, …) reuse the same bracket slot for a casting-ability pick, not a
+      // score bonus (SPEC §5.3): only a non-Origin feat's ability pick raises the score.
+      if (r.status !== "ok" || !r.hit?.abilityChoose || r.hit.category === "O") continue;
+      const pick = it.details[0]?.[0];
+      if (!pick) continue; // absent-when-owed is already reported as "missing" by check()
+      const ability = pick.ref.name;
+      if (!r.hit.abilityChoose.some((a) => a.toLowerCase() === ability.toLowerCase())) { add("unresolved", "warning", where, `"${r.hit.name}" ability pick "${ability}" is not one of: ${r.hit.abilityChoose.map((a) => a.toUpperCase()).join(", ")}`, "Feat", r.hit.name); continue; }
+      bump(ability, 1, where);
+    }
+  };
+
+  // Species: fixed increments (automatic — never written, rule 0.1) + its own ASI line (a 2014 choice among options).
+  const sp = paste.entities.find((e) => e.key === "Species");
+  if (sp) {
+    const hit = speciesIx.resolve(sp.item.ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null;
+    if (hit?.ability?.fixed) for (const [ability, amount] of Object.entries(hit.ability.fixed)) bump(ability, amount, "Species");
+    applyAsi(sp.lines.get("ASI"), "Species", hit?.name, hit?.ability?.choose?.from ?? null);
+    applyFeatPicks(adds(sp.lines, "Feat"), "Species");
+  }
+
+  // Background: the 2024 pick among the background's three abilities (+2/+1 or +1/+1/+1) — read the written line.
+  const bg = paste.entities.find((e) => e.key === "Background");
+  if (bg) {
+    const custom = lc(bg.item.ref.name) === "custom";
+    const hit = custom ? null : (backgroundsIx.resolve(bg.item.ref, rules).hit as ({ ability?: { choose: { from: string[] } | null } | null } & { name: string }) | null);
+    applyAsi(bg.lines.get("ASI"), "Background", hit?.name, hit?.ability?.choose?.from ?? null);
+    applyFeatPicks(adds(bg.lines, "Feat"), "Background");
+  }
+
+  // Every ASI line and feat ability pick at a level, played levels only (D36).
+  for (const lv of paste.levels) {
+    if (!isPlayed(lv.n)) continue;
+    const where = `L${lv.n}`;
+    applyAsi(lv.lines.get("ASI"), where);
+    applyFeatPicks(adds(lv.lines, "Feat"), where);
+  }
+  applyFeatPicks(adds(paste.header, "Feat"), "header");
+
+  return { scores, findings: F };
 }
 
 export type { Paste, LevelBlock };
