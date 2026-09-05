@@ -99,6 +99,52 @@ function progressionMap(p) {
   return arr;
 }
 
+// ── T2.2: 2014 starting-equipment choice groups ──────────────────────────────
+// 5etools' `startingEquipment.defaultData` (classes) / `startingEquipment` (backgrounds) is a list
+// of groups; a group keyed "_" is granted outright (not a choice) and is skipped. A group keyed by
+// single letters (a/b/c…) is a choice: each option is a list of entries, either a bare "name|SRC"
+// string or `{item:"name|SRC", quantity}`. Generic entries (`{equipmentType}`, `{special}`) are
+// prose/category placeholders with no 5etools entity name, so they carry no names — no rules text,
+// no invented item lists (CLAUDE.md content boundary).
+function itemsIndex(itemsTable) {
+  const byKey = new Map();
+  for (const it of Object.values(itemsTable)) byKey.set(`${it.name.toLowerCase()}|${it.source.toLowerCase()}`, it);
+  return byKey;
+}
+function resolveItemName(nameSrc, itemsByKey) {
+  const [name, src] = String(nameSrc).split("|");
+  const key = `${name.toLowerCase()}|${(src ?? "").toLowerCase()}`;
+  const hit = itemsByKey.get(key) ?? [...itemsByKey.values()].find((it) => it.name.toLowerCase() === name.toLowerCase());
+  if (hit) return `${hit.name}|${hit.source}`;
+  const titled = name.replace(/\b\w/g, (c) => c.toUpperCase());
+  return src ? `${titled}|${src.toUpperCase()}` : titled;
+}
+function equipmentChoiceGroups(list, itemsByKey) {
+  const groups = [];
+  for (const g of list ?? []) {
+    const options = {};
+    let any = false;
+    for (const [letter, entries] of Object.entries(g)) {
+      if (!/^[a-z]$/.test(letter)) continue; // "_" is a fixed grant, not a choice
+      const names = [];
+      for (const entry of entries ?? []) {
+        if (typeof entry === "string") { names.push(resolveItemName(entry, itemsByKey)); any = true; }
+        else if (entry && typeof entry === "object" && typeof entry.item === "string") { names.push(resolveItemName(entry.item, itemsByKey)); any = true; }
+        // entry.special / entry.equipmentType: generic or prose, not a nameable entity — skipped.
+      }
+      options[letter] = names;
+    }
+    if (any) groups.push(options);
+  }
+  return groups;
+}
+
+// ── items (loaded early: classes/backgrounds need it for equipment choice groups) ─
+const items = {};
+for (const i of load("items.json").item ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: i.rarity ?? "none", attune: Boolean(i.reqAttune) };
+for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false };
+const itemsByKey = itemsIndex(items);
+
 // ── classes ───────────────────────────────────────────────────────────────────
 const classes = {}, subclasses = {}, classFeatures = {};
 for (const f of listDir("class", "class-")) {
@@ -137,6 +183,7 @@ for (const f of listDir("class", "class-")) {
       hasMastery: feats.some((x) => /^Weapon Mastery\|/.test(x.uid)),
       skills: chooseSpec(sp.skills), tools: chooseSpec(sp.tools), multiclassSkills: chooseSpec(c.multiclassing?.proficienciesGained?.skills),
       equipmentOptions: (c.startingEquipment?.defaultData ?? []).flatMap((o) => Object.keys(o).filter((k) => /^[A-Z]$/.test(k))),
+      equipmentGroups: equipmentChoiceGroups(c.startingEquipment?.defaultData, itemsByKey),
       casting: c.spellcastingAbility ? {
         ability: c.spellcastingAbility, progression: c.casterProgression ?? null, preparedChange: c.preparedSpellsChange ?? null,
         cantrips: c.cantripProgression ?? null, prepared: c.preparedSpellsProgression ?? null, known: c.spellsKnownProgression ?? null,
@@ -200,6 +247,7 @@ for (const b of load("backgrounds.json").background ?? []) {
     ability: abilitySpec(b.ability), skills: chooseSpec(b.skillProficiencies), tools: chooseSpec(b.toolProficiencies), languages: chooseSpec(b.languageProficiencies),
     feats: (b.feats ?? []).flatMap((f) => Object.keys(f).map((k) => k.split("|")[0])),
     equipmentOptions: (b.startingEquipment ?? []).flatMap((o) => Object.keys(o).filter((k) => /^[A-Z]$/.test(k))),
+    equipmentGroups: equipmentChoiceGroups(b.startingEquipment, itemsByKey),
   };
 }
 
@@ -225,10 +273,6 @@ for (const o of load("optionalfeatures.json").optionalfeature ?? []) {
 Object.assign(families, { EI: "Eldritch Invocations", MM: "Metamagic", "MV:B": "Maneuvers", "MV:C2-UA": "Maneuvers (UA)", AI: "Artificer Infusions", AS: "Arcane Shots", RN: "Runes", ED: "Elemental Disciplines", PB: "Pact Boons", "FS:F": "Fighting Styles (Fighter)", "FS:R": "Fighting Styles (Ranger)", "FS:P": "Fighting Styles (Paladin)", "FS:B": "Fighting Styles (Bard)", OTH: "Other", "FS:F/FS:P/FS:R": "Fighting Styles" });
 const spells = {};
 for (const f of listDir("spells", "spells-")) for (const s of load(join("spells", f)).spell ?? []) spells[uid(s)] = { name: s.name, source: s.source, edition: edition(s), srd: isSrd(s), level: s.level };
-const items = {};
-for (const i of load("items.json").item ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: i.rarity ?? "none", attune: Boolean(i.reqAttune) };
-for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false };
-
 for (const tbl of [classes, subclasses, species, backgrounds, feats, optionalFeatures, spells, items]) for (const e of Object.values(tbl)) e.core = core(e);
 const meta = { mirror: root, generated: new Date().toISOString().slice(0, 10), counts: {} };
 const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, spells, items };

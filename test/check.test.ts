@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -144,6 +144,50 @@ test("+N prefix resolves the base item", () => {
   const u = kinds(f, "unresolved").filter((x) => /matches nothing/.test(x.message));
   assert.equal(u.length, 1, JSON.stringify(f));
   assert.match(u[0].message, /Nonsense/);
+});
+
+describe("2014 starting-equipment picks (T2.2)", () => {
+  test("missing picks are reported for the L1 class and the background", () => {
+    const f = run("Rules: 2014\nClasses: Cleric 1\n\nBackground: Acolyte\n\nL1 Cleric");
+    assert.ok(has(f, "missing", /Cleric starting equipment: no item chosen for pick 1.*Mace.*Warhammer/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Cleric starting equipment: no item chosen for pick 4.*Priest's Pack.*Explorer's Pack/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Acolyte starting equipment: no item chosen for pick 1/), JSON.stringify(f));
+    const missing = kinds(f, "missing").filter((x) => x.key === "Equipment");
+    assert.equal(missing.length, 5, JSON.stringify(missing)); // 4 Cleric groups + 1 Acolyte group
+    assert.ok(missing.every((x) => x.severity === "info"));
+  });
+
+  test("naming the chosen items clears every pick", () => {
+    const f = run([
+      "Rules: 2014", "Classes: Cleric 1", "",
+      "Background: Acolyte", "Equipment: Book", "",
+      "L1 Cleric", "Equipment: Warhammer, Chain Mail, Light Crossbow, Crossbow Bolts (20), Explorer's Pack",
+    ].join("\n"));
+    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 0, JSON.stringify(f));
+  });
+
+  test("an Equipment item outside any group is left alone (D33/D34)", () => {
+    const f = run([
+      "Rules: 2014", "Classes: Cleric 1", "",
+      "Background: Acolyte", "Equipment: Book", "",
+      "L1 Cleric", "Equipment: Warhammer, Chain Mail, Light Crossbow, Crossbow Bolts (20), Explorer's Pack, Rope, Torch",
+    ].join("\n"));
+    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 0, JSON.stringify(f));
+    assert.equal(f.filter((x) => /Rope|Torch/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+
+  test("2024 pastes are unaffected: no 2014-style Equipment missing findings", () => {
+    const f = run("Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric");
+    assert.equal(f.filter((x) => x.kind === "missing" && x.key === "Equipment").length, 0, JSON.stringify(f));
+  });
+
+  test("existing 2014 fixture (old-subrace-cleric-5) gets no new warnings, only info-level equipment picks", () => {
+    const f = run(readFileSync(join(root, "fixtures", "old-subrace-cleric-5.dndpaste"), "utf8"));
+    // The fixture has no Equipment lines at all; the new check reports that at info severity only —
+    // it must not add or upgrade any warning (pre-existing warnings here are unrelated, D-noted elsewhere).
+    assert.ok(f.every((x) => x.key !== "Equipment" || x.severity === "info"), JSON.stringify(f));
+    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 5, JSON.stringify(f));
+  });
 });
 
 test("real builds against the full extract (skipped when data/slots.json is absent)", { skip: !full }, () => {
