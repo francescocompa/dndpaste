@@ -54,6 +54,8 @@ export interface Finding { kind: FindingKind; severity: "warning" | "info"; wher
 const lc = (s: string) => s.toLowerCase();
 const looseEq = (a: string, b: string) => { const x = lc(a), y = lc(b); return x === y || x.startsWith(y + " ") || x.endsWith(" " + y) || y.startsWith(x + " ") || y.endsWith(" " + x); };
 const refStr = (r: Ref) => (r.source ? `${r.name}|${r.source}` : r.name);
+// D40: a generic magic-variant bonus prefix ("+1 Longsword") is not part of the entity name.
+const stripPlus = (name: string): string | null => { const m = /^\+\d+\s+(.+)$/.exec(name); return m ? m[1] : null; };
 
 class Index<T extends { name: string; source: string; edition?: string | null; core?: boolean }> {
   private byName = new Map<string, T[]>();
@@ -97,6 +99,20 @@ function dedupeByName<T extends { name: string; source: string }>(c: T[]): T[] {
 
 // ─── Checker ────────────────────────────────────────────────────────────────
 
+function buildIndexes(slots: Slots) {
+  return {
+    classes: new Index(slots.classes),
+    subclasses: new Index(slots.subclasses, (s) => s.shortName),
+    species: new Index(slots.species),
+    backgrounds: new Index(slots.backgrounds),
+    feats: new Index(slots.feats),
+    options: new Index(slots.optionalFeatures),
+    spells: new Index(slots.spells),
+    items: new Index(slots.items),
+  };
+}
+type Indexes = ReturnType<typeof buildIndexes>;
+
 function items(scope: Scope, key: string): Item[] {
   const v = scope.get(key);
   return v && v.type === "items" ? v.items : [];
@@ -114,21 +130,12 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   const rulesV = paste.header.get("Rules");
   const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
 
-  const ix = {
-    classes: new Index(slots.classes),
-    subclasses: new Index(slots.subclasses, (s) => s.shortName),
-    species: new Index(slots.species),
-    backgrounds: new Index(slots.backgrounds),
-    feats: new Index(slots.feats),
-    options: new Index(slots.optionalFeatures),
-    spells: new Index(slots.spells),
-    items: new Index(slots.items),
-  };
+  const ix = buildIndexes(slots);
   const resolveRef = <T extends { name: string; source: string; edition?: string | null; core?: boolean }>(index: Index<T>, ref: Ref, where: string, key: string, sev: "warning" | "info" = "warning", extra?: (t: T) => boolean): T | null => {
     let r = index.resolve(ref, rules, extra);
     // Generic magic variants ("+1 Longsword") are not 5etools entities: strip the bonus and resolve the base item (D40).
-    const plus = /^\+\d+\s+(.+)$/.exec(ref.name);
-    if (r.status === "none" && plus && (key === "Items" || key === "Equipment")) r = index.resolve({ name: plus[1], source: ref.source }, rules, extra);
+    const base = stripPlus(ref.name);
+    if (r.status === "none" && base && (key === "Items" || key === "Equipment")) r = index.resolve({ name: base, source: ref.source }, rules, extra);
     if (r.status === "none") add("unresolved", sev, where, `${key}: "${refStr(ref)}" matches nothing in the loaded data`, key, refStr(ref));
     else if (r.status === "ambiguous") add("unresolved", "info", where, `${key}: "${refStr(ref)}" matches several sources; add |SOURCE`, key, refStr(ref));
     else if (r.status === "alias" && r.hit) {
@@ -410,10 +417,10 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   }
 
   // T2.2 — 2014 starting-equipment picks (see dedicated section near end of file).
-  checkStartingEquipment2014(paste, slots, rules, add);
+  checkStartingEquipment2014(paste, ix, rules, add);
 
   // T2.4 — ability-score arithmetic findings (cap-20, illegal ability picks).
-  F.push(...finalScores(paste, slots, supplement).findings);
+  F.push(...finalScoresWith(paste, ix, supplement).findings);
 
   const seen = new Set<string>();
   return F.filter((f) => { const k = `${f.kind}|${f.where}|${f.message}`; if (seen.has(k)) return false; seen.add(k); return true; });
@@ -512,23 +519,16 @@ export function normalise(paste: Paste, slots: Slots, supplement: Supplement = {
 // satisfied when any item on the Equipment line names one of its options. Items the rules don't
 // owe are never flagged (D33/D34), so unmatched Equipment lines are left alone — only an unmet
 // group produces a finding, at the same severity the 2024 letter check uses (info).
-function findByName<T extends { name: string; source: string }>(table: Record<string, T>, ref: Ref): T | null {
-  const name = lc(ref.name);
-  let cands = Object.values(table).filter((t) => lc(t.name) === name);
-  if (ref.source) { const withSrc = cands.filter((t) => lc(t.source) === lc(ref.source as string)); if (withSrc.length) cands = withSrc; }
-  return cands[0] ?? null;
-}
 function chosenEquipmentNames(scope: Scope): Set<string> {
   const out = new Set<string>();
   for (const it of adds(scope, "Equipment")) {
-    const plus = /^\+\d+\s+(.+)$/.exec(it.ref.name); // strip a generic magic-item bonus prefix (D40)
-    out.add(lc(plus ? plus[1] : it.ref.name));
+    out.add(lc(stripPlus(it.ref.name) ?? it.ref.name));
   }
   return out;
 }
 function checkStartingEquipment2014(
   paste: Paste,
-  slots: Slots,
+  ix: Pick<Indexes, "classes" | "backgrounds">,
   rules: string | null,
   add: (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string) => void,
 ): void {
@@ -544,12 +544,12 @@ function checkStartingEquipment2014(
   };
   const l1 = paste.levels.find((lv) => lv.n === 1);
   if (l1) {
-    const cd = findByName(slots.classes, l1.class);
+    const cd = ix.classes.resolve(l1.class, rules).hit;
     if (cd?.equipmentGroups?.length) reportGroups("L1", l1.lines, cd.name, cd.equipmentGroups);
   }
   const bg = paste.entities.find((e) => e.key === "Background");
   if (bg && lc(bg.item.ref.name) !== "custom") {
-    const bd = findByName(slots.backgrounds, bg.item.ref);
+    const bd = ix.backgrounds.resolve(bg.item.ref, rules).hit;
     if (bd?.equipmentGroups?.length) reportGroups("Background", bg.lines, bd.name, bd.equipmentGroups);
   }
 }
@@ -567,6 +567,9 @@ const ABILITY_KEYS: readonly AbilityKey[] = ["str", "dex", "con", "int", "wis", 
 interface AbilityGrant { fixed?: Record<string, number>; choose?: { from: string[]; count?: number; amount?: number; weights?: number[] } | null }
 
 export function finalScores(paste: Paste, slots: Slots, supplement: Supplement = {}): { scores: Record<AbilityKey, number> | null; findings: Finding[] } {
+  return finalScoresWith(paste, buildIndexes(slots), supplement);
+}
+function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, supplement: Supplement): { scores: Record<AbilityKey, number> | null; findings: Finding[] } {
   const F: Finding[] = [];
   const add = (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string) => F.push({ kind, severity, where, key, ref, message });
 
@@ -576,8 +579,6 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
 
   const rulesV = paste.header.get("Rules");
   const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
-  const speciesIx = new Index(slots.species);
-  const featsIx = new Index(slots.feats);
   void supplement; // reserved: no supplement data feeds ability arithmetic today
 
   // "As played now" (D36): a class with an unknown level count means no level blocks exist at all.
@@ -587,12 +588,14 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
   const played = known ? classEntries.reduce((a, e) => a + (e.levels ?? 0), 0) : null;
   const isPlayed = (n: number) => played === null || n <= played;
 
-  const bump = (ability: string, amount: number, where: string) => {
+  // ASIs and half-feats stop at 20; an Epic Boon (category EB) raises a score to 30. A bump that
+  // overshoots its cap is warned and capped, never lowering a score a boon already took past 20.
+  const bump = (ability: string, amount: number, where: string, cap = 20) => {
     const key = ability.toLowerCase() as AbilityKey;
     if (!ABILITY_KEYS.includes(key)) return;
     const next = scores[key] + amount;
-    if (next > 20) add("misplaced", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the 20 cap (+${amount})`, "ASI", key.toUpperCase());
-    scores[key] = Math.min(20, next);
+    if (next > cap) add("misplaced", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the ${cap} cap (+${amount})`, "ASI", key.toUpperCase());
+    scores[key] = Math.max(scores[key], Math.min(cap, next));
   };
   const applyAsi = (v: Value | undefined, where: string) => {
     if (!v || v.type !== "asi") return;
@@ -602,7 +605,7 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
   };
   const applyFeatPicks = (list: Item[], where: string) => {
     for (const it of list) {
-      const r = featsIx.resolve(it.ref, rules);
+      const r = ix.feats.resolve(it.ref, rules);
       // Origin feats (Magic Initiate, …) reuse the same bracket slot for a casting-ability pick, not a
       // score bonus (SPEC §5.3): only a non-Origin feat's ability pick raises the score.
       if ((r.status !== "ok" && r.status !== "alias") || !r.hit?.abilityChoose || r.hit.category === "O") continue;
@@ -610,14 +613,14 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
       if (!pick) continue; // absent-when-owed is already reported as "missing" by check()
       const ability = pick.ref.name;
       if (!r.hit.abilityChoose.some((a) => a.toLowerCase() === ability.toLowerCase())) { add("unresolved", "warning", where, `"${r.hit.name}" ability pick "${ability}" is not one of: ${r.hit.abilityChoose.map((a) => a.toUpperCase()).join(", ")}`, "Feat", r.hit.name); continue; }
-      bump(ability, 1, where);
+      bump(ability, 1, where, r.hit.category === "EB" ? 30 : 20);
     }
   };
 
   // Species: fixed increments (automatic — never written, rule 0.1) + its own ASI line (a 2014 choice among options).
   const sp = paste.entities.find((e) => e.key === "Species");
   if (sp) {
-    const hit = speciesIx.resolve(sp.item.ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null;
+    const hit = ix.species.resolve(sp.item.ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null;
     if (hit?.ability?.fixed) for (const [ability, amount] of Object.entries(hit.ability.fixed)) bump(ability, amount, "Species");
     applyAsi(sp.lines.get("ASI"), "Species");
     applyFeatPicks(adds(sp.lines, "Feat"), "Species");

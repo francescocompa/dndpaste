@@ -210,7 +210,14 @@ function main() {
     const a = rest[i];
     if (a === "--json") json = true;
     else if (a === "--info") info = true;
-    else if (a === "--slots") slotsOverride = rest[++i];
+    else if (a === "--slots") {
+      slotsOverride = rest[++i];
+      if (slotsOverride === undefined || slotsOverride.startsWith("--")) {
+        console.error(`dndpaste: --slots needs a path\n`);
+        printUsage(process.stderr);
+        process.exit(2);
+      }
+    }
     else if (a === "--help" || a === "-h") {
       printUsage(process.stdout);
       process.exit(0);

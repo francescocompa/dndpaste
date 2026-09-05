@@ -2,6 +2,11 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- T2.7 review-nit cleanup: one `+N` stripper and one index builder shared by `check` and
+  `finalScores` (`findByName` gone); Epic Boon feats cap at 30, and a cap overshoot never lowers a
+  score; `--slots` without a path is a usage error. 87 tests; fixture output unchanged.
+
 ## 0.5.0 — 2026-09-05
 - M2 tail (D41–D44), built by five parallel worktree agents + a fresh-eyes review: spell-list
   legality (`misplaced`, per-spell class/subclass lists in the extract), 2014 starting-equipment

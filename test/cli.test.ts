@@ -46,6 +46,15 @@ test("missing file argument exits 2", () => {
   assert.match(r.stderr, /missing <file>/);
 });
 
+test("--slots as the last argument exits 2 instead of silently defaulting", () => {
+  const r = run(["check", join(fixturesDir, fixtureFiles[0]), "--slots"]);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /--slots needs a path/);
+  const r2 = run(["normalise", join(fixturesDir, fixtureFiles[0]), "--slots", "--json"]);
+  assert.equal(r2.status, 2);
+  assert.match(r2.stderr, /--slots needs a path/);
+});
+
 test("check on a nonexistent file exits 2, not a crash", () => {
   const r = run(["check", join(fixturesDir, "does-not-exist.dndpaste")]);
   assert.equal(r.status, 2);

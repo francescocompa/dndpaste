@@ -57,7 +57,7 @@ L<n> <Class>                   level block, n = character level
   - [x] T2.4 ability-score arithmetic — `Scores` + species/background/ASI/feat increments → final scores, cap 20, warn on overflow or on an ASI that names an unknown ability. Done when: Vice and Shigen compute to the sheet values.
   - [x] T2.5 dangling `Class 0` → unplaced info (D42) + name-alias contains fallback (D43). Done when: both have a fixture line and a test.
 - [x] 🔍 T2.6 fresh-eyes review (opus): 1 blocker + 4 should-fixes, all fixed; 0.5.0 cut.
-- [ ] T2.7 cleanup from the review nits · sonnet@medium · size S: one `+N` stripper and one name lookup (`findByName` → `Index.resolve`; `finalScores` reuses `check()`'s indexes); `--slots` as last argument errors instead of silently defaulting; Epic Boon feats cap at 30, not 20. Done when: verify green, no behaviour change on fixtures.
+- [x] T2.7 cleanup from the review nits ✅ 2026-09-05 (87 tests, fixture output byte-identical) · sonnet@medium · size S: one `+N` stripper and one name lookup (`findByName` → `Index.resolve`; `finalScores` reuses `check()`'s indexes); `--slots` as last argument errors instead of silently defaulting; Epic Boon feats cap at 30, not 20. Done when: verify green, no behaviour change on fixtures.
 - [ ] Homebrew: run the extract over a 5etools-format homebrew file and merge its slots (a homebrew file brings its own slots).
 
 ### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo

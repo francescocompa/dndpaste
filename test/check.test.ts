@@ -300,6 +300,20 @@ test("finalScores: an increment past the 20 cap is warned and the score is cappe
   assert.ok(findings.some((f) => f.severity === "warning" && /past the 20 cap/.test(f.message)), JSON.stringify(findings));
 });
 
+test("finalScores: an Epic Boon feat raises a score past 20, up to 30, without a cap warning", () => {
+  const p = parse("Rules: 2024\nScores: 8/13/14/12/10/20\nClasses: Fighter 19\n\nL19 Fighter\nFeat: Boon of Combat Prowess [CHA]");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.equal(scores?.cha, 21, JSON.stringify(findings));
+  assert.equal(findings.filter((f) => /past the \d+ cap/.test(f.message)).length, 0, JSON.stringify(findings));
+});
+
+test("finalScores: an ASI after an Epic Boon warns on the 20 cap but never lowers the score", () => {
+  const p = parse("Rules: 2024\nScores: 8/13/14/12/10/20\nClasses: Fighter 19\n\nL19 Fighter\nFeat: Boon of Combat Prowess [CHA]\nASI: +2 CHA");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.equal(scores?.cha, 21, JSON.stringify(findings));
+  assert.ok(findings.some((f) => f.severity === "warning" && /past the 20 cap/.test(f.message)), JSON.stringify(findings));
+});
+
 test("finalScores: an illegal background ability pick is reported once, by the background check (info)", () => {
   const p = parse("Rules: 2024\nScores: 10/10/10/10/10/10\nClasses: Wizard 1\n\nBackground: Sage\nASI: +2 STR, +1 DEX\nSkills: Arcana, History");
   const { scores, findings } = finalScores(p, srd, supplement);
