@@ -43,3 +43,8 @@ Cantrips: Blade Ward, True Strike
   is the hand-kept list of choice slots 5etools encodes only as prose.
 
 The UMD file bundles parser, emitter and checker under one global.
+
+- **CLI:** `bin/dndpaste` (after `npm run build`) — `dndpaste check <file>` prints diagnostics
+  and findings and exits non-zero on any error or warning; `dndpaste emit <file>` and
+  `dndpaste normalise <file>` print canonical text; `-` reads stdin, `--json` gives machine
+  output, `--help` shows usage.

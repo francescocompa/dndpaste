@@ -10,7 +10,8 @@
   "exports": {
     ".": { "import": "./dist/src/dndpaste.js", "require": "./dist/dndpaste.umd.cjs", "types": "./dist/src/dndpaste.d.ts" }
   },
-  "files": ["dist", "SPEC.md"],
+  "files": ["dist", "bin", "SPEC.md"],
+  "bin": { "dndpaste": "./bin/dndpaste.mjs" },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/umd.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
