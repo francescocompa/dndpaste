@@ -237,6 +237,40 @@ describe("2014 starting-equipment picks (T2.2)", () => {
   });
 });
 
+describe("spell-list legality (T2.1)", () => {
+  test("a spell off the class's list is misplaced", () => {
+    const f = run("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips: Guidance");
+    assert.ok(has(f, "misplaced", /"Guidance" is not on Wizard's spell list/), JSON.stringify(f));
+  });
+
+  test("a spell on the class's list is quiet", () => {
+    const f = run("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips: Fire Bolt");
+    assert.equal(f.filter((x) => x.kind === "misplaced" && /Fire Bolt/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+
+  test("a spell fixed-granted by a feat picked anywhere in the build is not flagged off-list (skipped when data/slots.json is absent)", { skip: !full }, () => {
+    const f = run("Rules: 2024\nClasses: Fighter 1\nFeat: Fey Touched|TCE [WIS]\n\nL1 Fighter\nSpells: Misty Step", full as Slots);
+    assert.equal(f.filter((x) => x.kind === "misplaced" && /Misty Step/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+
+  test("header-scope (unplaced) spell lines are skipped, not checked for list legality", () => {
+    const f = run("Rules: 2024\nClasses: Wizard 1\nCantrips: Guidance");
+    assert.equal(f.filter((x) => x.kind === "misplaced" && /Guidance/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+
+  test("a spell on a chosen subclass's expanded list clears the check (skipped when data/slots.json is absent)", { skip: !full }, () => {
+    const f = run("Rules: 2024\nClasses: Sorcerer 1\n\nL1 Sorcerer\nSubclass: Divine Soul\nSpells: Cure Wounds", full as Slots);
+    assert.equal(f.filter((x) => x.kind === "misplaced" && /Cure Wounds/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+
+  test("every fixture still checks with no new misplaced spell-list warnings (SRD table)", () => {
+    for (const name of readdirSync(join(root, "fixtures")).filter((n) => n.endsWith(".dndpaste"))) {
+      const fs = run(readFileSync(join(root, "fixtures", name), "utf8"));
+      for (const f of fs.filter((x) => x.kind === "misplaced")) assert.doesNotMatch(f.message, /is not on .*'s spell list/, `${name}: ${f.message}`);
+    }
+  });
+});
+
 test("real builds against the full extract (skipped when data/slots.json is absent)", { skip: !full }, () => {
   for (const name of ["shigen", "vice"]) {
     const f = run(readFileSync(join(root, "fixtures", `${name}.dndpaste`), "utf8"), full as Slots);

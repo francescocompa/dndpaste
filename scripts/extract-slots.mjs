@@ -272,7 +272,29 @@ for (const o of load("optionalfeatures.json").optionalfeature ?? []) {
 }
 Object.assign(families, { EI: "Eldritch Invocations", MM: "Metamagic", "MV:B": "Maneuvers", "MV:C2-UA": "Maneuvers (UA)", AI: "Artificer Infusions", AS: "Arcane Shots", RN: "Runes", ED: "Elemental Disciplines", PB: "Pact Boons", "FS:F": "Fighting Styles (Fighter)", "FS:R": "Fighting Styles (Ranger)", "FS:P": "Fighting Styles (Paladin)", "FS:B": "Fighting Styles (Bard)", OTH: "Other", "FS:F/FS:P/FS:R": "Fighting Styles" });
 const spells = {};
-for (const f of listDir("spells", "spells-")) for (const s of load(join("spells", f)).spell ?? []) spells[uid(s)] = { name: s.name, source: s.source, edition: edition(s), srd: isSrd(s), level: s.level };
+// Spell→class/subclass legality: generated/gendata-spell-source-lookup.json, keyed by the spell's own
+// (lowercase) source then the spell's (lowercase) name. Names only — no rules text.
+let spellSourceLookup = {};
+try { spellSourceLookup = load("generated/gendata-spell-source-lookup.json"); } catch { /* optional */ }
+function spellClassesAndSubclasses(s) {
+  const entry = spellSourceLookup[String(s.source ?? "").toLowerCase()]?.[String(s.name ?? "").toLowerCase()];
+  const classes = entry?.class ? [...new Set(Object.values(entry.class).flatMap((bySrc) => Object.keys(bySrc)))] : [];
+  const subclasses = new Set();
+  if (entry?.subclass) {
+    for (const grouping of Object.values(entry.subclass)) {
+      for (const [className, srcMap] of Object.entries(grouping)) {
+        for (const subMap of Object.values(srcMap)) {
+          for (const [subKey, subVal] of Object.entries(subMap)) subclasses.add(`${subVal?.name || subKey}|${className}`);
+        }
+      }
+    }
+  }
+  return { classes, subclasses: [...subclasses] };
+}
+for (const f of listDir("spells", "spells-")) for (const s of load(join("spells", f)).spell ?? []) {
+  const { classes, subclasses } = spellClassesAndSubclasses(s);
+  spells[uid(s)] = { name: s.name, source: s.source, edition: edition(s), srd: isSrd(s), level: s.level, classes, ...(subclasses.length ? { subclasses } : {}) };
+}
 for (const tbl of [classes, subclasses, species, backgrounds, feats, optionalFeatures, spells, items]) for (const e of Object.values(tbl)) e.core = core(e);
 const meta = { mirror: root, generated: new Date().toISOString().slice(0, 10), counts: {} };
 const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, spells, items };
