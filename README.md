@@ -44,7 +44,8 @@ Cantrips: Blade Ward, True Strike
 
 The UMD file bundles parser, emitter and checker under one global.
 
-- **CLI:** `bin/dndpaste` (after `npm run build`) — `dndpaste check <file>` prints diagnostics
-  and findings and exits non-zero on any error or warning; `dndpaste emit <file>` and
-  `dndpaste normalise <file>` print canonical text; `-` reads stdin, `--json` gives machine
-  output, `--help` shows usage.
+- **CLI:** `bin/dndpaste.mjs` (after `npm run build`) — `dndpaste check <file>` prints diagnostics
+  and findings and exits 1 on any error or warning (2 on a usage error); `--info` also shows
+  info-level findings, `--json` gives machine output, `--slots <path>` picks a slot table
+  (default `data/slots.json`, else `data/srd/slots.json`). `dndpaste emit <file>` and
+  `dndpaste normalise <file>` print canonical text; `-` reads stdin; `--help` shows usage.

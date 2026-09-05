@@ -124,17 +124,18 @@ function equipmentChoiceGroups(list, itemsByKey) {
   for (const g of list ?? []) {
     const options = {};
     let any = false;
+    let generic = false; // an option that is not a nameable entity ("any simple weapon") makes the group unjudgeable by name
     for (const [letter, entries] of Object.entries(g)) {
       if (!/^[a-z]$/.test(letter)) continue; // "_" is a fixed grant, not a choice
       const names = [];
       for (const entry of entries ?? []) {
         if (typeof entry === "string") { names.push(resolveItemName(entry, itemsByKey)); any = true; }
         else if (entry && typeof entry === "object" && typeof entry.item === "string") { names.push(resolveItemName(entry.item, itemsByKey)); any = true; }
-        // entry.special / entry.equipmentType: generic or prose, not a nameable entity — skipped.
+        else if (entry && typeof entry === "object" && (entry.special || entry.equipmentType)) generic = true;
       }
       options[letter] = names;
     }
-    if (any) groups.push(options);
+    if (any && !generic) groups.push(options);
   }
   return groups;
 }
@@ -278,7 +279,8 @@ let spellSourceLookup = {};
 try { spellSourceLookup = load("generated/gendata-spell-source-lookup.json"); } catch { /* optional */ }
 function spellClassesAndSubclasses(s) {
   const entry = spellSourceLookup[String(s.source ?? "").toLowerCase()]?.[String(s.name ?? "").toLowerCase()];
-  const classes = entry?.class ? [...new Set(Object.values(entry.class).flatMap((bySrc) => Object.keys(bySrc)))] : [];
+  // Spells published outside the class's own book list their classes under `classVariant`; merge both.
+  const classes = [...new Set([entry?.class, entry?.classVariant].filter(Boolean).flatMap((m) => Object.values(m).flatMap((bySrc) => Object.keys(bySrc))))];
   const subclasses = new Set();
   if (entry?.subclass) {
     for (const grouping of Object.values(entry.subclass)) {

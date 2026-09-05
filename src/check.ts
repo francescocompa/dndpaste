@@ -467,8 +467,9 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   }
   function checkSpellList(sd: { name: string; classes?: string[]; subclasses?: string[] }, name: string, cls: string, sc: SubclassSlots | null, where: string, key: string) {
     const className = classData.get(cls)?.name ?? cls;
+    if (!sd.classes?.length) return; // older or partial tables carry no list: never guess
     if ((sd.classes ?? []).some((c) => lc(c) === lc(className))) return;
-    if (sc && (sd.subclasses ?? []).some((s) => lc(s.split("|")[0]) === lc(sc.name) || lc(s.split("|")[0]) === lc(sc.shortName))) return;
+    if (sc && (sd.subclasses ?? []).some((s) => { const [sub, of] = s.split("|"); return lc(of ?? "") === lc(className) && (lc(sub) === lc(sc.name) || lc(sub) === lc(sc.shortName)); })) return;
     if (spellGrantedByFeat(name)) return;
     add("misplaced", "warning", where, `"${name}" is not on ${className}'s spell list`, key, name);
   }
@@ -577,7 +578,6 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
   const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
   const speciesIx = new Index(slots.species);
   const featsIx = new Index(slots.feats);
-  const backgroundsIx = new Index(slots.backgrounds);
   void supplement; // reserved: no supplement data feeds ability arithmetic today
 
   // "As played now" (D36): a class with an unknown level count means no level blocks exist at all.
@@ -591,13 +591,12 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
     const key = ability.toLowerCase() as AbilityKey;
     if (!ABILITY_KEYS.includes(key)) return;
     const next = scores[key] + amount;
-    if (next > 20) add("extra", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the 20 cap (+${amount})`, "ASI", key.toUpperCase());
+    if (next > 20) add("misplaced", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the 20 cap (+${amount})`, "ASI", key.toUpperCase());
     scores[key] = Math.min(20, next);
   };
-  const applyAsi = (v: Value | undefined, where: string, entityName?: string, allowedFrom?: string[] | null) => {
+  const applyAsi = (v: Value | undefined, where: string) => {
     if (!v || v.type !== "asi") return;
     for (const b of v.bonuses) {
-      if (allowedFrom && !allowedFrom.some((a) => a.toLowerCase() === b.ability.toLowerCase())) add("unresolved", "warning", where, `${entityName ?? "this pick"}: ability bonus to ${b.ability} is not offered (expected ${allowedFrom.map((a) => a.toUpperCase()).join(", ")})`, "ASI", b.ability);
       bump(b.ability, b.amount, where);
     }
   };
@@ -606,7 +605,7 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
       const r = featsIx.resolve(it.ref, rules);
       // Origin feats (Magic Initiate, …) reuse the same bracket slot for a casting-ability pick, not a
       // score bonus (SPEC §5.3): only a non-Origin feat's ability pick raises the score.
-      if (r.status !== "ok" || !r.hit?.abilityChoose || r.hit.category === "O") continue;
+      if ((r.status !== "ok" && r.status !== "alias") || !r.hit?.abilityChoose || r.hit.category === "O") continue;
       const pick = it.details[0]?.[0];
       if (!pick) continue; // absent-when-owed is already reported as "missing" by check()
       const ability = pick.ref.name;
@@ -620,16 +619,14 @@ export function finalScores(paste: Paste, slots: Slots, supplement: Supplement =
   if (sp) {
     const hit = speciesIx.resolve(sp.item.ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null;
     if (hit?.ability?.fixed) for (const [ability, amount] of Object.entries(hit.ability.fixed)) bump(ability, amount, "Species");
-    applyAsi(sp.lines.get("ASI"), "Species", hit?.name, hit?.ability?.choose?.from ?? null);
+    applyAsi(sp.lines.get("ASI"), "Species");
     applyFeatPicks(adds(sp.lines, "Feat"), "Species");
   }
 
   // Background: the 2024 pick among the background's three abilities (+2/+1 or +1/+1/+1) — read the written line.
   const bg = paste.entities.find((e) => e.key === "Background");
   if (bg) {
-    const custom = lc(bg.item.ref.name) === "custom";
-    const hit = custom ? null : (backgroundsIx.resolve(bg.item.ref, rules).hit as ({ ability?: { choose: { from: string[] } | null } | null } & { name: string }) | null);
-    applyAsi(bg.lines.get("ASI"), "Background", hit?.name, hit?.ability?.choose?.from ?? null);
+    applyAsi(bg.lines.get("ASI"), "Background");
     applyFeatPicks(adds(bg.lines, "Feat"), "Background");
   }
 

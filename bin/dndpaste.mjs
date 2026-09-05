@@ -3,10 +3,11 @@
 // ESM, Node >= 20, zero dependencies. Imports the built library from dist/.
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse, emit, isClean } from "../dist/src/dndpaste.js";
 import { check, normalise } from "../dist/src/check.js";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 
 const USAGE = `dndpaste — plain-text D&D 5e build parser/checker
 

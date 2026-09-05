@@ -194,13 +194,15 @@ describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
 });
 
 describe("2014 starting-equipment picks (T2.2)", () => {
-  test("missing picks are reported for the L1 class and the background", () => {
+  test("missing picks are reported for the L1 class; groups with a generic option are not judged", () => {
     const f = run("Rules: 2014\nClasses: Cleric 1\n\nBackground: Acolyte\n\nL1 Cleric");
     assert.ok(has(f, "missing", /Cleric starting equipment: no item chosen for pick 1.*Mace.*Warhammer/), JSON.stringify(f));
-    assert.ok(has(f, "missing", /Cleric starting equipment: no item chosen for pick 4.*Priest's Pack.*Explorer's Pack/), JSON.stringify(f));
-    assert.ok(has(f, "missing", /Acolyte starting equipment: no item chosen for pick 1/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Cleric starting equipment: no item chosen for pick 3.*Priest's Pack.*Explorer's Pack/), JSON.stringify(f));
+    // Cleric's crossbow-or-any-simple-weapon group and Acolyte's book-or-prayer-book group carry a
+    // generic option, so they are dropped by the extract and never reported.
+    assert.equal(f.filter((x) => /Acolyte starting equipment/.test(x.message)).length, 0, JSON.stringify(f));
     const missing = kinds(f, "missing").filter((x) => x.key === "Equipment");
-    assert.equal(missing.length, 5, JSON.stringify(missing)); // 4 Cleric groups + 1 Acolyte group
+    assert.equal(missing.length, 3, JSON.stringify(missing)); // 3 fully-named Cleric groups
     assert.ok(missing.every((x) => x.severity === "info"));
   });
 
@@ -233,7 +235,7 @@ describe("2014 starting-equipment picks (T2.2)", () => {
     // The fixture has no Equipment lines at all; the new check reports that at info severity only —
     // it must not add or upgrade any warning (pre-existing warnings here are unrelated, D-noted elsewhere).
     assert.ok(f.every((x) => x.key !== "Equipment" || x.severity === "info"), JSON.stringify(f));
-    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 5, JSON.stringify(f));
+    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 3, JSON.stringify(f));
   });
 });
 
@@ -298,12 +300,12 @@ test("finalScores: an increment past the 20 cap is warned and the score is cappe
   assert.ok(findings.some((f) => f.severity === "warning" && /past the 20 cap/.test(f.message)), JSON.stringify(findings));
 });
 
-test("finalScores: an illegal background ability pick is warned", () => {
+test("finalScores: an illegal background ability pick is reported once, by the background check (info)", () => {
   const p = parse("Rules: 2024\nScores: 10/10/10/10/10/10\nClasses: Wizard 1\n\nBackground: Sage\nASI: +2 STR, +1 DEX\nSkills: Arcana, History");
   const { scores, findings } = finalScores(p, srd, supplement);
   assert.equal(scores?.str, 12); // still applied — the paste's own stated fact
   assert.equal(scores?.dex, 11);
-  assert.ok(findings.some((f) => f.severity === "warning" && f.kind === "unresolved" && /not offered/.test(f.message)), JSON.stringify(findings));
+  assert.equal(findings.filter((f) => /not offered/.test(f.message)).length, 0, JSON.stringify(findings));
 });
 
 test("real builds against the full extract (skipped when data/slots.json is absent)", { skip: !full }, () => {

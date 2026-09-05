@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.4 (draft, 2026-09-04) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy · Decisions: `DECISIONS.md` D1–D34.
+**Version:** 0.4 (draft, 2026-09-04) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy · Decisions: `DECISIONS.md` D1–D44.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -321,6 +321,12 @@ A `Classes` entry at level 0 with no level block for that class is reported `unp
 resolve outright falls back, when 4+ characters, to the one entity of the same kind whose name
 contains it case-insensitively — reusing `unresolved` at info ("resolved as …", noting an edition
 mismatch); two or more such matches stay unresolved as before (D43).
+
+On a `Rules: 2014` paste the L1 class block and the background owe one named item per
+starting-equipment choice group (`missing`/info); groups with a generic option ("any simple
+weapon") are not judged. `finalScores` sums the `Scores` line with species, background, `ASI`
+and feat increments over played levels (D36); an increment past 20 is `misplaced`/warning, and a
+background bonus outside the background's three abilities stays the existing info finding.
 
 ---
 
