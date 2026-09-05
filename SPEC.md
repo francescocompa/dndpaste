@@ -308,7 +308,9 @@ Given the AST, a slot table derived from 5etools-format data (`choose`, `featPro
 a hand-kept supplement for prose-only slots** (Divine Order, Draconic Ancestry, Mystic
 Arcanum, 2014 equipment picks, invocation sub-picks such as Agonizing Blast's cantrip), the
 checker reports: **missing** (a default-less slot owed at or below the played level with no
-line), **misplaced** (a slot that does not exist at that level or class), **unresolved** (no
+line), **misplaced** (a slot that does not exist at that level or class — including a resolved
+`Cantrips`/`Spells`/`Prepared` pick that is not on the block's class list, a chosen subclass's
+granted/expanded list, or granted by a feat picked anywhere in the build), **unresolved** (no
 match, or several), **redundant** (a granted item written as a choice; `Prepared` for a
 pick-on-level-up caster; a written default), **unplaced** (a header choice more than one class
 could own), **extra** (a pick with no slot, accepted — see above). It never edits the paste; `normalise` is a separate, explicit step that returns a

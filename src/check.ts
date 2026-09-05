@@ -35,7 +35,7 @@ export interface OptionalFeatureSlots { name: string; source: string; types: str
 export interface Slots {
   classes: Record<string, ClassSlots>; subclasses: Record<string, SubclassSlots>; species: Record<string, SpeciesSlots>;
   backgrounds: Record<string, BackgroundSlots>; feats: Record<string, FeatSlots>; optionalFeatures: Record<string, OptionalFeatureSlots>;
-  families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number }>; items: Record<string, { name: string; source: string; rarity: string }>;
+  families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number; classes?: string[]; subclasses?: string[] }>; items: Record<string, { name: string; source: string; rarity: string }>;
 }
 export interface Supplement {
   expertiseCount?: number;
@@ -405,11 +405,35 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (fd.prereqLevel && n !== null && n < fd.prereqLevel && !beyond) add("misplaced", "warning", where, `"${fd.name}" needs character level ${fd.prereqLevel}`, "Feat", fd.name);
   }
   function checkSpell(it: Item, where: string, key: string, cls: string | null, n: number | null = null) {
-    resolveRef(ix.spells, it.ref, where, key);
+    const sd = resolveRef(ix.spells, it.ref, where, key);
     const from = cls ? subclassFrom.get(cls) : undefined;
     if (n !== null && from !== undefined && n < from) return;
     const sc = cls ? subclassOf.get(cls) : null;
     if (sc && sc.grantedSpells.some((g) => lc(g) === lc(it.ref.name))) add("redundant", "info", where, `"${it.ref.name}" is always prepared via ${sc.name}, not chosen`, key, it.ref.name);
+    if (cls && sd) checkSpellList(sd, it.ref.name, cls, sc ?? null, where, key);
+  }
+
+  // ─── T2.1: spell-list legality ──────────────────────────────────────────────
+  // A resolved Cantrips/Spells/Prepared pick must be on its level block's class list, on the
+  // chosen subclass's granted/expanded list, or granted by a feat picked anywhere in the build
+  // (Magic Initiate and friends). Header-scope spell lines are unplaced (no class to check
+  // against) and never reach here — checkSpell only forwards a non-null cls.
+  function spellGrantedByFeat(name: string): boolean {
+    const n = lc(name);
+    const scan = (scope: Scope) => adds(scope, "Feat").some((f) => {
+      const fd = ix.feats.resolve(f.ref, rules).hit;
+      return fd ? fd.grantedSpells.some((g) => lc(g) === n) : false;
+    });
+    if (scan(paste.header)) return true;
+    for (const e of paste.entities) if (scan(e.lines)) return true;
+    return paste.levels.some((lv) => scan(lv.lines));
+  }
+  function checkSpellList(sd: { name: string; classes?: string[]; subclasses?: string[] }, name: string, cls: string, sc: SubclassSlots | null, where: string, key: string) {
+    const className = classData.get(cls)?.name ?? cls;
+    if ((sd.classes ?? []).some((c) => lc(c) === lc(className))) return;
+    if (sc && (sd.subclasses ?? []).some((s) => lc(s.split("|")[0]) === lc(sc.name) || lc(s.split("|")[0]) === lc(sc.shortName))) return;
+    if (spellGrantedByFeat(name)) return;
+    add("misplaced", "warning", where, `"${name}" is not on ${className}'s spell list`, key, name);
   }
 }
 
