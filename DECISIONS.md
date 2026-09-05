@@ -48,7 +48,7 @@
 
 - **O1 — trpgpaste.** Game-neutral core + per-game profiles is a design constraint from D8; which other games, and what a "level" means there, is unevaluated. Unblocked by: someone with expertise in a second system.
 - ~~**O2 — Checker data source.**~~ **DECIDED → D35.**
-- **O3 — Package distribution.** npm package vs. copied file into consumers. Decide at M3 when the first consumer lands.
+- ~~**O3 — Package distribution.**~~ **DECIDED → D44.**
 
 - **D18 — Blank lines are insignificant; the multi-build separator reserved by D6 is the line `---`. DECIDED (2026-09-04, spec drafting).** Level blocks already use blank lines cosmetically, so the blank line cannot double as the variant/party separator D6 reserved. Amends D6; `---` is an error (E010) in v0.
 
@@ -103,3 +103,13 @@
 - **D39 — Medium is the silent default size. DECIDED (2026-09-04, Francesco).** A 2024 species offering Small/Medium is Medium unless `Feature: Size [Small]` is written; the checker no longer reports the absent pick. Applies D24.
 
 - **D40 — A `+N ` prefix on `Items`/`Equipment` is stripped for resolution. DECIDED (2026-09-04, Francesco).** `+1 Longsword` resolves as `Longsword`; the paste keeps the prefix. Named variants still need a data source.
+
+## M2 tail scoping (2026-09-05) — mechanism: AskUserQuestion, 3 rounds
+
+- **D41 — The M2 tail ships as 0.5.0 before M3, built by parallel worktree agents with a fresh-eyes review before merge. DECIDED (2026-09-05).** Scope: spell-list legality · 2014 starting-equipment picks · `bin/dndpaste` CLI · ability-score arithmetic · dangling `Class 0` · name-alias fallback. Homebrew merge stays queued (needs a real homebrew file). *Rejected:* CLI + spell-list only (leaves the checker half-blind on 2014 builds); sequential build (no reason to serialise independent modules).
+
+- **D42 — A `Classes` entry at level 0 with no level block is reported as `unplaced` info, kept in the paste, never dropped by `normalise`. DECIDED (2026-09-05, closes stress call 6).** *Rejected:* warning severity (noise on planned-but-unstarted classes); dropping it on emit (loses the author's plan).
+
+- **D43 — Unresolved names fall back to a unique contains-match within the same entity kind, resolved at info severity ("resolved as X"); two or more hits stay unresolved. A cross-edition hit still resolves, with the edition mismatch stated in the same finding. DECIDED (2026-09-05, closes stress call 9).** Fallback only fires on the full `Name|SRC` miss and never on refs shorter than 4 characters, so `Shield` cannot swallow `Shield Master`. *Rejected:* an alias table in `supplement.json` (hand upkeep per rename); table-then-contains (two mechanisms for one problem); refusing cross-edition hits (breaks builds that mix books on purpose).
+
+- **D44 — Consumers get the library as a copied `dist/dndpaste.umd.cjs`, the version stamped in `CHANGELOG.md`; M3 runs as a separate session inside my-spellbook after 0.5.0 lands. DECIDED (2026-09-05, closes O3).** *Rejected:* public npm package (needs the remote and an account first; can revisit once there is a third consumer); git submodule/subtree (Drive-synced folders); running M3 from this repo's context in parallel (crosses the CLAUDE.md boundary and targets a moving UMD).

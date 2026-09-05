@@ -16,4 +16,3 @@
   fallback) — recommendations given, no change made; ④ ⚑ do Spellfire Spark / Fey Sentinel ask an
   ability pick (homebrew feats, only you know).
 
-⟳ Rename previous session → "dndpaste scoping, spec, parser, checker, stress wave" · session: local_deae1e11-4386-47a8-b067-c98de18bf0de
