@@ -57,22 +57,36 @@ const refStr = (r: Ref) => (r.source ? `${r.name}|${r.source}` : r.name);
 
 class Index<T extends { name: string; source: string; edition?: string | null; core?: boolean }> {
   private byName = new Map<string, T[]>();
+  private all: T[] = [];
   constructor(table: Record<string, T>, alias?: (t: T) => string | undefined) {
     for (const t of Object.values(table)) {
+      this.all.push(t);
       this.push(lc(t.name), t);
       const a = alias?.(t);
       if (a && lc(a) !== lc(t.name)) this.push(lc(a), t);
     }
   }
   private push(k: string, t: T) { const l = this.byName.get(k); if (l) l.push(t); else this.byName.set(k, [t]); }
-  resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean): { hit: T | null; status: "ok" | "none" | "ambiguous" } {
+  resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean): { hit: T | null; status: "ok" | "none" | "ambiguous" | "alias" } {
     let c = this.byName.get(lc(ref.name)) ?? [];
     if (extra) c = c.filter(extra);
     if (ref.source) c = c.filter((t) => lc(t.source) === lc(ref.source as string));
     if (c.length > 1 && rules) { const e = c.filter((t) => t.edition === rules); if (e.length) c = e; }
     if (c.length > 1) { const k = c.filter((t) => t.core); if (k.length) c = k; }
     if (c.length > 1) { const d = dedupeByName(c); if (d.length === 1) return { hit: d[0], status: "ok" }; return { hit: c[0], status: "ambiguous" }; }
-    return c.length === 1 ? { hit: c[0], status: "ok" } : { hit: null, status: "none" };
+    if (c.length === 1) return { hit: c[0], status: "ok" };
+    // ── D43: name-alias contains fallback — a ref of 4+ chars with no direct match against
+    // exactly one entity of the same kind whose name contains it, case-insensitively. ────────
+    if (ref.name.length >= 4) {
+      let a = this.all.filter((t) => lc(t.name).includes(lc(ref.name)));
+      if (extra) a = a.filter(extra);
+      if (ref.source) a = a.filter((t) => lc(t.source) === lc(ref.source as string));
+      if (a.length > 1 && rules) { const e = a.filter((t) => t.edition === rules); if (e.length) a = e; }
+      if (a.length > 1) { const k = a.filter((t) => t.core); if (k.length) a = k; }
+      if (a.length > 1) a = dedupeByName(a);
+      if (a.length === 1) return { hit: a[0], status: "alias" };
+    }
+    return { hit: null, status: "none" };
   }
 }
 function dedupeByName<T extends { name: string; source: string }>(c: T[]): T[] {
@@ -117,6 +131,11 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (r.status === "none" && plus && (key === "Items" || key === "Equipment")) r = index.resolve({ name: plus[1], source: ref.source }, rules, extra);
     if (r.status === "none") add("unresolved", sev, where, `${key}: "${refStr(ref)}" matches nothing in the loaded data`, key, refStr(ref));
     else if (r.status === "ambiguous") add("unresolved", "info", where, `${key}: "${refStr(ref)}" matches several sources; add |SOURCE`, key, refStr(ref));
+    else if (r.status === "alias" && r.hit) {
+      const full = refStr({ name: r.hit.name, source: r.hit.source });
+      const editionNote = rules && r.hit.edition && r.hit.edition !== rules ? ` (${r.hit.edition} edition; paste is ${rules})` : "";
+      add("unresolved", "info", where, `${key}: "${refStr(ref)}" resolved as ${full}${editionNote}`, key, refStr(ref));
+    }
     return r.hit;
   };
   const uidOf = (t: { name: string; source: string }) => `${t.name}|${t.source}`;
@@ -130,6 +149,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     classData.set(lc(lv.class.name), resolveRef(ix.classes, lv.class, `L${lv.n}`, "L"));
     if (classEntries.length) add("misplaced", "warning", `L${lv.n}`, `class "${lv.class.name}" is not listed in Classes`, "L", lv.class.name);
   }
+  checkDanglingClassZero();
   const known = classEntries.every((e) => e.levels !== null);
   const played = known ? classEntries.reduce((a, e) => a + (e.levels ?? 0), 0) : null;
   const blockAt = new Map(paste.levels.map((l) => [l.n, l]));
@@ -391,6 +411,17 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
 
   const seen = new Set<string>();
   return F.filter((f) => { const k = `${f.kind}|${f.where}|${f.message}`; if (seen.has(k)) return false; seen.add(k); return true; });
+
+  // ── D42: dangling `Class 0` ────────────────────────────────────────────────
+  // A `Classes` entry with level 0 and no level block for that class declares nothing yet — it
+  // stays legal (planned multiclass slot) and normalise must not touch it; just flag it at info.
+  function checkDanglingClassZero() {
+    for (const e of classEntries) {
+      if (e.levels !== 0) continue;
+      if (paste.levels.some((lv) => lc(lv.class.name) === lc(e.ref.name))) continue;
+      add("unplaced", "info", "header", `${e.ref.name} 0 declares nothing`, "Classes", e.ref.name);
+    }
+  }
 
   // ── shared checks ─────────────────────────────────────────────────────────
   function checkFeat(it: Item, where: string, scope: "H" | "S" | "B" | "L", n: number | null, beyond: boolean) {

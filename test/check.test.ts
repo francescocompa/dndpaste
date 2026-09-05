@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -144,6 +144,53 @@ test("+N prefix resolves the base item", () => {
   const u = kinds(f, "unresolved").filter((x) => /matches nothing/.test(x.message));
   assert.equal(u.length, 1, JSON.stringify(f));
   assert.match(u[0].message, /Nonsense/);
+});
+
+describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
+  test("Class 0 with no level block is an unplaced info; normalise keeps it", () => {
+    const text = "Rules: 2024\nClasses: Warlock 5 / Fighter 0\n\nL1 Warlock\nSkills: Arcana, Deception";
+    const p = parse(text);
+    const f = check(p, srd, supplement);
+    const hit = f.filter((x) => x.kind === "unplaced" && /Fighter 0 declares nothing/.test(x.message));
+    assert.equal(hit.length, 1, JSON.stringify(f));
+    assert.equal(hit[0].severity, "info");
+    const n = normalise(p, srd, supplement);
+    const clsV = n.header.get("Classes");
+    assert.equal(clsV?.type, "classes");
+    assert.ok(clsV && clsV.type === "classes" && clsV.entries.some((e) => e.ref.name.toLowerCase() === "fighter" && e.levels === 0), JSON.stringify(clsV));
+  });
+
+  test("Class 0 with a level block for that class is not dangling", () => {
+    const f = run("Rules: 2024\nClasses: Warlock 5 / Fighter 0\n\nL1 Warlock\nSkills: Arcana, Deception\n\nL6 Fighter\nFighting Style: Archery");
+    assert.equal(f.filter((x) => /declares nothing/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+
+  test("a name-alias with exactly one contains-match resolves, with an info finding", () => {
+    const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nFeat: Truesight");
+    const hit = f.filter((x) => x.kind === "unresolved" && /resolved as/.test(x.message));
+    assert.equal(hit.length, 1, JSON.stringify(f));
+    assert.equal(hit[0].severity, "info");
+    assert.match(hit[0].message, /resolved as Boon of Truesight\|XPHB/);
+    // no longer literally unresolved: the "matches nothing" message must not also fire
+    assert.equal(f.filter((x) => /Truesight.*matches nothing/.test(x.message)).length, 0);
+  });
+
+  test("a name-alias whose hit's edition differs from Rules states the mismatch", () => {
+    const f = run("Rules: 2014\nClasses: Fighter 1\n\nL1 Fighter\nFeat: Truesight");
+    assert.ok(has(f, "unresolved", /resolved as Boon of Truesight\|XPHB \(2024 edition; paste is 2014\)/), JSON.stringify(f));
+  });
+
+  test("a name-alias with two or more contains-matches stays unresolved", () => {
+    const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nItems: Water");
+    assert.ok(has(f, "unresolved", /"Water" matches nothing/), JSON.stringify(f));
+    assert.equal(f.filter((x) => /resolved as/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+
+  test("a ref under 4 characters never falls back to an alias", () => {
+    const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nSpells: Fog");
+    assert.ok(has(f, "unresolved", /"Fog" matches nothing/), JSON.stringify(f));
+    assert.equal(f.filter((x) => /resolved as/.test(x.message)).length, 0, JSON.stringify(f));
+  });
 });
 
 test("real builds against the full extract (skipped when data/slots.json is absent)", { skip: !full }, () => {

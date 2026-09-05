@@ -314,6 +314,12 @@ pick-on-level-up caster; a written default), **unplaced** (a header choice more 
 could own), **extra** (a pick with no slot, accepted — see above). It never edits the paste; `normalise` is a separate, explicit step that returns a
 new AST.
 
+A `Classes` entry at level 0 with no level block for that class is reported `unplaced`/info
+("declares nothing") but stays legal and untouched by `normalise` (D42). A ref that fails to
+resolve outright falls back, when 4+ characters, to the one entity of the same kind whose name
+contains it case-insensitively — reusing `unresolved` at info ("resolved as …", noting an edition
+mismatch); two or more such matches stay unresolved as before (D43).
+
 ---
 
 ## 7. Diagnostics
