@@ -45,18 +45,19 @@ L<n> <Class>                   level block, n = character level
 - [x] **Vice** and **Shigen** hand-written as dndpastes (`fixtures/`), parse clean and round-trip byte-for-byte from `~/Documents/D&D/D&D Character Builder/Characters` and round-tripped. Done-when: every choice on those sheets has a line, no invented key.
 - [x] 🔶 Francesco read SPEC 0.3 + fixtures: "looks right" (2026-09-04).
 
-### M2 — Checker · size M/L · ✅ first cut shipped 2026-09-04 (D35, D36)
+### M2 — Checker · size M/L · ✅ 0.5.0 shipped 2026-09-05 (D35, D36, D41–D44)
 - [x] `scripts/extract-slots.mjs` → `data/slots.json` + `data/srd/slots.json` (D35).
 - [x] `src/check.ts` → missing / misplaced / unresolved / redundant / unplaced / **extra** findings + `normalise` (D30, D34). 15 tests on the SRD table; the two real builds run against the full table when present.
 - [x] Stress wave 2026-09-04 (`stress/REPORT.md`): 65 pastes, 11 fixes, 9 open calls.
 - [x] `+N` magic-variant prefix (D40); Medium default size (D39); six stress pastes promoted to fixtures (2026-09-04).
-- [ ] **M2 tail → 0.5.0** (D41, 2026-09-05) · parallel worktree agents, sonnet@high, fresh-eyes review on the strong model before merge:
-  - [ ] T2.1 spell-list legality — extractor emits per-spell class lists; `Cantrips`/`Spells`/`Prepared` off the class's (or subclass's granted) list → warning. Done when: fixtures pass, a wrong-list spell on Vice-style paste is reported.
-  - [ ] T2.2 2014 starting-equipment picks — class + background `Equipment` choices from the extract (2014 only; 2024 letters already covered). Done when: a 2014 paste missing its pick is `missing`, a valid one is clean.
-  - [ ] T2.3 `bin/dndpaste` CLI — `check <file>` / `emit <file>` / `normalise <file>`, loads `data/slots.json` else `data/srd/slots.json`, exit 1 on warnings. Done when: runs on every fixture; `npm run verify` green.
-  - [ ] T2.4 ability-score arithmetic — `Scores` + species/background/ASI/feat increments → final scores, cap 20, warn on overflow or on an ASI that names an unknown ability. Done when: Vice and Shigen compute to the sheet values.
-  - [ ] T2.5 dangling `Class 0` → unplaced info (D42) + name-alias contains fallback (D43). Done when: both have a fixture line and a test.
-- [ ] 🔍 T2.6 fresh-eyes review of the merged diff, then merge + 0.5.0 in CHANGELOG.
+- [x] **M2 tail → 0.5.0** ✅ shipped 2026-09-05 (D41) · parallel worktree agents, sonnet@high, fresh-eyes review on the strong model before merge:
+  - [x] T2.1 spell-list legality — extractor emits per-spell class lists; `Cantrips`/`Spells`/`Prepared` off the class's (or subclass's granted) list → warning. Done when: fixtures pass, a wrong-list spell on Vice-style paste is reported.
+  - [x] T2.2 2014 starting-equipment picks — class + background `Equipment` choices from the extract (2014 only; 2024 letters already covered). Done when: a 2014 paste missing its pick is `missing`, a valid one is clean.
+  - [x] T2.3 `bin/dndpaste` CLI — `check <file>` / `emit <file>` / `normalise <file>`, loads `data/slots.json` else `data/srd/slots.json`, exit 1 on warnings. Done when: runs on every fixture; `npm run verify` green.
+  - [x] T2.4 ability-score arithmetic — `Scores` + species/background/ASI/feat increments → final scores, cap 20, warn on overflow or on an ASI that names an unknown ability. Done when: Vice and Shigen compute to the sheet values.
+  - [x] T2.5 dangling `Class 0` → unplaced info (D42) + name-alias contains fallback (D43). Done when: both have a fixture line and a test.
+- [x] 🔍 T2.6 fresh-eyes review (opus): 1 blocker + 4 should-fixes, all fixed; 0.5.0 cut.
+- [ ] T2.7 cleanup from the review nits · sonnet@medium · size S: one `+N` stripper and one name lookup (`findByName` → `Index.resolve`; `finalScores` reuses `check()`'s indexes); `--slots` as last argument errors instead of silently defaulting; Epic Boon feats cap at 30, not 20. Done when: verify green, no behaviour change on fixtures.
 - [ ] Homebrew: run the extract over a 5etools-format homebrew file and merge its slots (a homebrew file brings its own slots).
 
 ### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo
