@@ -1,0 +1,33 @@
+{
+  "_comment": "Hand-kept supplement for choice slots 5etools encodes only as prose (SPEC §6, D30). Names only — no rules text. Keys are 5etools name|SOURCE.",
+  "expertiseCount": 2,
+  "spellbook": {
+    "Wizard|XPHB": { "first": 6, "perLevel": 2 },
+    "Wizard|PHB": { "first": 6, "perLevel": 2 }
+  },
+  "lineageTrait": {
+    "Elf|XPHB": "Elven Lineage",
+    "Tiefling|XPHB": "Fiendish Legacy",
+    "Dragonborn|XPHB": "Draconic Ancestry",
+    "Goliath|XPHB": "Giant Ancestry",
+    "Gnome|XPHB": "Gnomish Lineage",
+    "Aasimar|XPHB": null,
+    "Elf|LFL": "Elven Lineage"
+  },
+  "speciesFeatures": {
+    "Dragonborn|XPHB": { "Draconic Ancestry": ["Black", "Blue", "Brass", "Bronze", "Copper", "Gold", "Green", "Red", "Silver", "White"] },
+    "Goliath|XPHB": { "Giant Ancestry": ["Cloud", "Fire", "Frost", "Hill", "Stone", "Storm"] },
+    "Autognome|AAG": { "Specialized Design": [] }
+  },
+  "optionPicks": {
+    "Agonizing Blast|XPHB": 1,
+    "Repelling Blast|XPHB": 1,
+    "Lifedrinker|XPHB": 1,
+    "Eldritch Spear|XPHB": 1,
+    "Pact of the Tome|XPHB": 3
+  },
+  "classFeaturePicks": {
+    "Warlock|XPHB": { "Mystic Arcanum": { "levels": [11, 13, 15, 17], "key": "Spells", "count": 1 } },
+    "Warlock|PHB": { "Mystic Arcanum": { "levels": [11, 13, 15, 17], "key": "Spells", "count": 1 } }
+  }
+}
