@@ -64,10 +64,12 @@ L<n> <Class>                   level block, n = character level
 - [ ] Copies `dist/dndpaste.umd.cjs` (global `dndpaste`); `levelGains`/`timelinePicks` → AST → `emit`. Scores line omitted. Logged in that repo's DECISIONS as the format L5.5 was waiting for.
 
 ### M4 — character-forge interview seeding · size M in that repo
+- ⚑ **Retarget (Francesco, 2026-09-29):** character-forge v1 is archived. v2 imports pastes directly (its D61 phase 1, T2.1), so the chassis-seeding flow below is retired unless he says otherwise.
 - [ ] Paste → pre-filled chassis sections; interview asks only what the paste left unplaced or missing. References resolve against the KB at compile time as today.
 
 ### M5 — my-spellbook import · size M in that repo
 - [ ] Paste → build, resolving refs against loaded sources; unresolved refs use the existing "not loaded" path (its D56).
 
 ### Later
+- ⚑ **Share service (D45, decided 2026-09-29):** a Cloudflare Worker + KV, pokepaste-style short links. Its milestone and its place relative to M3 are his call (Francesco, 2026-09-29).
 - Variants / party blocks (D6). `Game:` header and a second profile (O1). Python port only if extract.py needs it.

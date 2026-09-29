@@ -113,3 +113,23 @@
 - **D43 — Unresolved names fall back to a unique contains-match within the same entity kind, resolved at info severity ("resolved as X"); two or more hits stay unresolved. A cross-edition hit still resolves, with the edition mismatch stated in the same finding. DECIDED (2026-09-05, closes stress call 9).** Fallback only fires on the full `Name|SRC` miss and never on refs shorter than 4 characters, so `Shield` cannot swallow `Shield Master`. *Rejected:* an alias table in `supplement.json` (hand upkeep per rename); table-then-contains (two mechanisms for one problem); refusing cross-edition hits (breaks builds that mix books on purpose).
 
 - **D44 — Consumers get the library as a copied `dist/dndpaste.umd.cjs`, the version stamped in `CHANGELOG.md`; M3 runs as a separate session inside my-spellbook after 0.5.0 lands. DECIDED (2026-09-05, closes O3).** *Rejected:* public npm package (needs the remote and an account first; can revisit once there is a third consumer); git submodule/subtree (Drive-synced folders); running M3 from this repo's context in parallel (crosses the CLAUDE.md boundary and targets a moving UMD).
+
+## Share links (2026-09-29) — mechanism: Francesco's call in the character-forge v2 seed session
+
+- **D45 — dndpaste gets a pokepaste-style share service: a Cloudflare Worker with KV storage, short links, anyone can paste. DECIDED (2026-09-29).** Scope:
+  - A paste goes in and comes back as a short link (`…/p/<id>`).
+  - A public viewer renders it pokepaste-style, dry, with names linked, and offers an import action to consuming apps.
+  - Names only, as always (D9): the service never stores rules text, notes or session state.
+  - Producers get "Share link" and consumers get "Import from link": My Spellbook produces, character-forge v2 consumes (see its cf-D67).
+  *Raw note:* "For the paste, I'd like to mimic pokepaste and have tiny storage." Then, choosing between a Worker and GitHub Gists: "Cloudflare Worker".
+  *Rejected:*
+  - GitHub secret Gists as storage: only the key holder can create pastes, and a gist-scoped token would sit in browser storage.
+  - Links that carry the paste in the URL fragment: no storage, and links run long (1–2k chars). Still a possible offline fallback, not the product.
+  - No sharing at all.
+  *Open for the build session (⚑ Francesco, 2026-09-29):*
+  - He creates the Cloudflare account; the API token lives only in local `.env` / `wrangler login`.
+  - Abuse limits: a size cap, per-IP rate limits, and whether pastes expire (pokepast.es keeps them).
+  - Where the viewer is hosted (this repo's Pages site, or the Worker itself).
+  - Whether a paste can be edited or versioned, or every share makes a new id.
+  *Enforced by:* prose only until built.
+  *Affects:* PLAN.md (a new milestone, placed by his call relative to M3), SPEC.md (a share-link section, if the link format needs specifying), README.
