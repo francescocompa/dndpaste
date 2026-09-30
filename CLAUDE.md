@@ -20,6 +20,8 @@ Fixtures may **name** WotC entities. No rules text, no KB extracts, no 5etools d
 ## Conventions
 Strict TS, ESM source, single-file UMD build for no-build consumers. `npm run verify` =
 typecheck + lint + test; run after any code edit. Conventional commits. Decisions via /decision.
+Releases: an annotated `vX.Y.Z` tag = `package.json` = a dated CHANGELOG heading, made by hand;
+a pushed tag is never moved (D57).
 Game-neutral core grammar; game specifics live in a profile (`profiles/dnd5e`).
 
 ## Context boundary

@@ -2,7 +2,7 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
-## Unreleased
+## 0.6.0 — 2026-09-30
 - **SPEC 0.5** (additions only, D46–D56), from Francesco's calls on the real-build stress wave (cf-D81):
   - `Scores` takes a named, partial form of base scores (`Scores: DEX 15, CON 13`); canonical emit
     picks the six-number form when all six are known. `finalScores` returns `null` (unknown) for an
