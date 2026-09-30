@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse, emit, isClean, type Paste } from "../src/dndpaste.js";
+import { parse, emit, isClean, classSequence, classTotals, type Paste } from "../src/dndpaste.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = join(here, "..", "..", "fixtures");
@@ -146,6 +146,88 @@ test("Scores: all six named is the six-number form in canonical emit", () => {
   assert.deepEqual(q.header.get("Scores"), p.header.get("Scores"), "the two forms give the same AST");
 });
 
+// ─── F4: Classes runs, the reading rule, switch-point headers (D49) ─────────
+
+const seqNames = (p: Paste) => classSequence(p).levels.map((r) => (r ? r.name.toLowerCase()[0] : "-")).join("");
+
+test("Classes runs: cumulative class levels in the order taken", () => {
+  const p = parse("Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14");
+  assert.deepEqual(codes(p), []);
+  const c = p.header.get("Classes");
+  assert.ok(c && c.type === "classes");
+  assert.equal(c.entries.length, 4, "the AST keeps the runs as written");
+  assert.deepEqual(classTotals(p).map((e) => [e.ref.name, e.levels]), [["Fighter", 6], ["Rogue", 14]]);
+  const s = classSequence(p);
+  assert.equal(s.played, 20, "runs are cumulative: 6 + 14, not 1 + 3 + 6 + 14");
+  assert.equal(seqNames(p), "frrrfffffrrrrrrrrrrr");
+});
+
+test("Classes runs: canonical emit prints totals and a header at each class change", () => {
+  const p = parse("Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14");
+  const once = emit(p);
+  assert.equal(once, "Classes: Fighter 6 / Rogue 14\n\nL2 Rogue\n\nL5 Fighter\n\nL10 Rogue\n");
+  const q = parse(once);
+  assert.deepEqual(codes(q), []);
+  assert.equal(seqNames(q), seqNames(p), "the order survives the fold");
+  assert.equal(emit(q), once, "idempotent");
+});
+
+test("Classes runs: existing blocks are kept, missing switch points get an empty block", () => {
+  const p = parse("Classes: Rogue 1 / Fighter 5 / Rogue 14 / Fighter 6\n\nL2 Fighter\nFighting Style: Two-Weapon Fighting\n\nL8 Rogue\nSubclass: Thief");
+  assert.deepEqual(codes(p), []);
+  const once = emit(p);
+  assert.equal(once, "Classes: Rogue 14 / Fighter 6\n\nL2 Fighter\nFighting Style: Two-Weapon Fighting\n\nL7 Rogue\n\nL8 Rogue\nSubclass: Thief\n\nL20 Fighter\n");
+  assert.equal(emit(parse(once)), once);
+  assert.equal(seqNames(parse(once)), seqNames(p));
+});
+
+test("Classes runs: planned levels and 0 entries keep their meaning", () => {
+  const p = parse("Classes: Fighter 1 / Rogue 2 / Fighter 3 / Wizard 0\n\nL7 Wizard\nSubclass: Evoker");
+  assert.deepEqual(codes(p), []);
+  assert.equal(classSequence(p).played, 5);
+  assert.equal(seqNames(p), "frrfffw", "L6 is planned and unheadered: it carries on from L5 until L7's header");
+  const once = emit(p);
+  assert.equal(once, "Classes: Fighter 3 / Rogue 2 / Wizard 0\n\nL2 Rogue\n\nL4 Fighter\n\nL7 Wizard\nSubclass: Evoker\n");
+  assert.equal(emit(parse(once)), once);
+});
+
+test("reading rule: a flat paste stays flat, and its order is Classes order", () => {
+  const p = parse("Classes: Fighter 3 / Warlock 3\nSkills: Athletics");
+  assert.equal(seqNames(p), "fffwww");
+  assert.equal(emit(p), "Classes: Fighter 3 / Warlock 3\nSkills: Athletics\n", "no headers are added to a paste with no level blocks");
+});
+
+test("reading rule: once a paste has level blocks, an unheadered class change gets a header", () => {
+  const p = parse("Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\nFighting Style: Archery\n\nL4 Warlock\nSubclass: Fiend Patron");
+  assert.equal(seqNames(p), "fwwwww");
+  assert.equal(emit(p), "Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\nFighting Style: Archery\n\nL2 Warlock\n\nL4 Warlock\nSubclass: Fiend Patron\n");
+});
+
+test("reading rule: an unheadered level continues the current class, keeping levels a later header claims", () => {
+  // A Warlock dip at L2; the Warlock's other two levels are headered at L11 and L12, so L3 returns to Fighter.
+  const p = parse("Classes: Fighter 9 / Warlock 3\n\nL2 Warlock\nCantrips: Eldritch Blast\n\nL11 Warlock\nSubclass: Fiend Patron\n\nL12 Warlock");
+  assert.deepEqual(codes(p), []);
+  assert.equal(seqNames(p), "fwffffffffww");
+  // Without later headers, the dip continues while the class has levels left.
+  const q = parse("Classes: Fighter 3 / Warlock 3\n\nL1 Warlock\nCantrips: Eldritch Blast");
+  assert.equal(seqNames(q), "wwwfff");
+});
+
+test("W003: a header whose class has no levels left (totals form) is kept and flagged", () => {
+  const p = parse("Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\n\nL2 Fighter\nFighting Style: Archery");
+  assert.deepEqual(codes(p), ["W003"]);
+  assert.equal(p.diagnostics[0].line, 5);
+  assert.ok(isClean(p));
+  assert.equal(seqNames(p), "ffwwww", "the header still fixes its level");
+  assert.equal(emit(parse(emit(p))), emit(p));
+});
+
+test("E016: a header that contradicts the Classes runs", () => {
+  const p = parse("Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14\n\nL3 Fighter\nFeat: Alert");
+  assert.deepEqual(codes(p), ["E016"]);
+  assert.equal(p.diagnostics[0].line, 3);
+});
+
 const errorCases: [string, string, string[]][] = [
   ["E001 malformed", "Classes: Bard 1\nwhat is this", ["E001"]],
   ["E002 unknown key", "Pact: Blade", ["E002"]],
@@ -172,6 +254,11 @@ const errorCases: [string, string, string[]][] = [
   ["E012 asi", "ASI: 2 CHA", ["E012"]],
   ["E012 rules", "Rules: 2020", ["E012"]],
   ["E012 bare class with blocks", "Classes: Bard\n\nL1 Bard\nSkills: Arcana", ["E012"]],
+  ["E012 runs not increasing", "Classes: Fighter 5 / Rogue 3 / Fighter 4", ["E012"]],
+  ["E012 runs equal", "Classes: Fighter 5 / Rogue 3 / Fighter 5", ["E012"]],
+  ["E012 runs without a count", "Classes: Fighter / Rogue 3 / Fighter 6", ["E012"]],
+  ["E012 runs with 0", "Classes: Fighter 0 / Rogue 3 / Fighter 2", ["E012"]],
+  ["E012 runs with two sources", "Classes: Fighter|XPHB 1 / Rogue 3 / Fighter|PHB 6", ["E012"]],
   ["E013 stamp on item", "Spells: Hex @3", ["E013"]],
   ["E014 entity after level", "L1 Bard\nSpecies: Elf", ["E014"]],
   ["E014 repeated entity", "Species: Elf\nSpecies: Human", ["E014"]],

@@ -153,6 +153,44 @@ test("+N prefix resolves the base item", () => {
   assert.match(u[0].message, /Nonsense/);
 });
 
+describe("F4: Classes runs (D49)", () => {
+  const runsPaste = [
+    "Rules: 2024", "Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14", "",
+    "L4 Rogue", "Subclass: Thief", "",
+    "L6 Fighter", "Subclass: Champion", "",
+    "L10 Rogue", "ASI: +2 DEX",
+  ].join("\n");
+
+  test("class levels follow the runs: subclasses and ASIs sit at the right class level", () => {
+    const f = run(runsPaste);
+    assert.equal(f.filter((x) => x.kind === "misplaced").length, 0, JSON.stringify(f));
+    // Rogue 4 is character level 10 (Rogue 1–3 are levels 2–4), so its ASI is not extra.
+    assert.equal(f.filter((x) => x.kind === "extra").length, 0, JSON.stringify(f));
+  });
+
+  test("played levels are the sum of the totals (20), not of the runs (24)", () => {
+    const f = run(runsPaste);
+    // Fighter 6 owes ASIs at class levels 4 and 6, Rogue 14 at 4, 8, 10, 12; one Rogue ASI is written.
+    assert.ok(has(f, "missing", /Fighter owes 2 more ASI\/Feat/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Rogue owes 3 more ASI\/Feat/), JSON.stringify(f));
+    const { scores } = finalScores(parse(`Scores: DEX 15\n${runsPaste.split("\n").slice(1).join("\n")}`), srd, supplement);
+    assert.equal(scores?.dex, 17, "the ASI at L10 is a played level");
+  });
+
+  test("the runs form and its canonical form check the same", () => {
+    const a = run(runsPaste).map((x) => x.message).sort();
+    const b = run(emit(parse(runsPaste))).map((x) => x.message).sort();
+    assert.deepEqual(b, a);
+  });
+
+  test("a header with no levels left is the parser's W003, not repeated as a finding", () => {
+    const p = parse("Rules: 2024\nClasses: Fighter 1 / Warlock 5\n\nL1 Fighter\n\nL2 Fighter");
+    assert.deepEqual(p.diagnostics.map((d) => d.code), ["W003"]);
+    const f = check(p, srd, supplement);
+    assert.equal(f.filter((x) => /does not account/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+});
+
 describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
   test("Class 0 with no level block is an unplaced info; normalise keeps it", () => {
     const text = "Rules: 2024\nClasses: Warlock 5 / Fighter 0\n\nL1 Warlock\nSkills: Arcana, Deception";

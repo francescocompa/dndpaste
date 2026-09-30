@@ -5,6 +5,8 @@
  * Every finding is a warning or an info — extras are accepted (D34).
  */
 import type { Paste, Item, Ref, Scope, Value, LevelBlock } from "./dndpaste.js";
+// The one runtime import: the reading rule lives in the data-free library (the UMD build inlines both modules).
+import { classSequence, classTotals } from "./dndpaste.js";
 
 // ─── Slot table types (loose on purpose: the extract may grow fields) ────────
 
@@ -148,8 +150,9 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   const uidOf = (t: { name: string; source: string }) => `${t.name}|${t.source}`;
 
   // ── Classes and timeline ──────────────────────────────────────────────────
-  const clsV = paste.header.get("Classes");
-  const classEntries = clsV && clsV.type === "classes" ? clsV.entries : [];
+  // The class of each level comes from the library's reading rule (§5.4, D49); a header whose class has no levels
+  // left is the parser's W003, so it is not repeated here.
+  const classEntries = classTotals(paste);
   const classData = new Map<string, ClassSlots | null>();   // lc(name) → data
   for (const e of classEntries) classData.set(lc(e.ref.name), resolveRef(ix.classes, e.ref, "Classes", "Classes"));
   for (const lv of paste.levels) if (!classData.has(lc(lv.class.name))) {
@@ -157,20 +160,9 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (classEntries.length) add("misplaced", "warning", `L${lv.n}`, `class "${lv.class.name}" is not listed in Classes`, "L", lv.class.name);
   }
   checkDanglingClassZero();
-  const known = classEntries.every((e) => e.levels !== null);
-  const played = known ? classEntries.reduce((a, e) => a + (e.levels ?? 0), 0) : null;
-  const blockAt = new Map(paste.levels.map((l) => [l.n, l]));
-  const classAt: string[] = [];   // index n-1 → lc class name
-  {
-    const queue = classEntries.flatMap((e) => Array<string>(e.levels ?? 0).fill(lc(e.ref.name)));
-    const maxN = Math.max(played ?? 0, ...paste.levels.map((l) => l.n));
-    let qi = 0;
-    for (let n = 1; n <= maxN; n++) {
-      const b = blockAt.get(n);
-      if (b) { classAt.push(lc(b.class.name)); if (queue[qi] === lc(b.class.name)) qi++; else if (played !== null && n <= played) { const j = queue.indexOf(lc(b.class.name), qi); if (j >= 0) queue.splice(j, 1); else add("misplaced", "warning", `L${n}`, `Classes does not account for a ${b.class.name} level here`, "L", b.class.name); } }
-      else classAt.push(queue[qi++] ?? classAt[classAt.length - 1] ?? "");
-    }
-  }
+  const seq = classSequence(paste);
+  const played = seq.played;
+  const classAt: string[] = seq.levels.map((r) => (r ? lc(r.name) : ""));   // index n-1 → lc class name
   const classLevelAt = (n: number, cls: string) => classAt.slice(0, n).filter((c) => c === cls).length;
 
   // ── Owed-slot ledger per class ────────────────────────────────────────────
@@ -587,11 +579,9 @@ function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, s
   const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
   void supplement; // reserved: no supplement data feeds ability arithmetic today
 
-  // "As played now" (D36): a class with an unknown level count means no level blocks exist at all.
-  const clsV = paste.header.get("Classes");
-  const classEntries = clsV && clsV.type === "classes" ? clsV.entries : [];
-  const known = classEntries.every((e) => e.levels !== null);
-  const played = known ? classEntries.reduce((a, e) => a + (e.levels ?? 0), 0) : null;
+  // "As played now" (D36): the sum of the class totals (runs fold to their last value, D49); null when a class has
+  // no level count, which means no level blocks exist at all.
+  const played = classSequence(paste).played;
   const isPlayed = (n: number) => played === null || n <= played;
 
   // ASIs and half-feats stop at 20; an Epic Boon (category EB) raises a score to 30. A bump that

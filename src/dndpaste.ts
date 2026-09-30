@@ -20,7 +20,8 @@ export type Value =
   | { type: "items"; items: Item[] }
   | { type: "enum"; value: string }
   | { type: "int"; value: number }
-  | { type: "classes"; entries: { ref: Ref; levels: number | null }[] }
+  /** As written: a class may appear more than once (runs, §5.2); `foldClasses` gives the totals. */
+  | { type: "classes"; entries: ClassEntry[] }
   /** Base scores in STR/DEX/CON/INT/WIS/CHA order; `null` = not written (the named partial form, §5.2). */
   | { type: "scores"; values: (number | null)[] }
   | { type: "asi"; bonuses: { amount: number; ability: Ability }[] };
@@ -107,8 +108,10 @@ const MESSAGES: Record<string, string> = {
   E013: "@n stamp outside a detail",
   E014: "entity block after a level block, or repeated",
   E015: "unsupported Paste version",
+  E016: "level header contradicts the Classes runs",
   W001: "extension key kept but not understood",
   W002: "parenthesised suffix looks like a detail — details go in [brackets]",
+  W003: "level header's class has no levels left in Classes",
 };
 
 class Diag {
@@ -240,7 +243,7 @@ function parseItems(raw: string, diag: Diag, line: number): Item[] | null {
 // ─── Typed values (SPEC §5.2) ───────────────────────────────────────────────
 
 function parseClasses(raw: string, diag: Diag, line: number): Value | null {
-  const entries: { ref: Ref; levels: number | null }[] = [];
+  const entries: ClassEntry[] = [];
   for (const part of raw.split(/\s\/\s/)) {
     const s = part.trim();
     const m = /^(.*?)(?:\s+(\d+))?$/.exec(s);
@@ -249,7 +252,114 @@ function parseClasses(raw: string, diag: Diag, line: number): Value | null {
     if (!ref) { diag.add("E012", line, `bad class entry "${s}"`); return null; }
     entries.push({ ref, levels: m[2] === undefined ? null : Number(m[2]) });
   }
+  // Runs (§5.2, D49): a class written again continues to a higher class level. Its entries must each carry a
+  // count, strictly increase, never be 0 (0 marks a class not yet taken), and name no conflicting sources.
+  const byClass = new Map<string, ClassEntry[]>();
+  for (const e of entries) { const k = e.ref.name.toLowerCase(); byClass.set(k, [...(byClass.get(k) ?? []), e]); }
+  for (const runs of byClass.values()) {
+    if (runs.length < 2) continue;
+    const name = runs[0].ref.name;
+    if (runs.some((e) => e.levels === null)) { diag.add("E012", line, `${name} is written more than once, so each entry needs a class level`); return null; }
+    if (runs.some((e) => e.levels === 0)) { diag.add("E012", line, `${name} 0 marks a class not yet taken; it cannot be one of several runs`); return null; }
+    if (runs.some((e, i) => i > 0 && (e.levels as number) <= (runs[i - 1].levels as number))) { diag.add("E012", line, `${name}'s entries must strictly increase (cumulative class levels)`); return null; }
+    const sources = new Set(runs.flatMap((e) => (e.ref.source ? [e.ref.source.toLowerCase()] : [])));
+    if (sources.size > 1) { diag.add("E012", line, `${name} is written with two different sources`); return null; }
+  }
   return { type: "classes", entries };
+}
+
+// ─── Class per level (SPEC §5.2 classes, §5.4; D49) ─────────────────────────
+
+export interface ClassEntry { ref: Ref; levels: number | null }
+const classKey = (r: Ref) => r.name.toLowerCase();
+
+/**
+ * One entry per class in first-appearance order. A class written as runs (`Fighter 1 / Rogue 3 / Fighter 6`) gets
+ * its last value, which is its total class level; its name is the first spelling, its source the first one given.
+ */
+export function foldClasses(entries: readonly ClassEntry[]): ClassEntry[] {
+  const out = new Map<string, ClassEntry>();
+  for (const e of entries) {
+    const prev = out.get(classKey(e.ref));
+    if (!prev) { out.set(classKey(e.ref), { ref: { ...e.ref }, levels: e.levels }); continue; }
+    prev.levels = e.levels;
+    if (!prev.ref.source && e.ref.source) prev.ref = { name: prev.ref.name, source: e.ref.source };
+  }
+  return [...out.values()];
+}
+/** The `Classes` totals of a paste: one entry per class (see `foldClasses`); empty when there is no `Classes` line. */
+export function classTotals(paste: Paste): ClassEntry[] {
+  const v = paste.header.get("Classes");
+  return v && v.type === "classes" ? foldClasses(v.entries) : [];
+}
+
+export interface ClassSequence {
+  /** Levels as played now: the sum of the class totals; null when a class has no level count. */
+  played: number | null;
+  /** Index n−1 is the class of character level n, for 1 … max(played, last level block); null when unknown. */
+  levels: (Ref | null)[];
+}
+interface SequenceProblem { n: number; code: "W003" | "E016"; message: string }
+
+/**
+ * The reading rule (§5.4). Played levels (n ≤ played): when `Classes` is written as runs, the runs give each level's
+ * class; otherwise a level header fixes its level's class, and an unheadered level continues the current class while
+ * it has levels left, else takes the first class in `Classes` order with levels left. A class's levels left are its
+ * total minus the levels it has taken minus its headers still to come, so a later header keeps its level: a
+ * `Fighter 9 / Warlock 3` with headers `L2 Warlock`, `L11 Warlock`, `L12 Warlock` reads L3 as Fighter. Planned levels
+ * (n > played): a header fixes the class, an unheadered level continues the previous one.
+ */
+function sequenceOf(paste: Paste): ClassSequence & { runs: boolean; problems: SequenceProblem[] } {
+  const v = paste.header.get("Classes");
+  const entries = v && v.type === "classes" ? v.entries : [];
+  const totals = foldClasses(entries);
+  const runs = totals.length < entries.length;
+  const played = entries.every((e) => e.levels !== null) ? totals.reduce((a, t) => a + (t.levels ?? 0), 0) : null;
+  const total = new Map(totals.map((t) => [classKey(t.ref), t.levels ?? 0]));
+  const runSeq: Ref[] = [];
+  if (runs && played !== null) {
+    const reached = new Map<string, number>();
+    const ref = new Map(totals.map((t) => [classKey(t.ref), t.ref]));
+    for (const e of entries) {
+      const k = classKey(e.ref);
+      for (let i = reached.get(k) ?? 0; i < (e.levels ?? 0); i++) runSeq.push(ref.get(k) as Ref);
+      reached.set(k, e.levels ?? 0);
+    }
+  }
+  const blockAt = new Map(paste.levels.map((l) => [l.n, l]));
+  const maxN = Math.max(played ?? 0, 0, ...paste.levels.map((l) => l.n));
+  const used = new Map<string, number>();
+  const ahead = new Map<string, number>();   // played-level headers not yet reached, per class
+  for (const l of paste.levels) if (played !== null && l.n <= played) ahead.set(classKey(l.class), (ahead.get(classKey(l.class)) ?? 0) + 1);
+  const left = (r: Ref) => (total.get(classKey(r)) ?? 0) - (used.get(classKey(r)) ?? 0) - (ahead.get(classKey(r)) ?? 0);
+  const levels: (Ref | null)[] = [];
+  const problems: SequenceProblem[] = [];
+  let cur: Ref | null = null;
+  for (let n = 1; n <= maxN; n++) {
+    const b = blockAt.get(n);
+    let cls: Ref | null;
+    if (played !== null && n <= played && runs) {
+      const want: Ref | null = runSeq[n - 1] ?? cur;
+      cls = b ? b.class : want;
+      if (b && want && classKey(b.class) !== classKey(want)) problems.push({ n, code: "E016", message: `L${n} ${b.class.name}: the Classes runs put ${want.name} at this level` });
+    } else if (played !== null && n <= played) {
+      if (b) {
+        cls = b.class;
+        ahead.set(classKey(cls), (ahead.get(classKey(cls)) ?? 1) - 1);
+        if (total.has(classKey(cls)) && (total.get(classKey(cls)) ?? 0) - (used.get(classKey(cls)) ?? 0) <= 0) problems.push({ n, code: "W003", message: `L${n} ${cls.name}: Classes has no ${cls.name} level left here` });
+      } else if (cur && left(cur) > 0) cls = cur;
+      else cls = totals.find((t) => left(t.ref) > 0)?.ref ?? cur;
+    } else cls = b ? b.class : cur;
+    if (cls) used.set(classKey(cls), (used.get(classKey(cls)) ?? 0) + 1);
+    levels.push(cls);
+    cur = cls;
+  }
+  return { played, levels, runs, problems };
+}
+/** The class of every character level, by the reading rule (§5.4, D49). Data-free; consumers replay from this. */
+export function classSequence(paste: Paste): ClassSequence {
+  const { played, levels } = sequenceOf(paste);
+  return { played, levels };
 }
 
 /**
@@ -333,6 +443,7 @@ export function parse(text: string): Paste {
   let seenFirst = false;
   let lastLevel = 0;
   const opened = new Set<string>();
+  const headerLine = new Map<number, number>();   // level n → its header's line number
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -350,6 +461,7 @@ export function parse(text: string): Paste {
       if (!ref || ref.name.includes("[")) { diag.add("E001", no, "bad level header"); continue; }
       if (n < LEVEL_MIN || n > LEVEL_MAX || n <= lastLevel) { diag.add("E004", no, `L${n}`); continue; }
       lastLevel = n;
+      headerLine.set(n, no);
       const block: LevelBlock = { n, class: ref, lines: new Map() };
       paste.levels.push(block);
       scope = "L";
@@ -408,6 +520,9 @@ export function parse(text: string): Paste {
   if (cls && cls.type === "classes" && paste.levels.length && cls.entries.some((e) => e.levels === null)) {
     diag.add("E012", lineOf(lines, "classes"), "a class without a level count is allowed only when the paste has no level blocks");
   }
+  // Level headers against Classes (§5.4, D49): a header that contradicts the runs is E016; in the totals form, a
+  // header whose class has no levels left is W003 (the header still fixes its level's class).
+  for (const pr of sequenceOf(paste).problems) diag.add(pr.code, headerLine.get(pr.n) ?? 0, pr.message);
   return paste;
 }
 
@@ -451,7 +566,8 @@ export function emitValue(v: Value): string {
     case "items": return v.items.map(fmtItem).join(", ");
     case "enum": return v.value;
     case "int": return String(v.value);
-    case "classes": return v.entries.map((e) => fmtRef(e.ref) + (e.levels === null ? "" : ` ${e.levels}`)).join(" / ");
+    // Runs fold to totals, one entry per class in first-appearance order; the order moves to level headers (§5.5).
+    case "classes": return foldClasses(v.entries).map((e) => fmtRef(e.ref) + (e.levels === null ? "" : ` ${e.levels}`)).join(" / ");
     // All six known → the six-number form; otherwise the named form, STR…CHA order (§5.5).
     case "scores": return v.values.every((x) => x !== null)
       ? v.values.join("/")
@@ -483,12 +599,30 @@ export function emit(paste: Paste): string {
     out.push(`${key}: ${fmtItem(e.item)}`);
     emitScope(e.lines, out);
   }
-  for (const lv of [...paste.levels].sort((a, b) => a.n - b.n)) {
+  for (const lv of withSwitchHeaders(paste)) {
     if (out.length) out.push("");
     out.push(`L${lv.n} ${fmtRef(lv.class)}`);
     emitScope(lv.lines, out);
   }
   return out.join("\n") + (out.length ? "\n" : "");
+}
+
+/**
+ * The paste's level blocks plus an empty one at each class change that has no block yet (§5.5, D49), so the order
+ * `Classes` runs carried survives their folding into totals. Only a paste with a timeline gets them — one with level
+ * blocks, or with runs; a flat paste stays flat (the reading rule already gives its order). Adding a header that
+ * agrees with the sequence leaves the sequence unchanged, so emit stays idempotent.
+ */
+function withSwitchHeaders(paste: Paste): LevelBlock[] {
+  const blocks = [...paste.levels].sort((a, b) => a.n - b.n);
+  const seq = sequenceOf(paste);
+  if (!blocks.length && !seq.runs) return blocks;
+  const have = new Set(blocks.map((b) => b.n));
+  for (let n = 2; n <= seq.levels.length; n++) {
+    const prev = seq.levels[n - 2], cls = seq.levels[n - 1];
+    if (cls && prev && classKey(cls) !== classKey(prev) && !have.has(n)) blocks.push({ n, class: cls, lines: new Map() });
+  }
+  return blocks.sort((a, b) => a.n - b.n);
 }
 
 /** True when the paste has no error-level diagnostics (warnings allowed). */
