@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-const DEFAULT = join(homedir(), "Documents/D&D/5etool_mirror/5etools-v2.33.3/data");
+const DEFAULT = join(homedir(), "Documents/D&D/5etool_mirror/5etools-src-main/data");
 const root = process.argv[2] ?? DEFAULT;
 if (!existsSync(root)) { console.error(`mirror not found: ${root}`); process.exit(1); }
 
