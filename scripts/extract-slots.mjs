@@ -143,8 +143,32 @@ function equipmentChoiceGroups(list, itemsByKey) {
 // ── items (loaded early: classes/backgrounds need it for equipment choice groups) ─
 const items = {};
 for (const i of load("items.json").item ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: i.rarity ?? "none", attune: Boolean(i.reqAttune) };
-for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false };
+// ── generic magic variants (D55): "Flame Tongue", "Vicious Weapon", "+1 Armor" — not entities for each base item, so
+// a specific name ("Flame Tongue Warhammer") resolves as variant + base item. Kept: the naming affixes and the
+// requires/excludes matchers (item-type codes and flags, never text). Base items keep only the matcher keys.
+let variantList = [];
+try { variantList = load("magicvariants.json").magicvariant ?? []; } catch { /* optional */ }
+const matcherKeys = new Set();
+for (const v of variantList) { for (const r of v.requires ?? []) Object.keys(r).forEach((k) => matcherKeys.add(k)); Object.keys(v.excludes ?? {}).forEach((k) => matcherKeys.add(k)); }
+matcherKeys.delete("name"); matcherKeys.delete("source");
+const propsOf = (i) => {
+  const out = {};
+  for (const k of matcherKeys) if (i[k] !== undefined) out[k] = k === "property" ? i[k].map((p) => (typeof p === "string" ? p : p.uid)) : i[k];
+  return out;
+};
+for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false, base: true, props: propsOf(i) };
 const itemsByKey = itemsIndex(items);
+const magicVariants = {};
+for (const v of variantList) {
+  const inh = v.inherits ?? {};
+  const src = inh.source ?? String(v.type ?? "").split("|")[1] ?? null;
+  if (!src || (!inh.namePrefix && !inh.nameSuffix)) continue; // named one-offs ("… of the Guardian") have no affix to compose with
+  magicVariants[`${v.name}|${src}`] = {
+    name: v.name, source: src, edition: edition({ source: src, edition: v.edition }), srd: isSrd(inh), rarity: inh.rarity ?? "unknown",
+    ...(inh.namePrefix ? { prefix: inh.namePrefix } : {}), ...(inh.nameSuffix ? { suffix: inh.nameSuffix } : {}), ...(inh.nameRemove ? { remove: inh.nameRemove } : {}),
+    requires: v.requires ?? [], ...(v.excludes ? { excludes: v.excludes } : {}),
+  };
+}
 
 // ── classes ───────────────────────────────────────────────────────────────────
 const classes = {}, subclasses = {}, classFeatures = {};
@@ -301,13 +325,13 @@ for (const f of listDir("spells", "spells-")) for (const s of load(join("spells"
   const { classes, subclasses } = spellClassesAndSubclasses(s);
   spells[uid(s)] = { name: s.name, source: s.source, edition: edition(s), srd: isSrd(s), level: s.level, classes, ...(subclasses.length ? { subclasses } : {}) };
 }
-for (const tbl of [classes, subclasses, species, backgrounds, feats, optionalFeatures, spells, items]) for (const e of Object.values(tbl)) e.core = core(e);
+for (const tbl of [classes, subclasses, species, backgrounds, feats, optionalFeatures, spells, items, magicVariants]) for (const e of Object.values(tbl)) e.core = core(e);
 const meta = { mirror: root, generated: new Date().toISOString().slice(0, 10), counts: {} };
-const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, spells, items };
+const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, spells, items, magicVariants };
 for (const k of Object.keys(full)) if (k !== "meta" && k !== "families") meta.counts[k] = Object.keys(full[k]).length;
 
 const srdFilter = (tbl) => Object.fromEntries(Object.entries(tbl).filter(([, v]) => v.srd));
-const srd = { meta: { ...meta, subset: "srd" }, families, ...Object.fromEntries(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items"].map((k) => [k, srdFilter(full[k])])) };
+const srd = { meta: { ...meta, subset: "srd" }, families, ...Object.fromEntries(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].map((k) => [k, srdFilter(full[k])])) };
 srd.meta.counts = Object.fromEntries(Object.keys(meta.counts).map((k) => [k, Object.keys(srd[k]).length]));
 
 mkdirSync(new URL("../data/srd/", import.meta.url), { recursive: true });

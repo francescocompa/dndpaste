@@ -38,7 +38,15 @@ export interface OptionalFeatureSlots { name: string; source: string; types: str
 export interface Slots {
   classes: Record<string, ClassSlots>; subclasses: Record<string, SubclassSlots>; species: Record<string, SpeciesSlots>;
   backgrounds: Record<string, BackgroundSlots>; feats: Record<string, FeatSlots>; optionalFeatures: Record<string, OptionalFeatureSlots>;
-  families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number; classes?: string[]; subclasses?: string[] }>; items: Record<string, { name: string; source: string; rarity: string }>;
+  families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number; classes?: string[]; subclasses?: string[] }>; items: Record<string, ItemSlots>;
+  magicVariants?: Record<string, MagicVariantSlots>;
+}
+/** `base`/`props`: a base item (items-base) and the type codes and flags magic variants match on (D55). */
+export interface ItemSlots { name: string; source: string; rarity: string; edition?: string | null; base?: boolean; props?: Record<string, unknown> }
+/** A generic magic variant: its naming affixes and the base items it applies to, as 5etools matchers (D55). */
+export interface MagicVariantSlots {
+  name: string; source: string; edition?: string | null; prefix?: string; suffix?: string; remove?: string;
+  requires?: Record<string, unknown>[]; excludes?: Record<string, unknown>;
 }
 export interface Supplement {
   expertiseCount?: number;
@@ -72,7 +80,7 @@ class Index<T extends { name: string; source: string; edition?: string | null; c
     }
   }
   private push(k: string, t: T) { const l = this.byName.get(k); if (l) l.push(t); else this.byName.set(k, [t]); }
-  resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean): { hit: T | null; status: "ok" | "none" | "ambiguous" | "alias" } {
+  resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean, alias = true): { hit: T | null; status: "ok" | "none" | "ambiguous" | "alias" } {
     let c = this.byName.get(lc(ref.name)) ?? [];
     if (extra) c = c.filter(extra);
     if (ref.source) c = c.filter((t) => lc(t.source) === lc(ref.source as string));
@@ -82,7 +90,7 @@ class Index<T extends { name: string; source: string; edition?: string | null; c
     if (c.length === 1) return { hit: c[0], status: "ok" };
     // ── D43: name-alias contains fallback — a ref of 4+ chars with no direct match against
     // exactly one entity of the same kind whose name contains it, case-insensitively. ────────
-    if (ref.name.length >= 4) {
+    if (alias && ref.name.length >= 4) {
       let a = this.all.filter((t) => lc(t.name).includes(lc(ref.name)));
       if (extra) a = a.filter(extra);
       if (ref.source) a = a.filter((t) => lc(t.source) === lc(ref.source as string));
@@ -112,6 +120,7 @@ function buildIndexes(slots: Slots) {
     options: new Index(slots.optionalFeatures),
     spells: new Index(slots.spells),
     items: new Index(slots.items),
+    variants: new Index(slots.magicVariants ?? {}, (v) => v.name.replace(/ \(\*\)$/, "")),
   };
 }
 type Indexes = ReturnType<typeof buildIndexes>;
@@ -149,6 +158,51 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     return r.hit;
   };
   const uidOf = (t: { name: string; source: string }) => `${t.name}|${t.source}`;
+
+  // ── Items and Equipment: exact name, then a generic magic variant (D55), then the D43 alias and D40 `+N` fallbacks ──
+  const baseItems = Object.values(slots.items).filter((i) => i.base);
+  const variantList = Object.values(slots.magicVariants ?? {});
+  const vName = (v: MagicVariantSlots) => v.name.replace(/ \(\*\)$/, "");
+  const fits = (b: ItemSlots, v: MagicVariantSlots): boolean => {
+    const props: Record<string, unknown> = { ...(b.props ?? {}), name: b.name, source: b.source };
+    const eq = (a: unknown, x: unknown) => (typeof a === "string" && typeof x === "string" ? lc(a) === lc(x) : a === x);
+    const has = (k: string, x: unknown) => { const h = props[k]; return Array.isArray(h) ? h.some((y) => eq(y, x)) : eq(h, x); };
+    const req = v.requires ?? [];
+    if (req.length && !req.some((r) => Object.entries(r).every(([k, x]) => has(k, x)))) return false;
+    return !Object.entries(v.excludes ?? {}).some(([k, x]) => (Array.isArray(x) ? x : [x]).some((y) => has(k, y)));
+  };
+  /** True when the ref is a generic variant, by its own name or as affix + base item — resolved or reported. */
+  const variantItem = (ref: Ref, where: string, key: string): boolean => {
+    if (ix.variants.resolve(ref, rules, undefined, false).status !== "none") return true;   // "Vicious Weapon", "+2 Armor"
+    const name = lc(ref.name);
+    const pairs: { v: MagicVariantSlots; b: ItemSlots; ok: boolean }[] = [];
+    for (const v of variantList) {
+      let stem = name;
+      if (v.prefix) { if (!stem.startsWith(lc(v.prefix))) continue; stem = stem.slice(v.prefix.length); }
+      if (v.suffix) { if (!stem.endsWith(lc(v.suffix))) continue; stem = stem.slice(0, stem.length - v.suffix.length); }
+      const stems = v.remove ? [stem, stem + lc(v.remove)] : [stem];
+      for (const b of baseItems) {
+        if (!stems.includes(lc(b.name))) continue;
+        if (ref.source && lc(ref.source) !== lc(v.source) && lc(ref.source) !== lc(b.source)) continue;
+        pairs.push({ v, b, ok: fits(b, v) });
+      }
+    }
+    if (!pairs.length) return false;
+    const ok = pairs.filter((p) => p.ok);
+    if (ok.some((p) => !rules || !p.v.edition || p.v.edition === rules)) return true;
+    const r = refStr(ref);
+    if (ok.length) { const p = ok[0]; add("unresolved", "info", where, `${key}: "${r}" resolved as ${vName(p.v)}|${p.v.source} on ${p.b.name}|${p.b.source} (${p.v.edition} edition; paste is ${rules})`, key, r); return true; }
+    const p = pairs.find((x) => !rules || x.v.edition === rules) ?? pairs[0];
+    add("unresolved", "info", where, `${key}: "${r}": ${vName(p.v)}|${p.v.source} does not apply to ${p.b.name}`, key, r);
+    return true;
+  };
+  const resolveItem = (ref: Ref, where: string, key: "Items" | "Equipment") => {
+    const exact = ix.items.resolve(ref, rules, undefined, false);
+    if (exact.status === "ok") return;
+    if (exact.status === "ambiguous") { add("unresolved", "info", where, `${key}: "${refStr(ref)}" matches several sources; add |SOURCE`, key, refStr(ref)); return; }
+    if (variantItem(ref, where, key)) return;
+    resolveRef(ix.items, ref, where, key, "info");
+  };
 
   // ── Classes and timeline ──────────────────────────────────────────────────
   // The class of each level comes from the library's reading rule (§5.4, D49); a header whose class has no levels
@@ -291,8 +345,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     for (const it of adds(lv.lines, "Cantrips")) checkSpell(it, where, "Cantrips", cls, lv.n);
     for (const it of adds(lv.lines, "Prepared")) checkSpell(it, where, "Prepared", cls, lv.n);
     if (lv.lines.get("Prepared") && cd?.casting?.preparedChange === "level" && !supplement.spellbook?.[uidOf(cd)]) add("redundant", "info", where, `${cd.name} picks its prepared spells on level-up; write them as Spells`, "Prepared");
-    for (const it of adds(lv.lines, "Items")) resolveRef(ix.items, it.ref, where, "Items", "info");
-    for (const it of adds(lv.lines, "Equipment")) if (!/^[A-Z]$/.test(it.ref.name)) resolveRef(ix.items, it.ref, where, "Equipment", "info");
+    for (const it of adds(lv.lines, "Items")) resolveItem(it.ref, where, "Items");
+    for (const it of adds(lv.lines, "Equipment")) if (!/^[A-Z]$/.test(it.ref.name)) resolveItem(it.ref, where, "Equipment");
     const letter = adds(lv.lines, "Equipment").find((i) => /^[A-Z]$/.test(i.ref.name));
     if (letter && cd && !cd.equipmentOptions.includes(letter.ref.name.toUpperCase())) add("unresolved", "info", where, `${cd.name} has no starting-equipment option ${letter.ref.name}`, "Equipment", letter.ref.name);
     if (letter && rules === "2014") add("unresolved", "info", where, `starting-equipment letters exist only under 2024 rules`, "Equipment", letter.ref.name);
@@ -323,8 +377,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   for (const it of adds(paste.header, "Feat")) checkFeat(it, "header", "H", null, false);
   for (const it of adds(paste.header, "Spells")) checkSpell(it, "header", "Spells", null);
   for (const it of adds(paste.header, "Cantrips")) checkSpell(it, "header", "Cantrips", null);
-  for (const it of adds(paste.header, "Items")) resolveRef(ix.items, it.ref, "header", "Items", "info");
-  for (const it of adds(paste.header, "Equipment")) resolveRef(ix.items, it.ref, "header", "Equipment", "info");
+  for (const it of adds(paste.header, "Items")) resolveItem(it.ref, "header", "Items");
+  for (const it of adds(paste.header, "Equipment")) resolveItem(it.ref, "header", "Equipment");
   for (const s of subclassLines) if (s.n === null) { const cls = subclassOf.size ? [...subclassOf.entries()].find(([, v]) => v && lc(v.name) === lc(s.item.ref.name) || (v && lc(v.shortName) === lc(s.item.ref.name)))?.[0] : undefined; if (cls) { const sl = slot(cls, "Subclass"); sl.picked++; sl.where.push("header"); } }
 
   // ── Ledger → findings ─────────────────────────────────────────────────────

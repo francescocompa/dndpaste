@@ -239,6 +239,39 @@ describe("F5/F6: feats an option grants (D50, D51), Scholar expertise", () => {
   });
 });
 
+describe("C2: generic magic variants (D55)", () => {
+  const items = (rules: string, list: string) => run(`Rules: ${rules}\nClasses: Fighter 1\n\nL1 Fighter\nItems: ${list}`).filter((x) => x.key === "Items");
+
+  test("a variant's own name and variant + base item resolve", () => {
+    assert.deepEqual(items("2024", "Flame Tongue Warhammer, Vicious Weapon, Vicious Longsword, +2 Armor, +3 Shield, +1 Plate Armor, Flame Tongue"), []);
+    assert.deepEqual(items("2014", "Flame Tongue Longsword, +1 Longsword, Vicious Weapon"), []);
+  });
+
+  test("a base item the variant does not apply to is reported (info)", () => {
+    const f = items("2024", "Vicious Shield");
+    assert.equal(f.length, 1, JSON.stringify(f));
+    assert.equal(f[0].severity, "info");
+    assert.match(f[0].message, /Vicious Weapon\|XDMG does not apply to Shield/);
+  });
+
+  test("a combination only another edition allows resolves with the edition stated", () => {
+    // Under 2014 rules a Flame Tongue is a sword; the 2024 one takes any melee weapon.
+    const f = items("2014", "Flame Tongue Warhammer");
+    assert.equal(f.length, 1, JSON.stringify(f));
+    assert.match(f[0].message, /resolved as Flame Tongue\|XDMG on Warhammer\|XPHB \(2024 edition; paste is 2014\)/);
+  });
+
+  test("an affix with no base item still falls back to D40 and D43", () => {
+    const f = items("2024", "Flame Tongue Nonsense, +2 Nonsense Blade");
+    assert.equal(f.filter((x) => /matches nothing/.test(x.message)).length, 2, JSON.stringify(f));
+  });
+
+  test("variant + base wins over a contains-match on a named item (skipped when data/slots.json is absent)", { skip: !full }, () => {
+    const f = run("Rules: 2014\nClasses: Fighter 1\n\nL1 Fighter\nItems: Flame Tongue Shortsword", full as Slots);
+    assert.equal(f.filter((x) => x.key === "Items").length, 0, JSON.stringify(f));
+  });
+});
+
 describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
   test("Class 0 with no level block is an unplaced info; normalise keeps it", () => {
     const text = "Rules: 2024\nClasses: Warlock 5 / Fighter 0\n\nL1 Warlock\nSkills: Arcana, Deception";
