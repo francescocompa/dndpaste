@@ -300,6 +300,22 @@ test("finalScores: Vice and Shigen compute to their sheet values (skipped when d
   assert.deepEqual(shigen.scores, { str: 8, dex: 14, con: 14, int: 12, wis: 10, cha: 18 });
 });
 
+test("finalScores: partial Scores leave the other abilities unknown, never 10 (F1, D46)", () => {
+  const p = parse("Rules: 2024\nScores: DEX 16, CHA 17\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA, +1 STR");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.deepEqual(scores, { str: null, dex: 16, con: null, int: null, wis: null, cha: 19 });
+  assert.deepEqual(findings, []);
+});
+
+test("finalScores: an increase on an unknown score is not cap-checked", () => {
+  const p = parse("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.equal(scores?.cha, null);
+  assert.equal(findings.filter((f) => /cap/.test(f.message)).length, 0, JSON.stringify(findings));
+  const f = run("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  assert.equal(f.filter((x) => /cap/.test(x.message)).length, 0, JSON.stringify(f));
+});
+
 test("finalScores: an increment past the 20 cap is warned and the score is capped", () => {
   const p = parse("Rules: 2024\nScores: 8/13/14/12/10/19\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
   const { scores, findings } = finalScores(p, srd, supplement);

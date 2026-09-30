@@ -21,7 +21,8 @@ export type Value =
   | { type: "enum"; value: string }
   | { type: "int"; value: number }
   | { type: "classes"; entries: { ref: Ref; levels: number | null }[] }
-  | { type: "scores"; values: number[] }
+  /** Base scores in STR/DEX/CON/INT/WIS/CHA order; `null` = not written (the named partial form, §5.2). */
+  | { type: "scores"; values: (number | null)[] }
   | { type: "asi"; bonuses: { amount: number; ability: Ability }[] };
 
 export type Scope = Map<string, Value>;
@@ -251,13 +252,28 @@ function parseClasses(raw: string, diag: Diag, line: number): Value | null {
   return { type: "classes", entries };
 }
 
+/**
+ * Two forms, both base scores (§5.2, D46): six integers `8/15/13/10/14/12`, or the named partial form
+ * `DEX 15, CON 13` — an ability and its value, in any order, missing abilities simply absent.
+ */
 function parseScores(raw: string, diag: Diag, line: number): Value | null {
-  const parts = raw.split("/").map((p) => p.trim());
-  if (parts.length !== 6 || parts.some((p) => !/^\d+$/.test(p))) {
-    diag.add("E012", line, "Scores needs six integers separated by /");
-    return null;
+  if (raw.includes("/")) {
+    const parts = raw.split("/").map((p) => p.trim());
+    if (parts.length !== 6 || parts.some((p) => !/^\d+$/.test(p))) {
+      diag.add("E012", line, "Scores needs six integers separated by /, or named scores such as DEX 15, CON 13");
+      return null;
+    }
+    return { type: "scores", values: parts.map(Number) };
   }
-  return { type: "scores", values: parts.map(Number) };
+  const values: (number | null)[] = [null, null, null, null, null, null];
+  for (const part of raw.split(",")) {
+    const m = /^([A-Za-z]{3})\s+(\d+)$/.exec(part.trim());
+    const i = m ? ABILITIES.indexOf(m[1].toUpperCase() as Ability) : -1;
+    if (!m || i < 0) { diag.add("E012", line, `bad score "${part.trim()}": use six integers separated by /, or named scores such as DEX 15, CON 13`); return null; }
+    if (values[i] !== null) { diag.add("E012", line, `${ABILITIES[i]} given twice`); return null; }
+    values[i] = Number(m[2]);
+  }
+  return { type: "scores", values };
 }
 
 function parseAsi(raw: string, diag: Diag, line: number): Value | null {
@@ -436,7 +452,10 @@ export function emitValue(v: Value): string {
     case "enum": return v.value;
     case "int": return String(v.value);
     case "classes": return v.entries.map((e) => fmtRef(e.ref) + (e.levels === null ? "" : ` ${e.levels}`)).join(" / ");
-    case "scores": return v.values.join("/");
+    // All six known → the six-number form; otherwise the named form, STR…CHA order (§5.5).
+    case "scores": return v.values.every((x) => x !== null)
+      ? v.values.join("/")
+      : ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [`${a} ${v.values[i]}`])).join(", ");
     case "asi": return v.bonuses.map((b) => `+${b.amount} ${b.ability}`).join(", ");
   }
 }

@@ -567,16 +567,21 @@ export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 const ABILITY_KEYS: readonly AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
 interface AbilityGrant { fixed?: Record<string, number>; choose?: { from: string[]; count?: number; amount?: number; weights?: number[] } | null }
 
-export function finalScores(paste: Paste, slots: Slots, supplement: Supplement = {}): { scores: Record<AbilityKey, number> | null; findings: Finding[] } {
+/**
+ * Final scores after every increase the paste records. An ability the `Scores` line leaves out (the named partial
+ * form, D46) is `null`: unknown, never assumed 10, and its increases are not cap-checked.
+ */
+export function finalScores(paste: Paste, slots: Slots, supplement: Supplement = {}): { scores: Record<AbilityKey, number | null> | null; findings: Finding[] } {
   return finalScoresWith(paste, buildIndexes(slots), supplement);
 }
-function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, supplement: Supplement): { scores: Record<AbilityKey, number> | null; findings: Finding[] } {
+function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, supplement: Supplement): { scores: Record<AbilityKey, number | null> | null; findings: Finding[] } {
   const F: Finding[] = [];
   const add = (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string) => F.push({ kind, severity, where, key, ref, message });
 
   const scoresV = paste.header.get("Scores");
   if (!scoresV || scoresV.type !== "scores") return { scores: null, findings: [] };
-  const scores: Record<AbilityKey, number> = { str: scoresV.values[0], dex: scoresV.values[1], con: scoresV.values[2], int: scoresV.values[3], wis: scoresV.values[4], cha: scoresV.values[5] };
+  const v = scoresV.values;
+  const scores: Record<AbilityKey, number | null> = { str: v[0], dex: v[1], con: v[2], int: v[3], wis: v[4], cha: v[5] };
 
   const rulesV = paste.header.get("Rules");
   const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
@@ -594,9 +599,11 @@ function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, s
   const bump = (ability: string, amount: number, where: string, cap = 20) => {
     const key = ability.toLowerCase() as AbilityKey;
     if (!ABILITY_KEYS.includes(key)) return;
-    const next = scores[key] + amount;
+    const cur = scores[key];
+    if (cur === null) return; // unknown base: the final stays unknown
+    const next = cur + amount;
     if (next > cap) add("misplaced", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the ${cap} cap (+${amount})`, "ASI", key.toUpperCase());
-    scores[key] = Math.max(scores[key], Math.min(cap, next));
+    scores[key] = Math.max(cur, Math.min(cap, next));
   };
   const applyAsi = (v: Value | undefined, where: string) => {
     if (!v || v.type !== "asi") return;

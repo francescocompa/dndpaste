@@ -127,6 +127,25 @@ test("extension keys: the same name in another case is a duplicate", () => {
   assert.deepEqual(codes(parse("X-Plan-B: Spear\nx-plan-b: Longsword")), ["W001", "W001", "E003"]);
 });
 
+test("Scores: the named partial form (F1, D46)", () => {
+  const p = parse("Scores: cha 17, DEX 16\nClasses: Sorcerer 5");
+  assert.deepEqual(codes(p), []);
+  const s = p.header.get("Scores");
+  assert.ok(s && s.type === "scores");
+  assert.deepEqual(s.values, [null, 16, null, null, null, 17]);
+  // Canonical: named form in STR…CHA order while any ability is missing.
+  assert.equal(emit(p), "Scores: DEX 16, CHA 17\nClasses: Sorcerer 5\n");
+  assert.equal(emit(parse(emit(p))), emit(p));
+});
+
+test("Scores: all six named is the six-number form in canonical emit", () => {
+  const p = parse("Scores: CHA 12, WIS 14, INT 10, CON 13, DEX 15, STR 8");
+  assert.deepEqual(codes(p), []);
+  assert.equal(emit(p), "Scores: 8/15/13/10/14/12\n");
+  const q = parse("Scores: 8/15/13/10/14/12");
+  assert.deepEqual(q.header.get("Scores"), p.header.get("Scores"), "the two forms give the same AST");
+});
+
 const errorCases: [string, string, string[]][] = [
   ["E001 malformed", "Classes: Bard 1\nwhat is this", ["E001"]],
   ["E002 unknown key", "Pact: Blade", ["E002"]],
@@ -145,6 +164,11 @@ const errorCases: [string, string, string[]][] = [
   ["E011 nested", "Feat: Resilient [CON [x]]", ["E011"]],
   ["E011 colon in bare name", "L1 Cleric\nFeature: Channel Divinity: Turn Undead", ["E011"]],
   ["E012 scores", "Scores: 8/13/14", ["E012"]],
+  ["E012 scores named twice", "Scores: DEX 15, dex 14", ["E012"]],
+  ["E012 scores unknown ability", "Scores: DEX 15, LCK 12", ["E012"]],
+  ["E012 scores placeholder", "Scores: ?/15/13/?/?/?", ["E012"]],
+  ["E012 scores bare number", "Scores: 15", ["E012"]],
+  ["E012 scores mixed forms", "Scores: DEX 15/CON 13", ["E012"]],
   ["E012 asi", "ASI: 2 CHA", ["E012"]],
   ["E012 rules", "Rules: 2020", ["E012"]],
   ["E012 bare class with blocks", "Classes: Bard\n\nL1 Bard\nSkills: Arcana", ["E012"]],
