@@ -1,10 +1,10 @@
 /**
  * dndpaste — reference parser and canonical emitter.
- * Implements SPEC.md 0.3 (core grammar §1–4, profile `dnd5e` §5).
+ * Implements SPEC.md 0.5 (core grammar §1–4, profile `dnd5e` §5).
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.3";
+export const SPEC_VERSION = "0.5";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────

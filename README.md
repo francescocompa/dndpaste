@@ -25,7 +25,9 @@ Cantrips: Blade Ward, True Strike
 
 - **Spec:** [`SPEC.md`](SPEC.md) — core grammar (game-neutral) + the `dnd5e` profile.
 - **Library:** `src/dndpaste.ts`, zero dependencies. `parse(text)` → AST with diagnostics
-  (never throws); `emit(ast)` → canonical text, data-free; `isClean(ast)`.
+  (never throws); `emit(ast)` → canonical text, data-free; `isClean(ast)`;
+  `classSequence(ast)` → the class of every character level by the spec's reading rule
+  (§5.4), with `classTotals(ast)` for one entry per class when `Classes` is written as runs.
 - **Builds:** `npm run build` → `dist/src/dndpaste.js` (ESM + `.d.ts`) and
   `dist/dndpaste.umd.cjs` (single file for no-build pages, global `dndpaste`).
 - **Verify:** `npm run verify` (typecheck, lint, tests incl. byte-for-byte round-trip of
