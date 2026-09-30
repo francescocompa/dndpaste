@@ -113,7 +113,18 @@ test("extension keys are kept with W001", () => {
   const p = parse("X-Portrait: foo\nClasses: Bard 1");
   assert.deepEqual(codes(p), ["W001"]);
   assert.ok(isClean(p));
-  assert.equal(emit(p), "Classes: Bard 1\nX-portrait: foo\n");
+  assert.equal(emit(p), "Classes: Bard 1\nX-Portrait: foo\n");
+});
+
+test("extension keys: the name is written back as authored, the prefix as X- (C3, D56)", () => {
+  const p = parse("Classes: Fighter 11\nX-Plan-B: Spear, Longsword\nx-campaign: Foglie Silenti");
+  assert.deepEqual(codes(p), ["W001", "W001"]);
+  assert.equal(emit(p), "Classes: Fighter 11\nX-campaign: Foglie Silenti\nX-Plan-B: Spear, Longsword\n");
+  assert.equal(emit(parse(emit(p))), emit(p));
+});
+
+test("extension keys: the same name in another case is a duplicate", () => {
+  assert.deepEqual(codes(parse("X-Plan-B: Spear\nx-plan-b: Longsword")), ["W001", "W001", "E003"]);
 });
 
 const errorCases: [string, string, string[]][] = [

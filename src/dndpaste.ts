@@ -355,7 +355,11 @@ export function parse(text: string): Paste {
       diag.add("W001", no, rawKey);
       if (!rawValue) { diag.add("E006", no); continue; }
       const items = parseItems(rawValue, diag, no);
-      if (items) setOnce(current, rawKey.toLowerCase().replace(/^x-/, "X-"), { type: "items", items }, diag, no);
+      // The reserved prefix is written `X-`; the rest of the name stays as authored (§2.5, D56).
+      // Keys are case-insensitive, so `X-Plan-B` and `x-plan-b` are the same key in one scope.
+      const key = "X-" + rawKey.slice(2);
+      if (items && [...current.keys()].some((k) => k.toLowerCase() === key.toLowerCase())) { diag.add("E003", no, key); continue; }
+      if (items) setOnce(current, key, { type: "items", items }, diag, no);
       continue;
     }
 
@@ -442,7 +446,9 @@ function emitScope(scope: Scope, out: string[]): void {
     const v = scope.get(def.key);
     if (v) out.push(`${def.key}: ${emitValue(v)}`);
   }
-  const ext = [...scope.keys()].filter((k) => k.startsWith("X-")).sort();
+  // Alphabetical ignoring case (code-unit order, locale-free), so an authored `X-Plan-B` sorts where `x-plan-b` would.
+  const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  const ext = [...scope.keys()].filter((k) => k.startsWith("X-")).sort((a, b) => cmp(a.toLowerCase(), b.toLowerCase()) || cmp(a, b));
   for (const k of ext) out.push(`${k}: ${emitValue(scope.get(k) as Value)}`);
 }
 
