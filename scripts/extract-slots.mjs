@@ -270,6 +270,10 @@ for (const f of load("feats.json").feat ?? []) {
 const optionalFeatures = {}, families = {};
 for (const o of load("optionalfeatures.json").optionalfeature ?? []) {
   optionalFeatures[uid(o)] = { name: o.name, source: o.source, edition: edition(o), srd: isSrd(o), types: o.featureType, prereqLevel: (o.prerequisite ?? []).map((p) => p.level?.level ?? p.level).find((x) => typeof x === "number") ?? null };
+  // Feats the option itself grants (Lessons of the First Ones → one Origin feat per instance, D51). `progression`
+  // is {"*": n} for "n each time the option is taken"; a per-level map takes its largest value.
+  const grants = (o.featProgression ?? []).map((fp) => ({ category: fp.category, count: Array.isArray(fp.progression) ? Math.max(0, ...fp.progression) : fp.progression?.["*"] ?? Math.max(0, ...Object.values(fp.progression ?? {})) })).filter((g) => g.count > 0);
+  if (grants.length) optionalFeatures[uid(o)].feats = grants;
 }
 Object.assign(families, { EI: "Eldritch Invocations", MM: "Metamagic", "MV:B": "Maneuvers", "MV:C2-UA": "Maneuvers (UA)", AI: "Artificer Infusions", AS: "Arcane Shots", RN: "Runes", ED: "Elemental Disciplines", PB: "Pact Boons", "FS:F": "Fighting Styles (Fighter)", "FS:R": "Fighting Styles (Ranger)", "FS:P": "Fighting Styles (Paladin)", "FS:B": "Fighting Styles (Bard)", OTH: "Other", "FS:F/FS:P/FS:R": "Fighting Styles" });
 const spells = {};

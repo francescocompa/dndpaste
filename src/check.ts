@@ -33,7 +33,8 @@ export interface BackgroundSlots {
   skills: ChooseSpec | null; tools: ChooseSpec | null; languages: ChooseSpec | null; feats: string[]; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
 }
 export interface FeatSlots { name: string; source: string; category: string | null; repeatable: boolean; abilityChoose: string[] | null; versions: string[]; cantripChoose: number; spellChoose: number; grantedSpells: string[]; prereqLevel: number | null }
-export interface OptionalFeatureSlots { name: string; source: string; types: string[]; prereqLevel: number | null }
+/** `feats`: feats the option itself grants (5etools featProgression), e.g. Lessons of the First Ones → one Origin feat (D50, D51). */
+export interface OptionalFeatureSlots { name: string; source: string; types: string[]; prereqLevel: number | null; feats?: { category: string[]; count: number }[] }
 export interface Slots {
   classes: Record<string, ClassSlots>; subclasses: Record<string, SubclassSlots>; species: Record<string, SpeciesSlots>;
   backgrounds: Record<string, BackgroundSlots>; feats: Record<string, FeatSlots>; optionalFeatures: Record<string, OptionalFeatureSlots>;
@@ -246,7 +247,11 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (!a && !d) return;
     const s = slot(cls, key); s.picked += a; s.dropped += d; s.where.push(where);
   };
-  const featOrAsi = (scope: Scope) => adds(scope, "Feat").length + (scope.get("ASI") ? 1 : 0);
+  // A feat an option grants (Lessons of the First Ones → an Origin feat) is not an ASI-slot feat (D50).
+  const granted = new Set<Item>();
+  const featOrAsi = (scope: Scope) => adds(scope, "Feat").filter((it) => !granted.has(it)).length + (scope.get("ASI") ? 1 : 0);
+  optionFeats(paste.header, "header");
+  for (const lv of paste.levels) optionFeats(lv.lines, `L${lv.n}`);
 
   for (const lv of paste.levels) {
     const cls = lc(lv.class.name); const where = `L${lv.n}`;
@@ -307,7 +312,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   };
   for (const key of ["Skills", "Tools", "Languages", "Expertise", "Fighting Style", "Cantrips", "Spells", "Prepared"]) distribute(key, () => key, adds(paste.header, key));
   if (paste.header.get("Masteries")) distribute("Masteries", () => "Masteries", [{ ref: { name: "Masteries", source: null }, drop: false, details: [], qty: null }]);
-  distribute("Feat", () => "ASI/Feat", adds(paste.header, "Feat"));
+  distribute("Feat", () => "ASI/Feat", adds(paste.header, "Feat").filter((it) => !granted.has(it)));
   if (paste.header.get("ASI")) distribute("ASI", () => "ASI/Feat", [{ ref: { name: "ASI", source: null }, drop: false, details: [], qty: null }]);
   distribute("Options", (it) => { const of = resolveRef(ix.options, it.ref, "header", "Options"); return `Options:${of ? of.types.join("/") : "?"}`; }, adds(paste.header, "Options"));
   for (const it of adds(paste.header, "Feature")) {
@@ -425,6 +430,40 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       if (e.levels !== 0) continue;
       if (paste.levels.some((lv) => lc(lv.class.name) === lc(e.ref.name))) continue;
       add("unplaced", "info", "header", `${e.ref.name} 0 declares nothing`, "Classes", e.ref.name);
+    }
+  }
+
+  // ── F5 (D50): feats an optional feature grants ────────────────────────────
+  // The option names its feat pick in its details, as any option pick (§5.3): `Lessons of the First Ones [Alert]`.
+  // Details cannot nest (E011), so a feat with picks of its own also gets a standalone Feat line in the same scope,
+  // which carries those picks: `Feat: Magic Initiate [CHA; Wizard; …]`. A bare option claims the first Feat line in
+  // its scope whose category it grants. Claimed Feat lines are neither ASI-slot feats nor extras.
+  function optionFeats(scope: Scope, where: string) {
+    const feats = adds(scope, "Feat");
+    const free = () => feats.filter((f) => !granted.has(f));
+    const featOf = (name: string) => ix.feats.resolve({ name, source: null }, rules).hit;
+    for (const it of adds(scope, "Options")) {
+      const of = ix.options.resolve(it.ref, rules).hit;
+      for (const g of of?.feats ?? []) {
+        const cats = g.category.map((c) => c.toUpperCase());
+        const kind = cats.map((c) => (c === "O" ? "Origin" : c === "G" ? "General" : c)).join("/");
+        const a = /^[AEIOU]/i.test(kind) ? "an" : "a";
+        const named = (it.details[0] ?? []).slice(0, g.count);
+        for (const d of named) {
+          const carrier = free().find((f) => lc(f.ref.name) === lc(d.ref.name));
+          if (carrier) granted.add(carrier);
+          const fd = carrier ? ix.feats.resolve(carrier.ref, rules).hit : featOf(d.ref.name);
+          if (!fd) { if (!carrier) add("unresolved", "info", where, `"${of?.name}" pick "${d.ref.name}" matches no feat in the loaded data`, "Options", of?.name); continue; }
+          if (fd.category && !cats.includes(fd.category.toUpperCase())) add("misplaced", "warning", where, `"${of?.name}" grants ${a} ${kind} feat; "${fd.name}" is not one`, "Options", of?.name);
+          const asksPicks = Boolean(fd.abilityChoose?.length || fd.versions.length || fd.cantripChoose || fd.spellChoose);
+          if (asksPicks && !carrier) add("missing", "info", where, `"${fd.name}" has picks of its own: write them on a Feat line in the same block`, "Feat", fd.name);
+        }
+        for (let i = named.length; i < g.count; i++) {
+          const carrier = free().find((f) => { const fd = ix.feats.resolve(f.ref, rules).hit; return Boolean(fd?.category && cats.includes(fd.category.toUpperCase())); });
+          if (carrier) granted.add(carrier);
+          else add("missing", "info", where, `"${of?.name}" grants ${a} ${kind} feat: name it in brackets, or on a Feat line in the same block`, "Options", of?.name);
+        }
+      }
     }
   }
 

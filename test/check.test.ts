@@ -191,6 +191,54 @@ describe("F4: Classes runs (D49)", () => {
   });
 });
 
+describe("F5/F6: feats an option grants (D50, D51), Scholar expertise", () => {
+  // Lessons of the First Ones is not SRD: add its extract row (names and counts only) to the SRD table.
+  const withLessons: Slots = { ...srd, optionalFeatures: { ...srd.optionalFeatures, "Lessons of the First Ones|XPHB": { name: "Lessons of the First Ones", source: "XPHB", types: ["EI"], prereqLevel: 2, feats: [{ category: ["O"], count: 1 }] } } };
+  const warlock = (l2: string[], l4: string[] = []) => [
+    "Rules: 2024", `Classes: Warlock ${l4.length ? 4 : 2}`, "",
+    "L1 Warlock", "Skills: Arcana, Deception", "Options: Pact of the Chain", "Cantrips: Eldritch Blast, Chill Touch", "Spells: Hellish Rebuke, Charm Person", "",
+    "L2 Warlock", ...l2, ...(l4.length ? ["", "L4 Warlock", ...l4] : []),
+  ].join("\n");
+  const feats = (f: Finding[]) => f.filter((x) => x.key === "ASI/Feat" || x.key === "Feat" || /Lessons/.test(x.message));
+
+  test("an option naming its feat, plus a Feat line carrying that feat's picks, is neither extra nor misplaced", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones [Alert], Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile]"]), withLessons);
+    assert.deepEqual(feats(f), [], JSON.stringify(f));
+  });
+
+  test("a bare option claims the Feat line of the category it grants", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones, Pact of the Blade", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile]"]), withLessons);
+    assert.deepEqual(feats(f), [], JSON.stringify(f));
+  });
+
+  test("at an ASI level, the granted feat and the ASI-slot feat are told apart", () => {
+    const f = run(warlock(["Options: Pact of the Blade, Eldritch Mind"], ["Options: Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile], Alert"]), withLessons);
+    assert.deepEqual(feats(f), [], JSON.stringify(f));
+    const g = run(warlock(["Options: Pact of the Blade, Eldritch Mind"], ["Options: Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile]"]), withLessons);
+    assert.ok(has(g, "missing", /Warlock owes 1 more ASI\/Feat/), "the claimed feat does not fill the ASI slot");
+  });
+
+  test("a bare option with no Feat line owes its feat; a named feat with picks owes a Feat line", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones, Pact of the Blade"]), withLessons);
+    assert.ok(has(f, "missing", /grants an Origin feat: name it in brackets/), JSON.stringify(f));
+    const g = run(warlock(["Options: Lessons of the First Ones [Magic Initiate], Pact of the Blade"]), withLessons);
+    assert.ok(has(g, "missing", /"Magic Initiate" has picks of its own/), JSON.stringify(g));
+  });
+
+  test("a feat of the wrong category is misplaced", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones [Grappler], Pact of the Blade"]), withLessons);
+    assert.ok(has(f, "misplaced", /grants an Origin feat; "Grappler" is not one/), JSON.stringify(f));
+  });
+
+  test("Wizard (XPHB) owes one Expertise at Wizard 2 (Scholar)", () => {
+    const base = ["Rules: 2024", "Classes: Wizard 2", "", "L1 Wizard", "Skills: Arcana, Investigation", "Cantrips: Fire Bolt, Light, Mage Hand", "Spells: Magic Missile, Shield, Sleep, Detect Magic, Burning Hands, Feather Fall", "", "L2 Wizard", "Spells: Mage Armor, Thunderwave"];
+    const f = run([...base, "Expertise: Investigation"].join("\n"));
+    assert.equal(f.filter((x) => x.key === "Expertise").length, 0, JSON.stringify(f));
+    const g = run(base.join("\n"));
+    assert.ok(has(g, "missing", /Wizard owes 1 more Expertise/), JSON.stringify(g));
+  });
+});
+
 describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
   test("Class 0 with no level block is an unplaced info; normalise keeps it", () => {
     const text = "Rules: 2024\nClasses: Warlock 5 / Fighter 0\n\nL1 Warlock\nSkills: Arcana, Deception";
