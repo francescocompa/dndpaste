@@ -444,7 +444,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (fd.abilityChoose && !slot0.length) add("missing", "info", where, `"${fd.name}" asks for an ability pick in its first bracket slot`, "Feat", fd.name);
     if (fd.abilityChoose && slot0.length && !fd.abilityChoose.some((a) => lc(a) === lc(slot0[0].ref.name))) add("unresolved", "info", where, `"${fd.name}" ability must be one of ${fd.abilityChoose.map((a) => a.toUpperCase()).join(", ")}`, "Feat", fd.name);
     if (fd.versions.length && !(it.details[1]?.length)) add("missing", "info", where, `"${fd.name}" asks for a version in its second slot: ${fd.versions.join(", ")}`, "Feat", fd.name);
-    if (fd.category === "O" && scope === "L") add("misplaced", "warning", where, `"${fd.name}" is an Origin feat; an ASI-slot feat must be General`, "Feat", fd.name);
+    // An Origin feat at an ASI level is legal: the 2024 Ability Score Improvement feature grants "another feat of your
+    // choice for which you qualify", and Origin feats have no prerequisite (D54). The reverse stays a warning.
     if (fd.category === "G" && (scope === "S" || scope === "B")) add("misplaced", "warning", where, `"${fd.name}" is a General feat; a species or background grants an Origin feat`, "Feat", fd.name);
     if (fd.prereqLevel && n !== null && n < fd.prereqLevel && !beyond) add("misplaced", "warning", where, `"${fd.name}" needs character level ${fd.prereqLevel}`, "Feat", fd.name);
   }

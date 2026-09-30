@@ -74,11 +74,18 @@ test("subclass at the wrong class level is misplaced", () => {
   assert.ok(has(f, "misplaced", /class level 3/), JSON.stringify(f));
 });
 
-test("origin feat in an ASI slot is misplaced; unknown feat is unresolved", () => {
-  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Magic Initiate [WIS; Cleric]");
-  assert.ok(has(f, "misplaced", /Origin feat/));
+test("an Origin feat in an ASI slot is legal (C1, D54); unknown feat is unresolved", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFighting Style: Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL3 Fighter\nSubclass: Champion\n\nL4 Fighter\nFeat: Magic Initiate [WIS; Cleric; Guidance, Light; Bless]");
+  assert.equal(kinds(f, "misplaced").length, 0, JSON.stringify(f));
+  assert.equal(kinds(f, "extra").length, 0, "it fills the ASI slot");
+  assert.deepEqual(f.filter((x) => x.severity === "warning"), [], JSON.stringify(f));
   const g = run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Totally Made Up");
   assert.ok(has(g, "unresolved", /Totally Made Up/));
+});
+
+test("a General feat from a species or background is still misplaced", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 1\n\nSpecies: Human\nSkills: Athletics\nFeat: Grappler|XPHB [STR]");
+  assert.ok(has(f, "misplaced", /General feat/), JSON.stringify(f));
 });
 
 test("feat detail slots: ability and version", () => {
