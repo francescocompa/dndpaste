@@ -74,11 +74,18 @@ test("subclass at the wrong class level is misplaced", () => {
   assert.ok(has(f, "misplaced", /class level 3/), JSON.stringify(f));
 });
 
-test("origin feat in an ASI slot is misplaced; unknown feat is unresolved", () => {
-  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Magic Initiate [WIS; Cleric]");
-  assert.ok(has(f, "misplaced", /Origin feat/));
+test("an Origin feat in an ASI slot is legal (C1, D54); unknown feat is unresolved", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFighting Style: Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL3 Fighter\nSubclass: Champion\n\nL4 Fighter\nFeat: Magic Initiate [WIS; Cleric; Guidance, Light; Bless]");
+  assert.equal(kinds(f, "misplaced").length, 0, JSON.stringify(f));
+  assert.equal(kinds(f, "extra").length, 0, "it fills the ASI slot");
+  assert.deepEqual(f.filter((x) => x.severity === "warning"), [], JSON.stringify(f));
   const g = run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Totally Made Up");
   assert.ok(has(g, "unresolved", /Totally Made Up/));
+});
+
+test("a General feat from a species or background is still misplaced", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 1\n\nSpecies: Human\nSkills: Athletics\nFeat: Grappler|XPHB [STR]");
+  assert.ok(has(f, "misplaced", /General feat/), JSON.stringify(f));
 });
 
 test("feat detail slots: ability and version", () => {
@@ -144,6 +151,125 @@ test("+N prefix resolves the base item", () => {
   const u = kinds(f, "unresolved").filter((x) => /matches nothing/.test(x.message));
   assert.equal(u.length, 1, JSON.stringify(f));
   assert.match(u[0].message, /Nonsense/);
+});
+
+describe("F4: Classes runs (D49)", () => {
+  const runsPaste = [
+    "Rules: 2024", "Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14", "",
+    "L4 Rogue", "Subclass: Thief", "",
+    "L6 Fighter", "Subclass: Champion", "",
+    "L10 Rogue", "ASI: +2 DEX",
+  ].join("\n");
+
+  test("class levels follow the runs: subclasses and ASIs sit at the right class level", () => {
+    const f = run(runsPaste);
+    assert.equal(f.filter((x) => x.kind === "misplaced").length, 0, JSON.stringify(f));
+    // Rogue 4 is character level 10 (Rogue 1–3 are levels 2–4), so its ASI is not extra.
+    assert.equal(f.filter((x) => x.kind === "extra").length, 0, JSON.stringify(f));
+  });
+
+  test("played levels are the sum of the totals (20), not of the runs (24)", () => {
+    const f = run(runsPaste);
+    // Fighter 6 owes ASIs at class levels 4 and 6, Rogue 14 at 4, 8, 10, 12; one Rogue ASI is written.
+    assert.ok(has(f, "missing", /Fighter owes 2 more ASI\/Feat/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Rogue owes 3 more ASI\/Feat/), JSON.stringify(f));
+    const { scores } = finalScores(parse(`Scores: DEX 15\n${runsPaste.split("\n").slice(1).join("\n")}`), srd, supplement);
+    assert.equal(scores?.dex, 17, "the ASI at L10 is a played level");
+  });
+
+  test("the runs form and its canonical form check the same", () => {
+    const a = run(runsPaste).map((x) => x.message).sort();
+    const b = run(emit(parse(runsPaste))).map((x) => x.message).sort();
+    assert.deepEqual(b, a);
+  });
+
+  test("a header with no levels left is the parser's W003, not repeated as a finding", () => {
+    const p = parse("Rules: 2024\nClasses: Fighter 1 / Warlock 5\n\nL1 Fighter\n\nL2 Fighter");
+    assert.deepEqual(p.diagnostics.map((d) => d.code), ["W003"]);
+    const f = check(p, srd, supplement);
+    assert.equal(f.filter((x) => /does not account/.test(x.message)).length, 0, JSON.stringify(f));
+  });
+});
+
+describe("F5/F6: feats an option grants (D50, D51), Scholar expertise", () => {
+  // Lessons of the First Ones is not SRD: add its extract row (names and counts only) to the SRD table.
+  const withLessons: Slots = { ...srd, optionalFeatures: { ...srd.optionalFeatures, "Lessons of the First Ones|XPHB": { name: "Lessons of the First Ones", source: "XPHB", types: ["EI"], prereqLevel: 2, feats: [{ category: ["O"], count: 1 }] } } };
+  const warlock = (l2: string[], l4: string[] = []) => [
+    "Rules: 2024", `Classes: Warlock ${l4.length ? 4 : 2}`, "",
+    "L1 Warlock", "Skills: Arcana, Deception", "Options: Pact of the Chain", "Cantrips: Eldritch Blast, Chill Touch", "Spells: Hellish Rebuke, Charm Person", "",
+    "L2 Warlock", ...l2, ...(l4.length ? ["", "L4 Warlock", ...l4] : []),
+  ].join("\n");
+  const feats = (f: Finding[]) => f.filter((x) => x.key === "ASI/Feat" || x.key === "Feat" || /Lessons/.test(x.message));
+
+  test("an option naming its feat, plus a Feat line carrying that feat's picks, is neither extra nor misplaced", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones [Alert], Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile]"]), withLessons);
+    assert.deepEqual(feats(f), [], JSON.stringify(f));
+  });
+
+  test("a bare option claims the Feat line of the category it grants", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones, Pact of the Blade", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile]"]), withLessons);
+    assert.deepEqual(feats(f), [], JSON.stringify(f));
+  });
+
+  test("at an ASI level, the granted feat and the ASI-slot feat are told apart", () => {
+    const f = run(warlock(["Options: Pact of the Blade, Eldritch Mind"], ["Options: Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile], Alert"]), withLessons);
+    assert.deepEqual(feats(f), [], JSON.stringify(f));
+    const g = run(warlock(["Options: Pact of the Blade, Eldritch Mind"], ["Options: Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile]"]), withLessons);
+    assert.ok(has(g, "missing", /Warlock owes 1 more ASI\/Feat/), "the claimed feat does not fill the ASI slot");
+  });
+
+  test("a bare option with no Feat line owes its feat; a named feat with picks owes a Feat line", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones, Pact of the Blade"]), withLessons);
+    assert.ok(has(f, "missing", /grants an Origin feat: name it in brackets/), JSON.stringify(f));
+    const g = run(warlock(["Options: Lessons of the First Ones [Magic Initiate], Pact of the Blade"]), withLessons);
+    assert.ok(has(g, "missing", /"Magic Initiate" has picks of its own/), JSON.stringify(g));
+  });
+
+  test("a feat of the wrong category is misplaced", () => {
+    const f = run(warlock(["Options: Lessons of the First Ones [Grappler], Pact of the Blade"]), withLessons);
+    assert.ok(has(f, "misplaced", /grants an Origin feat; "Grappler" is not one/), JSON.stringify(f));
+  });
+
+  test("Wizard (XPHB) owes one Expertise at Wizard 2 (Scholar)", () => {
+    const base = ["Rules: 2024", "Classes: Wizard 2", "", "L1 Wizard", "Skills: Arcana, Investigation", "Cantrips: Fire Bolt, Light, Mage Hand", "Spells: Magic Missile, Shield, Sleep, Detect Magic, Burning Hands, Feather Fall", "", "L2 Wizard", "Spells: Mage Armor, Thunderwave"];
+    const f = run([...base, "Expertise: Investigation"].join("\n"));
+    assert.equal(f.filter((x) => x.key === "Expertise").length, 0, JSON.stringify(f));
+    const g = run(base.join("\n"));
+    assert.ok(has(g, "missing", /Wizard owes 1 more Expertise/), JSON.stringify(g));
+  });
+});
+
+describe("C2: generic magic variants (D55)", () => {
+  const items = (rules: string, list: string) => run(`Rules: ${rules}\nClasses: Fighter 1\n\nL1 Fighter\nItems: ${list}`).filter((x) => x.key === "Items");
+
+  test("a variant's own name and variant + base item resolve", () => {
+    assert.deepEqual(items("2024", "Flame Tongue Warhammer, Vicious Weapon, Vicious Longsword, +2 Armor, +3 Shield, +1 Plate Armor, Flame Tongue"), []);
+    assert.deepEqual(items("2014", "Flame Tongue Longsword, +1 Longsword, Vicious Weapon"), []);
+  });
+
+  test("a base item the variant does not apply to is reported (info)", () => {
+    const f = items("2024", "Vicious Shield");
+    assert.equal(f.length, 1, JSON.stringify(f));
+    assert.equal(f[0].severity, "info");
+    assert.match(f[0].message, /Vicious Weapon\|XDMG does not apply to Shield/);
+  });
+
+  test("a combination only another edition allows resolves with the edition stated", () => {
+    // Under 2014 rules a Flame Tongue is a sword; the 2024 one takes any melee weapon.
+    const f = items("2014", "Flame Tongue Warhammer");
+    assert.equal(f.length, 1, JSON.stringify(f));
+    assert.match(f[0].message, /resolved as Flame Tongue\|XDMG on Warhammer\|XPHB \(2024 edition; paste is 2014\)/);
+  });
+
+  test("an affix with no base item still falls back to D40 and D43", () => {
+    const f = items("2024", "Flame Tongue Nonsense, +2 Nonsense Blade");
+    assert.equal(f.filter((x) => /matches nothing/.test(x.message)).length, 2, JSON.stringify(f));
+  });
+
+  test("variant + base wins over a contains-match on a named item (skipped when data/slots.json is absent)", { skip: !full }, () => {
+    const f = run("Rules: 2014\nClasses: Fighter 1\n\nL1 Fighter\nItems: Flame Tongue Shortsword", full as Slots);
+    assert.equal(f.filter((x) => x.key === "Items").length, 0, JSON.stringify(f));
+  });
 });
 
 describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
@@ -291,6 +417,22 @@ test("finalScores: Vice and Shigen compute to their sheet values (skipped when d
   // (a General feat) picks CHA for its half-feat +1 at L5, within the played Fighter1/Warlock5 range.
   const shigen = finalScores(parse(readFileSync(join(root, "fixtures", "shigen.dndpaste"), "utf8")), full as Slots, supplement);
   assert.deepEqual(shigen.scores, { str: 8, dex: 14, con: 14, int: 12, wis: 10, cha: 18 });
+});
+
+test("finalScores: partial Scores leave the other abilities unknown, never 10 (F1, D46)", () => {
+  const p = parse("Rules: 2024\nScores: DEX 16, CHA 17\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA, +1 STR");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.deepEqual(scores, { str: null, dex: 16, con: null, int: null, wis: null, cha: 19 });
+  assert.deepEqual(findings, []);
+});
+
+test("finalScores: an increase on an unknown score is not cap-checked", () => {
+  const p = parse("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  const { scores, findings } = finalScores(p, srd, supplement);
+  assert.equal(scores?.cha, null);
+  assert.equal(findings.filter((f) => /cap/.test(f.message)).length, 0, JSON.stringify(findings));
+  const f = run("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  assert.equal(f.filter((x) => /cap/.test(x.message)).length, 0, JSON.stringify(f));
 });
 
 test("finalScores: an increment past the 20 cap is warned and the score is capped", () => {

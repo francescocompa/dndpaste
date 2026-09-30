@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.4 (draft, 2026-09-04) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy · Decisions: `DECISIONS.md` D1–D44.
+**Version:** 0.5 (draft, 2026-09-30) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule (additions only; a 0.4 paste means the same under 0.5) · Decisions: `DECISIONS.md` D1–D56.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -89,7 +89,8 @@ L<n> <Ref>
 a reference (§3.2) to the class this level is taken in. Level headers must be **strictly
 increasing** (`E004`); gaps are normal — a level with no choices is simply absent. A level
 header opens a **level block** that runs to the next block header or end of document. Key
-lines in it are **placed** at that character level and belong to that class.
+lines in it are **placed** at that character level and belong to that class. A level with no
+header takes its class by the reading rule (§5.4).
 
 ### 2.3 Entity blocks
 
@@ -124,7 +125,9 @@ header scope is an **unplaced** choice.
 - `Paste: <int>` is an optional header-scope key naming the spec's major version. Absent
   means 1. A parser that does not support the stated version reports `E015` and still parses.
 - Keys beginning with `X-` are **extension keys**: parsed as item lists, kept in the AST,
-  reported as `W001`, written back by `emit` unchanged. This is the only escape from rule 2.
+  reported as `W001`, written back by `emit` unchanged: the reserved prefix as `X-`, the rest of
+  the name as authored (`X-Plan-B` stays `X-Plan-B`, D56). Keys are case-insensitive, so `X-Foo`
+  and `x-foo` in one scope are the same key (`E003`). This is the only escape from rule 2.
 
 ---
 
@@ -199,6 +202,12 @@ Parsing never throws. On an error line the parser records the diagnostic and ski
 ASTs are equal with list order ignored on `items` values (order is meaningful only inside
 `classes` and `scores`).
 
+The `classes` value keeps its entries as written, so a class written as runs (§5.2) appears
+more than once; its totals and the class of every level follow §5.2 and §5.4. A runs paste and
+its canonical form (totals plus switch-point headers, §5.5) describe the same build: compare
+them after canonical emit. A `scores` value holds six slots in `STR…CHA` order, `null` for an
+ability the named form leaves out.
+
 ---
 
 ## 5. Profile `dnd5e`
@@ -215,8 +224,8 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 |---|---|---|---|
 | `Paste` | int | H | spec major version (§2.5) |
 | `Rules` | enum `2014`/`2024` | H | default edition |
-| `Scores` | scores | H | six **base** scores `STR/DEX/CON/INT/WIS/CHA`, e.g. `8/13/14/12/10/15` |
-| `Classes` | classes | H | classes in the order taken, with levels **as played now**; `Fighter 1 / Warlock 5` |
+| `Scores` | scores | H | **base** scores: all six `STR/DEX/CON/INT/WIS/CHA`, e.g. `8/13/14/12/10/15`, or the ones known, named: `DEX 15, CON 13` (§5.2) |
+| `Classes` | classes | H | classes in the order taken, with levels **as played now**; `Fighter 1 / Warlock 5`. An interleaved multiclass may write **runs**: `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` (§5.2) |
 | `Species` | item · **opens block** | H | the species; its picks are the block's lines. 2024 lineages are a `Feature` line in the block; 2014 subraces are part of the name, the 5etools way: `Species: Elf (Wood)|PHB`, `Species: Human (Variant)|PHB` |
 | `Background` | item · **opens block** | H | the background; official: block holds only the picks it asks (2024: `ASI`); custom/homebrew: the block holds everything (`ASI`, `Skills`, `Tools`, `Feat`, `Equipment`) so the paste is complete without the homebrew file (D21, D26) |
 | `Subclass` | items¹ | H, L | the class's subclass; in L it belongs to the block's class |
@@ -235,17 +244,29 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster. A caster that prepares from its whole list (2024 Cleric, Druid, Paladin) adds nothing, so it has no `Spells` lines — its default loadout is `Prepared` |
 | `Prepared` | items | H, L | default prepared loadout, **only** for casters whose repertoire exceeds the prepare count (a full-list preparer, a wizard's spellbook). The checker's normalise step removes it where `Spells` already says it (D23) |
 | `Equipment` | items | H, B, L | **starting gear**: in B the background's option letter (`A`/`B`) or items; in the **first level block** the class's option letter (`A`/`B`/`C`) or items; in H unplaced items. Letters exist only under 2024 rules; 2014 builds list items |
-| `Items` | items | H, L | **magic items and other gear acquired in play**, placed at the level gained (`Items: Cloak of Protection, +1 Longsword`). Details = the item's own picks when 5etools models them as such (most variants are baked into the name: `"Instrument of the Bards, Doss Lute"`). Generic magic variants are not 5etools entities: a `+N ` prefix is stripped and the base item resolved (`+1 Longsword` → `Longsword`, D40); named variants (`Flame Tongue Greatsword`) resolve only if a data source lists them. Never a choice the rules owe, so the checker never reports it missing (D33) |
+| `Items` | items | H, L | **magic items and other gear acquired in play**, placed at the level gained (`Items: Cloak of Protection, +1 Longsword`). Details = the item's own picks when 5etools models them as such (most variants are baked into the name: `"Instrument of the Bards, Doss Lute"`). Generic magic variants are not one entity per base item: the checker resolves them from 5etools' magic-variant data plus the base item, by the variant's own name (`Vicious Weapon`, `+2 Armor`) or its naming affix around a base item it applies to (`Flame Tongue Warhammer`, `+1 Longsword`); failing that, a `+N ` prefix is stripped and the base item resolved (D40, D55). Never a choice the rules owe, so the checker never reports it missing (D33) |
 
 Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
 
 ### 5.2 Profile value types
 
-- **`classes`** — `<Ref> <levels>` entries separated by ` / `. `levels` is an integer ≥ 0;
-  `0` marks a class not yet taken but planned in a level block. A bare `Ref` with no count
-  means "levels unknown" and is legal only when the paste has no level blocks. Malformed:
-  `E012`.
-- **`scores`** — six integers separated by `/`, in `STR/DEX/CON/INT/WIS/CHA` order.
+- **`classes`** — `<Ref> <levels>` entries separated by ` / `, in the order taken. `levels` is
+  an integer ≥ 0; `0` marks a class not yet taken but planned in a level block. A bare `Ref`
+  with no count means "levels unknown" and is legal only when the paste has no level blocks.
+  Malformed: `E012`.
+  - **Runs** (D49). A class may appear more than once: each entry is a **run** that takes the
+    class up to that **class level**, and the entries compute as an ordered list.
+    `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` is Fighter to 1, then Rogue to 3, then Fighter
+    to 6, then Rogue to 14: a 20-level Fighter 6 / Rogue 14. A class's entries must each carry
+    a count, strictly increase, never be `0`, and name at most one source; otherwise `E012`.
+  - **Totals.** A class's total is its last entry; the played total is the sum of the class
+    totals (20 above, not 24). Without repeats the entries are the totals, as before.
+- **`scores`** — base scores, before species, background and feat increases (D46), in one of
+  two forms:
+  - six integers separated by `/`, in `STR/DEX/CON/INT/WIS/CHA` order: `8/15/13/10/14/12`;
+  - **named**, for a partial set: `<ABI> <n>` entries separated by `,`, in any order, each
+    ability at most once, missing abilities simply absent: `DEX 15, CON 13`. No placeholders
+    (`?` is `E012`). An ability left out is **unknown**, never assumed 10.
 - **`asi`** — one or more `+<n> <ABI>` entries, `,`-separated. Grouping is preserved
   (`+2 CHA` is one entry; `+1 INT, +1 CON` two).
 
@@ -258,15 +279,34 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
   (`Magic Initiate [WIS; Cleric; Guidance, Sacred Flame; Bless]`); empty when the feat asks
   none (`Skilled [; Arcana, History, Insight]`). Later slots follow the feat's own printed
   order. A later upgrade of the feat is stamped `@n` on its detail.
-- **`Options`**: the option's picks in printed order (`Agonizing Blast [True Strike]`).
+- **`Options`**: the option's picks in printed order (`Agonizing Blast [True Strike]`). An
+  option that grants a feat names the feat as its pick (`Lessons of the First Ones [Alert]`).
+  When that feat has picks of its own, a `Feat` line for it in the **same level block**
+  carries them, because details do not nest (`E011`, D50):
+  `Options: Lessons of the First Ones [Magic Initiate]` with
+  `Feat: Magic Initiate [CHA; Wizard; Mind Sliver, Ray of Frost; Chromatic Orb]`. That `Feat`
+  line is the option's feat, not an ASI-slot feat.
 - **`Feature`**: the feature's picks in printed order (`Divine Order [Warden]`).
 - **`Subclass`**, **`Species`**, **`Background`** items carry **no details**: their picks are
   lines (`Feature`, `Skills`, `Ability`, …) in the relevant block or level.
 
 ### 5.4 Placement and resolution
 
-- `Classes` states levels as played. A level block whose `n` exceeds the sum of `Classes` is
-  a **planned** level; its class must appear in `Classes` (with `0` if not yet taken).
+- `Classes` states levels as played. A level block whose `n` exceeds the played total (the
+  sum of the class totals, §5.2) is a **planned** level; its class must appear in `Classes`
+  (with `0` if not yet taken).
+- **Class of each level — the reading rule** (D49). Walk the levels from 1:
+  - *Played levels, `Classes` written as runs:* the runs give each level's class. A level
+    header must agree with them (`E016`).
+  - *Played levels, otherwise:* a level header fixes its level's class. An unheadered level
+    continues the current class while it has levels left, else takes the first class in
+    `Classes` order with levels left. A class's levels left are its total minus the levels it
+    has taken minus its headers still to come, so a later header keeps its level:
+    `Classes: Fighter 9 / Warlock 3` with headers `L2 Warlock`, `L11 Warlock`, `L12 Warlock`
+    reads L3–L10 as Fighter. A header whose class has no levels left is `W003`; it still fixes
+    its level.
+  - *Planned levels:* a header fixes the class; an unheadered level continues the previous one.
+  - A flat paste (no level blocks) therefore reads in `Classes` order, as it always did.
 - A placed line belongs to its block's character level and class. `Subclass` at
   `L4 Warlock` is the Warlock subclass chosen at character level 4.
 - **Unplaced lines carry no class qualifier** (D28). A consumer assigns an unplaced choice to
@@ -283,10 +323,21 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
 
 1. Identifier line, if any.
 2. Header scope in this order: `Paste`, `Rules`, `Scores`, `Classes`, then unplaced choice
-   keys in §5.1 table order (`Items` last), then `X-` keys alphabetically.
+   keys in §5.1 table order (`Items` last), then `X-` keys alphabetically ignoring case, each
+   written as authored after the `X-` prefix (§2.5). `Scores` is written in the six-number form
+   when all six are known, else in the named form, `STR…CHA` order. `Classes` is written as
+   **totals**: one entry per class, in first-appearance order, with its total (runs fold:
+   `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` → `Fighter 6 / Rogue 14`).
 3. Blank line, `Species` block; blank line, `Background` block; each with its lines in §5.1
    order.
-4. Each level block, ascending, header `L<n> <Class>`, lines in §5.1 order.
+4. Each level block, ascending, header `L<n> <Class>`, lines in §5.1 order. A paste with a
+   timeline (at least one level block, or `Classes` written as runs) also gets a **level
+   header at each class change**: at every level where the class read by §5.4 differs from
+   the level before, an empty level block is written if there is no block yet. That is where
+   the order of runs goes when they fold, so the fold loses nothing:
+   `Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` emits as `Classes: Fighter 6 / Rogue 14`
+   with headers `L2 Rogue`, `L5 Fighter`, `L10 Rogue`. Headers go at changes only, not at every
+   level, and a flat paste stays flat (D49).
 5. Keys in canonical case; one space after `:`; items `, `-separated as authored; groups
    `; `-separated; names quoted only when §3.1 requires it; trailing empty groups dropped.
 
@@ -326,7 +377,15 @@ On a `Rules: 2014` paste the L1 class block and the background owe one named ite
 starting-equipment choice group (`missing`/info); groups with a generic option ("any simple
 weapon") are not judged. `finalScores` sums the `Scores` line with species, background, `ASI`
 and feat increments over played levels (D36); an increment past 20 is `misplaced`/warning, and a
-background bonus outside the background's three abilities stays the existing info finding.
+background bonus outside the background's three abilities stays the existing info finding. An
+ability the named `Scores` form leaves out has an **unknown** final score (`null`): it is never
+assumed 10, and increases on it are not cap-checked (D46).
+
+Any feat is legal at an ASI level, Origin feats included: the 2024 Ability Score Improvement
+feature grants "another feat of your choice for which you qualify" (D54). A General feat from
+a species or background stays `misplaced`. A `Feat` line claimed by an option that grants a
+feat (§5.3) is neither an ASI-slot feat nor an extra; a granting option with no feat named or
+written is `missing`/info, and a feat of the wrong category `misplaced` (D50).
 
 ---
 
@@ -345,12 +404,14 @@ background bonus outside the background's three abilities stays the existing inf
 | E009 | quantity on a key other than `Equipment` or `Items` |
 | E010 | reserved line `---` |
 | E011 | malformed item: unbalanced brackets or quotes, nested brackets, empty name |
-| E012 | value does not match the key's type (`classes`, `scores`, `asi`, `enum`, `int`) |
+| E012 | value does not match the key's type (`classes`, `scores`, `asi`, `enum`, `int`), including runs that do not strictly increase (§5.2) |
 | E013 | `@<n>` outside a detail |
 | E014 | entity block after a level block, or a second block for the same key |
 | E015 | unsupported `Paste` version |
+| E016 | a level header contradicts the `Classes` runs at a played level (§5.4) |
 | W001 | extension key (`X-`) kept but not understood |
 | W002 | hint: a bare name on `Feat`/`Options`/`Feature`/`Subclass`/`Fighting Style` ends in a parenthesised group — details go in `[brackets]` (`Resilient (CON)` → `Resilient [CON]`) |
+| W003 | a level header's class has no levels left in `Classes` at a played level (totals form, §5.4); the header still fixes its level |
 
 ---
 
@@ -421,6 +482,25 @@ ASI: +2 WIS
 Equipment: "Bag of Tricks, Gray", Arrows (20) x2
 Feature: "Channel Divinity: Harness Divine Power" [Harness Divine Power]
 ```
+
+### 8.6 Partial scores, runs, a feat from an invocation
+
+```
+Rules: 2024
+Scores: DEX 16, CHA 17
+Classes: Sorcerer 1 / Warlock 2 / Sorcerer 5 / Bard 6
+
+L3 Warlock
+Feat: Magic Initiate [CHA; Wizard; Mind Sliver, Ray of Frost; Chromatic Orb]
+Options: Agonizing Blast [Eldritch Blast], Lessons of the First Ones [Magic Initiate]
+Cantrips: Eldritch Blast
+
+L10 Bard
+Subclass: College of Valor
+```
+
+Canonical form: `Classes: Sorcerer 5 / Warlock 2 / Bard 6`, with empty `L2 Warlock`,
+`L4 Sorcerer` and `L8 Bard` blocks added at the class changes that have no block yet.
 
 ---
 

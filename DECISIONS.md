@@ -16,7 +16,7 @@
   *Raw note:* "As with Pokepaste, the goal is to make the tool functional almost regardless of the amount of details provided. Ex. I can generate a dndpaste even after selecting only a class. Nothing is strictly required, as long as what is present follows the same structured pattern."
   *Rejected:* flat snapshot only (cannot replay a multiclass or a swap); inference "unstamped = earliest legal level" (challenged: needs rules data to be correct, tools would disagree); inline `@level` on flat lines (two spellings for one fact).
 
-- **D5 — Ability scores and ASI splits are in the format. DECIDED (2026-09-04).** A `Scores:` line for the array; an ASI is a choice at its level like a feat. my-spellbook (no score model) simply omits the line.
+- **D5 — Ability scores and ASI splits are in the format. DECIDED (2026-09-04).** **AMENDED → D46 (a named, partial form of base scores).** A `Scores:` line for the array; an ASI is a choice at its level like a feat. my-spellbook (no score model) simply omits the line.
 
 - **D6 — Variants and parties are not in v1; the blank-line-block rule is reserved for them. DECIDED (2026-09-04).** **AMENDED → D18 (separator is `---`, not the blank line).** *Rejected for now:* variant override blocks (chassis §10 style) in v1; party pastes in v1.
 
@@ -54,7 +54,7 @@
 
 - **D19 — The 5e profile has a generic `Option: <Feature> (<picks>)` key plus a `Level:` header. DECIDED (2026-09-04, spec drafting).** **AMENDED → D20 (no `Level:`), D27 (`Option` → `Feature` + `Options`); its Pact Boon evidence was wrong — the 2014 Pact Boon is structured data, Divine Order is prose.** Evidence from the 5etools mirror: option-bearing class features such as Divine Order or the 2014 Pact Boon are prose `entries`, not `choose` nodes, so no key-per-feature list and no data-driven checker could stay current on its own. Dedicated keys cover the cross-class mechanics; `Option` covers the rest by feature name, and canonical emit folds it back into a dedicated key when one exists. `Level:` (current character level) lets a paste carry planned levels above the played one, which character-forge seeding needs. *Rejected:* a key per feature (stale on every book); a `Choice:` key without the feature name (unresolvable).
 
-- **D20 — No `Level:` header. DECIDED (2026-09-04, Francesco's spec review).** `Classes` states levels as played; a level block above their sum is planned. Supersedes the `Level:` half of D19.
+- **D20 — No `Level:` header. DECIDED (2026-09-04, Francesco's spec review).** **AMENDED → D49 ("their sum" is the sum of the class totals once a class is written as runs).** `Classes` states levels as played; a level block above their sum is planned. Supersedes the `Level:` half of D19.
   *Raw note:* "what is the level mentioned at the top or Classes mentions Warlock 10? Likely both redundant info: always prune redundancy" → spec rule 7.
 
 - **D21 — Custom and homebrew backgrounds are fully specified inline in the fixed four-group order. DECIDED (2026-09-04).** **AMENDED → D26 (a homebrew background is a block, not inline groups).** *Raw note:* "archer priest is a custom background, everything about it should be listed under the bg".
@@ -102,7 +102,7 @@
 
 - **D39 — Medium is the silent default size. DECIDED (2026-09-04, Francesco).** A 2024 species offering Small/Medium is Medium unless `Feature: Size [Small]` is written; the checker no longer reports the absent pick. Applies D24.
 
-- **D40 — A `+N ` prefix on `Items`/`Equipment` is stripped for resolution. DECIDED (2026-09-04, Francesco).** `+1 Longsword` resolves as `Longsword`; the paste keeps the prefix. Named variants still need a data source.
+- **D40 — A `+N ` prefix on `Items`/`Equipment` is stripped for resolution. DECIDED (2026-09-04, Francesco).** **AMENDED → D55 (named variants resolve from 5etools' magic-variant data; the `+N` strip stays as the fallback).** `+1 Longsword` resolves as `Longsword`; the paste keeps the prefix. Named variants still need a data source.
 
 ## M2 tail scoping (2026-09-05) — mechanism: AskUserQuestion, 3 rounds
 
@@ -133,3 +133,52 @@
   - Whether a paste can be edited or versioned, or every share makes a new id.
   *Enforced by:* prose only until built.
   *Affects:* PLAN.md (a new milestone, placed by his call relative to M3), SPEC.md (a share-link section, if the link format needs specifying), README.
+
+## Real-build stress wave (2026-09-30) — mechanism: Francesco's calls on the report of the real-build stress wave (cf-D81), relayed by the character-forge session
+
+The wave converted 24 posted 2024 builds into pastes; its evidence stays local (names only here). Its format gaps are F1–F8, its checker findings C1–C3.
+
+- **D46 — `Scores` takes a named, partial form; always base scores. DECIDED (2026-09-30).** `Scores: DEX 15, CON 13`: an ability and its value, any order, each ability once, missing abilities simply absent. It is the **base** score, before background and feat increases, like the six-number form, which stays valid. Canonical emit writes the six-number form when all six are known, else the named form in `STR…CHA` order. The AST keeps six slots, `null` for an ability not written. `finalScores` and the checker say "unknown" (`null`) for a missing ability and never assume 10; increases on an unknown score are not cap-checked. Amends D5 and SPEC §5.2 `scores`. Closes F1, the commonest loss in the wave (9 builds). Posted *final* scores are written only when the paste's own increases turn them back into base scores; otherwise they stay out.
+  *Rejected:* `?` placeholders in the six-number form (`?/17/14/?/14/?`); a separate `Final:` key for posted final values.
+  *Enforced by:* `parseScores`, `emitValue`, `finalScores`; parse and check tests.
+
+- **D47 — A pick made but unnamed stays absent: no change. DECIDED (2026-09-30).** "Rogue 6 Expertise, skills unstated" or "an Epic Boon" is written as nothing; rule 8 (absence = default if one exists, else undecided) holds. The level block, when present, still shows the level was taken. Closes F2 (6 builds).
+  *Rejected:* an explicit unnamed pick (`Expertise: ?`) — a placeholder is the same `?` D13 already rejected, and a consumer still has to ask for the name.
+
+- **D48 — Unplaced lines keep no class qualifier: no change, deferred. DECIDED (2026-09-30).** D28 stands. The gap only matters when two classes cast with different abilities, and the wave hit it once (a Sorcerer/Warlock, both Charisma). Revisit if character-forge's replay meets a real case. Closes F3 for now.
+  *Rejected:* a class qualifier on unplaced spell lines (the class-qualified keys D28 already rejected).
+
+- **D49 — `Classes` accepts runs in the order taken, as cumulative class levels; one reading rule gives the class of every level. DECIDED (2026-09-30).** `Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` is Fighter to class level 1, then Rogue to 3, then Fighter to 6, then Rogue to 14: a 20-level Fighter 6 / Rogue 14. A class's repeated entries must each carry a count, strictly increase, never be 0 and name one source, or it is `E012`. The played total is the sum of the class totals (each class's last entry). Planned levels and `0` entries keep their meaning.
+  - *Canonical emit* prints the totals, one entry per class in first-appearance order, and carries the order as a level header at each class change, adding an empty level block where there is none yet — at changes only, not at every level. Only a paste with a timeline (level blocks, or runs) gets them; a flat paste stays flat. Emit stays data-free, lossless and idempotent: a header that agrees with the sequence does not change it.
+  - *Reading rule* (SPEC §5.4), backward-compatible: on played levels, runs give each level's class and a header must agree (`E016`); without runs, a header fixes its level, and an unheadered level continues the current class while it has levels left, else takes the first class in `Classes` order with levels left, where levels left excludes levels a later header of that class claims. A header whose class has no levels left is `W003` (it was the checker's "does not account" warning). Planned levels carry on from the previous one. The rule is exported as `classSequence` and the checker uses it.
+  - *Evidence:* every fixture and spec example keeps its canonical form and class sequence. Across the 97 clean pastes in the fixtures and both stress corpora, one sequence changes (the 2026-09-04 wave's `mastermind`, which the old rule read as Rogue 6 against `Classes`' Rogue 5); seven non-fixture pastes gain switch-point headers.
+  - *Compatibility:* the 0.5.0 library (SPEC 0.4) reads runs as separate entries and sums them (24 levels above) without a diagnostic, so consumers must pin 0.6.0 before they accept runs. No `Paste: 2`: a SPEC 0.4 paste means the same under SPEC 0.5.
+  Amends D20 and SPEC §5.2 `classes`, §5.4, §5.5. Closes F4 (5 builds; up to 13 of 20 blocks were empty scaffolding) and stress open call 2.
+  *Raw note:* "generally it should print Fighter 6 / Rogue 14 and have the class level blocks when a change happens"; runs "compute as an ordered list".
+  *Rejected:* keeping empty scaffolding blocks as the only way to state interleaving; a header at every level; the old queue reading "first class in `Classes` order with levels left" for every unheadered level (it needs a header on every level of a dip, and reads `mastermind` against its own totals); headers added to flat pastes too (turns every flat multiclass into a mixed one and repeats what the reading rule already gives; ⚑ Francesco may prefer it — it would change `flat-multiclass` and SPEC §8.2).
+  *Enforced by:* `parseClasses`, `sequenceOf`/`classSequence`, `withSwitchHeaders`; parse and check tests.
+
+- **D50 — A feat an option grants is written as the option plus, when the feat has picks of its own, a standalone `Feat` line in the same level block; no grammar change. DECIDED (2026-09-30).** `Options: Lessons of the First Ones [Magic Initiate]` with `Feat: Magic Initiate [CHA; Wizard; …]`. The option names its feat as its pick (§5.3, as `Lessons of the First Ones [Alert]` already did); the `Feat` line carries the feat's own picks. E011 stays: details do not nest. The checker claims that `Feat` line for the option, so it is not an ASI-slot feat, not "extra", not "misplaced"; a bare option claims the first `Feat` line in its block of the category it grants. A granting option with no feat named or written, and a named feat whose own picks have no `Feat` line, are `missing`/info; a feat of the wrong category is `misplaced`. Closes F5.
+  *Rejected:* nested details (`Lessons of the First Ones [Magic Initiate [CHA; …]]`, breaks E011 and every parser); the option always bare with the feat only on a `Feat` line (loses which `Feat` line is the option's at an ASI level).
+  *Enforced by:* `optionFeats` in `check`; check tests.
+
+- **D51 — Missing pick data is data, not grammar. DECIDED (2026-09-30).** The extract records the feats an optional feature grants (5etools `featProgression`; today only Lessons of the First Ones: one Origin feat per instance), and the supplement owes one `Expertise` at Wizard (XPHB) 2 for Scholar. Pact of the Blade's bonded weapon and a familiar's form (Find Familiar, Pact of the Chain) are chosen when used, not at build time, so they get no slots and no detail; a paste leaves them out. Closes F6 and the wave's C4.
+  *Rejected:* detail slots for the pact weapon and the familiar form (they are per-use choices, like Cunning Strike options).
+  *Enforced by:* `scripts/extract-slots.mjs`, `data/supplement.json`; check tests.
+
+- **D52 — One paste is one build: no change. DECIDED (2026-09-30).** Alternatives, tentative picks and variants ("Human or Aasimar", "Topple or Sap", "Version B: Rogue 1 first") are separate pastes. Closes F7 (8 builds).
+  *Rejected:* an alternative or tentative marker; multi-build documents (`---` stays reserved, D18).
+
+- **D53 — A written class order is a claim: no change. DECIDED (2026-09-30).** A post that leaves the class order open ("either class first") is written in one order, and that order is asserted. Closes F8 (4 builds).
+  *Rejected:* an "order open" marker.
+
+- **D54 — An Origin feat at an ASI level is legal. DECIDED (2026-09-30).** The checker warned "an ASI-slot feat must be General". The 2024 Ability Score Improvement feature grants "the Ability Score Improvement feat or another feat of your choice for which you qualify" (verified in the 5etools XPHB class data); Origin feats have no prerequisite, and Skilled and Magic Initiate are repeatable. The warning is removed; the reverse (a General feat from a species or background) stays `misplaced`. Closes C1 (2 builds, incl. the "all 18 skills by level 4" Skilled build).
+  *Enforced by:* `checkFeat`; check tests.
+
+- **D55 — Generic magic variants resolve from 5etools' magic-variant data plus the base item. DECIDED (2026-09-30).** The extract carries `magicvariants.json` (names, naming affixes, and the requires/excludes matchers: item-type codes and flags, no text) and marks base items with the matcher keys they have. `Items`/`Equipment` resolve by exact name, then as a variant by its own name (`Vicious Weapon`, `+2 Armor`), then as a variant's affix around a base item it applies to (`Flame Tongue Warhammer`, `Vicious Longsword`), before the D43 contains fallback and the D40 `+N` strip. A base the variant does not apply to is `unresolved`/info; a combination only another edition allows resolves with the edition stated (as D43). Amends D40; closes C2 and stress open call 7.
+  *Rejected:* a hand-kept list of variant names in the supplement (goes stale; the data exists); stripping any known prefix without checking the base (would accept a Vicious Shield).
+  *Enforced by:* `scripts/extract-slots.mjs`, `resolveItem` in `check`; check tests.
+
+- **D56 — Extension keys are written back as authored. DECIDED (2026-09-30).** `emit` lowercased everything after `X-` (`X-Plan-B` → `X-plan-b`), against SPEC §2.5. The reserved prefix is written `X-` (keys are case-insensitive, and the prefix is the one fixed part); the rest of the name keeps its case. The same name in another case is a duplicate (`E003`); `X-` keys sort alphabetically ignoring case. Closes C3.
+  *Rejected:* keeping the lowercasing and documenting it; writing the prefix as authored too (`x-foo` and `X-foo` would be two canonical spellings of one key).
+  *Enforced by:* `parse`, `emitScope`; parse tests.

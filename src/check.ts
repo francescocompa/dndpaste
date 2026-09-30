@@ -5,6 +5,8 @@
  * Every finding is a warning or an info — extras are accepted (D34).
  */
 import type { Paste, Item, Ref, Scope, Value, LevelBlock } from "./dndpaste.js";
+// The one runtime import: the reading rule lives in the data-free library (the UMD build inlines both modules).
+import { classSequence, classTotals } from "./dndpaste.js";
 
 // ─── Slot table types (loose on purpose: the extract may grow fields) ────────
 
@@ -31,11 +33,20 @@ export interface BackgroundSlots {
   skills: ChooseSpec | null; tools: ChooseSpec | null; languages: ChooseSpec | null; feats: string[]; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
 }
 export interface FeatSlots { name: string; source: string; category: string | null; repeatable: boolean; abilityChoose: string[] | null; versions: string[]; cantripChoose: number; spellChoose: number; grantedSpells: string[]; prereqLevel: number | null }
-export interface OptionalFeatureSlots { name: string; source: string; types: string[]; prereqLevel: number | null }
+/** `feats`: feats the option itself grants (5etools featProgression), e.g. Lessons of the First Ones → one Origin feat (D50, D51). */
+export interface OptionalFeatureSlots { name: string; source: string; types: string[]; prereqLevel: number | null; feats?: { category: string[]; count: number }[] }
 export interface Slots {
   classes: Record<string, ClassSlots>; subclasses: Record<string, SubclassSlots>; species: Record<string, SpeciesSlots>;
   backgrounds: Record<string, BackgroundSlots>; feats: Record<string, FeatSlots>; optionalFeatures: Record<string, OptionalFeatureSlots>;
-  families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number; classes?: string[]; subclasses?: string[] }>; items: Record<string, { name: string; source: string; rarity: string }>;
+  families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number; classes?: string[]; subclasses?: string[] }>; items: Record<string, ItemSlots>;
+  magicVariants?: Record<string, MagicVariantSlots>;
+}
+/** `base`/`props`: a base item (items-base) and the type codes and flags magic variants match on (D55). */
+export interface ItemSlots { name: string; source: string; rarity: string; edition?: string | null; base?: boolean; props?: Record<string, unknown> }
+/** A generic magic variant: its naming affixes and the base items it applies to, as 5etools matchers (D55). */
+export interface MagicVariantSlots {
+  name: string; source: string; edition?: string | null; prefix?: string; suffix?: string; remove?: string;
+  requires?: Record<string, unknown>[]; excludes?: Record<string, unknown>;
 }
 export interface Supplement {
   expertiseCount?: number;
@@ -69,7 +80,7 @@ class Index<T extends { name: string; source: string; edition?: string | null; c
     }
   }
   private push(k: string, t: T) { const l = this.byName.get(k); if (l) l.push(t); else this.byName.set(k, [t]); }
-  resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean): { hit: T | null; status: "ok" | "none" | "ambiguous" | "alias" } {
+  resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean, alias = true): { hit: T | null; status: "ok" | "none" | "ambiguous" | "alias" } {
     let c = this.byName.get(lc(ref.name)) ?? [];
     if (extra) c = c.filter(extra);
     if (ref.source) c = c.filter((t) => lc(t.source) === lc(ref.source as string));
@@ -79,7 +90,7 @@ class Index<T extends { name: string; source: string; edition?: string | null; c
     if (c.length === 1) return { hit: c[0], status: "ok" };
     // ── D43: name-alias contains fallback — a ref of 4+ chars with no direct match against
     // exactly one entity of the same kind whose name contains it, case-insensitively. ────────
-    if (ref.name.length >= 4) {
+    if (alias && ref.name.length >= 4) {
       let a = this.all.filter((t) => lc(t.name).includes(lc(ref.name)));
       if (extra) a = a.filter(extra);
       if (ref.source) a = a.filter((t) => lc(t.source) === lc(ref.source as string));
@@ -109,6 +120,7 @@ function buildIndexes(slots: Slots) {
     options: new Index(slots.optionalFeatures),
     spells: new Index(slots.spells),
     items: new Index(slots.items),
+    variants: new Index(slots.magicVariants ?? {}, (v) => v.name.replace(/ \(\*\)$/, "")),
   };
 }
 type Indexes = ReturnType<typeof buildIndexes>;
@@ -147,9 +159,55 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   };
   const uidOf = (t: { name: string; source: string }) => `${t.name}|${t.source}`;
 
+  // ── Items and Equipment: exact name, then a generic magic variant (D55), then the D43 alias and D40 `+N` fallbacks ──
+  const baseItems = Object.values(slots.items).filter((i) => i.base);
+  const variantList = Object.values(slots.magicVariants ?? {});
+  const vName = (v: MagicVariantSlots) => v.name.replace(/ \(\*\)$/, "");
+  const fits = (b: ItemSlots, v: MagicVariantSlots): boolean => {
+    const props: Record<string, unknown> = { ...(b.props ?? {}), name: b.name, source: b.source };
+    const eq = (a: unknown, x: unknown) => (typeof a === "string" && typeof x === "string" ? lc(a) === lc(x) : a === x);
+    const has = (k: string, x: unknown) => { const h = props[k]; return Array.isArray(h) ? h.some((y) => eq(y, x)) : eq(h, x); };
+    const req = v.requires ?? [];
+    if (req.length && !req.some((r) => Object.entries(r).every(([k, x]) => has(k, x)))) return false;
+    return !Object.entries(v.excludes ?? {}).some(([k, x]) => (Array.isArray(x) ? x : [x]).some((y) => has(k, y)));
+  };
+  /** True when the ref is a generic variant, by its own name or as affix + base item — resolved or reported. */
+  const variantItem = (ref: Ref, where: string, key: string): boolean => {
+    if (ix.variants.resolve(ref, rules, undefined, false).status !== "none") return true;   // "Vicious Weapon", "+2 Armor"
+    const name = lc(ref.name);
+    const pairs: { v: MagicVariantSlots; b: ItemSlots; ok: boolean }[] = [];
+    for (const v of variantList) {
+      let stem = name;
+      if (v.prefix) { if (!stem.startsWith(lc(v.prefix))) continue; stem = stem.slice(v.prefix.length); }
+      if (v.suffix) { if (!stem.endsWith(lc(v.suffix))) continue; stem = stem.slice(0, stem.length - v.suffix.length); }
+      const stems = v.remove ? [stem, stem + lc(v.remove)] : [stem];
+      for (const b of baseItems) {
+        if (!stems.includes(lc(b.name))) continue;
+        if (ref.source && lc(ref.source) !== lc(v.source) && lc(ref.source) !== lc(b.source)) continue;
+        pairs.push({ v, b, ok: fits(b, v) });
+      }
+    }
+    if (!pairs.length) return false;
+    const ok = pairs.filter((p) => p.ok);
+    if (ok.some((p) => !rules || !p.v.edition || p.v.edition === rules)) return true;
+    const r = refStr(ref);
+    if (ok.length) { const p = ok[0]; add("unresolved", "info", where, `${key}: "${r}" resolved as ${vName(p.v)}|${p.v.source} on ${p.b.name}|${p.b.source} (${p.v.edition} edition; paste is ${rules})`, key, r); return true; }
+    const p = pairs.find((x) => !rules || x.v.edition === rules) ?? pairs[0];
+    add("unresolved", "info", where, `${key}: "${r}": ${vName(p.v)}|${p.v.source} does not apply to ${p.b.name}`, key, r);
+    return true;
+  };
+  const resolveItem = (ref: Ref, where: string, key: "Items" | "Equipment") => {
+    const exact = ix.items.resolve(ref, rules, undefined, false);
+    if (exact.status === "ok") return;
+    if (exact.status === "ambiguous") { add("unresolved", "info", where, `${key}: "${refStr(ref)}" matches several sources; add |SOURCE`, key, refStr(ref)); return; }
+    if (variantItem(ref, where, key)) return;
+    resolveRef(ix.items, ref, where, key, "info");
+  };
+
   // ── Classes and timeline ──────────────────────────────────────────────────
-  const clsV = paste.header.get("Classes");
-  const classEntries = clsV && clsV.type === "classes" ? clsV.entries : [];
+  // The class of each level comes from the library's reading rule (§5.4, D49); a header whose class has no levels
+  // left is the parser's W003, so it is not repeated here.
+  const classEntries = classTotals(paste);
   const classData = new Map<string, ClassSlots | null>();   // lc(name) → data
   for (const e of classEntries) classData.set(lc(e.ref.name), resolveRef(ix.classes, e.ref, "Classes", "Classes"));
   for (const lv of paste.levels) if (!classData.has(lc(lv.class.name))) {
@@ -157,20 +215,9 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (classEntries.length) add("misplaced", "warning", `L${lv.n}`, `class "${lv.class.name}" is not listed in Classes`, "L", lv.class.name);
   }
   checkDanglingClassZero();
-  const known = classEntries.every((e) => e.levels !== null);
-  const played = known ? classEntries.reduce((a, e) => a + (e.levels ?? 0), 0) : null;
-  const blockAt = new Map(paste.levels.map((l) => [l.n, l]));
-  const classAt: string[] = [];   // index n-1 → lc class name
-  {
-    const queue = classEntries.flatMap((e) => Array<string>(e.levels ?? 0).fill(lc(e.ref.name)));
-    const maxN = Math.max(played ?? 0, ...paste.levels.map((l) => l.n));
-    let qi = 0;
-    for (let n = 1; n <= maxN; n++) {
-      const b = blockAt.get(n);
-      if (b) { classAt.push(lc(b.class.name)); if (queue[qi] === lc(b.class.name)) qi++; else if (played !== null && n <= played) { const j = queue.indexOf(lc(b.class.name), qi); if (j >= 0) queue.splice(j, 1); else add("misplaced", "warning", `L${n}`, `Classes does not account for a ${b.class.name} level here`, "L", b.class.name); } }
-      else classAt.push(queue[qi++] ?? classAt[classAt.length - 1] ?? "");
-    }
-  }
+  const seq = classSequence(paste);
+  const played = seq.played;
+  const classAt: string[] = seq.levels.map((r) => (r ? lc(r.name) : ""));   // index n-1 → lc class name
   const classLevelAt = (n: number, cls: string) => classAt.slice(0, n).filter((c) => c === cls).length;
 
   // ── Owed-slot ledger per class ────────────────────────────────────────────
@@ -254,7 +301,11 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (!a && !d) return;
     const s = slot(cls, key); s.picked += a; s.dropped += d; s.where.push(where);
   };
-  const featOrAsi = (scope: Scope) => adds(scope, "Feat").length + (scope.get("ASI") ? 1 : 0);
+  // A feat an option grants (Lessons of the First Ones → an Origin feat) is not an ASI-slot feat (D50).
+  const granted = new Set<Item>();
+  const featOrAsi = (scope: Scope) => adds(scope, "Feat").filter((it) => !granted.has(it)).length + (scope.get("ASI") ? 1 : 0);
+  optionFeats(paste.header, "header");
+  for (const lv of paste.levels) optionFeats(lv.lines, `L${lv.n}`);
 
   for (const lv of paste.levels) {
     const cls = lc(lv.class.name); const where = `L${lv.n}`;
@@ -294,8 +345,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     for (const it of adds(lv.lines, "Cantrips")) checkSpell(it, where, "Cantrips", cls, lv.n);
     for (const it of adds(lv.lines, "Prepared")) checkSpell(it, where, "Prepared", cls, lv.n);
     if (lv.lines.get("Prepared") && cd?.casting?.preparedChange === "level" && !supplement.spellbook?.[uidOf(cd)]) add("redundant", "info", where, `${cd.name} picks its prepared spells on level-up; write them as Spells`, "Prepared");
-    for (const it of adds(lv.lines, "Items")) resolveRef(ix.items, it.ref, where, "Items", "info");
-    for (const it of adds(lv.lines, "Equipment")) if (!/^[A-Z]$/.test(it.ref.name)) resolveRef(ix.items, it.ref, where, "Equipment", "info");
+    for (const it of adds(lv.lines, "Items")) resolveItem(it.ref, where, "Items");
+    for (const it of adds(lv.lines, "Equipment")) if (!/^[A-Z]$/.test(it.ref.name)) resolveItem(it.ref, where, "Equipment");
     const letter = adds(lv.lines, "Equipment").find((i) => /^[A-Z]$/.test(i.ref.name));
     if (letter && cd && !cd.equipmentOptions.includes(letter.ref.name.toUpperCase())) add("unresolved", "info", where, `${cd.name} has no starting-equipment option ${letter.ref.name}`, "Equipment", letter.ref.name);
     if (letter && rules === "2014") add("unresolved", "info", where, `starting-equipment letters exist only under 2024 rules`, "Equipment", letter.ref.name);
@@ -315,7 +366,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   };
   for (const key of ["Skills", "Tools", "Languages", "Expertise", "Fighting Style", "Cantrips", "Spells", "Prepared"]) distribute(key, () => key, adds(paste.header, key));
   if (paste.header.get("Masteries")) distribute("Masteries", () => "Masteries", [{ ref: { name: "Masteries", source: null }, drop: false, details: [], qty: null }]);
-  distribute("Feat", () => "ASI/Feat", adds(paste.header, "Feat"));
+  distribute("Feat", () => "ASI/Feat", adds(paste.header, "Feat").filter((it) => !granted.has(it)));
   if (paste.header.get("ASI")) distribute("ASI", () => "ASI/Feat", [{ ref: { name: "ASI", source: null }, drop: false, details: [], qty: null }]);
   distribute("Options", (it) => { const of = resolveRef(ix.options, it.ref, "header", "Options"); return `Options:${of ? of.types.join("/") : "?"}`; }, adds(paste.header, "Options"));
   for (const it of adds(paste.header, "Feature")) {
@@ -326,8 +377,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   for (const it of adds(paste.header, "Feat")) checkFeat(it, "header", "H", null, false);
   for (const it of adds(paste.header, "Spells")) checkSpell(it, "header", "Spells", null);
   for (const it of adds(paste.header, "Cantrips")) checkSpell(it, "header", "Cantrips", null);
-  for (const it of adds(paste.header, "Items")) resolveRef(ix.items, it.ref, "header", "Items", "info");
-  for (const it of adds(paste.header, "Equipment")) resolveRef(ix.items, it.ref, "header", "Equipment", "info");
+  for (const it of adds(paste.header, "Items")) resolveItem(it.ref, "header", "Items");
+  for (const it of adds(paste.header, "Equipment")) resolveItem(it.ref, "header", "Equipment");
   for (const s of subclassLines) if (s.n === null) { const cls = subclassOf.size ? [...subclassOf.entries()].find(([, v]) => v && lc(v.name) === lc(s.item.ref.name) || (v && lc(v.shortName) === lc(s.item.ref.name)))?.[0] : undefined; if (cls) { const sl = slot(cls, "Subclass"); sl.picked++; sl.where.push("header"); } }
 
   // ── Ledger → findings ─────────────────────────────────────────────────────
@@ -436,6 +487,40 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     }
   }
 
+  // ── F5 (D50): feats an optional feature grants ────────────────────────────
+  // The option names its feat pick in its details, as any option pick (§5.3): `Lessons of the First Ones [Alert]`.
+  // Details cannot nest (E011), so a feat with picks of its own also gets a standalone Feat line in the same scope,
+  // which carries those picks: `Feat: Magic Initiate [CHA; Wizard; …]`. A bare option claims the first Feat line in
+  // its scope whose category it grants. Claimed Feat lines are neither ASI-slot feats nor extras.
+  function optionFeats(scope: Scope, where: string) {
+    const feats = adds(scope, "Feat");
+    const free = () => feats.filter((f) => !granted.has(f));
+    const featOf = (name: string) => ix.feats.resolve({ name, source: null }, rules).hit;
+    for (const it of adds(scope, "Options")) {
+      const of = ix.options.resolve(it.ref, rules).hit;
+      for (const g of of?.feats ?? []) {
+        const cats = g.category.map((c) => c.toUpperCase());
+        const kind = cats.map((c) => (c === "O" ? "Origin" : c === "G" ? "General" : c)).join("/");
+        const a = /^[AEIOU]/i.test(kind) ? "an" : "a";
+        const named = (it.details[0] ?? []).slice(0, g.count);
+        for (const d of named) {
+          const carrier = free().find((f) => lc(f.ref.name) === lc(d.ref.name));
+          if (carrier) granted.add(carrier);
+          const fd = carrier ? ix.feats.resolve(carrier.ref, rules).hit : featOf(d.ref.name);
+          if (!fd) { if (!carrier) add("unresolved", "info", where, `"${of?.name}" pick "${d.ref.name}" matches no feat in the loaded data`, "Options", of?.name); continue; }
+          if (fd.category && !cats.includes(fd.category.toUpperCase())) add("misplaced", "warning", where, `"${of?.name}" grants ${a} ${kind} feat; "${fd.name}" is not one`, "Options", of?.name);
+          const asksPicks = Boolean(fd.abilityChoose?.length || fd.versions.length || fd.cantripChoose || fd.spellChoose);
+          if (asksPicks && !carrier) add("missing", "info", where, `"${fd.name}" has picks of its own: write them on a Feat line in the same block`, "Feat", fd.name);
+        }
+        for (let i = named.length; i < g.count; i++) {
+          const carrier = free().find((f) => { const fd = ix.feats.resolve(f.ref, rules).hit; return Boolean(fd?.category && cats.includes(fd.category.toUpperCase())); });
+          if (carrier) granted.add(carrier);
+          else add("missing", "info", where, `"${of?.name}" grants ${a} ${kind} feat: name it in brackets, or on a Feat line in the same block`, "Options", of?.name);
+        }
+      }
+    }
+  }
+
   // ── shared checks ─────────────────────────────────────────────────────────
   function checkFeat(it: Item, where: string, scope: "H" | "S" | "B" | "L", n: number | null, beyond: boolean) {
     const fd = resolveRef(ix.feats, it.ref, where, "Feat");
@@ -444,7 +529,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     if (fd.abilityChoose && !slot0.length) add("missing", "info", where, `"${fd.name}" asks for an ability pick in its first bracket slot`, "Feat", fd.name);
     if (fd.abilityChoose && slot0.length && !fd.abilityChoose.some((a) => lc(a) === lc(slot0[0].ref.name))) add("unresolved", "info", where, `"${fd.name}" ability must be one of ${fd.abilityChoose.map((a) => a.toUpperCase()).join(", ")}`, "Feat", fd.name);
     if (fd.versions.length && !(it.details[1]?.length)) add("missing", "info", where, `"${fd.name}" asks for a version in its second slot: ${fd.versions.join(", ")}`, "Feat", fd.name);
-    if (fd.category === "O" && scope === "L") add("misplaced", "warning", where, `"${fd.name}" is an Origin feat; an ASI-slot feat must be General`, "Feat", fd.name);
+    // An Origin feat at an ASI level is legal: the 2024 Ability Score Improvement feature grants "another feat of your
+    // choice for which you qualify", and Origin feats have no prerequisite (D54). The reverse stays a warning.
     if (fd.category === "G" && (scope === "S" || scope === "B")) add("misplaced", "warning", where, `"${fd.name}" is a General feat; a species or background grants an Origin feat`, "Feat", fd.name);
     if (fd.prereqLevel && n !== null && n < fd.prereqLevel && !beyond) add("misplaced", "warning", where, `"${fd.name}" needs character level ${fd.prereqLevel}`, "Feat", fd.name);
   }
@@ -566,26 +652,29 @@ export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 const ABILITY_KEYS: readonly AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
 interface AbilityGrant { fixed?: Record<string, number>; choose?: { from: string[]; count?: number; amount?: number; weights?: number[] } | null }
 
-export function finalScores(paste: Paste, slots: Slots, supplement: Supplement = {}): { scores: Record<AbilityKey, number> | null; findings: Finding[] } {
+/**
+ * Final scores after every increase the paste records. An ability the `Scores` line leaves out (the named partial
+ * form, D46) is `null`: unknown, never assumed 10, and its increases are not cap-checked.
+ */
+export function finalScores(paste: Paste, slots: Slots, supplement: Supplement = {}): { scores: Record<AbilityKey, number | null> | null; findings: Finding[] } {
   return finalScoresWith(paste, buildIndexes(slots), supplement);
 }
-function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, supplement: Supplement): { scores: Record<AbilityKey, number> | null; findings: Finding[] } {
+function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, supplement: Supplement): { scores: Record<AbilityKey, number | null> | null; findings: Finding[] } {
   const F: Finding[] = [];
   const add = (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string) => F.push({ kind, severity, where, key, ref, message });
 
   const scoresV = paste.header.get("Scores");
   if (!scoresV || scoresV.type !== "scores") return { scores: null, findings: [] };
-  const scores: Record<AbilityKey, number> = { str: scoresV.values[0], dex: scoresV.values[1], con: scoresV.values[2], int: scoresV.values[3], wis: scoresV.values[4], cha: scoresV.values[5] };
+  const v = scoresV.values;
+  const scores: Record<AbilityKey, number | null> = { str: v[0], dex: v[1], con: v[2], int: v[3], wis: v[4], cha: v[5] };
 
   const rulesV = paste.header.get("Rules");
   const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
   void supplement; // reserved: no supplement data feeds ability arithmetic today
 
-  // "As played now" (D36): a class with an unknown level count means no level blocks exist at all.
-  const clsV = paste.header.get("Classes");
-  const classEntries = clsV && clsV.type === "classes" ? clsV.entries : [];
-  const known = classEntries.every((e) => e.levels !== null);
-  const played = known ? classEntries.reduce((a, e) => a + (e.levels ?? 0), 0) : null;
+  // "As played now" (D36): the sum of the class totals (runs fold to their last value, D49); null when a class has
+  // no level count, which means no level blocks exist at all.
+  const played = classSequence(paste).played;
   const isPlayed = (n: number) => played === null || n <= played;
 
   // ASIs and half-feats stop at 20; an Epic Boon (category EB) raises a score to 30. A bump that
@@ -593,9 +682,11 @@ function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, s
   const bump = (ability: string, amount: number, where: string, cap = 20) => {
     const key = ability.toLowerCase() as AbilityKey;
     if (!ABILITY_KEYS.includes(key)) return;
-    const next = scores[key] + amount;
+    const cur = scores[key];
+    if (cur === null) return; // unknown base: the final stays unknown
+    const next = cur + amount;
     if (next > cap) add("misplaced", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the ${cap} cap (+${amount})`, "ASI", key.toUpperCase());
-    scores[key] = Math.max(scores[key], Math.min(cap, next));
+    scores[key] = Math.max(cur, Math.min(cap, next));
   };
   const applyAsi = (v: Value | undefined, where: string) => {
     if (!v || v.type !== "asi") return;

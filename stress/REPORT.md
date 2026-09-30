@@ -77,7 +77,10 @@ equipment.
 1. **Size choice noise.** 23 infos of "Human/Tiefling chooses a size (S/M)". Under D24 an absent
    choice with a default is silent, but the 2024 species have no printed default. Proposal: treat
    Medium as the conventional default and stop reporting it.
-2. **Empty level block semantics.** `L10 Barbarian` with no lines is legal and means "a level with
+2. ~~**Empty level block semantics.**~~ **CLOSED → D49 (2026-09-30).** An empty block still means
+   "a level with nothing to record"; canonical emit now writes one at each class change of a
+   timeline, and `Classes` runs state interleaving without scaffolding blocks. Original note:
+   `L10 Barbarian` with no lines is legal and means "a level with
    nothing to record". Two agents wanted it to also carry "multiclass proficiencies only". The
    spec already says gaps are normal; recommend no change.
 3. **Homebrew mechanics beyond picks** (the Enchanter's "Deception uses INT") have no home. By
@@ -89,7 +92,9 @@ equipment.
    ambiguity; the format is strict about it by design.
 6. **A reduced variant that drops planned blocks** keeps `Classes: Warlock 5 / Fighter 0`; the `0`
    entry is then dangling but legal. Recommend the checker report it as *unplaced* info.
-7. **Generic magic variants** (`+1 Longsword`, `Flame Tongue Greatsword`) are not 5etools entities;
+7. ~~**Generic magic variants**~~ **CLOSED → D40 + D55 (2026-09-30):** the `+N ` prefix (D40), then
+   variants resolved from `magicvariants.json` plus the base item (D55). Original note:
+   (`+1 Longsword`, `Flame Tongue Greatsword`) are not 5etools entities;
    they resolve to nothing. Options: accept a `+N ` prefix and strip it on resolution, or leave as
    info. Recommend the prefix rule.
 8. **Draconic Sorcery / Orc "heritage" style picks** that 5etools encodes as prose stay
