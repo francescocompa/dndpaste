@@ -259,6 +259,13 @@ const errorCases: [string, string, string[]][] = [
   ["E012 runs without a count", "Classes: Fighter / Rogue 3 / Fighter 6", ["E012"]],
   ["E012 runs with 0", "Classes: Fighter 0 / Rogue 3 / Fighter 2", ["E012"]],
   ["E012 runs with two sources", "Classes: Fighter|XPHB 1 / Rogue 3 / Fighter|PHB 6", ["E012"]],
+  ["E012 hp unknown method", "HP: Average", ["E012"]],
+  ["E012 hp roll in header", "HP: 7", ["E012"]],
+  ["E012 hp zero roll", "Classes: Fighter 2\n\nL2 Fighter\nHP: 0", ["E012"]],
+  ["E012 hp leading zero", "Classes: Fighter 2\n\nL2 Fighter\nHP: 07", ["E012"]],
+  ["E012 hp sign", "Classes: Fighter 2\n\nL2 Fighter\nHP: +7", ["E012"]],
+  ["E005 hp in species block", "Species: Elf\nHP: Fixed", ["E005"]],
+  ["E003 hp twice in a level", "Classes: Fighter 2\n\nL2 Fighter\nHP: 7\nHP: Fixed", ["E003"]],
   ["E013 stamp on item", "Spells: Hex @3", ["E013"]],
   ["E014 entity after level", "L1 Bard\nSpecies: Elf", ["E014"]],
   ["E014 repeated entity", "Species: Elf\nSpecies: Human", ["E014"]],
@@ -269,6 +276,30 @@ for (const [name, text, expected] of errorCases) {
     assert.deepEqual(codes(parse(text)), expected, text);
   });
 }
+
+test("HP absent: no diagnostic, no key in the AST, the paste emits as before", () => {
+  const text = "Rules: 2024\nClasses: Fighter 3\n\nL3 Fighter\nSubclass: Champion\n";
+  const p = parse(text);
+  assert.deepEqual(codes(p), []);
+  assert.equal(p.header.has("HP"), false);
+  assert.equal(emit(p), text);
+});
+
+test("HP: header method and level overrides parse, case-insensitive", () => {
+  const p = parse("Classes: Fighter 4\nhp: fixed\n\nL2 Fighter\nHP: 7\n\nL3 Fighter\nHP: rolled");
+  assert.deepEqual(codes(p), []);
+  assert.deepEqual(p.header.get("HP"), { type: "hp", method: "Fixed", roll: null });
+  assert.deepEqual(p.levels[0].lines.get("HP"), { type: "hp", method: "Rolled", roll: 7 });
+  assert.deepEqual(p.levels[1].lines.get("HP"), { type: "hp", method: "Rolled", roll: null });
+});
+
+test("HP: canonical emit puts it after Classes and first in a level block; round-trips", () => {
+  const p = parse("Rules: 2024\nHP: rolled\nClasses: Fighter 4\n\nL2 Fighter\nSkills: Athletics\nHP: 9\n\nL4 Fighter\nASI: +2 STR\nHP: fixed");
+  assert.deepEqual(codes(p), []);
+  const out = emit(p);
+  assert.equal(out, "Rules: 2024\nClasses: Fighter 4\nHP: Rolled\n\nL2 Fighter\nHP: 9\nSkills: Athletics\n\nL4 Fighter\nHP: Fixed\nASI: +2 STR\n");
+  assert.equal(emit(parse(out)), out);
+});
 
 test("errors skip the line, rest still parses", () => {
   const p = parse("Classes: Bard 1\nPact: Blade\nSkills: Arcana");

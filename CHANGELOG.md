@@ -2,6 +2,14 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- **SPEC 0.6** (additions only): an optional `HP` key records the hit-point method (D59). Header
+  `HP: Fixed` or `HP: Rolled`; a level block may override it with `HP: Fixed`, `HP: Rolled` or the die
+  result rolled there (`HP: 7`). Canonical emit places it after `Classes` and first in a level block.
+  Checker: a level-1 line or a roll above the level's class die is `misplaced`/warning; a level method
+  that repeats the header is `redundant`/info and `normalise` removes it; an absent key has no finding.
+  Replaces character-forge's interim `X-HP` extension key (D60, cf-D163).
+
 ## 0.6.0 — 2026-09-30
 - **SPEC 0.5** (additions only, D46–D56), from Francesco's calls on the real-build stress wave (cf-D81):
   - `Scores` takes a named, partial form of base scores (`Scores: DEX 15, CON 13`); canonical emit

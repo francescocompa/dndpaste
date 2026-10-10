@@ -16,7 +16,7 @@ interface FeatureSlot { level: number; options: string[] }
 export interface ClassSlots {
   name: string; source: string; edition: string | null; subclassLevel: number | null; asiLevels: number[]; expertiseLevels: number[];
   features: Record<string, FeatureSlot>; optionalClassFeatures?: Record<string, { level: number; source: string }>; options: Record<string, Progression>; featProgression: Record<string, Progression>;
-  masteries: number[] | null; hasMastery?: boolean; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
+  hd?: number | null; masteries: number[] | null; hasMastery?: boolean; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
   casting: { ability: string; progression: string | null; preparedChange: string | null; cantrips: number[] | null; prepared: number[] | null; known: number[] | null } | null;
 }
 export interface SubclassSlots {
@@ -219,6 +219,19 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   const played = seq.played;
   const classAt: string[] = seq.levels.map((r) => (r ? lc(r.name) : ""));   // index n-1 → lc class name
   const classLevelAt = (n: number, cls: string) => classAt.slice(0, n).filter((c) => c === cls).length;
+
+  // ── Hit points (D59): optional and never owed. Level 1 takes the die's maximum, so a level-1 line is misplaced;
+  // a roll must fit the level's class die; a level line that repeats the header's method is redundant. ──
+  const hpV = paste.header.get("HP");
+  const hpMethod = hpV && hpV.type === "hp" ? hpV.method : null;
+  for (const lv of paste.levels) {
+    const v = lv.lines.get("HP"); if (!v || v.type !== "hp") continue;
+    const where = `L${lv.n}`;
+    if (lv.n === 1) { add("misplaced", "warning", where, "level 1 takes the hit die's maximum; HP applies from level 2", "HP"); continue; }
+    if (v.roll === null) { if (v.method === hpMethod) add("redundant", "info", where, `HP: ${v.method} repeats the header`, "HP"); continue; }
+    const cd = classData.get(classAt[lv.n - 1] ?? lc(lv.class.name));
+    if (cd?.hd && v.roll > cd.hd) add("misplaced", "warning", where, `HP: ${v.roll} is more than ${cd.name}'s d${cd.hd} can roll`, "HP");
+  }
 
   // ── Owed-slot ledger per class ────────────────────────────────────────────
   type Ledger = Map<string, { owed: number; owedPlayed: number; picked: number; dropped: number; where: string[] }>;
@@ -588,7 +601,7 @@ export function normalise(paste: Paste, slots: Slots, supplement: Supplement = {
   };
   for (const f of redundant) {
     const scope = scopeFor(f.where); if (!scope || !f.key) continue;
-    if (f.key === "Prepared" && !f.ref) { scope.delete("Prepared"); continue; }
+    if ((f.key === "Prepared" || f.key === "HP") && !f.ref) { scope.delete(f.key); continue; }
     const v = scope.get(f.key);
     if (!v || v.type !== "items" || !f.ref) continue;
     const kept = v.items.filter((i) => lc(i.ref.name) !== lc(f.ref as string));
