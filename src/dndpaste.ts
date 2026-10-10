@@ -1,10 +1,10 @@
 /**
  * dndpaste — reference parser and canonical emitter.
- * Implements SPEC.md 0.5 (core grammar §1–4, profile `dnd5e` §5).
+ * Implements SPEC.md 0.6 (core grammar §1–4, profile `dnd5e` §5).
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.5";
+export const SPEC_VERSION = "0.6";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────
@@ -24,7 +24,12 @@ export type Value =
   | { type: "classes"; entries: ClassEntry[] }
   /** Base scores in STR/DEX/CON/INT/WIS/CHA order; `null` = not written (the named partial form, §5.2). */
   | { type: "scores"; values: (number | null)[] }
-  | { type: "asi"; bonuses: { amount: number; ability: Ability }[] };
+  | { type: "asi"; bonuses: { amount: number; ability: Ability }[] }
+  /** Hit-point method (§5.2, D59): `roll` is a die result, level blocks only, and implies `Rolled`. */
+  | { type: "hp"; method: HpMethod; roll: number | null };
+
+export type HpMethod = "Fixed" | "Rolled";
+export const HP_METHODS: readonly HpMethod[] = ["Fixed", "Rolled"];
 
 export type Scope = Map<string, Value>;
 export interface EntityBlock { key: string; item: Item; lines: Scope }
@@ -42,7 +47,7 @@ export interface Paste {
 
 /** Scope letters: H header · S species block · B background block · L level block. */
 export type ScopeKind = "H" | "S" | "B" | "L";
-export type ValueType = "items" | "item" | "items¹" | "enum" | "int" | "classes" | "scores" | "asi";
+export type ValueType = "items" | "item" | "items¹" | "enum" | "int" | "classes" | "scores" | "asi" | "hp";
 
 export interface KeyDef {
   key: string;
@@ -58,6 +63,7 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Rules", type: "enum", scopes: ["H"], enumValues: ["2014", "2024"] },
   { key: "Scores", type: "scores", scopes: ["H"] },
   { key: "Classes", type: "classes", scopes: ["H"] },
+  { key: "HP", type: "hp", scopes: ["H", "L"] },
   { key: "Species", type: "item", scopes: ["H"], opensBlock: "S" },
   { key: "Background", type: "item", scopes: ["H"], opensBlock: "B" },
   { key: "Subclass", type: "items¹", scopes: ["H", "L"] },
@@ -397,6 +403,18 @@ function parseAsi(raw: string, diag: Diag, line: number): Value | null {
   return { type: "asi", bonuses };
 }
 
+/** `Fixed` or `Rolled`; in a level block also the die result rolled there, which implies `Rolled` (§5.2, D59). */
+function parseHp(raw: string, scope: ScopeKind, diag: Diag, line: number): Value | null {
+  if (/^\d+$/.test(raw)) {
+    if (scope !== "L") { diag.add("E012", line, "a rolled result goes in a level block; the header takes Fixed or Rolled"); return null; }
+    if (!/^[1-9]\d*$/.test(raw)) { diag.add("E012", line, "a rolled result is a positive integer with no leading zeros"); return null; }
+    return { type: "hp", method: "Rolled", roll: Number(raw) };
+  }
+  const hit = HP_METHODS.find((m) => m.toLowerCase() === raw.toLowerCase());
+  if (!hit) { diag.add("E012", line, scope === "L" ? "Fixed, Rolled or a rolled result expected" : "Fixed or Rolled expected"); return null; }
+  return { type: "hp", method: hit, roll: null };
+}
+
 function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line: number): Value | null {
   switch (def.type) {
     case "int": {
@@ -411,6 +429,7 @@ function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line
     case "classes": return parseClasses(raw, diag, line);
     case "scores": return parseScores(raw, diag, line);
     case "asi": return parseAsi(raw, diag, line);
+    case "hp": return parseHp(raw, scope, diag, line);
     case "item":
     case "items":
     case "items¹": {
@@ -573,6 +592,7 @@ export function emitValue(v: Value): string {
       ? v.values.join("/")
       : ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [`${a} ${v.values[i]}`])).join(", ");
     case "asi": return v.bonuses.map((b) => `+${b.amount} ${b.ability}`).join(", ");
+    case "hp": return v.roll !== null ? String(v.roll) : v.method;
   }
 }
 

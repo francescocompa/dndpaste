@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.5 (draft, 2026-09-30) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule (additions only; a 0.4 paste means the same under 0.5) · Decisions: `DECISIONS.md` D1–D56.
+**Version:** 0.6 (draft, 2026-10-10) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key (additions only; a 0.5 paste means the same under 0.6) · Decisions: `DECISIONS.md` D1–D60.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -142,7 +142,7 @@ Every key has a **value type** declared by the profile. The core defines four:
 | `enum` | one token from a fixed set | `Rules` |
 | `int` | integer | `Paste` |
 
-A profile may add typed values of its own (`dnd5e` adds `classes`, `scores`, `asi`, §5.2).
+A profile may add typed values of its own (`dnd5e` adds `classes`, `scores`, `asi`, `hp`, §5.2).
 A value that does not match its type is `E012`.
 
 ### 3.1 Item
@@ -190,7 +190,7 @@ type Value =
   | { type: "items"; items: Item[] }
   | { type: "enum";  value: string }
   | { type: "int";   value: number }
-  | ProfileValue;                 // dnd5e: classes | scores | asi (§5.2)
+  | ProfileValue;                 // dnd5e: classes | scores | asi | hp (§5.2)
 interface Item   { ref: Ref; drop: boolean; details: Detail[][]; qty: number | null; }
 interface Detail { ref: Ref; at: number | null; }
 interface Ref    { name: string; source: string | null; }
@@ -226,6 +226,7 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Rules` | enum `2014`/`2024` | H | default edition |
 | `Scores` | scores | H | **base** scores: all six `STR/DEX/CON/INT/WIS/CHA`, e.g. `8/13/14/12/10/15`, or the ones known, named: `DEX 15, CON 13` (§5.2) |
 | `Classes` | classes | H | classes in the order taken, with levels **as played now**; `Fighter 1 / Warlock 5`. An interleaved multiclass may write **runs**: `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` (§5.2) |
+| `HP` | hp | H, L | **hit-point method**, optional (D59). In H: `Fixed` (the class's fixed value at each level after 1st) or `Rolled`. In L: that level's method, overriding H: `Fixed`, `Rolled`, or the **die result** rolled there (`HP: 7`). Level 1 always takes the die's maximum, so it has no line. Absent: no method stated, never assumed |
 | `Species` | item · **opens block** | H | the species; its picks are the block's lines. 2024 lineages are a `Feature` line in the block; 2014 subraces are part of the name, the 5etools way: `Species: Elf (Wood)|PHB`, `Species: Human (Variant)|PHB` |
 | `Background` | item · **opens block** | H | the background; official: block holds only the picks it asks (2024: `ASI`); custom/homebrew: the block holds everything (`ASI`, `Skills`, `Tools`, `Feat`, `Equipment`) so the paste is complete without the homebrew file (D21, D26) |
 | `Subclass` | items¹ | H, L | the class's subclass; in L it belongs to the block's class |
@@ -267,6 +268,9 @@ Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
   - **named**, for a partial set: `<ABI> <n>` entries separated by `,`, in any order, each
     ability at most once, missing abilities simply absent: `DEX 15, CON 13`. No placeholders
     (`?` is `E012`). An ability left out is **unknown**, never assumed 10.
+- **`hp`** — `Fixed` or `Rolled`, case-insensitive, written in that case. In a level block also a
+  positive integer, no leading zeros: the hit die's result at that level, before the
+  Constitution modifier, which implies `Rolled`. An integer in header scope is `E012` (D59).
 - **`asi`** — one or more `+<n> <ABI>` entries, `,`-separated. Grouping is preserved
   (`+2 CHA` is one entry; `+1 INT, +1 CON` two).
 
@@ -313,6 +317,8 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
   the class that can own it; when several classes can, it may assign it to any of them. The
   parser records it with no class.
 - `-Item` in a level block drops an item added earlier; the checker verifies it.
+- `HP` in a level block is that level's method only; a level with no `HP` line takes the header's
+  method, or none when the header has no `HP` (D59).
 - `Prepared` and `Masteries` in a level block describe the default loadout from that level
   until the next such line.
 - **Defaults are silent** (rule 8): `Equipment` absent means option A under 2024 rules; a
@@ -322,7 +328,7 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
 ### 5.5 Canonical form (data-free)
 
 1. Identifier line, if any.
-2. Header scope in this order: `Paste`, `Rules`, `Scores`, `Classes`, then unplaced choice
+2. Header scope in this order: `Paste`, `Rules`, `Scores`, `Classes`, `HP`, then unplaced choice
    keys in §5.1 table order (`Items` last), then `X-` keys alphabetically ignoring case, each
    written as authored after the `X-` prefix (§2.5). `Scores` is written in the six-number form
    when all six are known, else in the named form, `STR…CHA` order. `Classes` is written as
@@ -380,6 +386,12 @@ and feat increments over played levels (D36); an increment past 20 is `misplaced
 background bonus outside the background's three abilities stays the existing info finding. An
 ability the named `Scores` form leaves out has an **unknown** final score (`null`): it is never
 assumed 10, and increases on it are not cap-checked (D46).
+
+`HP` is never owed: a paste without it has no finding (D59). A level-1 `HP` line is
+`misplaced`/warning (level 1 takes the die's maximum); a die result above the hit die of that
+level's class (§5.4) is `misplaced`/warning; a level `HP: Fixed` or `HP: Rolled` that repeats the
+header's method is `redundant`/info, and `normalise` removes it. A level line that differs from the
+header, a roll included, is an override and stays.
 
 Any feat is legal at an ASI level, Origin feats included: the 2024 Ability Score Improvement
 feature grants "another feat of your choice for which you qualify" (D54). A General feat from

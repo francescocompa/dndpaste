@@ -464,6 +464,37 @@ test("finalScores: an illegal background ability pick is reported once, by the b
   assert.equal(findings.filter((f) => /not offered/.test(f.message)).length, 0, JSON.stringify(findings));
 });
 
+test("HP absent or valid: no HP finding", () => {
+  for (const text of [
+    "Rules: 2024\nClasses: Fighter 3",
+    "Rules: 2024\nClasses: Fighter 3\nHP: Fixed",
+    "Rules: 2024\nClasses: Fighter 3\nHP: Rolled\n\nL2 Fighter\nHP: 10\n\nL3 Fighter\nHP: 1",
+    "Rules: 2024\nClasses: Fighter 3\nHP: Fixed\n\nL3 Fighter\nHP: 4",
+  ]) assert.deepEqual(run(text).filter((x) => x.key === "HP"), [], text);
+});
+
+test("HP: a line at level 1 is misplaced", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 2\n\nL1 Fighter\nHP: 10");
+  assert.ok(f.some((x) => x.kind === "misplaced" && x.key === "HP" && x.where === "L1"), JSON.stringify(f));
+});
+
+test("HP: a roll above the level's class die is misplaced (multiclass reads the level's class)", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 1 / Wizard 2\nHP: Rolled\n\nL2 Wizard\nHP: 6\n\nL3 Wizard\nHP: 7");
+  const hp = f.filter((x) => x.key === "HP");
+  assert.equal(hp.length, 1, JSON.stringify(hp));
+  assert.equal(hp[0].kind, "misplaced");
+  assert.equal(hp[0].where, "L3");
+  assert.match(hp[0].message, /d6/);
+});
+
+test("HP: a level method that repeats the header is redundant and normalise drops it", () => {
+  const text = "Rules: 2024\nClasses: Fighter 3\nHP: Fixed\n\nL2 Fighter\nHP: Fixed\n\nL3 Fighter\nHP: Rolled";
+  const f = run(text);
+  assert.ok(f.some((x) => x.kind === "redundant" && x.key === "HP" && x.where === "L2"), JSON.stringify(f));
+  assert.ok(!f.some((x) => x.key === "HP" && x.where === "L3"));
+  assert.equal(emit(normalise(parse(text), srd, supplement)), "Rules: 2024\nClasses: Fighter 3\nHP: Fixed\n\nL2 Fighter\n\nL3 Fighter\nHP: Rolled\n");
+});
+
 test("real builds against the full extract (skipped when data/slots.json is absent)", { skip: !full }, () => {
   for (const name of ["shigen", "vice"]) {
     const f = run(readFileSync(join(root, "fixtures", `${name}.dndpaste`), "utf8"), full as Slots);
