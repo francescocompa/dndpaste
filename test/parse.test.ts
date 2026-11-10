@@ -306,3 +306,10 @@ test("errors skip the line, rest still parses", () => {
   assert.deepEqual(codes(p), ["E002"]);
   assert.deepEqual(items(p, p.header, "Skills"), ["Arcana"]);
 });
+
+test("Producer stamp: parsed as text, kept by emit after Paste, no findings", () => {
+  const p = parse("Rules: 2024\nProducer:   character-forge 2.1 \nPaste: 1\nClasses: Bard 1\n");
+  assert.deepEqual(p.diagnostics, []);
+  assert.deepEqual(p.header.get("Producer"), { type: "text", value: "character-forge 2.1" });
+  assert.equal(emit(p), "Paste: 1\nProducer: character-forge 2.1\nRules: 2024\nClasses: Bard 1\n");
+});

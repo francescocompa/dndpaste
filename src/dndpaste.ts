@@ -20,6 +20,8 @@ export type Value =
   | { type: "items"; items: Item[] }
   | { type: "enum"; value: string }
   | { type: "int"; value: number }
+  /** Free single-line text, kept as written (trimmed): the `Producer` stamp (§5.2, D62). */
+  | { type: "text"; value: string }
   /** As written: a class may appear more than once (runs, §5.2); `foldClasses` gives the totals. */
   | { type: "classes"; entries: ClassEntry[] }
   /** Base scores in STR/DEX/CON/INT/WIS/CHA order; `null` = not written (the named partial form, §5.2). */
@@ -47,7 +49,7 @@ export interface Paste {
 
 /** Scope letters: H header · S species block · B background block · L level block. */
 export type ScopeKind = "H" | "S" | "B" | "L";
-export type ValueType = "items" | "item" | "items¹" | "enum" | "int" | "classes" | "scores" | "asi" | "hp";
+export type ValueType = "items" | "item" | "items¹" | "enum" | "int" | "classes" | "scores" | "asi" | "hp" | "text";
 
 export interface KeyDef {
   key: string;
@@ -60,6 +62,7 @@ export interface KeyDef {
 /** Table order is canonical order (SPEC §5.5). */
 export const KEYS: readonly KeyDef[] = [
   { key: "Paste", type: "int", scopes: ["H"] },
+  { key: "Producer", type: "text", scopes: ["H"] },
   { key: "Rules", type: "enum", scopes: ["H"], enumValues: ["2014", "2024"] },
   { key: "Scores", type: "scores", scopes: ["H"] },
   { key: "Classes", type: "classes", scopes: ["H"] },
@@ -426,6 +429,7 @@ function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line
       if (!hit) { diag.add("E012", line, `one of ${def.enumValues?.join(", ")} expected`); return null; }
       return { type: "enum", value: hit };
     }
+    case "text": return { type: "text", value: raw.trim() };
     case "classes": return parseClasses(raw, diag, line);
     case "scores": return parseScores(raw, diag, line);
     case "asi": return parseAsi(raw, diag, line);
@@ -585,6 +589,7 @@ export function emitValue(v: Value): string {
     case "items": return v.items.map(fmtItem).join(", ");
     case "enum": return v.value;
     case "int": return String(v.value);
+    case "text": return v.value;
     // Runs fold to totals, one entry per class in first-appearance order; the order moves to level headers (§5.5).
     case "classes": return foldClasses(v.entries).map((e) => fmtRef(e.ref) + (e.levels === null ? "" : ` ${e.levels}`)).join(" / ");
     // All six known → the six-number form; otherwise the named form, STR…CHA order (§5.5).
