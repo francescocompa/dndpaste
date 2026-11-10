@@ -71,5 +71,5 @@ L<n> <Class>                   level block, n = character level
 - [ ] Paste → build, resolving refs against loaded sources; unresolved refs use the existing "not loaded" path (its D56).
 
 ### Later
-- ⚑ **Share service (D45, decided 2026-09-29):** a Cloudflare Worker + KV, pokepaste-style short links. Its milestone and its place relative to M3 are his call (Francesco, 2026-09-29).
+- ⚑ **Share service (D45, decided 2026-09-29; sizing in `SHARE-SITE-SIZING.md`, 2026-11-10):** a Cloudflare Worker + KV, pokepaste-style short links. Its milestone and its place relative to M3 are his call (Francesco, 2026-09-29).
 - Variants / party blocks (D6). `Game:` header and a second profile (O1). Python port only if extract.py needs it.
