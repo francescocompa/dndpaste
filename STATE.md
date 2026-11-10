@@ -1,15 +1,13 @@
 # STATE — dndpaste
 
-## TL;DR (2026-09-30 · 0.6.0 · M1 ✅ · M2 ✅ · 128 tests green · on GitHub, tagged v0.6.0)
+## TL;DR (2026-11-10 · 0.7.0 · M1 ✅ · M2 ✅ · 143 tests green · tagged v0.7.0 locally, not pushed)
 - **Where it stands.** SPEC 0.5 + D1–D57. Library = parser + canonical emitter + data-driven checker
   (`check`/`normalise`/`finalScores`/`classSequence`) + `bin/dndpaste.mjs` CLI, zero deps, ESM + UMD.
   0.6.0 (2026-09-30) carries the fixes from character-forge's real-build stress wave (cf-D81):
   named partial `Scores`, `Classes` runs with switch-point headers, granted feats, magic variants,
   and two fixes (D46–D56). Releases follow D57 (annotated `vX.Y.Z` tags, never moved). Ten fixtures;
   the full slot table lives in the gitignored `data/slots.json`, the SRD subset is committed.
-- **Unreleased (2026-10-10):** optional `HP` key, SPEC 0.6, D59–D60, on branch `claude/hp-key-ac725e`
-  (142 tests green with the full table). Ships as 0.7.0 once Francesco OKs merge + release (D57);
-  character-forge then switches from `X-HP` in its own crossing (cf-D163).
+- **0.7.0 (2026-11-10):** SPEC 0.7 = optional `HP` key (D59–D60) + optional `Producer` stamp (D62), released together for character-forge's P8 (D61). Tagged locally; **push awaits Francesco**. character-forge copies `dist/` in its own crossing and drops `X-HP`.
 - **Single next action:** M3 — the my-spellbook export (its L5.5), as a **separate session in that
   repo** under its own CLAUDE.md (D44): copy `dist/dndpaste.umd.cjs` (run `npm run build` first),
   map `levelGains`/`timelinePicks` → AST → `emit`. Copy 0.6.0 or later: 0.5.0 sums `Classes` runs silently.
