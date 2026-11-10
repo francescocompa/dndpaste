@@ -2,7 +2,10 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
-## Unreleased
+## 0.7.0 — 2026-11-10
+- **SPEC 0.7** (additions only): an optional header key `Producer` stamps what wrote the paste and its
+  version (`Producer: character-forge 2.1`), free single-line text (D62). Canonical emit places it right
+  after `Paste`. No checker finding, present or absent; `emit` keeps it.
 - **SPEC 0.6** (additions only): an optional `HP` key records the hit-point method (D59). Header
   `HP: Fixed` or `HP: Rolled`; a level block may override it with `HP: Fixed`, `HP: Rolled` or the die
   result rolled there (`HP: 7`). Canonical emit places it after `Classes` and first in a level block.

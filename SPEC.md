@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.6 (draft, 2026-10-10) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key (additions only; a 0.5 paste means the same under 0.6) · Decisions: `DECISIONS.md` D1–D60.
+**Version:** 0.7 (draft, 2026-11-10) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp (additions only; a 0.5 or 0.6 paste means the same under 0.7) · Decisions: `DECISIONS.md` D1–D62.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -223,6 +223,7 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | Key | Type | Scopes | Meaning |
 |---|---|---|---|
 | `Paste` | int | H | spec major version (§2.5) |
+| `Producer` | text | H | **producer stamp**, optional (D62): what wrote the paste and its version, `character-forge 2.1`. Free single-line text, kept as written; no format is checked. For tracing odd output only: it never changes what the build means, and absent has no finding |
 | `Rules` | enum `2014`/`2024` | H | default edition |
 | `Scores` | scores | H | **base** scores: all six `STR/DEX/CON/INT/WIS/CHA`, e.g. `8/13/14/12/10/15`, or the ones known, named: `DEX 15, CON 13` (§5.2) |
 | `Classes` | classes | H | classes in the order taken, with levels **as played now**; `Fighter 1 / Warlock 5`. An interleaved multiclass may write **runs**: `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` (§5.2) |
@@ -268,6 +269,7 @@ Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
   - **named**, for a partial set: `<ABI> <n>` entries separated by `,`, in any order, each
     ability at most once, missing abilities simply absent: `DEX 15, CON 13`. No placeholders
     (`?` is `E012`). An ability left out is **unknown**, never assumed 10.
+- **`text`** — the rest of the line, trimmed, kept as written. By convention `<producer name> <version>`; nothing is validated (D62).
 - **`hp`** — `Fixed` or `Rolled`, case-insensitive, written in that case. In a level block also a
   positive integer, no leading zeros: the hit die's result at that level, before the
   Constitution modifier, which implies `Rolled`. An integer in header scope is `E012` (D59).
@@ -328,7 +330,7 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
 ### 5.5 Canonical form (data-free)
 
 1. Identifier line, if any.
-2. Header scope in this order: `Paste`, `Rules`, `Scores`, `Classes`, `HP`, then unplaced choice
+2. Header scope in this order: `Paste`, `Producer`, `Rules`, `Scores`, `Classes`, `HP`, then unplaced choice
    keys in §5.1 table order (`Items` last), then `X-` keys alphabetically ignoring case, each
    written as authored after the `X-` prefix (§2.5). `Scores` is written in the six-number form
    when all six are known, else in the named form, `STR…CHA` order. `Classes` is written as
