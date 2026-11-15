@@ -1,0 +1,412 @@
+/**
+ * The paste form with JavaScript (M3 T3.2b): it upgrades the server's no-JS form in place. The textarea stays the
+ * source of truth (accessibility, undo, phone keyboards); a highlight layer under it draws the colours (D82, D84).
+ * Adds the Problems list, key hints (D83), Tidy, Open file and drop, the link-import bar (D85), My recent shares and
+ * the phone dock (D86). Bundled to /assets/form.js by scripts/build-client.mjs; CSP `script-src 'self'`, so no
+ * inline scripts, no inline style attributes (CSSOM properties set from here are allowed).
+ */
+import { esc, icon } from "../render.ts";
+import { highlightRows } from "./highlight.ts";
+import { keyHints } from "./hints.ts";
+import type { Hints } from "./hints.ts";
+import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml } from "./status.ts";
+import type { Import, Status } from "./status.ts";
+import { recentHtml, recentStore } from "./recent.ts";
+
+const recent = recentStore(() => window.localStorage);
+const MAX_FILE = 1024 * 1024;
+
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = ""): HTMLElementTagNameMap[K] {
+  const e = document.createElement(tag);
+  e.className = cls;
+  if (html) e.innerHTML = html;
+  return e;
+}
+/** Keeps focus (and the phone keyboard) in the editor when a control is tapped. */
+const keepFocus = (e: Element) => e.addEventListener("mousedown", (ev) => ev.preventDefault());
+
+function init(): void {
+  const form = document.querySelector<HTMLFormElement>("form.pform");
+  const found = form?.querySelector<HTMLTextAreaElement>("textarea.src");
+  const pane = found?.closest<HTMLElement>(".pane");
+  const tb = form?.querySelector<HTMLElement>(".tb");
+  const aside = form?.querySelector<HTMLElement>(".aside");
+  const title = form?.querySelector<HTMLTextAreaElement | HTMLInputElement>("[name=title]");
+  const author = form?.querySelector<HTMLTextAreaElement | HTMLInputElement>("[name=author]");
+  if (!form || !found || !pane || !tb || !aside || !title || !author) return;
+  /** The editor's textarea. A long replace swaps in a fresh one (see `replaceAll`), so listeners sit on `.ed`. */
+  let ta: HTMLTextAreaElement = found;
+  document.documentElement.classList.add("js");
+
+  // ---- the editor: highlight layer + textarea, inside the pane ----
+  const ed = el("div", "ed");
+  const hl = el("div", "hl");
+  hl.setAttribute("aria-hidden", "true");
+  pane.insertBefore(ed, ta);
+  ed.append(hl, ta);
+  ta.removeAttribute("rows");
+  const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the text in the editor. Undo brings it back.</small>`);
+  dropz.hidden = true;
+  pane.append(dropz);
+
+  // ---- toolbar: Open file · Tidy · summary · Save ----
+  const file = el("input", "");
+  file.type = "file";
+  file.accept = ".txt,.dndpaste,text/plain";
+  file.hidden = true;
+  const openBtn = el("button", "bt", `${icon("folder")}Open file`);
+  const tidyBtn = el("button", "bt", `${icon("tidy")}Tidy`);
+  openBtn.type = tidyBtn.type = "button";
+  tb.prepend(openBtn, tidyBtn, file);
+  let sum = tb.querySelector<HTMLElement>(".dsum");
+  if (!sum) { sum = el("span", "dsum"); tb.querySelector(".bt.pri")?.before(sum); }
+  sum.setAttribute("aria-live", "polite");
+
+  // ---- notices: the server's error line, or a slot for ours ----
+  let ferr = form.querySelector<HTMLElement>(".ferr");
+  if (!ferr) { ferr = el("p", "ferr"); ferr.setAttribute("role", "alert"); ferr.hidden = true; form.prepend(ferr); }
+  const errBox = ferr;
+  const showErr = (msg: string | null) => {
+    errBox.hidden = !msg;
+    errBox.innerHTML = msg ? `${icon("alert")}${esc(msg)}` : "";
+  };
+
+  // ---- import bar (D85), between the toolbar and the editor ----
+  const lbar = el("div", "lbar");
+  lbar.hidden = true;
+  lbar.setAttribute("role", "status");
+  tb.after(lbar);
+
+  // ---- side column: Problems · Keys you can add · My recent shares ----
+  aside.innerHTML = `<div class="stack sm"><span class="lbl">Problems</span><div class="probs"></div></div>` +
+    `<div class="stack sm keys"><span class="lbl klbl">Keys you can add</span><div class="chips"></div></div>` +
+    `<div class="stack sm"><span class="lbl">My recent shares</span><div class="rlist"></div></div>`;
+  const probs = aside.querySelector<HTMLElement>(".probs") as HTMLElement;
+  const klbl = aside.querySelector<HTMLElement>(".klbl") as HTMLElement;
+  const chips = aside.querySelector<HTMLElement>(".chips") as HTMLElement;
+  const rlist = aside.querySelector<HTMLElement>(".rlist") as HTMLElement;
+  const showRecent = () => { rlist.innerHTML = recentHtml(recent.list(), new Date()); };
+  showRecent();
+
+  // ---- phone dock (D86): Keys toggle + chip row, problem line, Save ----
+  const dock = el("div", "pdock",
+    `<div class="krow chips" hidden></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
+    `${icon("keyboard")}Keys <span class="kn"></span>${icon("chevron-up")}${icon("chevron-down")}</button>` +
+    `<span class="grow pl"></span><button type="submit" class="bt pri dsave">${icon("link")}Save and get link</button></div>`);
+  form.append(dock);
+  const krow = dock.querySelector<HTMLElement>(".krow") as HTMLElement;
+  const ktog = dock.querySelector<HTMLButtonElement>(".ktog") as HTMLButtonElement;
+  const kn = dock.querySelector<HTMLElement>(".kn") as HTMLElement;
+  const pl = dock.querySelector<HTMLElement>(".pl") as HTMLElement;
+  const saves = [...form.querySelectorAll<HTMLButtonElement>("button[type=submit]")];
+  keepFocus(ktog);
+  keepFocus(krow);
+  keepFocus(chips);
+  ktog.addEventListener("click", () => {
+    const open = krow.hidden;
+    krow.hidden = !open;
+    dock.classList.toggle("open", open);
+    ktog.setAttribute("aria-expanded", String(open));
+  });
+
+  // ---- state ----
+  let st: Status = status(ta.value);
+  let hints: Hints = keyHints(ta.value, 0);
+  let saving = false;
+
+  const cursorLine = () => ta.value.slice(0, ta.selectionStart).split("\n").length - 1;
+  const refreshHints = () => {
+    hints = keyHints(ta.value, cursorLine());
+    klbl.textContent = `Keys you can add to ${hints.label}`;
+    const html = hints.keys.map((k) => `<button type="button" class="hc" data-key="${esc(k)}">${esc(k)}:</button>`).join("");
+    put(chips, html || `<span class="muted">This block has every key it allows.</span>`);
+    put(krow, html || `<span class="muted">No keys left for this block.</span>`);
+    kn.textContent = String(hints.keys.length);
+  };
+  const setSaveState = () => {
+    const on = st.canSave && !saving;
+    for (const b of saves) { b.disabled = !on; b.classList.toggle("off", !on); }
+    tidyBtn.disabled = !st.canTidy;
+    tidyBtn.classList.toggle("off", !st.canTidy);
+  };
+  /**
+   * Redraws only the rows that changed (common head and tail kept): a keystroke in a long paste touches a row or
+   * two, not the whole layer.
+   */
+  let rows: string[] = [];
+  const draw = (next: string[]) => {
+    let a = 0;
+    while (a < rows.length && a < next.length && rows[a] === next[a]) a++;
+    let b = 0;
+    while (b < rows.length - a && b < next.length - a && rows[rows.length - 1 - b] === next[next.length - 1 - b]) b++;
+    const kids = hl.children;
+    for (let i = rows.length - b - 1; i >= a; i--) kids[i].remove();
+    if (a < next.length - b) {
+      const tpl = document.createElement("template");
+      tpl.innerHTML = next.slice(a, next.length - b).join("");
+      hl.insertBefore(tpl.content, kids[a] ?? null);
+    }
+    rows = next;
+  };
+  /** Sets innerHTML only when it changed: most keystrokes leave the summary, Problems and hints as they were. */
+  const shown = new WeakMap<Element, string>();
+  const put = (e: Element, html: string) => {
+    if (shown.get(e) === html) return;
+    shown.set(e, html);
+    e.innerHTML = html;
+  };
+  /** While a replace runs, Chrome fires one input event per line it inserts; redraw once, after. */
+  let bulk = false;
+  const refresh = () => {
+    if (bulk) return;
+    st = status(ta.value);
+    draw(highlightRows(ta.value, st.diagnostics));
+    const n = rows.length;
+    ed.classList.toggle("w3", n >= 100 && n < 1000);
+    ed.classList.toggle("w4", n >= 1000);
+    put(sum as HTMLElement, summaryHtml(st));
+    put(probs, problemsHtml(st));
+    put(pl, dockLineHtml(st));
+    setSaveState();
+    refreshHints();
+  };
+
+  /** Replaces a range through the browser's editing commands, so Undo brings the old text back. */
+  const insert = (text: string, start: number, end: number) => {
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(start, end);
+    let ok = false;
+    bulk = true;
+    try { ok = document.execCommand("insertText", false, text); } catch { ok = false; }
+    bulk = false;
+    if (!ok) ta.setRangeText(text, start, end, "end");
+    refresh();
+  };
+  /**
+   * Chrome's insertText slows with the number of lines (a 6 KB build: half a second), and a value set from script
+   * leaves its native undo stack pointing at text that is gone. So a replace past LONG lines swaps in a fresh
+   * textarea (an empty undo stack) and keeps one step of its own: Undo while the text is still the replacement
+   * brings the old text back, Redo the new. Shorter replaces go through insertText and the browser's own Undo.
+   */
+  const LONG = 400;
+  let swap: { before: string; after: string } | null = null;
+  const fresh = (text: string) => {
+    const had = document.activeElement === ta;
+    const n = ta.cloneNode(false) as HTMLTextAreaElement;
+    n.value = text;
+    ta.replaceWith(n);
+    ta = n;
+    if (had) ta.focus({ preventScroll: true });
+    ta.setSelectionRange(0, 0);
+    refresh();
+  };
+  const lineCount = (t: string) => t.split("\n").length;
+  const replaceAll = (text: string) => {
+    const t = text.replace(/\r\n?/g, "\n");
+    if (t === ta.value) return;
+    if (lineCount(t) > LONG || lineCount(ta.value) > LONG) {
+      swap = { before: ta.value, after: t };
+      fresh(t);
+      return;
+    }
+    swap = null;
+    insert(t, 0, ta.value.length);
+    ta.setSelectionRange(0, 0);
+    refresh();
+  };
+  const history = (e: Event, redo: boolean) => {
+    if (!swap || ta.value !== (redo ? swap.before : swap.after)) return;
+    e.preventDefault();
+    fresh(redo ? swap.after : swap.before);
+  };
+  ed.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if ((e.metaKey || e.ctrlKey) && k === "z") history(e, e.shiftKey);
+    else if (e.ctrlKey && k === "y") history(e, true);
+  });
+  ed.addEventListener("beforeinput", (e) => {
+    if (e.inputType === "historyUndo") history(e, false);
+    else if (e.inputType === "historyRedo") history(e, true);
+  });
+  const jump = (line: number) => {
+    const lines = ta.value.split("\n");
+    const pos = lines.slice(0, Math.max(0, line - 1)).reduce((a, l) => a + l.length + 1, 0);
+    ta.focus({ preventScroll: true });
+    ta.setSelectionRange(pos, pos);
+    hl.children[line - 1]?.scrollIntoView({ block: "center" });
+    refreshHints();
+  };
+  const insertKey = (key: string) => {
+    const v = ta.value;
+    const pos = ta.selectionStart;
+    const ls = v.lastIndexOf("\n", pos - 1) + 1;
+    let le = v.indexOf("\n", pos);
+    if (le < 0) le = v.length;
+    const line = v.slice(ls, le);
+    if (hints.narrowed || !line.trim()) insert(`${key}: `, ls, le);
+    else insert(`\n${key}: `, le, le);
+  };
+
+  // ---- link import (D85) ----
+  let importReq = 0;
+  let pending: Import | null = null;
+  const hideBar = () => { lbar.hidden = true; pending = null; importReq++; };
+  const checkLink = async () => {
+    const id = linkedId(ta.value, location.host);
+    if (!id) { hideBar(); return; }
+    const req = ++importReq;
+    const text = ta.value;
+    let r: Import;
+    try {
+      const res = await fetch(`/${id}/json`, { headers: { Accept: "application/json" } });
+      if (res.status === 404) r = { kind: "missing", id };
+      else if (!res.ok) r = { kind: "failed", id };
+      else {
+        const d = (await res.json()) as { title?: unknown; author?: unknown; paste?: unknown };
+        r = typeof d.paste === "string"
+          ? { kind: "found", id, title: typeof d.title === "string" ? d.title : "", author: typeof d.author === "string" ? d.author : "" }
+          : { kind: "failed", id };
+        if (r.kind === "found") importText = d.paste as string;
+      }
+    } catch {
+      r = { kind: "failed", id };
+    }
+    if (req !== importReq || ta.value !== text) return;
+    pending = r;
+    lbar.innerHTML = importBarHtml(r);
+    lbar.hidden = false;
+  };
+  let importText = "";
+  lbar.addEventListener("click", (e) => {
+    const act = (e.target as Element).closest<HTMLElement>("[data-act]")?.dataset.act;
+    if (act === "keep") { hideBar(); ta.focus(); }
+    else if (act === "retry") void checkLink();
+    else if (act === "import" && pending?.kind === "found") {
+      title.value = pending.title;
+      author.value = pending.author;
+      fit(title);
+      fit(author);
+      hideBar();
+      replaceAll(importText);
+      ta.focus();
+    }
+  });
+
+  // ---- events ----
+  ed.addEventListener("input", (e) => {
+    if (bulk) return;
+    refresh();
+    showErr(null);
+    const kind = (e as InputEvent).inputType;
+    if (kind === "insertFromPaste" || kind === "insertFromDrop") void checkLink();
+    else if (!lbar.hidden && !linkedId(ta.value, location.host)) hideBar();
+  });
+  for (const ev of ["keyup", "click", "focusin"]) ed.addEventListener(ev, refreshHints);
+  form.addEventListener("click", (e) => {
+    const t = e.target as Element;
+    const at = t.closest<HTMLElement>("[data-line]");
+    if (at) { jump(Number(at.dataset.line)); return; }
+    const chip = t.closest<HTMLElement>(".hc[data-key]");
+    if (chip?.dataset.key) insertKey(chip.dataset.key);
+  });
+  tidyBtn.addEventListener("click", () => {
+    if (st.canTidy && st.canon !== null) replaceAll(st.canon);
+  });
+
+  // ---- Open file and drop ----
+  const openFile = async (f: File) => {
+    if (!/\.(txt|dndpaste)$/i.test(f.name) && f.type && !f.type.startsWith("text/")) {
+      showErr("Only .txt and .dndpaste files open here.");
+      return;
+    }
+    if (f.size > MAX_FILE) { showErr("That file is too large to be a build."); return; }
+    try {
+      replaceAll(await f.text());
+      hideBar();
+    } catch {
+      showErr("That file could not be read.");
+    }
+  };
+  openBtn.addEventListener("click", () => file.click());
+  file.addEventListener("change", () => {
+    const f = file.files?.[0];
+    if (f) void openFile(f);
+    file.value = "";
+  });
+  const hasFiles = (e: DragEvent) => [...(e.dataTransfer?.types ?? [])].includes("Files");
+  let depth = 0;
+  pane.addEventListener("dragenter", (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; dropz.hidden = false; });
+  pane.addEventListener("dragover", (e) => { if (!hasFiles(e)) return; e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
+  pane.addEventListener("dragleave", (e) => { if (!hasFiles(e)) return; depth = Math.max(0, depth - 1); if (!depth) dropz.hidden = true; });
+  pane.addEventListener("drop", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    depth = 0;
+    dropz.hidden = true;
+    const f = e.dataTransfer?.files[0];
+    if (f) void openFile(f);
+  });
+  // A file dropped beside the editor must not navigate away from the form.
+  for (const ev of ["dragover", "drop"]) window.addEventListener(ev, (e) => { if (hasFiles(e as DragEvent)) e.preventDefault(); });
+
+  // ---- title and author: one paragraph each, grown to fit (D86: long entries wrap) ----
+  const fit = (f: HTMLTextAreaElement | HTMLInputElement) => {
+    if (!(f instanceof HTMLTextAreaElement)) return;
+    f.style.height = "auto";
+    f.style.height = `${f.scrollHeight + f.offsetHeight - f.clientHeight}px`;
+  };
+  for (const f of [title, author]) {
+    fit(f);
+    f.addEventListener("keydown", (e) => { if ((e as KeyboardEvent).key === "Enter") e.preventDefault(); });
+    f.addEventListener("input", () => {
+      if (/[\r\n]/.test(f.value)) f.value = f.value.replace(/[\r\n]+/g, " ");
+      fit(f);
+    });
+  }
+  window.addEventListener("resize", () => { fit(title); fit(author); });
+
+  // ---- save: JSON, so the share can join My recent shares; the no-JS path posts the form as before ----
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    st = status(ta.value);
+    if (!st.canSave || saving) { setSaveState(); return; }
+    saving = true;
+    setSaveState();
+    try {
+      const res = await fetch("/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ title: title.value, author: author.value, paste: ta.value }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { id?: unknown; error?: unknown };
+      if (res.ok && typeof data.id === "string" && /^[0-9A-Za-z]{10}$/.test(data.id)) {
+        recent.add({ id: data.id, title: title.value.replace(/\s+/g, " ").trim(), created: new Date().toISOString() });
+        location.assign(`/${data.id}`);
+        return;
+      }
+      showErr(typeof data.error === "string" ? data.error : "The build could not be saved. Try again.");
+    } catch {
+      showErr("The site could not be reached. Your text is still here; try again.");
+    }
+    saving = false;
+    setSaveState();
+  });
+
+  // ---- the dock rides above the phone keyboard (visualViewport) ----
+  const vv = window.visualViewport;
+  if (vv) {
+    const place = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty("--kb", `${Math.round(kb)}px`);
+    };
+    vv.addEventListener("resize", place);
+    vv.addEventListener("scroll", place);
+    place();
+  }
+
+  // Back/forward can restore the textarea's text after load: draw what is there.
+  window.addEventListener("pageshow", () => { refresh(); showRecent(); });
+  refresh();
+}
+
+init();

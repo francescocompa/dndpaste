@@ -133,7 +133,7 @@ test("save: any E### is refused with its diagnostics; warnings pass", async () =
   const page = await res.text();
   assert.ok(page.includes(`<span class="code">E002</span><span class="at">line 18</span><span>Unknown key: Spels</span>`));
   assert.ok(page.includes("<b>1 error</b> · fix it to save"));
-  assert.ok(page.includes(`value="Vice"`), "title kept");
+  assert.ok(page.includes(`placeholder="Untitled build">Vice</textarea>`), "title kept");
   assert.ok(page.includes("Spels: Hex"), "text kept");
 
   const j = await call(env, "POST", "/", asJson({ paste: bad }));
@@ -224,8 +224,9 @@ test("form: GET / is the empty form; ?from= pre-fills it; a missing id says so",
   assert.ok(blank.includes(`name="paste"`));
   const id = await saveForm(env, { title: "Vice", author: "ash", paste: VICE });
   const pre = await (await call(env, "GET", `/?from=${id}`)).text();
-  assert.ok(pre.includes(`name="title" maxlength="100" autocomplete="off" value="Vice"`));
-  assert.ok(pre.includes(`value="ash"`));
+  assert.ok(pre.includes(`name="title" rows="1" maxlength="100" autocomplete="off" spellcheck="false" placeholder="Untitled build">Vice</textarea>`));
+  assert.ok(pre.includes(`name="author" rows="1" maxlength="60" autocomplete="off" spellcheck="false" placeholder="Anonymous">ash</textarea>`));
+  assert.ok(pre.includes(`<script type="module" src="/assets/form.js"></script>`));
   assert.ok(pre.includes("Spells: Hex, Armor of Agathys"));
   const miss = await (await call(env, "GET", "/?from=nothing")).text();
   assert.ok(miss.includes("There is no build with the id nothing."));
@@ -263,7 +264,11 @@ test("pages: no inline scripts, inline styles or third-party URLs", async () => 
   const id = await saveForm(env, { paste: VICE });
   for (const p of ["/", `/${id}`, "/about", "/missing"]) {
     const page = await (await call(env, "GET", p)).text();
-    assert.ok(!/<script|style=|<style|fonts\.googleapis|https?:\/\/(?!dndpaste\.test)/i.test(page), p);
+    // The form page's one script is an external file under script-src 'self' (slice 2); nothing inline.
+    const scripts = [...page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
+    assert.ok(scripts.every((m) => m[0] === `<script type="module" src="/assets/form.js"></script>`), `${p}: only the form's own external script`);
+    assert.equal(scripts.length, p === "/" ? 1 : 0, p);
+    assert.ok(!/style=|<style|fonts\.googleapis|https?:\/\/(?!dndpaste\.test)/i.test(page), p);
   }
 });
 

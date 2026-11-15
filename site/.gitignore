@@ -1,3 +1,6 @@
 node_modules/
 .wrangler/
 .dev.vars
+
+# The client bundle (scripts/build-client.mjs), built before dev, deploy and verify
+public/assets/form.js

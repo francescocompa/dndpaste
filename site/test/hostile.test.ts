@@ -14,7 +14,11 @@ const XSS = [
   `&lt;b&gt;already escaped&lt;/b&gt;`,
 ];
 /** Live markup an attacker could inject, read off the real tags only (escaped text like &lt;script never forms a tag). */
-function liveMarkup(page: string): string | null {
+/** The form page's own script, allowed once (slice 2); any other script tag is live markup. */
+const OWN_SCRIPT = `<script type="module" src="/assets/form.js"></script>`;
+
+function liveMarkup(html: string): string | null {
+  const page = html.replace(OWN_SCRIPT, "");
   for (const m of page.matchAll(/<\/?([a-z][a-z0-9-]*)\b([^>]*)>/gi)) {
     const [tag, name, attrs] = m;
     if (/^(script|img|iframe|object|embed|style|base|link)$/i.test(name) && !/^<link rel="(icon|stylesheet|canonical|alternate)"/.test(tag)) return tag;

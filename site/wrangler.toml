@@ -30,3 +30,8 @@ simple = { limit = 10, period = 60 }
 name = "REPORT_LIMITER"
 namespace_id = "1002"
 simple = { limit = 10, period = 60 }
+
+# The client bundle (public/assets/form.js) is built before `wrangler dev` and `wrangler deploy`.
+[build]
+command = "node scripts/build-client.mjs"
+watch_dir = "src"

@@ -116,13 +116,16 @@ export function formPage(s: FormState = {}): string {
     s.error ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.error)}</p>` : "",
   ].join("");
   const main = `<form class="pform stack" method="post" action="/">
-${notes}<div class="stack sm"><label class="fld"><span class="lbl">Title</span><input class="in" name="title" maxlength="${LIMITS.title}" autocomplete="off" value="${esc(s.title ?? "")}"></label>
-<label class="fld"><span class="lbl">Author</span><input class="in" name="author" maxlength="${LIMITS.author}" autocomplete="off" value="${esc(s.author ?? "")}"></label></div>
+${notes}<div class="stack sm"><label class="fld"><span class="lbl">Title</span><textarea class="in fit" name="title" rows="1" maxlength="${LIMITS.title}" autocomplete="off" spellcheck="false" placeholder="Untitled build">${esc(s.title ?? "")}</textarea></label>
+<label class="fld"><span class="lbl">Author</span><textarea class="in fit" name="author" rows="1" maxlength="${LIMITS.author}" autocomplete="off" spellcheck="false" placeholder="Anonymous">${esc(s.author ?? "")}</textarea></label></div>
 <div class="tb"><span class="grow"></span>${sum}<button class="bt pri" type="submit">${icon("link")}Save and get link</button></div>
 <div class="fgrid"><div class="pane"><textarea class="src" name="paste" aria-label="Build" spellcheck="false" autocapitalize="off" autocomplete="off" rows="24" placeholder="Paste or type a build">${esc(s.paste ?? "")}</textarea></div>
 <aside class="aside"><div class="stack sm"><span class="lbl">Problems</span>${problems}</div></aside></div>
 </form>`;
-  return layout({ title: "New paste · dndpaste", main, page: "new" });
+  // The editor, hints, Tidy, Open file and recent shares come from /assets/form.js (src/client/); without it this form
+  // still saves, and the server answers with its diagnostics.
+  const head = `<script type="module" src="/assets/form.js"></script>\n`;
+  return layout({ title: "New paste · dndpaste", main, head, page: "new" });
 }
 
 /** A stub: slice 3 writes the copy (D88 c). The unaffiliated sentence stays (D89 ⚑ closed 2026-11-15). */
