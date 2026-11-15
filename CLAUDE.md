@@ -4,6 +4,7 @@
 > parser/checker. Spec-first project; public repo; no rules text ever lands here.
 
 ## Read first
+Cold read: `CLAUDE.md` `STATE.md` `PLAN.md` `DECISIONS.md` `CHANGELOG.md`
 `STATE.md` (resume block) → `PLAN.md` (queue) → `DECISIONS.md` (append-only; superseded entries are marked AMENDED in place) → `SPEC.md`.
 
 ## What it is / is not

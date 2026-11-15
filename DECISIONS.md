@@ -304,3 +304,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* "Let's add icons to our buttons. Also, make sure to always use icons instead of text glyphs, and make sure these icons are centered accurately." · "Make sure dropdowns and modals are never out of bounds independently from the viewport" · "Remove the disclaimer as is now. It's clear, there is no text from us." · "Done marking, few notes but you can move on from the jam."
   *Closed (2026-11-15, AskUserQuestion, overseer):* `/about` keeps one plain "not affiliated with Wizards of the Coast" sentence, as the frames have it; only the footer line goes. Picked "Keep it on /about only (Rec.)".
   *Enforced by:* build frames (all 12), build brief.
+
+- **D90 — The form holds an `E001` on the line being typed until the cursor leaves it or typing pauses (about 1.5 s). DECIDED (2026-11-16).** Mechanism: AskUserQuestion, 1 round, on slice 2's open question (`site/FIDELITY.md`, `form-keys-dark-phone`). Save still blocks on it. Matches the frame's "No problems" while the key hints narrow a half-typed key.
+  *Rejected:* showing it at once (amber flashes on every keystroke of a new key).
+  *Enforced by:* slice 3's brief (a fix in the form's diagnostics timing).

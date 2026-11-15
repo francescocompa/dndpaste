@@ -1,21 +1,31 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-15 · 0.7.0 · M1 ✅ · M2 ✅ · M3 share site scoped · 143 tests green · v0.7.0 tagged locally, not pushed)
-- **Where it stands.** SPEC 0.5 + D1–D57. Library = parser + canonical emitter + data-driven checker
-  (`check`/`normalise`/`finalScores`/`classSequence`) + `bin/dndpaste.mjs` CLI, zero deps, ESM + UMD.
-  0.6.0 (2026-09-30) carries the fixes from character-forge's real-build stress wave (cf-D81):
-  named partial `Scores`, `Classes` runs with switch-point headers, granted feats, magic variants,
-  and two fixes (D46–D56). Releases follow D57 (annotated `vX.Y.Z` tags, never moved). Ten fixtures;
-  the full slot table lives in the gitignored `data/slots.json`, the SRD subset is committed.
-- **0.7.0 (2026-11-10):** SPEC 0.7 = optional `HP` key (D59–D60) + optional `Producer` stamp (D62), released together for character-forge's P8 (D61). Tagged locally; **push awaits Francesco**. character-forge copies `dist/` in its own crossing and drops `X-HP`.
-- **Share site scoped (2026-11-15):** D65–D74 close D45's open list; `SITE.md` is the one-shot build brief.
-  Free workers.dev launch with a canonical-origin redirect, plain names, no checker in v1, full QoL set.
-- **Look jam done (2026-11-15):** D80–D89; frames + build brief in `jams/2026-11-15-site-look/` (untracked, local).
-- **Single next action:** M3 T3.2a, Worker core + no-JS view, branch `site-m3` (own worktree, Opus@high, Mac).
-  **Chain:** 3.2a → 3.2b form with JS → 3.2c view interactions + chrome + `/about` → T3.3 fresh-eyes → /ui-review
-  → T3.4 deploy on Francesco's go. The overseer starts each slice when the previous one reports.
-- **Manual for Francesco:** ② the
-  Notion "Character Ideas" defects (stress/REPORT.md § Theirs) if you care to; ③ ⚑ do Spellfire
-  Spark / Fey Sentinel ask an ability pick (homebrew feats, only you know); ④ homebrew merge (M2
-  queue) needs a real 5etools-format homebrew file from you.
+## TL;DR (2026-11-16 · main: handoff commit on a411b1c + build branch `claude/site-m3-ee11e4` 7a03bfe · read 72k)
+- **State:** M3 share site paused after slice 2 of 3, at Francesco's call. The branch has the Worker core,
+  routes, KV, renderer and no-JS view (slice 1), plus the JS form (slice 2). 143 library tests, 86 site tests and
+  the bundle check pass. Unmerged, unpushed, not deployed. Its own STATE block is on the branch.
+- **Single next action:** M3 T3.2c, slice 3: view interactions, site chrome, `/about`, **plus D90's fix** (hold an
+  E001 on the line being typed). It runs as a **fresh session in the existing worktree**
+  `.claude/worktrees/release-0-7-0-5b6161`, same branch (disk ~3 GB free; a new worktree needs 5.4 GB). Brief: jam
+  `build-brief.md` slice 3 + `SITE.md` + D80–D90. Then T3.3 fresh-eyes → /ui-review → T3.4 deploy on his go → merge.
+- **Manual for Francesco:** ① push the `v0.7.0` tag (D61) when you want; ② the Notion "Character Ideas" defects
+  (stress/REPORT.md § Theirs), if you care to; ③ ⚑ do Spellfire Spark / Fey Sentinel ask an ability pick (homebrew,
+  only you know); ④ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑤ archive the two
+  finished slice sessions and the jam session; ⑥ free disk (Downloads 1.5 GB, Chrome cache 1.9 GB) if slices
+  should get their own worktrees again.
 
+Working set: worktree `.claude/worktrees/release-0-7-0-5b6161` (branch `claude/site-m3-ee11e4`, `cd site && npx wrangler dev`) ·
+jam `jams/2026-11-15-site-look/build-brief.md` + `frames/` (untracked, local only) · `SITE.md`
+
+Spawned: slice 1 Worker core · local_39b2c186 · worktree `claude/site-m3-ee11e4` · done, unmerged · owed: merge after T3.4
+Spawned: slice 2 form with JS · local_3be9c204 · same worktree (cwd), same branch · done, unmerged · owed: merge after T3.4
+Spawned: site look jam · local_a6b79b97 · jam · done, folded (D80–D89) · owed: —
+
+- **Library:** 0.7.0 (SPEC 0.7 + D1–D62), parser + emitter + data-driven checker + CLI, zero deps, ESM + UMD.
+  Releases per D57. The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
+- **Site:** scope D65–D74 + D90, look D80–D89, brief `SITE.md`. Free workers.dev with a canonical-origin redirect
+  (D70); no checker in v1 (D66 follow-ups queued); plain names (D67).
+- **Gotchas:** an orphan clean worktree `.claude/worktrees/site-m3-f5c245` (deleted session) can go. The app refuses
+  to start a session in another folder on a turn a child's report started; it needs a message from Francesco.
+
+⟳ Rename previous session → "Share site scoping, jam and slices 1–2"  · session: local_88ecda90-d5bd-4129-bc1c-1db15c81c02d

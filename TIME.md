@@ -1,5 +1,10 @@
 # Time log
 
+## 2026-11-15
+- 21:12–00:12 (Nov 16) (3h00m) — Share site scoping, jam and slices 1–2 ⚑ spans Nov 16, not counted in day total
+
+**Day total: 0h00m**
+
 ## 2026-09-04
 - 17:56–22:20 (4h24m) — dndpaste scoping, spec, parser, checker, stress wave
 
