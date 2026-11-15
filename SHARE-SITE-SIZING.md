@@ -1,5 +1,7 @@
 # Share site sizing — a pokepaste-like site for dndpaste (2026-11-10)
 
+> **2026-11-15:** its open calls are closed by D65–D74; the build brief is `SITE.md`, which owns the site's scope. This note stays as background.
+
 Sizing only, nothing built. Serves D45 (PLAN "Later"): a Cloudflare Worker + KV, short links, anyone can paste.
 
 ## What "minimal and very similar to pokepaste" is

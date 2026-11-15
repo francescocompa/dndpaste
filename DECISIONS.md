@@ -118,7 +118,7 @@
 
 - **D45 — dndpaste gets a pokepaste-style share service: a Cloudflare Worker with KV storage, short links, anyone can paste. DECIDED (2026-09-29).** Scope:
   - A paste goes in and comes back as a short link (`…/p/<id>`).
-  - A public viewer renders it pokepaste-style, dry, with names linked, and offers an import action to consuming apps.
+  - A public viewer renders it pokepaste-style, dry, ~~with names linked~~ with plain names (AMENDED → D67, 2026-11-15), and offers an import action to consuming apps.
   - Names only, as always (D9): the service never stores rules text, notes or session state.
   - Producers get "Share link" and consumers get "Import from link": My Spellbook produces, character-forge v2 consumes (see its cf-D67).
   *Raw note:* "For the paste, I'd like to mimic pokepaste and have tiny storage." Then, choosing between a Worker and GitHub Gists: "Cloudflare Worker".
@@ -126,7 +126,7 @@
   - GitHub secret Gists as storage: only the key holder can create pastes, and a gist-scoped token would sit in browser storage.
   - Links that carry the paste in the URL fragment: no storage, and links run long (1–2k chars). Still a possible offline fallback, not the product.
   - No sharing at all.
-  *Open for the build session (⚑ Francesco, 2026-09-29):*
+  *Open for the build session (⚑ Francesco, 2026-09-29) — all closed 2026-11-15 by D65–D74 (AMENDED in place):*
   - He creates the Cloudflare account; the API token lives only in local `.env` / `wrangler login`.
   - Abuse limits: a size cap, per-IP rate limits, and whether pastes expire (pokepast.es keeps them).
   - Where the viewer is hosted (this repo's Pages site, or the Worker itself).
@@ -215,3 +215,92 @@ character-forge v2's P8 builder needs the HP key and a producer stamp in one rel
 - **D62 — An optional header key `Producer`: free single-line text, `<name> <version>`, placed right after `Paste`. DECIDED (2026-11-10).** `Producer: character-forge 2.1` says what wrote the paste, so odd output can be traced. The name is plain and unabbreviated, like `Paste`/`Rules`; a producer is the standard word for "what made this file". Type `text` (new): the rest of the line, trimmed, kept as written. Header scope only. Canonical place: second, after `Paste`, since both are about the document, not the build. No finding present or absent: it never changes what the build means, and a checker that judged it would break every producer it had not heard of. Additive: a 0.6 reader reports `E002` on it, so consumers pin 0.7.0 before writing it.
   *Rejected:* a structured `name/version` pair or semver check (breaks on any producer's own scheme, buys nothing); the `X-Producer` extension key (a `W001` on every reader, never checked: the same reason `X-HP` retires, D60); a comment line (dropped by parse, so `emit` could not keep it); allowing it in level blocks (a stamp is per paste).
   *Enforced by:* `KEYS`, `parseValue`/`emitValue` (`text`); parse test.
+
+## Share site scoping (2026-11-15) — mechanism: /interview, AskUserQuestion, 6 rounds
+
+Closes D45's open list and `SHARE-SITE-SIZING.md`'s seven open calls for a one-shot build; the brief is `SITE.md`. D63–D64 are left unused: "a D64 crossing" in D58–D61 means cf-D64. D80–D89 are reserved for the look jam.
+
+- **D65 — A share holds the paste, a title and an author; it is immutable and kept forever. DECIDED (2026-11-15).** No notes field (D45: never notes). Every save makes a new id; revisions go through "Duplicate and edit". No expiry, no delete link; takedown is a manual KV delete (D71).
+  *Rejected:* a pokepaste-style notes box (invites rules text, against D45 and the IP check); text only (no credit, nothing to show in tabs); editable via a secret link or versions under one id (an import link could change under its reader; secret-token handling); expiry after a year unread (old forum links die); a self-service delete link.
+
+- **D66 — No checker on the site in v1; later, an SRD checker, then a checker on data the visitor supplies. DECIDED (2026-11-15).** v1 shows parse diagnostics only: `E###` blocks a save, warnings show. Follow-ups, in order: (1) the SRD checker on the committed subset, after the library gets a "data unavailable" mode that suppresses unknown-name findings, plus a release; (2) "Check against data": the visitor enters a 5etools-format data URL or loads files, the browser fetches them and builds the slot table locally (the extractor refactored into a pure library function), nothing passes through or is stored by the site, and the site names and links no source.
+  *Raw note:* "Leaning no checker in v1, but could we implement technically an SRD and 5etools checker?" · "None in v1. For 5etools, can we connect it to the 5etools repo, without republishing anything?"
+  *Rejected:* SRD checker in v1 (a library session and release first breaks the one-shot); a preset that pulls from the 5etools repo (the public site would name a repo that is taken down and moved, and break each time); a hosted full table (publishing WotC-derived data, out by the IP check).
+
+- **D67 — The view page shows names as plain text, no links. DECIDED (2026-11-15).** Amends D45 ("names linked").
+  *Rejected:* D&D Beyond search links (some results paywalled; a dependency on another site's URL scheme); a viewer-chosen link template (more build for little use).
+
+- **D68 — v1 quality-of-life set. DECIDED (2026-11-15); AMENDED → D84 (no preview pane), D83/D85 (additions).** Form: ~~live preview~~ with diagnostics as you type, a Tidy button (canonical form via `emit`), syntax colouring in the editor, open or drop a `.txt`/`.dndpaste` file. View page: copy buttons (link, text, canonical text), Duplicate and edit, fold level blocks, a light/dark toggle, "My recent shares" kept in this browser only (localStorage, no accounts).
+  *Rejected:* nothing offered was left out.
+
+- **D69 — Links are `<origin>/<id>`; consumers get `/raw`, `/canon` and `/json` with open CORS. DECIDED (2026-11-15).** The id is 10 random base62 characters. `/<id>/raw` is the text as written (`text/plain`, `nosniff`); `/<id>/canon` is `emit` of the parse; `/<id>/json` is `{ title, author, paste, created }`, like pokepaste. All three carry `Access-Control-Allow-Origin: *`, so character-forge's "Import from link" (cf-D67, T2.1) fetches them from the browser. Fixed pages (`/`, `/about`) cannot collide with a 10-character id.
+  *Rejected:* `/p/<id>` (2 characters longer, buys nothing); raw only (every consumer re-canonicalises).
+
+- **D70 — Free hosting first: one Worker on workers.dev, with a canonical-origin switch so links survive a move. DECIDED (2026-11-15).** The Worker serves pages, static assets and the API, with one KV namespace; this closes D45's "where the viewer is hosted". A `CANONICAL_ORIGIN` setting: when a domain is added later, it points at the same Worker, the setting flips, and every request on another host gets a 301 to the canonical host, path kept, CORS headers on the redirect too. Ids do not depend on the host, so nothing migrates.
+  *Raw note:* "I want a free option, but structure it in a way that links won't break and will redirect if I ever move it."
+  *Rejected:* buying dndpaste.com or dndpaste.app now (about $10/$14 a year; "D&D" is a WotC trademark, a small exposure common to fan tools); Cloudflare Pages beside a Worker (two deploys).
+
+- **D71 — Abuse handling: a 32 KB cap, a per-IP save limit, Turnstile stubbed for later, and a Report button whose reports land in a KV inbox. DECIDED (2026-11-15).** Reports hold id, reason and an optional contact; Francesco reads them with one `wrangler` command, documented in `SITE.md`; `/about` explains the route and that the site is unaffiliated with Wizards of the Coast. Once a domain exists, an `abuse@<domain>` alias through Cloudflare Email Routing joins it (the first choice; it needs a domain).
+  *Rejected:* Turnstile from day one (a key before the build, friction for real users); 64 KB (no real build needs it; Vice is about 2 KB); a dedicated free mailbox or GitHub issues as the only route.
+
+- **D72 — The look comes from a jam before the build; the build works from approved frames. DECIDED (2026-11-15); AMENDED → D82 (colour-coding categories carried over from character-forge, by his call).** A fresh Mac jam session (the loop needs the browser), decision ids D80–D89. Then one build session, Opus@high (model policy: UI build from approved frames), on the Mac (the browser checks the live preview; the wrangler login lives here). Walled off from every other project's look.
+  *Rejected:* a pokepaste-dry look by the builder with /ui-review polish after (more rework); function first with a placeholder skin and a re-skin later (two builds, not one-shot).
+
+- **D73 — The site lives in `site/` in this repo, imports `src/`, and goes live on workers.dev after review. DECIDED (2026-11-15).** `site/` has its own `package.json` (wrangler, dev-only), so the library stays zero-dependency, and the site always runs the current format. The build session goes: build → verify → fresh-eyes review (XSS, abuse, IP) → fixes → Francesco's go → `wrangler deploy` → smoke test on the live URL. Pushing to GitHub stays separate and his.
+  *Rejected:* its own repo copying `dist/` (drift, a release dance per format change); stopping at local `wrangler dev`.
+
+- **D74 — The site is M3; the my-spellbook export moves to Later. DECIDED (2026-11-15).** My Spellbook went independent (cf-D1986), so its export is that repo's call under its new role (ms-D176). Closes the "milestone position" call (D45, PLAN Later).
+  *Rejected:* keeping the export as a numbered milestone right after the site.
+
+## Site look jam (2026-11-15) — mechanism: /jam, 4 rounds on an Artifact board + AskUserQuestion, in a session started by the overseer
+
+Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exclude`). D80–D89 amend D68 (D84) and D72 (D82).
+
+- **D80 — The site's direction is dry text: pokepaste-close, a mono build, one column, the view reads like the paste. DECIDED (2026-11-15).** Picked in words before any mockup.
+  *Raw note:* picked "A · Dry text (Rec.)".
+  *Rejected:* B Typeset sheet (the view stops looking like the text people type; a type pairing to build); C Workbench (casual readers of a shared link land in an IDE).
+  *Enforced by:* jam frames (`jams/2026-11-15-site-look/`), build brief.
+
+- **D81 — Identity: Hanging keys — keys right-aligned in a margin, values in one mono column, level numbers in the accent, sans UI chrome (IBM Plex Sans + Plex Mono, self-hosted OFL). Accent: Garnet (light `#a51d4a`, dark `#f48fb1`). DECIDED (2026-11-15).** Round 1.1 → C; round 1.2 → A Garnet.
+  *Raw note:* picked C on the board; "Lock C with notes, do one more round to confirm". Board notes: "For the main colors, I want something more towards red but that doesn't read as error" · "The main buttons feels a bit disorganized, and perhaps difficult to access on mobile?" (→ round 3).
+  *Rejected:* A Plain, system mono flush text (no reason given; least identity); B Listing, line-number gutter and level bands (no reason given); reds Oxblood (reads brown, near the STR hue) and Rosewood (washed out on dark), no reasons given.
+  Form errors use amber plus the E-code, never the accent (1.2 goal).
+  *Enforced by:* build frames.
+
+- **D82 — Colour coding comes from character-forge's settings, hues re-tuned to this palette: "Colour by kind" (class, subclass, species, background, feat, spell, item) and "Colour abilities" (STR–CHA), each a switch saved in this browser. DECIDED (2026-11-15).** An explicit, scoped override of D72's "walled off from every other project's look" and of the global cross-project rule, for colour-coding categories only: character-forge's *Sources* category becomes "Colour by kind" here (dndpaste's "source" already means `|SOURCE`), its *Abilities* category is kept; *Keywords* (damage, healing, conditions, areas, actions) and *Advantage* colour rules text and do not apply to a paste. Hue values are dndpaste's own; only the categories and the kind/ability→hue-family mapping carry over. Nothing is imported as code or tokens.
+  *Raw note:* "Let's import all relevant color coding options from character-forge and add them as settings." · "D72 shouldn't be as non-negotiable. Import from character-forge, hues can be changed to fit our color scheme."
+  *Rejected:* dndpaste's own scheme designed blind (he chose the import); syntax colour only, no settings.
+  *Amends:* D72 (wall), for colour coding only. *Enforced by:* build frames; SITE.md view-page section (overseer to add).
+
+- **D83 — The paste form gets a key hint strip in v1: under the editor, the keys the current line's block allows (from the profile's key table, no game data); a tap inserts `Key: `. DECIDED (2026-11-15).** A scope addition to D68 and SITE.md (overseer folds).
+  *Raw note:* "When writing, is it possible a level auto-suggests what keys should follow?" → picked "Hint strip in v1 (Rec.)".
+  *Rejected:* an autocomplete popup at the cursor (costly and fiddly over a textarea on phone keyboards); queue for later.
+  *Enforced by:* round 2 frames, build brief.
+
+- **D84 — No live preview pane on the form: the syntax- and kind-coloured editor is the preview; live diagnostics stay. DECIDED (2026-11-15).** Amends D68 ("live preview") and SITE.md Form ("Live preview + diagnostics beside it"). The shared renderer still draws the view page.
+  *Raw note:* "considering we don't have images to attach like pokepaste, we don't really need a preview pane, which is mostly identical to the editor."
+  *Rejected:* a Preview switch that swaps the editor for the rendered view in place; the side-by-side preview pane of round 2.1.
+  *Amends:* D68. *Enforced by:* round 2.2 frames.
+
+- **D85 — Pasting a dndpaste link or bare id into the editor offers to import that build: a bar above the editor, "Open it" or "Keep as text"; title and author come along. DECIDED (2026-11-15).** Triggers only when the whole paste is one of this site's links (any host the site answers on, or the canonical origin) or a 10-character id; fetches `/<id>/json` same-origin. A scope addition to SITE.md Form (overseer folds).
+  *Raw note:* "pasting either an id or full link in the builder should pop up an option to import the build as well."
+  *Rejected:* importing at once with an undo toast.
+
+- **D86 — Paste form layout: editor + side column. Title and author each on their own full-width line above the toolbar; toolbar Open file · Tidy · problem count · Save and get link; the side column (270 px) holds Problems, Keys you can add, My recent shares. On the phone the side column stacks below, and a bottom dock carries the problem line and Save plus the key hints collapsed behind a "Keys" toggle (one scrolling chip row when open), kept short so the keyboard and the lines being typed stay visible. DECIDED (2026-11-15).** Round 2.2 → A.
+  *Raw note:* "A — Title and author in two lines to allow for longer entries — on mobile, the parts after the build like keys you can add are quite difficult to use, could we add them to the dock in a collapsed way (making sure there's enough space for the keyboard and text preview)"
+  *Rejected:* C Single column + dock (no reason given); B Side rail (Save scrolls away on the phone; problems below a long paste). Round 2.1's Two panes / Side rail / Document, all with a preview pane (superseded by D84).
+  *Enforced by:* build frames `form-*`.
+
+- **D87 — Share view actions: one split button, "Copy link" (link glyph) with a ▾ half opening Copy text (as written) and Copy canonical (tidied, for apps); "Duplicate and edit" beside it; fold controls above the build; Report as a quiet line under the build ("Something wrong with this build? Report it") that opens the report form in place. On the phone the split button and Duplicate and edit sit in a bottom dock; the ▾ opens a sheet. DECIDED (2026-11-15).** Round 3.1 → A, renamed per his note.
+  *Raw note:* picked A on the board; "Unclear what more copies does" → "Copy as a split button (default as link, perhaps with link icon) with the second part opening a dropdown for more options".
+  *Rejected:* B Side column (no reason given); C segmented Copy control + More (no reason given); "Copy text ▾" as a separate button, two plain buttons, one "Copy ▾" for all three.
+  *Enforced by:* build frames `view-*`.
+
+- **D88 — Build-wide look rules. DECIDED (2026-11-15).** (a) Every text/background pair meets WCAG AA (4.5:1, 3:1 for large text and UI parts) in light and dark, checked in the build, not eyeballed; the jam already darkened item, subclass, species and source-code hues for this. (b) No clashing hue pairs: a status glyph takes the colour of the control it sits on (no green check on the garnet button). (c) The About page copy is dry, plain and free of AI tells. (d) Form errors use amber plus the E-code, never the accent (from 1.2).
+  *Raw note:* "When building, make sure no colors without enough contrast or with clashing hues like the check" · "A note: make sure the about is dry, and doesn't have AI tells."
+  *Enforced by:* build brief Done-when (contrast check), fresh-eyes review.
+
+- **D89 — Build frames approved with three notes, applied to the frames: (a) icons on buttons, never text glyphs (▾ ▸ ✓ ◐ become SVG icons), each optically centred in its button; the frames use Lucide-style outline icons (ISC licence), self-hosted as one SVG sprite under CSP 'self'; (b) dropdowns, menus and dialogs always stay inside the viewport: flip or shift at the edges, and on phones use a bottom sheet; (c) the footer disclaimer ("Names only, never rules text. Not affiliated with Wizards of the Coast.") is removed from the pages. DECIDED (2026-11-15).** Round 4.1.
+  *Raw note:* "Let's add icons to our buttons. Also, make sure to always use icons instead of text glyphs, and make sure these icons are centered accurately." · "Make sure dropdowns and modals are never out of bounds independently from the viewport" · "Remove the disclaimer as is now. It's clear, there is no text from us." · "Done marking, few notes but you can move on from the jam."
+  *Closed (2026-11-15, AskUserQuestion, overseer):* `/about` keeps one plain "not affiliated with Wizards of the Coast" sentence, as the frames have it; only the footer line goes. Picked "Keep it on /about only (Rec.)".
+  *Enforced by:* build frames (all 12), build brief.

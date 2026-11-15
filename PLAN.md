@@ -1,6 +1,6 @@
 # PLAN — dndpaste
 
-> The queue. Decisions in `DECISIONS.md` (D1–D60). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
+> The queue. Decisions in `DECISIONS.md` (D1–D89). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
 
 ## What it is (one paragraph)
 
@@ -60,8 +60,12 @@ L<n> <Class>                   level block, n = character level
 - [x] T2.7 cleanup from the review nits ✅ 2026-09-05 (87 tests, fixture output byte-identical) · sonnet@medium · size S: one `+N` stripper and one name lookup (`findByName` → `Index.resolve`; `finalScores` reuses `check()`'s indexes); `--slots` as last argument errors instead of silently defaulting; Epic Boon feats cap at 30, not 20. Done when: verify green, no behaviour change on fixtures.
 - [ ] Homebrew: run the extract over a 5etools-format homebrew file and merge its slots (a homebrew file brings its own slots).
 
-### M3 — First producer: my-spellbook export (L5.5 / A-03) · size S in that repo
-- [ ] Copies `dist/dndpaste.umd.cjs` (global `dndpaste`); `levelGains`/`timelinePicks` → AST → `emit`. Scores line omitted. Logged in that repo's DECISIONS as the format L5.5 was waiting for.
+### M3 — Share site (D45, D65–D74; brief `SITE.md`) · ⏳ next · size M
+- [x] T3.1 Look jam ✅ 2026-11-15 · D80–D89, 12 frames + build brief in `jams/2026-11-15-site-look/` (local only).
+- [ ] ⏳ T3.2 Build · branch `site-m3`, own worktree, Opus@high, Mac · three slices, one session each (jam brief): 3.2a Worker core + no-JS view → 3.2b form with JS → 3.2c view interactions + chrome + `/about` · Done when: `SITE.md` done-when, up to local + reviewed.
+- [ ] 🔍 T3.3 Fresh-eyes review (Opus) inside T3.2, before deploy: escaping, CSP, abuse, IP, redirect.
+- [ ] 🔶 T3.4 Deploy to workers.dev on Francesco's go (KV namespace + `wrangler deploy` + smoke test). GitHub push his.
+- Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
 ### M4 — character-forge interview seeding · size M in that repo
 - ⚑ **Retarget (Francesco, 2026-09-29):** character-forge v1 is archived. v2 imports pastes directly (its D61 phase 1, T2.1), so the chassis-seeding flow below is retired unless he says otherwise.
@@ -71,5 +75,5 @@ L<n> <Class>                   level block, n = character level
 - [ ] Paste → build, resolving refs against loaded sources; unresolved refs use the existing "not loaded" path (its D56).
 
 ### Later
-- ⚑ **Share service (D45, decided 2026-09-29; sizing in `SHARE-SITE-SIZING.md`, 2026-11-10):** a Cloudflare Worker + KV, pokepaste-style short links. Its milestone and its place relative to M3 are his call (Francesco, 2026-09-29).
+- My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
 - Variants / party blocks (D6). `Game:` header and a second profile (O1). Python port only if extract.py needs it.
