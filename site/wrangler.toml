@@ -1,0 +1,32 @@
+# dndpaste share site — one Worker, static assets, one KV namespace (SITE.md, D70, D73).
+# Local only for now: `npm run dev` runs this under `wrangler dev` with a local KV store and local rate limits.
+# Deploy (T3.4, on Francesco's go): create the namespace (`npx wrangler kv namespace create PASTES`),
+# put its id below, then `npx wrangler deploy`.
+name = "dndpaste"
+main = "src/worker.ts"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+
+[[kv_namespaces]]
+binding = "PASTES"
+# Placeholder: valid for `wrangler dev` (a local store), refused by `wrangler deploy` until replaced.
+id = "local-pastes-replace-at-deploy"
+
+[vars]
+# Empty = answer on any host. Set to e.g. "https://dndpaste.example" to 301 every other host there (D70).
+CANONICAL_ORIGIN = ""
+
+# Workers rate-limiting binding, per IP (D71). If the account's plan lacks it, delete these two blocks:
+# the Worker then skips the check, and a Cloudflare WAF rate-limiting rule on POST takes its place (site/README.md).
+[[ratelimits]]
+name = "SAVE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "REPORT_LIMITER"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }

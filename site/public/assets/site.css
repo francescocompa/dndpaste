@@ -1,0 +1,154 @@
+/* dndpaste share site. Look: D80–D89 (Hanging keys, IBM Plex, Garnet). Tokens ported from the jam's project.css.
+   Theme: light on :root; dark by prefers-color-scheme unless [data-theme="light"]; [data-theme="dark"] forces dark.
+   D88 (a) re-check moved four greys off the jam values to reach AA: light --mute/--key/--warnc #6e7280 → #696d7b,
+   light --src #737885 → #6f7481, dark --src #6c707b → #7c808b (test/contrast.test.ts).
+   Colour switches (D82): html.ck = colour by kind, html.ca = colour abilities. No inline styles anywhere (CSP). */
+
+:root {
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+  --bg: #fbfbfc; --fg: #17181c; --mute: #696d7b; --rule: #e4e5ea; --key: #696d7b; --chip: #eef0f4; --field: #ffffff;
+  --acc: #a51d4a; --accfg: #ffffff; --num: #a51d4a; --src: #6f7481; --det: #8a4b0f; --drop: #c2255c;
+  --err: #b45309; --errbg: #fdf3e7; --warnc: #696d7b;
+  --ab-str: #b4462c; --ab-dex: #2f64ad; --ab-con: #9a5b12; --ab-int: #6b4db3; --ab-wis: #2e7b4c; --ab-cha: #a73d7f;
+  --kd-class: #3f5bb5; --kd-subclass: #1d7482; --kd-species: #4d7420; --kd-background: #94632c; --kd-feat: #b0476a; --kd-spell: #7f4cc0; --kd-item: #7f6410;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1014; --fg: #e6e7ea; --mute: #8c909b; --rule: #24272e; --key: #8c909b; --chip: #1a1d23; --field: #14171c;
+    --acc: #f48fb1; --accfg: #0e1014; --num: #f48fb1; --src: #7c808b; --det: #f0b46c; --drop: #f783ac;
+    --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b;
+    --ab-str: #f0907c; --ab-dex: #86abef; --ab-con: #e2a35e; --ab-int: #b9a2f5; --ab-wis: #82cf98; --ab-cha: #ec95c6;
+    --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1014; --fg: #e6e7ea; --mute: #8c909b; --rule: #24272e; --key: #8c909b; --chip: #1a1d23; --field: #14171c;
+  --acc: #f48fb1; --accfg: #0e1014; --num: #f48fb1; --src: #7c808b; --det: #f0b46c; --drop: #f783ac;
+  --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b;
+  --ab-str: #f0907c; --ab-dex: #86abef; --ab-con: #e2a35e; --ab-int: #b9a2f5; --ab-wis: #82cf98; --ab-cha: #ec95c6;
+  --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
+}
+
+/* ---- base ---- */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 13.5px/1.55 var(--mono); }
+a { color: inherit; }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 3px; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 28px 40px; }
+.muted { color: var(--mute); margin: 0; font: 13px/1.4 var(--sans); }
+
+/* ---- icons (D89): one sprite, outline strokes ---- */
+svg.i { width: 15px; height: 15px; flex: none; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- site chrome ---- */
+.top { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--rule); font-family: var(--sans); }
+.top .wm { font-weight: 600; letter-spacing: -0.02em; font-size: 1.1em; margin-right: auto; text-decoration: none; }
+.top .wm .dot { color: var(--acc); }
+.top .navs { display: flex; gap: 18px; }
+.top .nav { color: var(--mute); text-decoration: none; white-space: nowrap; }
+.top .nav:hover, .top .wm:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---- buttons ---- */
+.bt { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 400 13px/1 var(--sans); border: 0; border-radius: 6px;
+  padding: 8px 12px; background: var(--chip); color: var(--fg); white-space: nowrap; text-decoration: none; cursor: pointer; }
+.bt.pri { background: var(--acc); color: var(--accfg); }
+.bt.ghost { background: none; color: var(--mute); padding-left: 4px; padding-right: 4px; }
+.actrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.actrow .grow { flex: 1; }
+.acts { padding: 6px 0 14px; }
+.alt { font: 13px/1.4 var(--sans); color: var(--mute); }
+
+/* ---- view: title and byline ---- */
+.meta { padding: 22px 0 6px; font-family: var(--sans); }
+.meta .ttl { font-size: 1.6em; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0; overflow-wrap: anywhere; }
+.meta .ttl.none { color: var(--mute); font-style: italic; }
+.meta .by { color: var(--mute); overflow-wrap: anywhere; }
+.note { font: 13px/1.4 var(--sans); color: var(--mute); margin: 0 0 12px; }
+
+/* ---- the build, Hanging keys (D81): keys right-aligned in a margin, values in one mono column ---- */
+.build > * + * { margin-top: 0.9em; }
+.bl { display: grid; grid-template-columns: 15ch minmax(0, 1fr); column-gap: 1.6ch; row-gap: 1px; }
+.hk { text-align: right; color: var(--key); white-space: nowrap; }
+.hv { white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
+.grp { border-left: 2px solid var(--rule); padding-left: 1.2ch; }
+.hv.idv, .hv.ehv, .hv.lvv { font-weight: 600; }
+.hk.lvk { color: var(--acc); font-weight: 600; }
+.lvb > .bl + .bl, details.lvb > .bl { margin-top: 1px; }
+details.lvb > summary { list-style: none; cursor: pointer; }
+details.lvb > summary::-webkit-details-marker { display: none; }
+.mk { color: var(--mute); font-weight: 400; margin-left: 1ch; white-space: nowrap; }
+.mk svg.i { width: 13px; height: 13px; display: inline-block; vertical-align: -2px; }
+.mk .cnt { margin-left: 0.5ch; }
+details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:not([open]) .mk .i-chevron-down { display: none; }
+
+/* syntax (shared with the editor, slice 2): key, punctuation, ref, |SOURCE, number, enum, detail, quantity, drop */
+.k { color: var(--key); } .xk { font-style: italic; }
+.p { color: var(--mute); } .r { color: var(--fg); } .s { color: var(--src); }
+.n, .e, .q, .ab { color: var(--num); }
+.d .r { color: var(--det); }
+.x { color: var(--drop); font-weight: 600; }
+.drop .r { color: var(--mute); text-decoration: line-through; text-decoration-color: var(--drop); }
+.ca .ab-str { color: var(--ab-str); } .ca .ab-dex { color: var(--ab-dex); } .ca .ab-con { color: var(--ab-con); }
+.ca .ab-int { color: var(--ab-int); } .ca .ab-wis { color: var(--ab-wis); } .ca .ab-cha { color: var(--ab-cha); }
+.ck .kd-class { color: var(--kd-class); } .ck .kd-subclass { color: var(--kd-subclass); } .ck .kd-species { color: var(--kd-species); }
+.ck .kd-background { color: var(--kd-background); } .ck .kd-feat { color: var(--kd-feat); } .ck .kd-spell { color: var(--kd-spell); }
+.ck .kd-item { color: var(--kd-item); }
+.ck .drop .r { color: var(--mute); }
+
+/* ---- report (D87): a quiet line under the build, the form opens in place ---- */
+.report { margin-top: 22px; font: 13px/1.4 var(--sans); color: var(--mute); }
+.report > summary { cursor: pointer; list-style: none; width: fit-content; }
+.report > summary::-webkit-details-marker { display: none; }
+.report .u { text-decoration: underline; text-underline-offset: 3px; }
+.report[open] > summary { margin-bottom: 10px; }
+.report.done { display: flex; gap: 6px; align-items: center; }
+.rform { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); color: var(--fg); }
+.rform small { color: var(--mute); }
+.rform .ta { min-height: 70px; resize: vertical; }
+
+/* ---- form fields ---- */
+.stack { display: grid; gap: 14px; } .stack.sm { gap: 8px; }
+.fld { display: grid; gap: 4px; min-width: 0; }
+.lbl { font: 600 11px/1.2 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+.in { font: 14px/1.3 var(--sans); background: var(--field); border: 1px solid var(--rule); border-radius: 6px; padding: 7px 10px; color: var(--fg); min-width: 0; width: 100%; }
+.in::placeholder, .src::placeholder { color: var(--mute); opacity: 1; }
+.ferr { display: flex; gap: 8px; align-items: center; margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--errbg); color: var(--err); font: 13px/1.4 var(--sans); }
+
+/* ---- paste form, no-JS (slice 2 adds the editor, hints and recent shares) ---- */
+.pform { padding: 16px 0 20px; }
+.tb { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: var(--sans); }
+.tb .grow { flex: 1; }
+.dsum { font: 13px/1.3 var(--sans); color: var(--mute); } .dsum b { color: var(--err); font-weight: 600; }
+.fgrid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 20px; align-items: start; }
+.pane { border: 1px solid var(--rule); border-radius: 8px; background: var(--field); min-width: 0; overflow: hidden; }
+.pane:focus-within { border-color: var(--acc); }
+.src { display: block; width: 100%; min-height: 28em; margin: 0; border: 0; background: transparent; padding: 8px 12px; font: 12.5px/1.65 var(--mono);
+  color: var(--fg); resize: vertical; outline: none; }
+.aside { display: grid; gap: 18px; align-content: start; }
+.diag { display: grid; gap: 2px; font: 13px/1.4 var(--sans); }
+.dg { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 6px 10px; border-radius: 6px; }
+.dg.e { background: var(--errbg); }
+.dg .code { font: 600 11.5px/1 var(--mono); color: var(--err); } .dg.w .code { color: var(--warnc); }
+.dg .at { font: 12px/1 var(--mono); color: var(--mute); white-space: nowrap; }
+
+/* ---- prose pages (about, 404) ---- */
+.prose { padding: 22px 0; font: 15px/1.6 var(--sans); max-width: 60ch; }
+.prose h1 { font-size: 1.6em; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 12px; }
+
+/* ---- phone ---- */
+@media (max-width: 600px) {
+  body { font-size: 13px; }
+  .wrap { padding: 0 16px 32px; }
+  .top { flex-wrap: wrap; gap: 6px 12px; }
+  .top .navs { gap: 12px; }
+  .bl { grid-template-columns: 11ch minmax(0, 1fr); column-gap: 1.2ch; }
+  .hk { white-space: normal; }
+  .fgrid { grid-template-columns: minmax(0, 1fr); }
+  .src { min-height: 20em; }
+}
