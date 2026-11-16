@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { emit, parse } from "../../src/dndpaste.ts";
 import { CSP } from "../src/app.ts";
 import { prerender } from "../src/pages.ts";
-import { ID_RE, LIMITS } from "../src/store.ts";
+import { ID_RE, LIMITS, hashKey } from "../src/store.ts";
 import { CountingLimiter, FIXTURES, ORIGIN, asJson, call, form, makeEnv } from "./helpers.ts";
 
 const VICE = FIXTURES.find(([n]) => n === "vice.dndpaste")![1];
@@ -37,21 +37,27 @@ for (const [name, text] of FIXTURES) {
     assert.equal(await (await call(env, "GET", `/${id2}/canon`)).text(), emit(parse(text)));
 
     const j = await (await call(env, "GET", `/${id}/json`)).json() as Record<string, string>;
-    assert.deepEqual(Object.keys(j), ["title", "author", "paste", "created"]);
+    assert.deepEqual(Object.keys(j), ["title", "author", "paste", "created", "edited", "revision"]);
+    assert.equal(j.edited, null);
+    assert.equal(j.revision as unknown, 1);
     assert.equal(j.paste, text);
     assert.equal(j.title, name);
   });
 }
 
-test("save (JSON): 201 with id and url; the record has the D65 shape", async () => {
+test("save (JSON): 201 with id, url and edit key; the record has the D65 shape plus the key's hash", async () => {
   const env = makeEnv();
-  const res = await call(env, "POST", "/", asJson({ title: "Vice", author: "ash", paste: VICE }), { now: () => new Date("2026-11-15T10:00:00Z") });
+  const key = "k".repeat(43);
+  const res = await call(env, "POST", "/", asJson({ title: "Vice", author: "ash", paste: VICE }), { now: () => new Date("2026-11-15T10:00:00Z"), makeKey: () => key });
   assert.equal(res.status, 201);
-  const out = await res.json() as { id: string; url: string };
+  const out = await res.json() as { id: string; url: string; key: string; edit: string };
   assert.match(out.id, ID_RE);
   assert.equal(out.url, `${ORIGIN}/${out.id}`);
-  // `r` is the render cached at save (T3.3), derived from the paste; the share itself is the D65 fields.
-  assert.deepEqual(JSON.parse(env.PASTES.map.get(`p:${out.id}`)!), { v: 1, title: "Vice", author: "ash", paste: VICE, created: "2026-11-15T10:00:00.000Z", r: prerender(parse(VICE)) });
+  assert.equal(out.key, key);
+  assert.equal(out.edit, `${ORIGIN}/${out.id}/edit#k=${key}`);
+  // `r` is the render cached at save (T3.3), derived from the paste; `k` the edit key's SHA-256 (D97), never the key.
+  assert.deepEqual(JSON.parse(env.PASTES.map.get(`p:${out.id}`)!), { v: 1, title: "Vice", author: "ash", paste: VICE, created: "2026-11-15T10:00:00.000Z", r: prerender(parse(VICE)), k: await hashKey(key) });
+  assert.ok(!env.PASTES.map.get(`p:${out.id}`)!.includes(key));
 });
 
 test("save: multipart form data works too", async () => {
@@ -314,7 +320,7 @@ test("report: stored under r:<iso>:<id>:<nonce>, never shown; form lands on a th
   assert.equal(res.status, 303);
   assert.equal(res.headers.get("Location"), `/${id}?reported=1`);
   const key = `r:2026-11-15T11:00:00.000Z:${id}:n0nce1`;
-  assert.deepEqual(JSON.parse(env.PASTES.map.get(key)!), { id, reason: "Spam\nline two", contact: "me@example.org", created: "2026-11-15T11:00:00.000Z" });
+  assert.deepEqual(JSON.parse(env.PASTES.map.get(key)!), { id, reason: "Spam\nline two", contact: "me@example.org", created: "2026-11-15T11:00:00.000Z", revision: 1 });
   const thanks = await (await call(env, "GET", `/${id}?reported=1`)).text();
   assert.ok(thanks.includes("Thanks. Your report went to the site's maintainer."));
   assert.ok(!thanks.includes("Spam"));

@@ -226,6 +226,17 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .lbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--acc); border-radius: 8px;
   background: color-mix(in srgb, var(--acc) 8%, var(--field)); font: 13.5px/1.4 var(--sans); }
 .lbar .grow { flex: 1; } .lbar b { font-weight: 600; overflow-wrap: anywhere; }
+/* D97: the private edit link, shown once on the view after a save; the same accent frame as the import bar */
+.saved { display: grid; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--acc); border-radius: 8px;
+  background: color-mix(in srgb, var(--acc) 8%, var(--field)); font: 13.5px/1.45 var(--sans); }
+.saved .shd { display: flex; align-items: center; justify-content: space-between; margin: -4px -6px -4px 0; }
+.saved .shd b { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
+.saved .x { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--fg); cursor: pointer; }
+.saved .x svg.i { width: 16px; height: 16px; }
+.saved p { margin: 0; }
+.saved .erow { display: flex; gap: 8px; align-items: center; }
+.saved .erow .in { flex: 1; font: 12.5px/1.3 var(--mono); }
+.note.editing a, .note.pinned a { color: inherit; text-underline-offset: 3px; }
 .diag { max-height: 22em; overflow-y: auto; }
 .dg .at { background: none; border: 0; padding: 0; color: var(--mute); }
 .dg button.at { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
@@ -286,6 +297,9 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .hasjs .view .acts { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; flex-wrap: nowrap; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--rule); background: var(--bg); font-family: var(--sans); }
   .hasjs .view .acts .grow { display: block; flex: 1; }
+  /* D97: the owner's dock holds Copy link, Edit and Duplicate: Duplicate drops "and edit" to fit a 375 px phone. */
+  .hasjs .view .acts.own .dl { display: none; }
+  .saved .erow { flex-wrap: wrap; } .saved .erow .bt { flex: 1; }
   .hasjs .view .meta { padding-bottom: 10px; }
   /* Sheets (D89 b, frame view-copysheet-dark-phone) */
   .pop.sheet { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-width: none; max-height: 85vh; border: 0;

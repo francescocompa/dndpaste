@@ -12,8 +12,11 @@ import type { Hints } from "./hints.ts";
 import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml } from "./status.ts";
 import type { Import, Status } from "./status.ts";
 import { recentHtml, recentStore } from "./recent.ts";
+import { keyFromHash, keyStore } from "./keys.ts";
+import { ID_RE } from "../store.ts";
 
 const recent = recentStore(() => window.localStorage);
+const keys = keyStore(() => window.localStorage);
 const MAX_FILE = 1024 * 1024;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = ""): HTMLElementTagNameMap[K] {
@@ -37,6 +40,18 @@ function init(): void {
   /** The editor's textarea. A long replace swaps in a fresh one (see `replaceAll`), so listeners sit on `.ed`. */
   let ta: HTMLTextAreaElement = found;
   document.documentElement.classList.add("js");
+
+  // ---- editing a share (D97): the key from the edit link's fragment, else the one this browser kept ----
+  const editId = form.dataset.edit && ID_RE.test(form.dataset.edit) ? form.dataset.edit : null;
+  let editKey: string | null = null;
+  if (editId) {
+    const fromLink = keyFromHash(location.hash, "k");
+    // Out of the address bar and history at once; the fragment never reached the server.
+    if (location.hash) window.history.replaceState(null, "", location.pathname + location.search);
+    if (fromLink) keys.set(editId, fromLink);
+    editKey = fromLink ?? keys.get(editId);
+  }
+  const base = form.querySelector<HTMLInputElement>("input[name=base]")?.value ?? "";
 
   // ---- the editor: highlight layer + textarea, inside the pane ----
   const ed = el("div", "ed");
@@ -70,6 +85,12 @@ function init(): void {
     errBox.hidden = !msg;
     errBox.innerHTML = msg ? `${icon("alert")}${esc(msg)}` : "";
   };
+  if (editId && !editKey) {
+    const nokey = el("p", "ferr nokey", `${icon("alert")}<span>This browser has no edit key for this build. Open the private edit link ` +
+      `from when you saved it, or <a href="/?from=${editId}">duplicate and edit</a> it.</span>`);
+    nokey.setAttribute("role", "alert");
+    form.prepend(nokey);
+  }
 
   // ---- import bar (D85), between the toolbar and the editor ----
   const lbar = el("div", "lbar");
@@ -92,7 +113,7 @@ function init(): void {
   const dock = el("div", "pdock",
     `<div class="krow chips" hidden></div><div class="prow"></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
     `${icon("keyboard")}Keys <span class="kn"></span>${icon("chevron-up")}${icon("chevron-down")}</button>` +
-    `<span class="grow"></span><button type="submit" class="bt pri dsave">${icon("link")}Save and get link</button></div>`);
+    `<span class="grow"></span><button type="submit" class="bt pri dsave">${editId ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`}</button></div>`);
   form.append(dock);
   const krow = dock.querySelector<HTMLElement>(".krow") as HTMLElement;
   const ktog = dock.querySelector<HTMLButtonElement>(".ktog") as HTMLButtonElement;
@@ -138,7 +159,7 @@ function init(): void {
     refresh();
   };
   const setSaveState = () => {
-    const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving;
+    const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving && !(editId && !editKey);
     for (const b of saves) { b.disabled = !on; b.classList.toggle("off", !on); }
     tidyBtn.disabled = !st.canTidy;
     tidyBtn.classList.toggle("off", !st.canTidy);
@@ -400,19 +421,32 @@ function init(): void {
     e.preventDefault();
     release();
     st = status(ta.value);
-    if (!st.canSave || saving) { setSaveState(); return; }
+    if (!st.canSave || saving || (editId && !editKey)) { setSaveState(); return; }
     saving = true;
     setSaveState();
+    const fields = { title: title.value, author: author.value, paste: ta.value };
     try {
-      const res = await fetch("/", {
+      const res = await fetch(editId ? `/${editId}/edit` : "/", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ title: title.value, author: author.value, paste: ta.value }),
+        body: JSON.stringify(editId ? { ...fields, key: editKey, base } : fields),
       });
-      const data = (await res.json().catch(() => ({}))) as { id?: unknown; error?: unknown };
-      if (res.ok && typeof data.id === "string" && /^[0-9A-Za-z]{10}$/.test(data.id)) {
-        recent.add({ id: data.id, title: title.value.replace(/\s+/g, " ").trim(), created: new Date().toISOString() });
-        location.assign(`/${data.id}`);
+      const data = (await res.json().catch(() => ({}))) as { id?: unknown; key?: unknown; error?: unknown };
+      if (res.ok && typeof data.id === "string" && ID_RE.test(data.id)) {
+        const id = data.id;
+        const name = title.value.replace(/\s+/g, " ").trim();
+        if (editId) {
+          // The share's pages cache for 5 minutes (D97): refresh this browser's copies so it shows the edit at once.
+          await Promise.all(["", "/raw", "/canon", "/json"].map((s) => fetch(`/${id}${s}`, { cache: "reload" }).catch(() => null)));
+          recent.add({ id, title: name, created: recent.list().find((r) => r.id === id)?.created ?? new Date().toISOString() });
+          location.assign(`/${id}`);
+          return;
+        }
+        recent.add({ id, title: name, created: new Date().toISOString() });
+        // The view shows the private edit link once (D97), from the fragment; site.js clears it from the address.
+        const key = typeof data.key === "string" ? data.key : null;
+        if (key) keys.set(id, key);
+        location.assign(key ? `/${id}#new=${key}` : `/${id}`);
         return;
       }
       showErr(typeof data.error === "string" ? data.error : "The build could not be saved. Try again.");

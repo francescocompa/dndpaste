@@ -5,6 +5,8 @@
  * - Header: the Display menu (theme Auto/Light/Dark, Colour by kind, Colour abilities), saved in this browser.
  * - View: the split Copy link button and its ▾ menu (Copy text, Copy canonical) with a copied state (D87), fold all /
  *   expand all over the level blocks, the report form's Cancel, the phone dock (CSS) and sheets.
+ * - Editing (D97): Edit on the latest revision when this browser keeps the share's edit key; after a save, the private
+ *   edit link once, from the `#new=<key>` fragment (cleared from the address at once).
  * - Popovers (D89 b): on a wide screen a panel under its button, shifted or flipped to stay inside the viewport; on a
  *   phone a bottom sheet over a scrim. Escape, a tap outside or leaving with Tab closes; focus returns to the button.
  *
@@ -13,6 +15,7 @@
 import { icon } from "../render.ts";
 import { applyDisplay, displayMenuHtml, displayStore } from "./display.ts";
 import type { Display } from "./display.ts";
+import { keyFromHash, keyStore } from "./keys.ts";
 
 const root = document.documentElement;
 const store = displayStore(() => window.localStorage);
@@ -197,6 +200,9 @@ function wireView(): void {
   const acts = document.querySelector<HTMLElement>(".view .acts[data-id]");
   if (!acts) return;
   const id = acts.dataset.id as string;
+  const rev = acts.dataset.rev;
+  /** The page's own path: `<id>`, or `<id>/<n>` on a pinned revision. */
+  const path = rev ? `${id}/${rev}` : id;
   const main = acts.querySelector<HTMLButtonElement>(".cpy");
   const caret = acts.querySelector<HTMLButtonElement>(".caret");
   const label = main?.querySelector<HTMLElement>(".cl");
@@ -206,7 +212,7 @@ function wireView(): void {
   // The texts are fetched once, early, so a copy needs no network wait (Safari drops a copy made after one).
   const texts: Partial<Record<"raw" | "canon", string>> = {};
   const pending: Partial<Record<"raw" | "canon", Promise<string | null>>> = {};
-  const fetchText = (k: "raw" | "canon") => (pending[k] ??= fetch(`/${id}/${k}`)
+  const fetchText = (k: "raw" | "canon") => (pending[k] ??= fetch(`/${path}/${k}`)
     .then((r) => (r.ok ? r.text() : null)).then((t) => { if (t !== null) texts[k] = t; return t; }).catch(() => null));
   const warm = () => { void fetchText("raw"); void fetchText("canon"); };
   if ("requestIdleCallback" in window) window.requestIdleCallback(warm, { timeout: 2000 });
@@ -217,7 +223,9 @@ function wireView(): void {
   live.setAttribute("aria-live", "polite");
   acts.append(live);
 
-  const DONE = { link: "Link copied", raw: "Text copied", canon: "Canonical copied" } as const;
+  const DONE = { link: "Link copied", raw: "Text copied", canon: "Canonical copied", edit: "Edit link copied" } as const;
+  // Edit and the one-time panel; the private edit link when this browser keeps the share's key (D97).
+  const editUrl = rev ? null : wireEdit(acts, id, link);
   let timer = 0;
   const copied = (k: keyof typeof DONE) => {
     main.innerHTML = `${icon("check")}<span class="cl">${DONE[k]}</span>`;
@@ -243,8 +251,8 @@ function wireView(): void {
   };
   manual.addEventListener("click", (e) => { if ((e.target as Element).closest(".shut")) close(); });
 
-  const copy = async (k: "link" | "raw" | "canon") => {
-    const text = k === "link" ? link : texts[k] ?? (await fetchText(k));
+  const copy = async (k: "link" | "raw" | "canon" | "edit") => {
+    const text = k === "link" ? link : k === "edit" ? editUrl : texts[k] ?? (await fetchText(k));
     if (text === null || text === undefined) { live.textContent = "The text could not be loaded. Try again."; return; }
     if (await writeClip(text)) copied(k);
     else showManual(text);
@@ -252,7 +260,9 @@ function wireView(): void {
 
   const menu = panel("ovf copym",
     `<button type="button" role="menuitem" class="it" data-copy="raw"><span class="il">${icon("copy")}Copy text</span><small>as written</small></button>` +
-    `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy canonical</span><small>tidied, for apps</small></button>` + SHEET_HEAD,
+    `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy canonical</span><small>tidied, for apps</small></button>` +
+    (editUrl ? `<button type="button" role="menuitem" class="it" data-copy="edit"><span class="il">${icon("pencil")}Copy edit link</span><small>private, to edit elsewhere</small></button>` : "") +
+    SHEET_HEAD,
     "More ways to copy", "menu");
   caret.setAttribute("aria-controls", (menu.id = "copym"));
   main.addEventListener("click", () => void copy("link"));
@@ -261,10 +271,11 @@ function wireView(): void {
   menu.addEventListener("click", (e) => {
     const t = (e.target as Element).closest<HTMLElement>("button");
     if (!t) return;
-    const k = t.dataset.copy as "raw" | "canon" | undefined;
+    const k = t.dataset.copy as "raw" | "canon" | "edit" | undefined;
     close();
     if (k) void copy(k);
   });
+
 
   // Fold all / expand all (D87), over the level blocks' <details>.
   document.querySelector(".view .fold")?.addEventListener("click", (e) => {
@@ -282,6 +293,57 @@ function wireView(): void {
     report.open = false;
     report.querySelector<HTMLElement>("summary")?.focus();
   });
+}
+
+// ---- editing (D97) ----
+/** Adds Edit (and, right after a save, the private edit link panel); returns the private edit link, or null without a key. */
+function wireEdit(acts: HTMLElement, id: string, link: string): string | null {
+  const keys = keyStore(() => window.localStorage);
+  const fresh = keyFromHash(location.hash, "new");
+  if (location.hash.startsWith("#new=")) history.replaceState(null, "", location.pathname + location.search);
+  const kept = keys.get(id);
+  // A `#new=` fragment counts only when it is the key the form just kept, or when this browser can keep none: a
+  // link someone else crafted shows nothing.
+  const blocked = fresh !== null && kept === null && !keys.writable();
+  const shown = fresh !== null && (fresh === kept || blocked) ? fresh : null;
+  const key = kept ?? (blocked ? fresh : null);
+  if (!key) return null;
+
+  const editUrl = `${new URL(link).origin}/${id}/edit#k=${key}`;
+  const dup = acts.querySelector(".dup");
+  const btn = document.createElement("a");
+  btn.className = "bt edit";
+  // Without storage the key lives only in this page, so Edit carries it in the fragment.
+  btn.href = blocked ? editUrl : `/${id}/edit`;
+  btn.innerHTML = `${icon("pencil")}Edit`;
+  if (dup) dup.before(btn);
+  else acts.append(btn);
+  acts.classList.add("own");
+  if (!shown) return editUrl;
+
+  const box = document.createElement("div");
+  box.className = "saved";
+  box.setAttribute("role", "status");
+  box.innerHTML = `<div class="shd"><b>${icon("check")}Saved</b><button type="button" class="x" aria-label="Close">${icon("x")}</button></div>` +
+    `<p>${blocked
+      ? "This browser can't keep the edit key. To edit the build later, keep this private link."
+      : "You can edit this build from this browser. To edit it from another device, keep this private link. This browser also keeps it in the Copy link menu."} ` +
+    `Anyone who has the link can edit the build.</p>` +
+    `<div class="erow"><input class="in" readonly spellcheck="false" aria-label="Private edit link"><button type="button" class="bt cpe">${icon("copy")}<span>Copy edit link</span></button></div>`;
+  const input = box.querySelector("input") as HTMLInputElement;
+  input.value = editUrl;
+  acts.after(box);
+  input.addEventListener("focus", () => input.select());
+  const cpe = box.querySelector<HTMLButtonElement>(".cpe") as HTMLButtonElement;
+  cpe.addEventListener("click", async () => {
+    if (await writeClip(editUrl)) cpe.innerHTML = `${icon("check")}<span>Link copied</span>`;
+    else { input.focus(); input.select(); }
+  });
+  box.querySelector(".x")?.addEventListener("click", () => {
+    box.remove();
+    btn.focus();
+  });
+  return editUrl;
 }
 
 function init(): void {

@@ -33,7 +33,7 @@ test("a current cache is served as is: the view and /canon don't re-render", asy
   assert.ok((await (await call(env, "GET", `/${id}`)).text()).includes("<p>CACHED-BODY</p>"));
   assert.equal(await (await call(env, "GET", `/${id}/canon`)).text(), "CACHED-CANON\n");
   const j = await (await call(env, "GET", `/${id}/json`)).json() as Record<string, unknown>;
-  assert.deepEqual(Object.keys(j), ["title", "author", "paste", "created"], "the cache never leaks into /json");
+  assert.deepEqual(Object.keys(j), ["title", "author", "paste", "created", "edited", "revision"], "the cache never leaks into /json");
 });
 
 test("a stale or missing cache re-renders on read from the paste", async () => {

@@ -3,7 +3,7 @@ import { emit, isClean, parse } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { esc, icon, renderPaste } from "./render.ts";
 import type { PasteRecord, Rendered } from "./store.ts";
-import { LIMITS } from "./store.ts";
+import { LIMITS, revOf } from "./store.ts";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -54,6 +54,8 @@ export interface ViewState {
   reportError?: string;
   reportReason?: string;
   reportContact?: string;
+  /** Served at `/<id>/<n>`: a revision that never changes (D97), not the latest. */
+  pinned?: boolean;
 }
 
 /**
@@ -79,9 +81,17 @@ export const rendered = (rec: PasteRecord): Rendered => rec.r?.v === RENDER_VERS
 export function viewPage(id: string, rec: PasteRecord, origin: string, s: ViewState = {}): string {
   const r = rendered(rec);
   const title = rec.title || UNTITLED;
-  const date = fmtDate(rec.created);
+  const n = revOf(rec);
   const by = rec.author ? `by ${esc(rec.author)}` : "Anonymous";
-  const url = `${origin}/${id}`;
+  // A pinned revision is its own page: its link, its raw text, its copy source.
+  const path = s.pinned ? `${id}/${n}` : id;
+  const url = `${origin}/${path}`;
+  const time = (iso: string | undefined) => (iso && fmtDate(iso) ? `<time datetime="${esc(iso)}">${fmtDate(iso)}</time>` : "");
+  // D97: the latest says when it was edited; a pinned revision says which one it is and when it was saved.
+  const dates = s.pinned
+    ? [`revision ${n}`, time(rec.edited ?? rec.created)]
+    : [time(rec.created), rec.edited ? `edited ${time(rec.edited)}` : ""];
+  const byline = [by, ...dates.filter((x) => x && !x.endsWith(" "))].join(" · ");
   const head = [
     `<meta name="description" content="a D&amp;D build on dndpaste">`,
     `<meta property="og:type" content="website">`,
@@ -91,11 +101,14 @@ export function viewPage(id: string, rec: PasteRecord, origin: string, s: ViewSt
     `<meta property="og:url" content="${esc(url)}">`,
     `<meta name="twitter:card" content="summary">`,
     `<link rel="canonical" href="${esc(url)}">`,
-    `<link rel="alternate" type="text/plain" href="/${id}/raw">`,
+    `<link rel="alternate" type="text/plain" href="/${path}/raw">`,
   ].join("\n") + "\n";
 
   const unclean = r.clean ? "" :
-    `<p class="note">Some lines of this build did not parse and are not shown. <a href="/${id}/raw">See the text as written</a>.</p>`;
+    `<p class="note">Some lines of this build did not parse and are not shown. <a href="/${path}/raw">See the text as written</a>.</p>`;
+  const pinnedNote = s.pinned
+    ? `<p class="note pinned">This is revision ${n} of the build, kept as it was. <a href="/${id}">See the latest version</a>.</p>\n`
+    : "";
 
   // Fold all / expand all over the level blocks' <details> (D87): shown only when a level block has lines to fold.
   const folds = r.folds
@@ -104,18 +117,19 @@ export function viewPage(id: string, rec: PasteRecord, origin: string, s: ViewSt
   const report = s.reported
     ? `<p class="report done">${icon("check")}Thanks. Your report went to the site's maintainer.</p>`
     : `<details class="report"${s.reportError ? " open" : ""}><summary>Something wrong with this build? <span class="u">Report it</span></summary>
-<form class="rform" method="post" action="/${id}/report"><b>Report this build</b>
+<form class="rform" method="post" action="/${id}/report"><b>Report this build</b>${s.pinned ? `<input type="hidden" name="rev" value="${n}">` : ""}
 ${s.reportError ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.reportError)}</p>` : ""}<label class="fld"><span class="lbl">Reason</span><textarea class="in ta" name="reason" required maxlength="${LIMITS.reason}" placeholder="What's wrong? For example: it copies rules text, or it's spam.">${esc(s.reportReason ?? "")}</textarea><small>Required, up to ${LIMITS.reason} characters.</small></label>
 <label class="fld"><span class="lbl">Contact (optional)</span><input class="in" name="contact" maxlength="${LIMITS.contact}" autocomplete="off" placeholder="An email or handle, if you want an answer" value="${esc(s.reportContact ?? "")}"></label>
 <div class="actrow"><button class="bt pri" type="submit">${icon("flag")}Send report</button><button class="bt ghost njs" type="button" data-act="cancel-report">Cancel</button></div>
 <small>Reports go to the site's maintainer and are never shown on this page.</small>
 </form></details>`;
 
-  const main = `<div class="meta"><h1 class="ttl${rec.title ? "" : " none"}">${esc(title)}</h1><div class="by">${by}${date ? ` · <time datetime="${esc(rec.created)}">${date}</time>` : ""}</div></div>
-<div class="actrow acts" data-id="${id}"><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
+  // data-rev marks a pinned page: site.js copies its texts and offers no Edit there (an edit applies to the latest).
+  const main = `<div class="meta"><h1 class="ttl${rec.title ? "" : " none"}">${esc(title)}</h1><div class="by">${byline}</div></div>
+<div class="actrow acts" data-id="${id}"${s.pinned ? ` data-rev="${n}"` : ""}><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
     `<button type="button" class="bt pri caret icon" aria-label="More ways to copy" aria-haspopup="menu" aria-expanded="false">${icon("chevron-down")}</button></span>` +
-    `<span class="grow"></span><a class="bt" href="/?from=${id}">${icon("pencil")}Duplicate and edit</a><noscript><span class="alt"><a href="/${id}/raw">Text as written</a> · <a href="/${id}/canon">Canonical text</a></span></noscript></div>
-${folds}${unclean}${r.body}
+    `<span class="grow"></span><a class="bt dup" href="/?from=${path}">${icon("duplicate")}<span>Duplicate<span class="dl"> and edit</span></span></a><noscript><span class="alt"><a href="/${path}/raw">Text as written</a> · <a href="/${path}/canon">Canonical text</a></span></noscript></div>
+${pinnedNote}${folds}${unclean}${r.body}
 ${report}`;
   return layout({ title: `${title} · dndpaste`, main, head, page: "view" });
 }
@@ -129,6 +143,8 @@ export interface FormState {
   diagnostics?: Diagnostic[];
   /** A `?from=` id that matched nothing. */
   missingFrom?: string;
+  /** Editing share `id`, opened on revision `rev` (D97): the form saves to `/<id>/edit`. */
+  edit?: { id: string; rev: number; title: string };
 }
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -143,21 +159,27 @@ export function formPage(s: FormState = {}): string {
   const errors = diags.filter((d) => d.code.startsWith("E")).length;
   const sum = errors ? `<span class="dsum"><b>${errors} error${errors === 1 ? "" : "s"}</b> · fix ${errors === 1 ? "it" : "them"} to save</span>` : "";
   const problems = diags.length ? diagList(diags) : `<p class="muted">Checked when you save.</p>`;
+  const e = s.edit;
   const notes = [
     s.missingFrom ? `<p class="note">There is no build with the id ${esc(s.missingFrom)}. The form starts empty.</p>` : "",
+    e ? `<p class="note editing">Editing <a href="/${e.id}">${esc(e.title || UNTITLED)}</a>. Saving adds revision ${e.rev + 1}; the link then shows it, and <a href="/${e.id}/${e.rev}">revision ${e.rev}</a> stays as it is.</p>` +
+      `<noscript><p class="note">Editing needs JavaScript: the edit key stays in your browser. Without it, use <a href="/?from=${e.id}">Duplicate and edit</a>.</p></noscript>` : "",
     s.error ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.error)}</p>` : "",
   ].join("");
-  const main = `<form class="pform stack" method="post" action="/">
+  const saveBtn = e ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`;
+  const hidden = e ? `<input type="hidden" name="key" value=""><input type="hidden" name="base" value="${e.rev}">` : "";
+  const cancel = e ? `<a class="bt ghost cancel" href="/${e.id}">Cancel</a>` : "";
+  const main = `<form class="pform stack" method="post" action="${e ? `/${e.id}/edit` : "/"}"${e ? ` data-edit="${e.id}"` : ""}>${hidden}
 ${notes}<div class="stack sm"><label class="fld"><span class="lbl">Title</span><textarea class="in fit" name="title" rows="1" maxlength="${LIMITS.title}" autocomplete="off" spellcheck="false" placeholder="Untitled build">${esc(s.title ?? "")}</textarea></label>
 <label class="fld"><span class="lbl">Author</span><textarea class="in fit" name="author" rows="1" maxlength="${LIMITS.author}" autocomplete="off" spellcheck="false" placeholder="Anonymous">${esc(s.author ?? "")}</textarea></label></div>
-<div class="tb"><span class="grow"></span>${sum}<button class="bt pri" type="submit">${icon("link")}Save and get link</button></div>
+<div class="tb"><span class="grow"></span>${sum}${cancel}<button class="bt pri" type="submit">${saveBtn}</button></div>
 <div class="fgrid"><div class="pane"><textarea class="src" name="paste" aria-label="Build" spellcheck="false" autocapitalize="off" autocomplete="off" rows="24" placeholder="Paste or type a build">${esc(s.paste ?? "")}</textarea></div>
 <aside class="aside"><div class="stack sm"><span class="lbl">Problems</span>${problems}</div></aside></div>
 </form>`;
   // The editor, hints, Tidy, Open file and recent shares come from /assets/form.js (src/client/); without it this form
   // still saves, and the server answers with its diagnostics.
   const head = `<script type="module" src="/assets/form.js"></script>\n`;
-  return layout({ title: "New paste · dndpaste", main, head, page: "new" });
+  return layout({ title: e ? `Edit ${e.title || UNTITLED} · dndpaste` : "New paste · dndpaste", main, head, page: e ? "new edit" : "new" });
 }
 
 /**
@@ -170,11 +192,13 @@ export function aboutPage(): string {
 <h2>What a build holds</h2>
 <p>A build names the choices a character makes, level by level: species, background, classes, feats, spells and items. It holds names only, never rules text. The site checks that the text follows the dndpaste format. It does not check the build against the rules.</p>
 <h2>Saved builds</h2>
-<p>You cannot edit or delete a saved build. To change one, open it, choose Duplicate and edit, and save the copy. The copy gets a new link.</p>
-<p>There are no accounts. The site stores the title, the author and the text that you save. My recent shares and the Display settings stay in your browser.</p>
+<p>The browser that saved a build can edit it: open the build and choose Edit. After you save a build, the site also shows a private edit link. Keep it to edit the build from another device. The browser that saved the build can copy the link again from the Copy link menu. Anyone who has the link can edit the build.</p>
+<p>Each edit adds a revision. The link shows the latest revision a few minutes after the edit. The address <code>/&lt;id&gt;/2</code> always shows revision 2 as it was saved. If you lose the edit key, choose Duplicate and edit and save a copy. The copy gets a new link. You cannot delete a saved build.</p>
+<p>There are no accounts. The site stores the title, the author, the text that you save, and a scrambled form of the edit key that cannot be turned back into the key. My recent shares, your edit keys and the Display settings stay in your browser.</p>
 <h2>For apps</h2>
 <p>Each build has three plain-text addresses. Any site can fetch them.</p>
-<ul><li><code>/&lt;id&gt;/raw</code>: the text as written</li><li><code>/&lt;id&gt;/canon</code>: the text in canonical form, as Tidy writes it</li><li><code>/&lt;id&gt;/json</code>: the title, the author, the text and the date</li></ul>
+<ul><li><code>/&lt;id&gt;/raw</code>: the text as written</li><li><code>/&lt;id&gt;/canon</code>: the text in canonical form, as Tidy writes it</li><li><code>/&lt;id&gt;/json</code>: the title, the author, the text, the date, the date of the last edit and the revision number</li></ul>
+<p>These show the latest revision. To keep one revision, put its number in the address: <code>/&lt;id&gt;/2/raw</code>, <code>/&lt;id&gt;/2/canon</code>, <code>/&lt;id&gt;/2/json</code>. A revision never changes.</p>
 <h2>Reports</h2>
 <p>Under each build there is a line: "Something wrong with this build? Report it". Give a reason, and a contact if you want an answer. The report goes to the site&#39;s maintainer and never shows on the page. The maintainer can remove a build that copies rules text or is spam.</p>
 <p>dndpaste is not affiliated with Wizards of the Coast.</p></div>`;

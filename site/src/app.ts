@@ -6,8 +6,11 @@
 import { parse } from "../../src/dndpaste.ts";
 import { aboutPage, formPage, messagePage, notFoundPage, prerender, rendered, viewPage } from "./pages.ts";
 import type { FormState, ViewState } from "./pages.ts";
-import { BARE, ID_RE, LIMITS, getPaste, isBare, newId, putPaste, putReport } from "./store.ts";
-import type { KVLike } from "./store.ts";
+import {
+  BARE, ID_RE, LIMITS, REV_RE, getPaste, getRevision, hashKey, isBare, keyOpens, newEditKey, newId, putPaste, putReport,
+  putRevision, revOf,
+} from "./store.ts";
+import type { KVLike, PasteRecord } from "./store.ts";
 
 /** Workers rate-limiting binding (D71). Absent → no check here; a WAF rule stands in (site/README.md). */
 export interface RateLimiter { limit(o: { key: string }): Promise<{ success: boolean }> }
@@ -33,7 +36,7 @@ export interface Env {
 }
 
 /** Injection points for tests. */
-export interface Deps { makeId?: () => string; now?: () => Date; reportNonce?: () => string }
+export interface Deps { makeId?: () => string; now?: () => Date; reportNonce?: () => string; makeKey?: () => string }
 
 export const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 const BASE_HEADERS: Record<string, string> = {
@@ -61,8 +64,14 @@ const JSON_T = "application/json; charset=utf-8";
 const html = (body: string, status = 200, extra: Record<string, string> = {}) => respond(body, status, HTML, { "Cache-Control": "no-store", ...extra });
 const json = (data: unknown, status = 200, extra: Record<string, string> = {}) => respond(JSON.stringify(data), status, JSON_T, { "Cache-Control": "no-store", ...extra });
 const redirect = (location: string, status: number, extra: Record<string, string> = {}) => respond(null, status, null, { Location: location, ...extra });
-/** Shares never change (D65), so a short public cache is safe; a takedown shows within the hour. */
-const SHARED = { "Cache-Control": "public, max-age=3600" };
+/** The latest revision moves when its owner edits (D97): five minutes, so an edit shows everywhere soon after. */
+const SHARED = { "Cache-Control": "public, max-age=300" };
+/**
+ * A revision URL never changes (D97). Its data (raw, canon, json) caches for a year; its page for a day, since the
+ * page also carries the site's chrome, which can change under it.
+ */
+const PINNED_PAGE = { "Cache-Control": "public, max-age=86400" };
+const PINNED_DATA = { "Cache-Control": "public, max-age=31536000, immutable" };
 
 export async function handle(request: Request, env: Env, deps: Deps = {}): Promise<Response> {
   const url = new URL(request.url);
@@ -125,38 +134,57 @@ async function route(request: Request, env: Env, deps: Deps, url: URL, method: s
   }
   if (path === "/about") return method === "GET" ? html(aboutPage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
 
-  const m = /^\/([0-9A-Za-z]{10})(?:\/(raw|canon|json|report))?$/.exec(path);
+  // `/<id>`, `/<id>/<n>` (revision n, D97), each with /raw, /canon, /json; `/<id>/report` and `/<id>/edit` on the share.
+  const m = /^\/([0-9A-Za-z]{10})(?:\/([0-9]{1,7}))?(?:\/(raw|canon|json|report|edit))?$/.exec(path);
   if (!m) return notFound();
-  const [, id, sub] = m;
+  const [, id, revText, sub] = m;
+  if (revText !== undefined && (!REV_RE.test(revText) || sub === "report" || sub === "edit")) return notFound();
+  const rev = revText === undefined ? null : Number(revText);
 
   if (sub === "report") return method === "POST" ? report(request, env, deps, id, origin) : notAllowed("POST");
+  if (sub === "edit") {
+    if (method === "GET") return editForm(env, id);
+    if (method === "POST") return edit(request, env, deps, id, origin);
+    return notAllowed("GET, HEAD, POST");
+  }
   if (sub) {
     if (method === "OPTIONS") return respond(null, 204, null, CORS);
     if (method !== "GET") return notAllowed("GET, HEAD, OPTIONS", CORS);
-    return api(env, id, sub);
+    return api(env, id, rev, sub);
   }
   if (method !== "GET") return notAllowed("GET, HEAD");
-  const rec = await getPaste(env.PASTES, id);
-  if (!rec) return notFound();
+  const found = await load(env, id, rev);
+  if (!found) return notFound();
   const reported = url.searchParams.get("reported") === "1";
-  return html(viewPage(id, rec, origin, { reported }), 200, reported ? {} : SHARED);
+  return html(viewPage(id, found.rec, origin, { reported, pinned: rev !== null }), 200, reported ? {} : rev === null ? SHARED : PINNED_PAGE);
+}
+
+/** The latest revision (`rev` null) or revision `rev`. */
+async function load(env: Env, id: string, rev: number | null): Promise<{ rec: PasteRecord } | null> {
+  if (rev === null) {
+    const rec = await getPaste(env.PASTES, id);
+    return rec ? { rec } : null;
+  }
+  return getRevision(env.PASTES, id, rev);
 }
 
 const notFound = () => html(notFoundPage(), 404);
 const notAllowed = (allow: string, extra: Record<string, string> = {}) =>
   respond("Method not allowed\n", 405, TEXT, { Allow: allow, "Cache-Control": "no-store", ...extra });
 
-async function api(env: Env, id: string, sub: string): Promise<Response> {
-  const rec = await getPaste(env.PASTES, id);
-  if (!rec) {
+async function api(env: Env, id: string, rev: number | null, sub: string): Promise<Response> {
+  const found = await load(env, id, rev);
+  if (!found) {
     return sub === "json"
       ? json({ error: "not_found" }, 404, CORS)
       : respond("Not found\n", 404, TEXT, { "Cache-Control": "no-store", ...CORS });
   }
-  const extra = { ...SHARED, ...CORS };
+  const { rec } = found;
+  const extra = { ...(rev === null ? SHARED : PINNED_DATA), ...CORS };
   if (sub === "raw") return respond(rec.paste, 200, TEXT, extra);
   if (sub === "canon") return respond(rendered(rec).canon, 200, TEXT, extra);
-  return json({ title: rec.title, author: rec.author, paste: rec.paste, created: rec.created }, 200, extra);
+  // D69's four fields, then D97's: when this revision was saved (null for revision 1) and its number, to pin it.
+  return json({ title: rec.title, author: rec.author, paste: rec.paste, created: rec.created, edited: rec.edited ?? null, revision: revOf(rec) }, 200, extra);
 }
 
 // ─── GET / ──────────────────────────────────────────────────────────────────
@@ -164,9 +192,22 @@ async function api(env: Env, id: string, sub: string): Promise<Response> {
 async function newForm(env: Env, url: URL): Promise<Response> {
   const from = url.searchParams.get("from");
   if (from === null) return html(formPage());
-  const rec = ID_RE.test(from) ? await getPaste(env.PASTES, from) : null;
-  if (!rec) return html(formPage({ missingFrom: from.slice(0, 40) }));
+  // `?from=<id>` copies the latest revision, `?from=<id>/<n>` revision n (D97).
+  const [fid, frev] = from.split("/");
+  const ok = ID_RE.test(fid) && (frev === undefined || REV_RE.test(frev)) && from.split("/").length <= 2;
+  const found = ok ? await load(env, fid, frev === undefined ? null : Number(frev)) : null;
+  if (!found) return html(formPage({ missingFrom: from.slice(0, 40) }));
+  const { rec } = found;
   return html(formPage({ title: rec.title, author: rec.author, paste: rec.paste }));
+}
+
+// ─── GET /<id>/edit ─────────────────────────────────────────────────────────
+
+/** The paste form, filled with the latest revision, saving to the same id (D97). The key comes from the browser. */
+async function editForm(env: Env, id: string): Promise<Response> {
+  const rec = await getPaste(env.PASTES, id);
+  if (!rec) return notFound();
+  return html(formPage({ title: rec.title, author: rec.author, paste: rec.paste, edit: { id, rev: revOf(rec), title: rec.title } }));
 }
 
 // ─── Request bodies ─────────────────────────────────────────────────────────
@@ -315,43 +356,65 @@ async function turnstileOk(env: Env, token: string | undefined, ip: string): Pro
   return out.success === true;
 }
 
-// ─── POST / ─────────────────────────────────────────────────────────────────
+// ─── POST / and POST /<id>/edit ─────────────────────────────────────────────
 
 const TOO_LARGE = `This build is over ${LIMITS.pasteBytes / 1024} KB. Shorten it to save.`;
+const SAVE_FIELDS = ["title", "author", "paste", "cf-turnstile-response"] as const;
 
-async function save(request: Request, env: Env, deps: Deps, origin: string): Promise<Response> {
-  const body = await readFields(request, ["title", "author", "paste", "cf-turnstile-response"], TOO_LARGE);
-  if (!body.ok) return body.json ? json({ error: body.error }, body.status) : html(formPage({ error: body.error }), body.status);
+type Build = { title: string; author: string; paste: string };
+type Checked =
+  | { ok: true; build: Build; parsed: ReturnType<typeof parse> }
+  | { ok: false; build: Build; status: number; error: string; diagnostics?: FormState["diagnostics"] };
 
-  const f = body.fields;
+/** The checks a save and an edit share: text, size, title and author, parse errors, D95. */
+function checkBuild(f: Fields): Checked {
   const title = oneLine(f.title);
   const author = oneLine(f.author);
   // Browsers send textarea text with CRLF; store LF so /raw is the same whichever way it was saved.
   const paste = f.paste.replace(/\r\n?/g, "\n");
+  const build = { title, author, paste };
+  const no = (status: number, error: string, diagnostics?: FormState["diagnostics"]): Checked => ({ ok: false, build, status, error, diagnostics });
+  if (!paste.trim()) return no(400, "Write or paste a build first.");
+  if (new TextEncoder().encode(paste).byteLength > LIMITS.pasteBytes) return no(413, TOO_LARGE);
+  if (chars(title) > LIMITS.title) return no(400, `The title is over ${LIMITS.title} characters.`);
+  if (chars(author) > LIMITS.author) return no(400, `The author is over ${LIMITS.author} characters.`);
+  const parsed = parse(paste);
+  const errors = parsed.diagnostics.filter((d) => d.code.startsWith("E"));
+  if (errors.length) return no(422, `${errors.length} error${errors.length === 1 ? "" : "s"} in the build.`, parsed.diagnostics);
+  if (isBare(parsed)) return no(422, BARE);
+  return { ok: true, build, parsed };
+}
+
+/** Turnstile, the per-minute limiter and the daily cap: an edit counts as a save for all three (D97). */
+async function saveGate(request: Request, env: Env, token: string | undefined, now: Date): Promise<{ status: number; error: string } | null> {
+  const ip = ipOf(request);
+  const key = rateKey(ip);
+  if (!(await turnstileOk(env, token, ip))) return { status: 403, error: "The check that you are a person failed. Try again." };
+  if (!(await allowed(env.SAVE_LIMITER, `save:${key}`))) return { status: 429, error: "Too many saves from your connection. Wait a minute and try again." };
+  if (!(await underDailyCap(env, `save:${key}`, LIMITS.savesPerDay, now))) return { status: 429, error: "Your connection has saved a lot of builds today. Try again tomorrow." };
+  return null;
+}
+
+async function save(request: Request, env: Env, deps: Deps, origin: string): Promise<Response> {
+  const body = await readFields(request, SAVE_FIELDS, TOO_LARGE);
+  if (!body.ok) return body.json ? json({ error: body.error }, body.status) : html(formPage({ error: body.error }), body.status);
+
+  const c = checkBuild(body.fields);
   const fail = (status: number, error: string, diagnostics?: FormState["diagnostics"]) =>
     body.json
       ? json({ error, ...(diagnostics ? { diagnostics } : {}) }, status)
-      : html(formPage({ title, author, paste, error: diagnostics ? undefined : error, diagnostics }), status);
+      : html(formPage({ ...c.build, error: diagnostics ? undefined : error, diagnostics }), status);
+  if (!c.ok) return fail(c.status, c.error, c.diagnostics);
+  const { title, author, paste } = c.build;
 
-  if (!paste.trim()) return fail(400, "Write or paste a build first.");
-  if (new TextEncoder().encode(paste).byteLength > LIMITS.pasteBytes) return fail(413, TOO_LARGE);
-  if (chars(title) > LIMITS.title) return fail(400, `The title is over ${LIMITS.title} characters.`);
-  if (chars(author) > LIMITS.author) return fail(400, `The author is over ${LIMITS.author} characters.`);
-
-  const parsed = parse(paste);
-  const errors = parsed.diagnostics.filter((d) => d.code.startsWith("E"));
-  if (errors.length) return fail(422, `${errors.length} error${errors.length === 1 ? "" : "s"} in the build.`, parsed.diagnostics);
-  if (isBare(parsed)) return fail(422, BARE);
-
-  const ip = ipOf(request);
-  const key = rateKey(ip);
   const now = deps.now?.() ?? new Date();
-  if (!(await turnstileOk(env, f["cf-turnstile-response"], ip))) return fail(403, "The check that you are a person failed. Try again.");
-  if (!(await allowed(env.SAVE_LIMITER, `save:${key}`))) return fail(429, "Too many saves from your connection. Wait a minute and try again.");
-  if (!(await underDailyCap(env, `save:${key}`, LIMITS.savesPerDay, now))) return fail(429, "Your connection has saved a lot of builds today. Try again tomorrow.");
+  const gate = await saveGate(request, env, body.fields["cf-turnstile-response"], now);
+  if (gate) return fail(gate.status, gate.error);
 
   // Rendered now, kept in the same value: views then skip parse and render (free-plan CPU; no extra write).
-  const rec = { v: 1 as const, title, author, paste, created: now.toISOString(), r: prerender(parsed) };
+  // A JSON save (the form with JS) gets an edit key (D97); the no-JS form has nowhere to keep one, so it gets none.
+  const key = body.json ? (deps.makeKey ?? newEditKey)() : null;
+  const rec: PasteRecord = { v: 1, title, author, paste, created: now.toISOString(), r: prerender(c.parsed), ...(key ? { k: await hashKey(key) } : {}) };
   let id: string;
   try {
     id = await putPaste(env.PASTES, rec, deps.makeId ?? newId);
@@ -360,21 +423,74 @@ async function save(request: Request, env: Env, deps: Deps, origin: string): Pro
     console.error(e);
     return body.json ? json({ error: UNAVAILABLE }, 503, RETRY) : html(formPage({ title, author, paste, error: UNAVAILABLE }), 503, RETRY);
   }
-  return body.json ? json({ id, url: `${origin}/${id}` }, 201) : redirect(`/${id}`, 303);
+  // The key goes back once, in the body; the edit link carries it in the fragment, which never reaches a server.
+  return body.json ? json({ id, url: `${origin}/${id}`, key, edit: `${origin}/${id}/edit#k=${key}` }, 201) : redirect(`/${id}`, 303);
+}
+
+export const NO_KEY = "This browser has no edit key for this build. Open the private edit link from when you saved it, or use Duplicate and edit.";
+const WRONG_KEY = "This edit key doesn't open this build. Use Duplicate and edit to save a changed copy.";
+const NOT_EDITABLE = "This build has no edit key, so it can't be edited. Use Duplicate and edit to save a changed copy.";
+const STALE = "This build changed since you opened it. Copy your text, reload, and make your edit again.";
+
+/**
+ * An edit (D97): the key, then the same checks and limits as a save, then a new revision under the same id.
+ * `base` (optional) is the revision the form was opened on; a newer head refuses the edit (409), so a second tab
+ * can't quietly undo the first. An unchanged build answers 200 and writes nothing.
+ */
+async function edit(request: Request, env: Env, deps: Deps, id: string, origin: string): Promise<Response> {
+  const head = await getPaste(env.PASTES, id);
+  const body = await readFields(request, [...SAVE_FIELDS, "key", "base"], TOO_LARGE);
+  if (!head) return body.json ? json({ error: "not_found" }, 404) : notFound();
+  const editing = { id, rev: revOf(head), title: head.title };
+  if (!body.ok) return body.json ? json({ error: body.error }, body.status) : html(formPage({ edit: editing, error: body.error }), body.status);
+
+  const c = checkBuild(body.fields);
+  const fail = (status: number, error: string, diagnostics?: FormState["diagnostics"]) =>
+    body.json
+      ? json({ error, ...(diagnostics ? { diagnostics } : {}) }, status)
+      : html(formPage({ ...c.build, edit: editing, error: diagnostics ? undefined : error, diagnostics }), status);
+
+  if (!head.k) return fail(403, NOT_EDITABLE);
+  if (!(await keyOpens(head, body.fields.key))) return fail(403, body.fields.key ? WRONG_KEY : NO_KEY);
+  const base = body.fields.base;
+  if (base && (!REV_RE.test(base) || Number(base) !== revOf(head))) return fail(409, STALE);
+  if (!c.ok) return fail(c.status, c.error, c.diagnostics);
+  const { title, author, paste } = c.build;
+  const done = (rev: number, status: number) =>
+    body.json ? json({ id, url: `${origin}/${id}`, revision: rev }, status) : redirect(`/${id}`, 303);
+  if (title === head.title && author === head.author && paste === head.paste) return done(revOf(head), 200);
+
+  const now = deps.now?.() ?? new Date();
+  const gate = await saveGate(request, env, body.fields["cf-turnstile-response"], now);
+  if (gate) return fail(gate.status, gate.error);
+
+  let rec: PasteRecord;
+  try {
+    rec = await putRevision(env.PASTES, id, head, { v: 1, title, author, paste, edited: now.toISOString(), r: prerender(c.parsed) });
+  } catch (e) {
+    console.error(e);
+    return body.json ? json({ error: UNAVAILABLE }, 503, RETRY) : html(formPage({ title, author, paste, edit: editing, error: UNAVAILABLE }), 503, RETRY);
+  }
+  return done(revOf(rec), 201);
 }
 
 // ─── POST /<id>/report ──────────────────────────────────────────────────────
 
+/** `rev` (optional) is the revision the reader was on (D97): the report records it, and the reader lands back on it. */
 async function report(request: Request, env: Env, deps: Deps, id: string, origin: string): Promise<Response> {
-  const rec = await getPaste(env.PASTES, id);
-  const body = await readFields(request, ["reason", "contact"], "The report is too long.");
-  if (!rec) return body.json ? json({ error: "not_found" }, 404) : notFound();
-  if (!body.ok) return body.json ? json({ error: body.error }, body.status) : html(viewPage(id, rec, origin, { reportError: body.error }), body.status);
+  const body = await readFields(request, ["reason", "contact", "rev"], "The report is too long.");
+  const revText = body.ok ? body.fields.rev : "";
+  const pinned = REV_RE.test(revText) ? Number(revText) : null;
+  const found = await load(env, id, pinned);
+  if (!found) return body.json ? json({ error: "not_found" }, 404) : notFound();
+  const { rec } = found;
+  const page = (s: ViewState) => viewPage(id, rec, origin, { ...s, pinned: pinned !== null });
+  if (!body.ok) return body.json ? json({ error: body.error }, body.status) : html(page({ reportError: body.error }), body.status);
 
   const reason = body.fields.reason.replace(/\r\n?/g, "\n").trim();
   const contact = oneLine(body.fields.contact);
   const fail = (status: number, error: string) =>
-    body.json ? json({ error }, status) : html(viewPage(id, rec, origin, { reportError: error, reportReason: reason, reportContact: contact }), status);
+    body.json ? json({ error }, status) : html(page({ reportError: error, reportReason: reason, reportContact: contact }), status);
 
   if (!reason) return fail(400, "Write a reason first.");
   if (chars(reason) > LIMITS.reason) return fail(400, `The reason is over ${LIMITS.reason} characters.`);
@@ -385,11 +501,11 @@ async function report(request: Request, env: Env, deps: Deps, id: string, origin
   if (!(await underDailyCap(env, `report:${key}`, LIMITS.reportsPerDay, now))) return fail(429, "Your connection has sent a lot of reports today. Try again tomorrow.");
 
   try {
-    await putReport(env.PASTES, { id, reason, contact, created: now.toISOString() }, deps.reportNonce?.());
+    await putReport(env.PASTES, { id, reason, contact, created: now.toISOString(), revision: revOf(rec) }, deps.reportNonce?.());
   } catch (e) {
     console.error(e);
     if (body.json) return json({ error: UNAVAILABLE }, 503, RETRY);
-    return html(viewPage(id, rec, origin, { reportError: UNAVAILABLE, reportReason: reason, reportContact: contact }), 503, RETRY);
+    return html(page({ reportError: UNAVAILABLE, reportReason: reason, reportContact: contact }), 503, RETRY);
   }
-  return body.json ? json({ ok: true }, 201) : redirect(`/${id}?reported=1`, 303);
+  return body.json ? json({ ok: true }, 201) : redirect(`/${id}${pinned !== null ? `/${pinned}` : ""}?reported=1`, 303);
 }
