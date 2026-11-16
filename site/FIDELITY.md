@@ -125,3 +125,74 @@ Shared by all six frames:
 - JS off: the server's form is unchanged apart from Title and Author becoming one-row textareas; the worker tests still post
   it, and pages carry no inline script (the one `<script>` is `/assets/form.js`, allowed once by the hostile-markup check).
 - CSP holds: the pane refused `eval` under `script-src 'self'`; the client sets only CSSOM properties (height, `--kb`).
+
+## Slice 3 (T3.2c, 2026-11-16) — view interactions, site chrome, /about, D90
+
+Screenshots of this build in the overseer's notes folder `side-session-notes/local_ae9b759a-…/slice3-shots/` (`site-*.jpg`,
+browser pane, `wrangler dev`, 1024 or a real 375 viewport, scaled in the capture). Compared against the frames' HTML and
+`project.css` in `jams/2026-11-15-site-look/`. Every "slice 3" deviation in the slice 1 and 2 rows above is now built: the
+Display button in the header, the split Copy link button, fold controls, the phone view dock.
+
+Shared:
+- **Deviates:** button labels at 400, not 500 (two weights per family, as in slices 1–2).
+- **Not in the frames:** without JavaScript the Display button, the Copy split button, the fold controls and the report's
+  Cancel are hidden (`njs`); Duplicate and edit stays a link and the `<noscript>` text links stay. `site.js` is a classic
+  script in `<head>` (CSP `'self'`), so the saved theme and colour switches apply before the first paint.
+
+### view-vice-desk (1024) and view-vice-phone (375), now complete
+- **Matches:** header with Display (contrast icon, chip); Copy link split button (link icon, ▾ as a chevron icon, D89 a),
+  Duplicate and edit beside it; "Fold all levels · Expand all" above the build, underlined mute. Phone: the bottom dock with
+  the split button left and Duplicate and edit right, fold controls under the byline, no horizontal scroll (375).
+- **Data gap:** L4 and L5 open on load, as in slice 1; Fold all folds every level (`site-foldall-dark-phone.jpg`).
+
+### view-copymenu-dark-desk (1024, dark)
+- **Matches:** the menu drops from the split button, aligned to its left edge; "Copy text / as written", "Copy canonical /
+  tidied, for apps"; no icons on the desktop menu.
+- **Deviates:** the frame draws the first item highlighted; here an item highlights on hover or keyboard focus (focus moves
+  to the first item when the menu opens). The ▾ turns to point up while open.
+- **D89 b:** the menu is `position: fixed`, placed under its button and shifted or flipped to stay inside the viewport,
+  with a max height and its own scroll when neither side fits (checked at 640×260: Display menu clamped at 8px from the
+  bottom, the Copy menu flipped above its button; `site-bounds-640x260.jpg`).
+
+### view-sparse-report-dark-desk (1024, dark)
+- **Matches:** "Link copied" with a check in the button's own colour (D88 b); the report form takes the line's place,
+  Reason, Contact (optional), Send report + a ghost Cancel, the "never shown" line.
+- **Not in the frame:** the copied state lasts 2 s, then the button reads Copy link again; from the menu it reads "Text
+  copied" or "Canonical copied". An `aria-live` line announces it. Opening the form focuses Reason; Cancel closes it and
+  returns focus to the report line. Without JS the form stays a `<details>` under its line (slice 1).
+- **Clipboard:** `navigator.clipboard.writeText`, then `execCommand("copy")`, then a panel with the text selected and "Select
+  the text and copy it" (`site-copy-fallback-phone.jpg`). Raw and canonical texts are fetched once at idle, so a copy does
+  not wait on the network. Checked: Copy canonical writes exactly `/<id>/canon`, Copy link the canonical URL.
+
+### view-display-desk (1024, light)
+- **Matches:** Display, the Auto/Light/Dark segment, Colour by kind with its line and seven swatches, Colour abilities with
+  STR–CHA in their hues, "Saved in this browser."; under the Display button, right-aligned.
+- **Deviates (D88 a):** a switch's off track is a new token `--tog` (light #868a96, dark #666a75, 3.3 and 3.5 on the menu);
+  the frame's `--rule` track is 1.2:1, under 3:1 for a UI part. The selected theme segment is set at 600 as well as in the
+  foreground colour, so the choice does not rest on a colour step alone.
+- **Not in the frame:** with storage blocked the line reads "This browser blocks storage: kept for this visit only." and the
+  settings hold for the visit. Another tab's change follows through the `storage` event.
+- **Checked live:** Dark + kinds off survive a reload while the system is light (`data-theme="dark"`, `html.ca` only).
+
+### view-copysheet-dark-phone (375, dark)
+- **Matches:** the sheet from the bottom with the grab bar, Copy text (copy icon) / as written, Copy canonical (tidy icon) /
+  tidied, for apps, Cancel in mute.
+- **Deviates:** a scrim dims the page behind the sheet (the frame shows the page undimmed); a tap on it closes the sheet.
+
+### Not framed, built to the decisions
+- **Display on the phone (D89 b):** a bottom sheet like the copy sheet, with a Close row (`site-display-sheet-dark-phone.jpg`).
+- **/about (D71, D88 c, D89 c):** what the site is, names only, saved builds are immutable (Duplicate and edit), no accounts
+  and what is stored, the three app addresses, the report route; one "not affiliated with Wizards of the Coast" sentence; no
+  footer disclaimer anywhere. Copy drafted under /humanize (no dashes, sentence-case headings, its checker clean). The
+  maintainer's `wrangler kv` commands stay in `site/README.md`, where SITE.md puts them, not on the public page.
+
+### D90 (form-keys-dark-phone, closes slice 2's ⚑)
+- Typing on a line holds that line's `E001`: the row is not amber, the dock reads "No problems" and Save looks ready, as in
+  the frame. The hold ends when the cursor leaves the line (arrows, click, a jump, Enter), when the editor loses focus, or
+  after 1.5 s without typing; the E001 then shows. Pressing Save while one is held lets go of the hold, shows the error and
+  posts nothing (checked live: no POST, the dock reads "E001 line 31"). Pastes, Tidy, imports and opened files never hold.
+
+### Contrast (D88 a), in code
+- `test/contrast.test.ts` now also checks: switch track on and off against the menu and the knob against each track (3:1);
+  the import bar's and the open Display button's mixed surfaces against their text (4.5:1, computed as the browser mixes
+  them); and that every token `site.css` uses as a text colour is in the checked list. Light and dark both pass.
