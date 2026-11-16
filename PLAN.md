@@ -1,6 +1,6 @@
 # PLAN — dndpaste
 
-> The queue. Decisions in `DECISIONS.md` (D1–D90). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
+> The queue. Decisions in `DECISIONS.md` (D1–D92). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
 
 ## What it is (one paragraph)
 

@@ -220,7 +220,7 @@ character-forge v2's P8 builder needs the HP key and a producer stamp in one rel
 
 Closes D45's open list and `SHARE-SITE-SIZING.md`'s seven open calls for a one-shot build; the brief is `SITE.md`. D63–D64 are left unused: "a D64 crossing" in D58–D61 means cf-D64. D80–D89 are reserved for the look jam.
 
-- **D65 — A share holds the paste, a title and an author; it is immutable and kept forever. DECIDED (2026-11-15).** No notes field (D45: never notes). Every save makes a new id; revisions go through "Duplicate and edit". No expiry, no delete link; takedown is a manual KV delete (D71).
+- **D65 — A share holds the paste, a title and an author; it is immutable and kept forever. DECIDED (2026-11-15); REOPENED → D96 (owner-device edits).** No notes field (D45: never notes). Every save makes a new id; revisions go through "Duplicate and edit". No expiry, no delete link; takedown is a manual KV delete (D71).
   *Rejected:* a pokepaste-style notes box (invites rules text, against D45 and the IP check); text only (no credit, nothing to show in tabs); editable via a secret link or versions under one id (an import link could change under its reader; secret-token handling); expiry after a year unread (old forum links die); a self-service delete link.
 
 - **D66 — No checker on the site in v1; later, an SRD checker, then a checker on data the visitor supplies. DECIDED (2026-11-15).** v1 shows parse diagnostics only: `E###` blocks a save, warnings show. Follow-ups, in order: (1) the SRD checker on the committed subset, after the library gets a "data unavailable" mode that suppresses unknown-name findings, plus a release; (2) "Check against data": the visitor enters a 5etools-format data URL or loads files, the browser fetches them and builds the slot table locally (the extractor refactored into a pure library function), nothing passes through or is stored by the site, and the site names and links no source.
@@ -236,7 +236,7 @@ Closes D45's open list and `SHARE-SITE-SIZING.md`'s seven open calls for a one-s
 - **D69 — Links are `<origin>/<id>`; consumers get `/raw`, `/canon` and `/json` with open CORS. DECIDED (2026-11-15).** The id is 10 random base62 characters. `/<id>/raw` is the text as written (`text/plain`, `nosniff`); `/<id>/canon` is `emit` of the parse; `/<id>/json` is `{ title, author, paste, created }`, like pokepaste. All three carry `Access-Control-Allow-Origin: *`, so character-forge's "Import from link" (cf-D67, T2.1) fetches them from the browser. Fixed pages (`/`, `/about`) cannot collide with a 10-character id.
   *Rejected:* `/p/<id>` (2 characters longer, buys nothing); raw only (every consumer re-canonicalises).
 
-- **D70 — Free hosting first: one Worker on workers.dev, with a canonical-origin switch so links survive a move. DECIDED (2026-11-15).** The Worker serves pages, static assets and the API, with one KV namespace; this closes D45's "where the viewer is hosted". A `CANONICAL_ORIGIN` setting: when a domain is added later, it points at the same Worker, the setting flips, and every request on another host gets a 301 to the canonical host, path kept, CORS headers on the redirect too. Ids do not depend on the host, so nothing migrates.
+- **D70 — Free hosting first: one Worker on workers.dev, with a canonical-origin switch so links survive a move. DECIDED (2026-11-15); AMENDED → D91 (a Durable Object joins the KV namespace).** The Worker serves pages, static assets and the API, with one KV namespace; this closes D45's "where the viewer is hosted". A `CANONICAL_ORIGIN` setting: when a domain is added later, it points at the same Worker, the setting flips, and every request on another host gets a 301 to the canonical host, path kept, CORS headers on the redirect too. Ids do not depend on the host, so nothing migrates.
   *Raw note:* "I want a free option, but structure it in a way that links won't break and will redirect if I ever move it."
   *Rejected:* buying dndpaste.com or dndpaste.app now (about $10/$14 a year; "D&D" is a WotC trademark, a small exposure common to fan tools); Cloudflare Pages beside a Worker (two deploys).
 
@@ -308,3 +308,38 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 - **D90 — The form holds an `E001` on the line being typed until the cursor leaves it or typing pauses (about 1.5 s). DECIDED (2026-11-16).** Mechanism: AskUserQuestion, 1 round, on slice 2's open question (`site/FIDELITY.md`, `form-keys-dark-phone`). Save still blocks on it. Matches the frame's "No problems" while the key hints narrow a half-typed key.
   *Rejected:* showing it at once (amber flashes on every keystroke of a new key).
   *Enforced by:* slice 3's brief (a fix in the form's diagnostics timing).
+
+## T3.3 review fixes (2026-11-16) — mechanism: AskUserQuestion, 1 round (2 questions), overseer, on the fix worker's two flags
+
+- **D91 — The daily cap per IP (IPv6: per /64) counts in a SQLite-backed Durable Object, `DailyCap`, a second binding beside the KV namespace; it fails open. DECIDED (2026-11-16).** Amends D70 ("one KV namespace"). Comes from T3.3 finding 1: one IP at the per-minute limit used up the ~1k free daily KV writes in about 100 minutes. The DO is on the Workers Free plan, has its own write quota and counts exactly; if it errors, saves go through.
+  *Raw note:* picked "Keep the Durable Object (Recommended)".
+  *Rejected:* counting in KV (each count spends the budget it protects, and concurrent requests race past the cap); no daily cap (per-minute limit + 503 page only; one IP still drains the day).
+  *Enforced by:* `site/src/daily.ts`, `site/wrangler.toml`, `site/test/abuse.test.ts` (branch `claude/site-m3-ee11e4`, b679c33).
+
+- **D92 — Starting daily limits: 50 saves and 20 reports per rate key. DECIDED (2026-11-16).** Far above a real user's day; about 20 keys at the cap would still use the whole free budget, which the 503 page then covers. Revisit with real traffic.
+  *Raw note:* picked "50 saves, 20 reports (Recommended)".
+  *Rejected:* 20/10 (a heavy user tidying many builds could hit it); 100/30 (10 keys drain the budget).
+  *Enforced by:* `site/src/daily.ts` constants, abuse tests.
+
+## /ui-review of the share site (2026-11-16) — mechanism: /ui-review round 1 (24 items, all approved) + AskUserQuestion, 2 rounds (7 questions), worker session on branch `claude/site-m3-ee11e4`
+
+- **D93 — Phone sheets close with a round × in their head, on the grab-bar line; the bottom Cancel / Close row goes. The desk copy menu carries the same icons as the sheet. DECIDED (2026-11-16).** Applies to the Copy sheet, the Display sheet and the copy-by-hand panel. A tap on the scrim and Escape still close; focus still lands on the first item. Amends D89 b's sheet anatomy (frame `view-copysheet-dark-phone`).
+  *Raw note:* "For the scrims, maybe the close option isn't obvious" · "The icons could be present also in the dropdown form"; picked "× in the sheet head (Recommended)".
+  *Rejected:* a full-width Close button at the bottom (still reads as a row of text); both (too much chrome).
+  *Enforced by:* `site/src/client/site.ts` (`SHEET_HEAD`), `site/public/assets/site.css`.
+
+- **D94 — On the phone form, a problem takes its own full-width row above Keys · Save, with the message cut to one line. DECIDED (2026-11-16).** The all-clear ("No problems") stays in the row between Keys and Save. Amends D86's dock (frame `form-error-phone`).
+  *Raw note:* pin "Error line is compressed between keys and wraps badly, either we reduce info or we move it"; picked "Own line above (Recommended)".
+  *Rejected:* shortening it to code + line (still squeezed; the message helps while typing); a count only.
+  *Enforced by:* `site/src/client/form.ts` (`.prow`), `status.ts` `dockLineHtml`, `test/form.test.ts`.
+
+- **D95 — The site saves a build only when it has at least one key besides its name (a header key, an entity block or a level). DECIDED (2026-11-16).** A site rule, not a format rule: SPEC still allows a name-only paste. Blocks client-side (Save off, "Only a name · add a key to save") and server-side (422). A pasted link kept as text can no longer become a share.
+  *Raw note:* "Why is the link not returning an issue? Should we have a bare minimum required outside of the name line to save a build?"; picked "Block on the site" over the recommended "Warn, don't block".
+  *Rejected:* a warning only; no change (name-only shares stay valid).
+  *Enforced by:* `site/src/store.ts` `isBare` + `BARE`, `app.ts` save, `status.ts`, tests in `form.test.ts` and `worker.test.ts`.
+
+- **D96 — Editing a build from the device that made it: D65 is reopened, to design before T3.4. OPEN (2026-11-16, owner: overseer).** D65 ships immutable shares with "Duplicate and edit"; Francesco wants a way to change a share from the browser that saved it. Needs its own design pass (an edit key kept in the browser; what happens to old links, the hour-long cache, reports, immutability in SITE.md). Nothing built.
+  *Raw note:* "Is there no way to allow edits to a build, when done from the same device that created it for example?"; picked "Design it now" over "Keep D65 for v1, park it (Recommended)".
+  *Rejected:* never.
+
+- ⚑ **Parked, not decided (2026-11-16, owner: overseer):** an empty value (`Spells:` with nothing) as "unspecified / any" instead of E006 → SPEC 0.8 discussion (pin: "Empty lines shouldn't necessarily be an error"); Tidy fixing the case of known names → after launch, once a name list ships with the site; favicon "ok for now".
