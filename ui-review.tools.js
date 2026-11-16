@@ -112,6 +112,27 @@ uiReview.config({
       document.querySelector('form.pform .tb button[type=submit]').click()
       await x.waitFor('.ferr:not([hidden]):not(.nokey)', 4000)
     },
+    // T3.6: the example in the editor (Start from an example), on a new empty form.
+    'form-example': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('form-example')) return }
+      if (!editor().value.startsWith('Vesk')) { if (editor().value) typeIn(''); await x.sleep(150); document.querySelector('.exb')?.click() }
+      await x.sleep(250)
+    },
+    // T3.6: the Keys popover on the Feat (…) chip, as a mouse hover shows it.
+    'keys-popover': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (editor().value) typeIn('')
+      await x.sleep(200)
+      const chip = [...document.querySelectorAll('.aside .hc')].find((b) => b.dataset.key === 'Feat (…)')
+      chip?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' }))
+    },
+    // T3.6: 0.8 lines in the editor: an increase, named scores with a slash, a slot marker, an empty value, a 0.7 key.
+    'form-08': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      typeIn('Vesk\nRules: 2024\nScores: STR 15/CON 13\nScores: +1 DEX\nClasses: Fighter 1 / Warlock 4\n\nL1 Fighter\nFeat (Fighting Style): Defense\nEquipment: Chain Mail\n\nL5 Warlock\nFeat: Ability Score Improvement [+2 CHA]\nSpells:\n')
+      await x.sleep(1800)
+    },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
       const dt = new DataTransfer(); dt.items.add(new File(['Shigen\n'], 'shigen.dndpaste', { type: 'text/plain' }))

@@ -345,4 +345,34 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .ktab th, .ktab td { padding: 0; border: 0; }
   .ktab .kk { text-align: left; } .ktab .kw { width: auto; }
   .ktab .kh { grid-column: 1 / -1; }
+  .ctab tr { grid-template-columns: 10ch minmax(0, 1fr); }
+  .ctab .ct { grid-column: 2; width: auto; font-size: 12.5px; }
+  .ctab thead .ct { display: none; }
+  .cfind .in { max-width: none; }
 }
+
+/* ---- Keys popover (T3.6): the guide's description of a key, under its chip ---- */
+.ktip { max-width: min(340px, calc(100vw - 16px)); padding: 9px 11px; pointer-events: none; }
+.ktip .kdk { font: 600 12.5px/1.4 var(--mono); }
+.ktip small { display: block; margin-top: 5px; color: var(--mute); font-size: 12px; }
+.ktip code { font: 12px/1.4 var(--mono); }
+
+/* ---- slot marker on a Feat key (D110), view and editor. In the view's key column (15ch) the marker takes a
+   second line under the key, a size down, so Feat (Fighting Style) fits the column. ---- */
+.km { font-style: italic; }
+.hk:has(.km) { white-space: normal; }
+.hk .km { white-space: nowrap; font-size: 0.86em; }
+
+/* ---- /codes (D103): one table, a search field, sortable heads (site.js) ---- */
+.ctab { max-width: 72ch; }
+.ctab .kk { width: 10ch; }
+.ctab .ct { color: var(--mute); white-space: nowrap; width: 9em; }
+.cfind { display: flex; gap: 12px; align-items: center; max-width: 72ch; margin: 1em 0 0.2em; }
+.cfind .in { max-width: 320px; }
+.ctab .srt { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit;
+  text-transform: inherit; color: inherit; cursor: pointer; }
+.ctab .srt:hover, .ctab th[aria-sort] .srt { color: var(--fg); }
+.ctab .srt .i { width: 12px; height: 12px; visibility: hidden; }
+.ctab th:not([aria-sort]) .srt .i-chevron-down, .ctab th[aria-sort=ascending] .srt .i-chevron-down, .ctab th[aria-sort=descending] .srt .i-chevron-up { display: none; }
+.ctab th[aria-sort] .srt .i, .ctab .srt:hover .i { visibility: visible; }
+.ctab thead .kk .srt { flex-direction: row-reverse; }

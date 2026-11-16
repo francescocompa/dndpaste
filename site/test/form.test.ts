@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { parse } from "../../src/dndpaste.ts";
-import { renderValue } from "../src/render.ts";
+import { lineEntries, renderValue } from "../src/render.ts";
 import { findSeparator, highlight, highlightLine, highlightValue } from "../src/client/highlight.ts";
 import { keyHints } from "../src/client/hints.ts";
 import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml } from "../src/client/status.ts";
@@ -47,16 +47,15 @@ test("highlight: a canonical line's value is the renderer's own markup (same spa
       if (sep < 0) continue;
       const key = t.slice(0, sep);
       const raw = t.slice(sep + 2);
-      const v = scopes.find((s) => s.has(key))?.get(key);
-      if (!v || v.type === "classes") continue; // Classes renders its runs as written; checked by text above
-      const rendered = renderValue(key, v);
-      if (textOf(rendered) !== raw) continue; // the line is not in canonical form
+      // The scope line with this key and this text (a scope may hold a base and an increase `Scores` line, D108).
+      const hit = scopes.flatMap(lineEntries).find(([k, v]) => k === key && v.type !== "classes" && textOf(renderValue(k, v)) === raw);
+      if (!hit) continue; // not in canonical form, or Classes (renders its runs as written; checked by text above)
+      const rendered = renderValue(key, hit[1]);
       assert.equal(highlightValue(key, raw), rendered, `${name}: ${line}`);
       checked++;
     }
   }
-  // SPEC 0.8: a block's `Scores: +2 CHA` shares its key with the header's base line, so the lookup above skips it.
-  assert.ok(checked >= 85, `checked ${checked} canonical lines`);
+  assert.ok(checked >= 90, `checked ${checked} canonical lines`);
 });
 
 test("highlight: the frames' marks — identifier bold, level header accent, unknown key, X- key, drops, quotes", () => {
@@ -72,21 +71,21 @@ test("highlight: the frames' marks — identifier bold, level header accent, unk
     .includes(`<span class="p">&quot;</span><span class="r kd-item">Bag of Tricks, Gray</span><span class="p">&quot;</span><span class="p">, </span><span class="r kd-item">Arrows (20)</span> <span class="q">x2</span>`));
 });
 
-test("hints: the frames' key lists (header 21, drop-dark header 14, L5 Warlock 14, half-typed Spe → Spells; SPEC 0.8)", () => {
+test("hints: the frames' key lists (header 22, drop-dark header 15, L5 Warlock 15, half-typed Spe → Spells; SPEC 0.8, Feat (…))", () => {
   const empty = keyHints("", 0);
   assert.equal(empty.label, "the header");
-  assert.equal(empty.keys.length, 21);
+  assert.equal(empty.keys.length, 22);
   assert.deepEqual(empty.keys.slice(0, 5), ["Paste", "Producer", "Rules", "Scores", "Classes"]);
 
   const drop = `Rules: 2024\nClasses: Fighter 3 / Warlock 3\nSubclass: Battle Master, Celestial\nFeat: Resilient [CON]\nFeat (Fighting Style): Archery\nOptions: Riposte\nCantrips: Eldritch Blast\nSpells: Hex`;
   assert.deepEqual(keyHints(drop, 3).keys, ["Paste", "Producer", "Scores", "HP", "Species", "Background", "Skills", "Tools",
-    "Languages", "Expertise", "Masteries", "Feature", "Prepared", "Gear"]);
+    "Languages", "Expertise", "Feat (…)", "Masteries", "Feature", "Prepared", "Gear"]);
 
   const vice = fixture("vice.dndpaste").trimEnd();
   const last = vice.split("\n").length - 1;
   const l5 = keyHints(vice, last);
   assert.equal(l5.label, "L5 Warlock");
-  assert.equal(l5.keys.length, 14);
+  assert.equal(l5.keys.length, 15);
   assert.ok(!l5.keys.includes("Options") && !l5.keys.includes("Species"));
 
   const typing = keyHints(vice + "\nSpe", last + 1);
@@ -94,7 +93,28 @@ test("hints: the frames' key lists (header 21, drop-dark header 14, L5 Warlock 1
   assert.equal(typing.narrowed, true);
   const noMatch = keyHints(vice + "\nZz", last + 1);
   assert.equal(noMatch.narrowed, false);
-  assert.equal(noMatch.keys.length, 14);
+  assert.equal(noMatch.keys.length, 15);
+});
+
+test("hints (D110): Feat (…) follows Feat, stays offered, and a marked feat line leaves Feat offered", () => {
+  const marked = keyHints("Feat (Origin): Alert\n", 1);
+  assert.deepEqual(marked.keys.slice(marked.keys.indexOf("Feat"), marked.keys.indexOf("Feat") + 2), ["Feat", "Feat (…)"]);
+  assert.deepEqual(keyHints("Feat: Alert\nFeat (Origin): Tough\n", 2).keys.filter((k) => k.startsWith("Feat ") || k === "Feat"), ["Feat (…)"]);
+  assert.deepEqual(keyHints("Classes: Fighter 1\n\nL1 Fighter\nFeat (", 3), { label: "L1 Fighter", scope: "L", keys: ["Feat (…)"], narrowed: true });
+  assert.deepEqual(keyHints("Classes: Fighter 1\n\nL1 Fighter\nFe", 3).keys, ["Feat", "Feat (…)", "Feature"]);
+});
+
+test("highlight (0.8): increases, named scores with a slash (D106), a slot marker (D110), an empty value (D112)", () => {
+  const line = (s: string) => highlightLine(s, { first: false, codes: [] });
+  assert.equal(highlightValue("Scores", "+2 STR, +1 CON"),
+    `<span class="n">+2</span> <span class="ab ab-str">STR</span><span class="p">, </span><span class="n">+1</span> <span class="ab ab-con">CON</span>`);
+  assert.equal(highlightValue("Scores", "+2 STR, +1 CON"), renderValue("Scores", { type: "scores", values: [null, null, null, null, null, null], increase: [{ amount: 2, ability: "STR" }, { amount: 1, ability: "CON" }] }));
+  assert.equal(highlightValue("Scores", "STR 8/DEX 13"),
+    `<span class="ab ab-str">STR</span> <span class="n ab-str">8</span><span class="p">/</span><span class="ab ab-dex">DEX</span> <span class="n ab-dex">13</span>`);
+  assert.equal(line("Feat (Fighting Style): Defense"),
+    `<span class="k">Feat <span class="km">(Fighting Style)</span></span><span class="p">:</span> <span class="r kd-feat">Defense</span>`);
+  assert.ok(line("Feaat (Origin): Alert").startsWith(`<span class="k bad">Feaat (Origin)</span>`));
+  assert.equal(line("Spells:"), `<span class="k">Spells</span><span class="p">:</span>`);
 });
 
 test("hints: Species and Background blocks, and keys used once leave the list", () => {

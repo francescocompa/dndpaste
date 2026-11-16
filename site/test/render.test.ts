@@ -64,3 +64,14 @@ test("render: hostile names are escaped everywhere", () => {
   assert.ok(!/<script|<img|<svg onload|<b>/i.test(html), html);
   assert.ok(html.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
 });
+
+test("render (0.8): a header base and increase are two Scores rows, in the order written; a slot marker sits apart", () => {
+  const p = parse("Scores: 15/10/13/8/10/15\nScores: +2 CHA\nClasses: Warlock 4\nFeat (Origin): Alert\n\nL1 Warlock\nScores: +1 CON\nSpells:\n");
+  const html = renderPaste(p);
+  const rows = [...html.matchAll(/<span class="hk">([\s\S]*?)<\/span><span class="hv[^"]*">([\s\S]*?)<\/span>(?=<span class="hk|<\/div>)/g)]
+    .map((m) => `${textOf(m[1])} ${textOf(m[2])}`.trim());
+  assert.deepEqual(rows.slice(0, 4), ["Scores: 15/10/13/8/10/15", "Scores: +2 CHA", "Classes: Warlock 4", "Feat (Origin): Alert"]);
+  assert.ok(html.includes(`<span class="k">Feat <span class="km">(Origin)</span></span>`));
+  assert.ok(html.includes(`<span class="cnt">2 lines</span>`), "the level's count counts lines");
+  assert.ok(rows.includes("Scores: +1 CON") && rows.includes("Spells:"), "a level increase and an empty value (D112)");
+});

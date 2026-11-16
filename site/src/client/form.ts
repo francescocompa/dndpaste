@@ -18,6 +18,7 @@ import { ID_RE, REV_RE } from "../store.ts";
 import { draftBarHtml, draftKeeper, draftSlot, draftStore } from "./drafts.ts";
 import type { Draft, Fields } from "./drafts.ts";
 import { EXAMPLE, GUIDE_LINK } from "../example.ts";
+import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
 
 const recent = recentStore(() => window.localStorage);
 const keys = keyStore(() => window.localStorage);
@@ -156,6 +157,7 @@ function init(): void {
     put(chips, html || `<span class="muted">This block has every key it allows.</span>`);
     put(krow, html || `<span class="muted">No keys left for this block.</span>`);
     kn.textContent = String(hints.keys.length);
+    if (tipFor && !tipFor.isConnected) hideTip();
   };
   /**
    * D90: the line being typed (1-based; 0 = none) holds its E001 until the cursor leaves it or typing pauses for
@@ -296,8 +298,12 @@ function init(): void {
     let le = v.indexOf("\n", pos);
     if (le < 0) le = v.length;
     const line = v.slice(ls, le);
-    if (hints.narrowed || !line.trim()) insert(`${key}: `, ls, le);
-    else insert(`\n${key}: `, le, le);
+    // `Feat (…)` (D110) writes `Feat (): ` and puts the cursor between the parentheses, for the slot's name.
+    const text = key === MARKED_FEAT ? "Feat (): " : `${key}: `;
+    const back = key === MARKED_FEAT ? 3 : 0;
+    if (hints.narrowed || !line.trim()) insert(text, ls, le);
+    else insert(`\n${text}`, le, le);
+    if (back) { const at = ta.selectionStart - back; ta.setSelectionRange(at, at); refreshHints(); }
   };
 
   // ---- link import (D85) ----
@@ -373,8 +379,74 @@ function init(): void {
     const at = t.closest<HTMLElement>("[data-line]");
     if (at) { jump(Number(at.dataset.line)); return; }
     const chip = t.closest<HTMLElement>(".hc[data-key]");
-    if (chip?.dataset.key) insertKey(chip.dataset.key);
+    if (!chip?.dataset.key) return;
+    if (pressed === chip) { pressed = null; return; }   // a long press showed the description: it does not insert
+    hideTip();
+    insertKey(chip.dataset.key);
   });
+
+  // ---- Keys popover: a key's description from the guide's key table (keydocs.ts), on hover or keyboard focus of
+  // its chip; on a touch screen, a long press shows it and a tap still adds the key. ----
+  const tip = document.createElement("div");
+  tip.className = "pop ktip";
+  tip.id = "ktip";
+  tip.setAttribute("role", "tooltip");
+  tip.hidden = true;
+  document.body.append(tip);
+  let tipFor: HTMLElement | null = null;
+  let pressed: HTMLElement | null = null;
+  let pressTimer = 0;
+  const showTip = (chip: HTMLElement) => {
+    const html = keyDoc(chip.dataset.key ?? "");
+    if (!html) return;
+    if (tipFor && tipFor !== chip) tipFor.removeAttribute("aria-describedby");
+    tip.innerHTML = html;
+    tip.hidden = false;
+    tipFor = chip;
+    chip.setAttribute("aria-describedby", tip.id);
+    tip.style.left = "0px";
+    tip.style.top = "0px";
+    const a = chip.getBoundingClientRect();
+    const p = tip.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    tip.style.left = `${Math.round(Math.max(8, Math.min(a.left, vw - 8 - p.width)))}px`;
+    const below = a.bottom + 6;
+    tip.style.top = `${Math.round(below + p.height <= window.innerHeight - 8 ? below : Math.max(8, a.top - 6 - p.height))}px`;
+  };
+  const hideTip = () => {
+    tipFor?.removeAttribute("aria-describedby");
+    tipFor = null;
+    tip.hidden = true;
+  };
+  for (const box of [chips, krow]) {
+    box.addEventListener("pointerover", (e) => {
+      const chip = (e.target as Element).closest<HTMLElement>(".hc[data-key]");
+      if (e.pointerType === "mouse" && chip && chip !== tipFor) showTip(chip);
+    });
+    box.addEventListener("pointerout", (e) => {
+      const to = e.relatedTarget as Element | null;
+      if (e.pointerType === "mouse" && tipFor && !tipFor.contains(to)) hideTip();
+    });
+    box.addEventListener("focusin", (e) => {
+      const chip = (e.target as Element).closest<HTMLElement>(".hc[data-key]");
+      if (chip) showTip(chip);
+    });
+    box.addEventListener("focusout", hideTip);
+    box.addEventListener("pointerdown", (e) => {
+      const chip = (e.target as Element).closest<HTMLElement>(".hc[data-key]");
+      clearTimeout(pressTimer);
+      pressed = null;
+      if (e.pointerType === "mouse" || !chip) return;
+      pressTimer = window.setTimeout(() => { pressed = chip; showTip(chip); }, 450);
+    });
+    for (const ev of ["pointerup", "pointercancel", "pointerleave"]) box.addEventListener(ev, () => clearTimeout(pressTimer));
+    box.addEventListener("contextmenu", (e) => { if ((e.target as Element).closest(".hc")) e.preventDefault(); });
+  }
+  document.addEventListener("pointerdown", (e) => {
+    if (tipFor && !tipFor.contains(e.target as Node)) hideTip();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tipFor) hideTip(); });
+  window.addEventListener("scroll", hideTip, { passive: true });
   offer.querySelector(".exb")?.addEventListener("click", () => {
     replaceAll(EXAMPLE);
     ta.focus({ preventScroll: true });

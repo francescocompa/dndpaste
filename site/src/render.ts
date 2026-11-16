@@ -70,7 +70,7 @@ export function renderValue(key: string, v: Value): string {
       .map((e) => renderRef(e.ref, "class") + (e.levels === null ? "" : ` <span class="n">${e.levels}</span>`))
       .join(" " + P("/") + " ");
     case "scores": {
-      // SPEC 0.8 (D108): a value may hold an increase; with a base too, this shows the base, like `emitValue`.
+      // SPEC 0.8 (D108): one line is a base or an increase; a value holding both shows its base (`lineEntries` splits it).
       if (v.values.every((x) => x === null)) return (v.increase ?? []).map((b) => `<span class="n">+${b.amount}</span> ${ab(b.ability)}`).join(P(", "));
       const all = v.values.every((x) => x !== null);
       if (all) return v.values.map((x, i) => `<span class="n ab-${ABILITIES[i].toLowerCase()}">${x}</span>`).join(P("/"));
@@ -82,14 +82,30 @@ export function renderValue(key: string, v: Value): string {
   }
 }
 
-function renderKey(key: string): string {
+/** A key, with a slot marker shown apart from the key's name: `Feat (Fighting Style)` (D110). */
+export function keyHtml(key: string): string {
   const x = key.startsWith("X-");
-  return `<span class="k${x ? " xk" : ""}">${esc(key)}</span>${P(":")}`;
+  const m = isFeatKey(key) ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
+  const body = m ? `${esc(m[1])}${m[2]}<span class="km">(${esc(m[3])})</span>` : esc(key);
+  return `<span class="k${x ? " xk" : ""}">${body}</span>`;
+}
+function renderKey(key: string): string {
+  return keyHtml(key) + P(":");
 }
 const row = (k: string, v: string, kc = "", vc = ""): string =>
   `<span class="hk${kc ? " " + kc : ""}">${k}</span><span class="hv${vc ? " " + vc : ""}">${v}</span>`;
-/** Key lines in the order written (the AST's insertion order), never re-sorted: the view shows the paste as it reads. */
-const rows = (scope: Scope, vc = ""): string => [...scope].map(([k, v]) => row(renderKey(k), renderValue(k, v), "", vc)).join("");
+const NONE = (): (number | null)[] => ABILITIES.map(() => null);
+/**
+ * A scope's key lines in the order written (the AST's insertion order), never re-sorted: the view shows the paste
+ * as it reads. A `Scores` value that holds a base and an increase (D108) is two lines, the base first, as written.
+ */
+export function lineEntries(scope: Scope): [string, Value][] {
+  return [...scope].flatMap(([k, v]): [string, Value][] =>
+    v.type === "scores" && v.increase && v.values.some((x) => x !== null)
+      ? [[k, { ...v, increase: null }], [k, { type: "scores", values: NONE(), increase: v.increase }]]
+      : [[k, v]]);
+}
+const rows = (scope: Scope, vc = ""): string => lineEntries(scope).map(([k, v]) => row(renderKey(k), renderValue(k, v), "", vc)).join("");
 
 export interface RenderOptions {
   /** URL of the SVG sprite (D89: icons, never text glyphs). */
@@ -107,7 +123,7 @@ function renderEntity(b: EntityBlock): string {
 function renderLevel(b: LevelBlock, o: RenderOptions): string {
   const head = (marker: string) => row(`L${b.n}`, renderRef(b.class, "class") + marker, "lvk", "lvv");
   if (!b.lines.size) return `<div class="bl lvb">${head("")}</div>`;
-  const n = b.lines.size;
+  const n = lineEntries(b.lines).length;
   const marker = `<span class="mk">${icon("chevron-down", o.sprite)}${icon("chevron-right", o.sprite)}` +
     `<span class="cnt">${n} line${n === 1 ? "" : "s"}</span></span>`;
   // <details> folds without JavaScript; slice 3 adds fold all / expand all on top.

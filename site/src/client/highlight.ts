@@ -145,8 +145,10 @@ function tokClasses(s: string): string {
   }).join("");
 }
 
+/** `Scores` (D106, D108): six numbers; named scores split by `,` or `/`; or an increase, `+2 CHA, +1 CON`. */
 function tokScores(s: string): string {
-  if (s.includes("/")) {
+  if (/^\+/.test(s)) return tokAsi(s);
+  if (s.includes("/") && !/[A-Za-z]/.test(s)) {
     const parts = s.split("/");
     return parts.map((p, i) => {
       const [lead, n, trail] = pad(p);
@@ -154,7 +156,7 @@ function tokScores(s: string): string {
       return lead + (/^\d+$/.test(n) ? `<span class="n${a}">${n}</span>` : esc(n)) + trail;
     }).join(P("/"));
   }
-  return s.split(/(,\s*)/).map((part, i) => {
+  return s.split(/(\s*[,/]\s*)/).map((part, i) => {
     if (i % 2) return P(part);
     const [lead, body, trail] = pad(part);
     const m = /^([A-Za-z]{3})(\s+)(\d+)$/.exec(body);
@@ -205,7 +207,10 @@ export function highlightLine(line: string, info: LineInfo): string {
   const bad = !ext && !def ? " bad" : "";
   const value = t.slice(sep + 1);
   const body = def ? tokValue(def.type, value, KIND_OF_KEY[def.key]) : tokItems(value);
-  return lead + `<span class="k${ext ? " xk" : ""}${bad}">${esc(key)}</span>${keyGap}${P(":")}${body}` + trail;
+  // A slot marker (D110) is drawn apart from the key's name, as the view draws it (render.ts keyHtml).
+  const mk = def?.key === "Feat" ? /^(.*?)(\s*)\(([\s\S]*)\)$/.exec(key) : null;
+  const kh = mk ? `${esc(mk[1])}${mk[2]}<span class="km">(${esc(mk[3])})</span>` : esc(key);
+  return lead + `<span class="k${ext ? " xk" : ""}${bad}">${kh}</span>${keyGap}${P(":")}${body}` + trail;
 }
 
 /** The whole layer: one row per source line, with its number in the gutter and its diagnostics marked. */

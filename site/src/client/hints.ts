@@ -1,9 +1,11 @@
 /**
  * Key hints (D83): the keys the cursor's block allows, from the profile's key table (no game data), minus the keys
- * that block already has, narrowed by a half-typed key on the cursor's line. Blocks follow `parse`: the header, a
+ * that block already has, narrowed by a half-typed key on the cursor's line. `Feat (…)` (D110) follows `Feat` and
+ * stays offered: a block may hold several marked feats. Blocks follow `parse`: the header, a
  * Species or Background block (opened by its key line), one block per level header.
  */
-import { KEYS, keyDef } from "../../../src/dndpaste.ts";
+import { KEYS, keyDef, splitMarker } from "../../../src/dndpaste.ts";
+import { MARKED_FEAT } from "../keydocs.ts";
 import type { ScopeKind } from "../../../src/dndpaste.ts";
 import { findSeparator, LEVEL_RE } from "./highlight.ts";
 
@@ -40,8 +42,8 @@ export function keyHints(text: string, cursorLine: number): Hints {
         opened.add(def.key);
         blocks.push({ scope: def.opensBlock, label: `the ${def.key} block`, used: new Set() });
         cur = blocks.length - 1;
-      } else if (def) {
-        blocks[cur].used.add(def.key);
+      } else if (def && !(def.key === "Feat" && splitMarker(t.slice(0, sep)).marker)) {
+        blocks[cur].used.add(def.key);   // a marked feat line leaves `Feat` free: a scope may hold both (D110)
       }
     } else if (atCursor && t && t !== "---") {
       partial = t;
@@ -52,7 +54,7 @@ export function keyHints(text: string, cursorLine: number): Hints {
 
   const b = blocks[cursorBlock];
   const all = KEYS.filter((d) => (d.opensBlock ? b.scope !== "L" && !opened.has(d.key) : d.scopes.includes(b.scope)))
-    .map((d) => d.key)
+    .flatMap((d) => (d.key === "Feat" ? [d.key, MARKED_FEAT] : [d.key]))
     .filter((k) => !b.used.has(k));
   const p = partial.toLowerCase();
   const narrow = p ? all.filter((k) => k.toLowerCase().startsWith(p)) : [];
