@@ -218,3 +218,25 @@ test("recent shares: day labels", () => {
   assert.equal(dayLabel(new Date(2025, 0, 3).toISOString(), now), "3 Jan 2025");
   assert.equal(dayLabel("nope", now), "");
 });
+
+test("status, D90: an E001 on the line being typed is held; Save still blocks; letting go shows it", () => {
+  const text = fixture("vice.dndpaste").trimEnd() + "\nSpe";
+  const line = text.split("\n").length;
+  const free = status(text);
+  assert.equal(free.diagnostics.find((d) => d.code === "E001")?.line, line, "the half-typed key is an E001");
+  const held = status(text, line);
+  assert.equal(held.held, 1);
+  assert.equal(held.errors, 0);
+  assert.ok(!held.diagnostics.some((d) => d.code === "E001"));
+  assert.equal(held.canSave, false, "Save still blocks on a held error");
+  assert.equal(held.canTidy, false);
+  assert.ok(dockLineHtml(held).includes("No problems"), "the dock reads as the frame form-keys-dark-phone");
+  // Another line's E001 and other codes on the held line are never held.
+  const other = status(text, line - 1);
+  assert.equal(other.held, 0);
+  assert.equal(other.errors, free.errors);
+  const two = status("Rules: 2024\nSpe\nFoo", 2);
+  assert.equal(two.held, 1);
+  assert.equal(two.diagnostics.filter((d) => d.code === "E001").length, 1);
+  assert.equal(status(text, 0).held, 0);
+});

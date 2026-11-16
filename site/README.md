@@ -12,6 +12,9 @@ npm run fonts      # re-copy IBM Plex woff2 from @fontsource into public/assets/
 - `src/render.ts` — the shared renderer (AST → escaped HTML, Hanging keys). Pure: the browser bundle reuses it (slice 2).
 - `src/app.ts` — routes, limits, headers. `src/worker.ts` is only the entry (Workers reads its named exports as handlers).
 - `src/pages.ts` — server-rendered pages; `src/store.ts` — KV records, ids, limits.
+- `src/client/` — the browser bundles, built by `scripts/build-client.mjs` into `public/assets/` (not committed):
+  `form.js` (the paste form, ESM) and `site.js` (every page, a classic script in `<head>`: Display settings before the first
+  paint, the Display menu, Copy link / Copy text / Copy canonical, fold all, report Cancel, menus and phone sheets).
 - `scripts/check-bundle.mjs` — fails if anything from `data/`, `src/check.ts` or a 5etools file reaches the bundle or `public/`.
 
 ## Reading reports and taking a paste down

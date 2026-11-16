@@ -19,24 +19,34 @@ export interface Status {
   canon: string | null;
   /** Tidy changes something: no errors and the text is not already canonical. */
   canTidy: boolean;
+  /** D90: E001s held back on the line being typed. Not in `diagnostics` or `errors`; Save still blocks on them. */
+  held: number;
 }
 
 const enc = new TextEncoder();
 
-export function status(text: string): Status {
+/**
+ * `holdLine` (1-based, D90): the line being typed. Its E001 (a key line without its separator yet, such as a
+ * half-typed `Spe`) is held out of the shown diagnostics until the form lets go (the cursor leaves the line or
+ * typing pauses); `canSave` stays false while one is held.
+ */
+export function status(text: string, holdLine = 0): Status {
   const t = text.replace(/\r\n?/g, "\n");
   const paste = parse(t);
-  const diagnostics = paste.diagnostics;
+  const isHeld = (d: Diagnostic) => holdLine > 0 && d.code === "E001" && d.line === holdLine;
+  const held = paste.diagnostics.filter(isHeld).length;
+  const diagnostics = held ? paste.diagnostics.filter((d) => !isHeld(d)) : paste.diagnostics;
   const errors = diagnostics.filter((d) => d.code.startsWith("E")).length;
   const bytes = enc.encode(t).byteLength;
   const empty = !t.trim();
   const over = bytes > LIMITS.pasteBytes;
-  const canon = errors ? null : emit(paste);
+  const canon = errors || held ? null : emit(paste);
   return {
     diagnostics, errors, warnings: diagnostics.length - errors, bytes, empty, over,
-    canSave: !empty && !over && !errors,
+    canSave: !empty && !over && !errors && !held,
     canon,
     canTidy: !empty && canon !== null && canon.trimEnd() !== t.trimEnd(),
+    held,
   };
 }
 

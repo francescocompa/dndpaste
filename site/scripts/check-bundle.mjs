@@ -7,7 +7,7 @@ import { build } from "esbuild";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, relative } from "node:path";
-import { CLIENT } from "./build-client.mjs";
+import { CLIENTS, esbuildOptions } from "./build-client.mjs";
 
 const site = fileURLToPath(new URL("..", import.meta.url));
 const problems = [];
@@ -16,9 +16,9 @@ const res = await build({
   entryPoints: [join(site, "src/worker.ts")], bundle: true, format: "esm", platform: "neutral",
   write: false, metafile: true, logLevel: "silent",
 });
-const client = await build({ ...CLIENT, write: false, metafile: true, logLevel: "silent" });
+const clients = await Promise.all(CLIENTS.map(async (c) => ({ out: c.out, res: await build({ ...esbuildOptions(c), write: false, metafile: true, logLevel: "silent" }) })));
 const inputs = Object.keys(res.metafile.inputs);
-const clientInputs = Object.keys(client.metafile.inputs);
+const clientInputs = [...new Set(clients.flatMap((c) => Object.keys(c.res.metafile.inputs)))];
 const BANNED_INPUT = /(^|\/)data\/|slots\.json|(^|\/)srd\/|(^|\/)src\/check\.ts$|5etools/i;
 for (const i of inputs) if (BANNED_INPUT.test(i)) problems.push(`bundle input not allowed: ${i}`);
 for (const i of clientInputs) if (BANNED_INPUT.test(i)) problems.push(`client bundle input not allowed: ${i}`);
@@ -28,9 +28,13 @@ const scan = (name, text) => { for (const m of MARKERS) if (m.test(text)) proble
 const out = res.outputFiles[0].text;
 scan("the Worker bundle", out);
 if (out.length > 400_000) problems.push(`the Worker bundle is ${out.length} bytes; it should be well under 400 KB`);
-const cout = client.outputFiles[0].text;
-scan("the client bundle", cout);
-if (cout.length > 150_000) problems.push(`the client bundle is ${cout.length} bytes; it should be well under 150 KB`);
+const sizes = [];
+for (const c of clients) {
+  const cout = c.res.outputFiles[0].text;
+  scan(`the client bundle ${c.out}`, cout);
+  if (cout.length > 150_000) problems.push(`the client bundle ${c.out} is ${cout.length} bytes; it should be well under 150 KB`);
+  sizes.push(`${c.out} ${cout.length} bytes`);
+}
 
 const walk = (dir) => readdirSync(dir).flatMap((f) => { const p = join(dir, f); return statSync(p).isDirectory() ? walk(p) : [p]; });
 for (const f of walk(join(site, "public"))) {
@@ -43,4 +47,4 @@ if (problems.length) {
   console.error("check:bundle FAILED\n  " + problems.join("\n  "));
   process.exit(1);
 }
-console.log(`check:bundle ok: Worker ${inputs.length} inputs (${inputs.join(", ")}), ${out.length} bytes; client ${clientInputs.length} inputs, ${cout.length} bytes; no data or 5etools content`);
+console.log(`check:bundle ok: Worker ${inputs.length} inputs (${inputs.join(", ")}), ${out.length} bytes; client ${clientInputs.length} inputs (${sizes.join(", ")}); no data or 5etools content`);

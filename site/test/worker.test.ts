@@ -201,12 +201,20 @@ test("view: title, byline, date, OG tags, folds; untitled and anonymous", async 
   assert.ok(page.includes(`<title>Vice · dndpaste</title>`));
   assert.ok(page.includes(`href="/?from=${id}"`));
   assert.equal((page.match(/<details class="lvb" open>/g) ?? []).length, 5);
+  // Slice 3 (D87): the split Copy button and fold controls need JS (njs); Duplicate and edit is a plain link.
+  assert.ok(page.includes(`<span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">`));
+  assert.ok(page.includes(`aria-label="More ways to copy" aria-haspopup="menu" aria-expanded="false"`));
+  assert.ok(page.includes(`<div class="fold njs"><button type="button" class="b" data-fold="close">Fold all levels</button>`));
+  assert.ok(page.includes(`data-act="cancel-report">Cancel</button>`));
+  assert.ok(page.includes(`<button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">`));
+  assert.ok(!/class="foot"|Names only, never rules text/.test(page), "no footer disclaimer (D89 c)");
 
   const flat = FIXTURES.find(([n]) => n === "flat-multiclass.dndpaste")![1];
   const r2 = await call(env, "POST", "/", asJson({ paste: flat }), { now });
   const p2 = await (await call(env, "GET", `/${(await r2.json() as { id: string }).id}`)).text();
   assert.ok(p2.includes(`<h1 class="ttl none">Untitled build</h1>`));
   assert.ok(p2.includes(`<div class="by">Anonymous · <time`));
+  assert.ok(!p2.includes(`class="fold`), "no fold controls without level blocks");
 });
 
 test("view, HEAD: same status and headers, no body", async () => {
@@ -236,7 +244,10 @@ test("routes: about, 404, 405, and fixed pages cannot collide with an id", async
   const env = makeEnv();
   const about = await call(env, "GET", "/about");
   assert.equal(about.status, 200);
-  assert.ok((await about.text()).includes("not affiliated with Wizards of the Coast"));
+  const aboutText = await about.text();
+  assert.equal((aboutText.match(/not affiliated with Wizards of the Coast/g) ?? []).length, 1);
+  for (const w of ["never rules text", "Report it", "/&lt;id&gt;/raw", "/&lt;id&gt;/canon", "/&lt;id&gt;/json", "Duplicate and edit"]) assert.ok(aboutText.includes(w), w);
+  assert.ok(!/—|–/.test(aboutText.replace(/<title>.*<\/title>/, "")), "no dashes in the about copy (D88 c)");
   for (const p of ["/nope", "/ABCDEFGHIJ", "/ABCDEFGHIJK", "/ABCDEFGHI", "/ABCDEFGHIJ/", "/ABCDEFGHIJ/other", "/about/x", "/ABCDE-GHIJ"]) {
     const r = await call(env, "GET", p);
     assert.equal(r.status, 404, p);
@@ -264,10 +275,10 @@ test("pages: no inline scripts, inline styles or third-party URLs", async () => 
   const id = await saveForm(env, { paste: VICE });
   for (const p of ["/", `/${id}`, "/about", "/missing"]) {
     const page = await (await call(env, "GET", p)).text();
-    // The form page's one script is an external file under script-src 'self' (slice 2); nothing inline.
-    const scripts = [...page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
-    assert.ok(scripts.every((m) => m[0] === `<script type="module" src="/assets/form.js"></script>`), `${p}: only the form's own external script`);
-    assert.equal(scripts.length, p === "/" ? 1 : 0, p);
+    // Only external files under script-src 'self': site.js on every page (slice 3), form.js on the form (slice 2).
+    const scripts = [...page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[0]);
+    const want = [`<script src="/assets/site.js"></script>`, ...(p === "/" ? [`<script type="module" src="/assets/form.js"></script>`] : [])];
+    assert.deepEqual(scripts, want, p);
     assert.ok(!/style=|<style|fonts\.googleapis|https?:\/\/(?!dndpaste\.test)/i.test(page), p);
   }
 });

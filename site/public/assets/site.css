@@ -1,7 +1,8 @@
 /* dndpaste share site. Look: D80–D89 (Hanging keys, IBM Plex, Garnet). Tokens ported from the jam's project.css.
    Theme: light on :root; dark by prefers-color-scheme unless [data-theme="light"]; [data-theme="dark"] forces dark.
    D88 (a) re-check moved four greys off the jam values to reach AA: light --mute/--key/--warnc #6e7280 → #696d7b,
-   light --src #737885 → #6f7481, dark --src #6c707b → #7c808b (test/contrast.test.ts).
+   light --src #737885 → #6f7481, dark --src #6c707b → #7c808b (test/contrast.test.ts). --tog (a switch's off track) is
+   new: the jam's --rule track is 1.2:1 on the menu, under the 3:1 a UI part needs.
    Colour switches (D82): html.ck = colour by kind, html.ca = colour abilities. No inline styles anywhere (CSP). */
 
 :root {
@@ -10,7 +11,7 @@
   color-scheme: light;
   --bg: #fbfbfc; --fg: #17181c; --mute: #696d7b; --rule: #e4e5ea; --key: #696d7b; --chip: #eef0f4; --field: #ffffff;
   --acc: #a51d4a; --accfg: #ffffff; --num: #a51d4a; --src: #6f7481; --det: #8a4b0f; --drop: #c2255c;
-  --err: #b45309; --errbg: #fdf3e7; --warnc: #696d7b;
+  --err: #b45309; --errbg: #fdf3e7; --warnc: #696d7b; --tog: #868a96;
   --ab-str: #b4462c; --ab-dex: #2f64ad; --ab-con: #9a5b12; --ab-int: #6b4db3; --ab-wis: #2e7b4c; --ab-cha: #a73d7f;
   --kd-class: #3f5bb5; --kd-subclass: #1d7482; --kd-species: #4d7420; --kd-background: #94632c; --kd-feat: #b0476a; --kd-spell: #7f4cc0; --kd-item: #7f6410;
 }
@@ -19,7 +20,7 @@
     color-scheme: dark;
     --bg: #0e1014; --fg: #e6e7ea; --mute: #8c909b; --rule: #24272e; --key: #8c909b; --chip: #1a1d23; --field: #14171c;
     --acc: #f48fb1; --accfg: #0e1014; --num: #f48fb1; --src: #7c808b; --det: #f0b46c; --drop: #f783ac;
-    --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b;
+    --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b; --tog: #666a75;
     --ab-str: #f0907c; --ab-dex: #86abef; --ab-con: #e2a35e; --ab-int: #b9a2f5; --ab-wis: #82cf98; --ab-cha: #ec95c6;
     --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
   }
@@ -28,7 +29,7 @@
   color-scheme: dark;
   --bg: #0e1014; --fg: #e6e7ea; --mute: #8c909b; --rule: #24272e; --key: #8c909b; --chip: #1a1d23; --field: #14171c;
   --acc: #f48fb1; --accfg: #0e1014; --num: #f48fb1; --src: #7c808b; --det: #f0b46c; --drop: #f783ac;
-  --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b;
+  --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b; --tog: #666a75;
   --ab-str: #f0907c; --ab-dex: #86abef; --ab-con: #e2a35e; --ab-int: #b9a2f5; --ab-wis: #82cf98; --ab-cha: #ec95c6;
   --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
 }
@@ -54,6 +55,48 @@ svg.i { width: 15px; height: 15px; flex: none; display: block; fill: none; strok
 .top .navs { display: flex; gap: 18px; }
 .top .nav { color: var(--mute); text-decoration: none; white-space: nowrap; }
 .top .nav:hover, .top .wm:hover { text-decoration: underline; text-underline-offset: 3px; }
+.top .dbtn { display: inline-flex; align-items: center; gap: 5px; align-self: center; font: 13.5px/1.4 var(--sans); color: var(--fg); background: var(--chip);
+  border: 0; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.top .dbtn[aria-expanded="true"] { background: color-mix(in srgb, var(--acc) 12%, var(--chip)); }
+
+/* ---- needs JavaScript: site.js sets html.hasjs before the first paint ---- */
+html:not(.hasjs) .njs { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.offscreen { position: fixed; top: 0; left: -9999px; opacity: 0; }
+
+/* ---- popovers (D89 b): a panel placed by site.js inside the viewport; on a phone a bottom sheet ---- */
+.pop { position: fixed; z-index: 20; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.16); font: 13px/1.4 var(--sans); overflow-y: auto; overscroll-behavior: contain; }
+.scrim { position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / 0.32); }
+.pop:not(.sheet) .grab, .pop:not(.sheet) .shut { display: none; }
+.pop .it { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 5px; padding: 8px 10px; color: var(--fg); cursor: pointer; }
+.pop .it:hover, .pop .it:focus-visible { background: var(--chip); }
+.pop .it small { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; }
+.pop .il { display: flex; gap: 8px; align-items: center; }
+.pop .il svg.i { display: none; }
+.ovf { min-width: 190px; border-radius: 8px; padding: 4px; display: grid; }
+.manual { width: 340px; max-width: calc(100vw - 16px); padding: 12px; gap: 8px; }
+.manual b { font-weight: 600; }
+.manual textarea { min-height: 8em; font: 12px/1.5 var(--mono); resize: vertical; }
+/* Display menu (D82, frame view-display-desk) */
+.dmenu { width: 280px; max-width: calc(100vw - 16px); padding: 12px 14px; display: grid; gap: 12px; }
+.dmenu .h { font-weight: 600; }
+.dmenu .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--chip); border-radius: 7px; padding: 2px; }
+.dmenu .seg button { text-align: center; padding: 4px 0; border: 0; border-radius: 5px; background: none; color: var(--mute); cursor: pointer; }
+.dmenu .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.dmenu .sw { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; width: 100%; padding: 0; border: 0; background: none;
+  color: var(--fg); text-align: left; cursor: pointer; }
+.dmenu .sw small { color: var(--mute); grid-column: 1; }
+.dmenu .tog { grid-row: 1 / span 2; grid-column: 2; width: 34px; height: 20px; border-radius: 10px; background: var(--tog); position: relative; }
+.dmenu .tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); transition: left 0.12s; }
+.dmenu .tog.on { background: var(--acc); } .dmenu .tog.on::after { left: 16px; }
+.dmenu .swatches { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -6px; }
+.dmenu .swatches i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw-class { background: var(--kd-class); } .sw-subclass { background: var(--kd-subclass); } .sw-species { background: var(--kd-species); }
+.sw-background { background: var(--kd-background); } .sw-feat { background: var(--kd-feat); } .sw-spell { background: var(--kd-spell); }
+.sw-item { background: var(--kd-item); }
+.dmenu .saved { color: var(--mute); }
 
 /* ---- buttons ---- */
 .bt { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 400 13px/1 var(--sans); border: 0; border-radius: 6px;
@@ -64,6 +107,16 @@ svg.i { width: 15px; height: 15px; flex: none; display: block; fill: none; strok
 .actrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .actrow .grow { flex: 1; }
 .acts { padding: 6px 0 14px; }
+.acts .grow { display: none; }
+.bt.icon { padding: 8px 9px; }
+/* Split button (D87): Copy link + ▾; the copied state keeps the button's colours (D88 b) */
+.splitb { display: inline-flex; }
+.splitb > .bt:first-child { border-radius: 6px 0 0 6px; }
+.splitb > .bt.caret { border-radius: 0 6px 6px 0; padding: 8px 10px; border-left: 1px solid color-mix(in srgb, var(--accfg) 35%, transparent); }
+.splitb > .bt.caret[aria-expanded="true"] svg.i { transform: rotate(180deg); }
+.fold { color: var(--mute); padding-bottom: 6px; font: 13px/1.4 var(--sans); }
+.fold .b { background: none; border: 0; padding: 0; color: var(--mute); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.fold .b:hover { color: var(--fg); }
 .alt { font: 13px/1.4 var(--sans); color: var(--mute); }
 
 /* ---- view: title and byline ---- */
@@ -109,6 +162,8 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .report > summary::-webkit-details-marker { display: none; }
 .report .u { text-decoration: underline; text-underline-offset: 3px; }
 .report[open] > summary { margin-bottom: 10px; }
+/* With JS the open form takes the line's place (frame view-sparse-report-dark-desk); Cancel closes it. */
+.hasjs .report[open] > summary { display: none; }
 .report.done { display: flex; gap: 6px; align-items: center; }
 .rform { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); color: var(--fg); }
 .rform small { color: var(--mute); }
@@ -191,6 +246,10 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 /* ---- prose pages (about, 404) ---- */
 .prose { padding: 22px 0; font: 15px/1.6 var(--sans); max-width: 60ch; }
 .prose h1 { font-size: 1.6em; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 12px; }
+.prose h2 { font-size: 1em; font-weight: 600; margin: 1.6em 0 0.3em; }
+.prose p { margin: 0 0 0.8em; }
+.prose ul { margin: 0 0 0.8em; padding-left: 1.2em; }
+.prose code { font: 0.9em/1 var(--mono); }
 
 /* ---- phone ---- */
 @media (max-width: 600px) {
@@ -217,4 +276,22 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .pdock .perr { display: inline-flex; gap: 5px; align-items: center; color: var(--err); background: none; border: 0; padding: 0; font: 13px/1.15 var(--sans);
     text-align: left; min-width: 0; cursor: pointer; }
   .pdock .perr b { color: var(--err); } .pdock .perr .more { color: var(--mute); }
+  /* View dock (D87, frame view-vice-phone): Copy link split + Duplicate and edit, fixed at the bottom */
+  .hasjs .view .wrap { padding-bottom: 84px; }
+  .hasjs .view .acts { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; flex-wrap: nowrap; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--rule); background: var(--bg); font-family: var(--sans); }
+  .hasjs .view .acts .grow { display: block; flex: 1; }
+  .hasjs .view .meta { padding-bottom: 10px; }
+  /* Sheets (D89 b, frame view-copysheet-dark-phone) */
+  .pop.sheet { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-width: none; max-height: 85vh; border: 0;
+    border-top: 1px solid var(--rule); border-radius: 14px 14px 0 0; box-shadow: 0 -10px 28px rgb(0 0 0 / 0.2);
+    padding: 8px 14px calc(14px + env(safe-area-inset-bottom)); display: grid; gap: 4px; font: 14px/1.3 var(--sans); }
+  .pop.sheet .grab { display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--rule); justify-self: center; margin-bottom: 6px; }
+  .pop.sheet .shut { display: block; }
+  .pop.sheet .it { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 4px; border-radius: 0; border-bottom: 1px solid var(--rule); }
+  .pop.sheet .it small { margin: 0; font-size: 12.5px; }
+  .pop.sheet .it.q { color: var(--mute); border-bottom: 0; }
+  .pop.sheet .il svg.i { display: block; }
+  .dmenu.sheet { gap: 12px; padding-left: 16px; padding-right: 16px; }
+  .dmenu.sheet .it.q { margin-top: -4px; }
 }

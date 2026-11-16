@@ -123,8 +123,22 @@ function init(): void {
     put(krow, html || `<span class="muted">No keys left for this block.</span>`);
     kn.textContent = String(hints.keys.length);
   };
+  /**
+   * D90: the line being typed (1-based; 0 = none) holds its E001 until the cursor leaves it or typing pauses for
+   * HOLD_MS. Save looks ready meanwhile (as in frame form-keys-dark-phone) but still blocks: pressing it lets go of
+   * the hold and shows the error.
+   */
+  const HOLD_MS = 1500;
+  let holdLine = 0;
+  let holdTimer = 0;
+  const release = () => {
+    clearTimeout(holdTimer);
+    if (!holdLine) return;
+    holdLine = 0;
+    refresh();
+  };
   const setSaveState = () => {
-    const on = st.canSave && !saving;
+    const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving;
     for (const b of saves) { b.disabled = !on; b.classList.toggle("off", !on); }
     tidyBtn.disabled = !st.canTidy;
     tidyBtn.classList.toggle("off", !st.canTidy);
@@ -159,7 +173,7 @@ function init(): void {
   let bulk = false;
   const refresh = () => {
     if (bulk) return;
-    st = status(ta.value);
+    st = status(ta.value, holdLine);
     draw(highlightRows(ta.value, st.diagnostics));
     const n = rows.length;
     ed.classList.toggle("w3", n >= 100 && n < 1000);
@@ -202,6 +216,8 @@ function init(): void {
   };
   const lineCount = (t: string) => t.split("\n").length;
   const replaceAll = (text: string) => {
+    clearTimeout(holdTimer);
+    holdLine = 0;
     const t = text.replace(/\r\n?/g, "\n");
     if (t === ta.value) return;
     if (lineCount(t) > LONG || lineCount(ta.value) > LONG) {
@@ -295,13 +311,26 @@ function init(): void {
   // ---- events ----
   ed.addEventListener("input", (e) => {
     if (bulk) return;
+    const kind = (e as InputEvent).inputType;
+    if (/^(insertText|insertCompositionText|insertReplacementText|deleteContent)/.test(kind ?? "")) {
+      holdLine = cursorLine() + 1;
+      clearTimeout(holdTimer);
+      holdTimer = window.setTimeout(release, HOLD_MS);
+    } else {
+      clearTimeout(holdTimer);
+      holdLine = 0;
+    }
     refresh();
     showErr(null);
-    const kind = (e as InputEvent).inputType;
     if (kind === "insertFromPaste" || kind === "insertFromDrop") void checkLink();
     else if (!lbar.hidden && !linkedId(ta.value, location.host)) hideBar();
   });
   for (const ev of ["keyup", "click", "focusin"]) ed.addEventListener(ev, refreshHints);
+  // D90: the cursor left the held line (arrows, a click, a jump), or the editor lost focus.
+  document.addEventListener("selectionchange", () => {
+    if (holdLine && document.activeElement === ta && cursorLine() + 1 !== holdLine) release();
+  });
+  ed.addEventListener("focusout", release);
   form.addEventListener("click", (e) => {
     const t = e.target as Element;
     const at = t.closest<HTMLElement>("[data-line]");
@@ -368,6 +397,7 @@ function init(): void {
   // ---- save: JSON, so the share can join My recent shares; the no-JS path posts the form as before ----
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    release();
     st = status(ta.value);
     if (!st.canSave || saving) { setSaveState(); return; }
     saving = true;
