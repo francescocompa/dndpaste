@@ -68,3 +68,10 @@ test("contrast: every token site.css uses as a text colour is in the checked lis
 test("contrast: the forced-dark block equals the prefers-dark block", () => {
   assert.deepEqual(darkForced, darkMedia);
 });
+
+// D119 round 2: the share image's theme classes repeat the page's tokens exactly.
+test("contrast: .th-light and .th-dark hold the same tokens as the light and forced-dark themes", () => {
+  const only = (t: Record<string, string>) => Object.fromEntries(Object.entries(t).filter(([k]) => k !== "mono" && k !== "sans"));
+  assert.deepEqual(tokens(/\.th-light \{([^}]*)\}/.exec(css)![1]), only(light));
+  assert.deepEqual(tokens(/\.th-dark \{([^}]*)\}/.exec(css)![1]), only(darkForced));
+});

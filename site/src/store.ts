@@ -31,7 +31,7 @@ export const LIMITS = {
  * The view page's body, rendered once at save and kept in the same KV value (no extra write). `v` is the renderer's
  * RENDER_VERSION at save time; a record with another `v` is re-rendered on read (pages.ts `rendered`).
  */
-export interface Rendered { v: number; body: string; clean: boolean; folds: boolean; canon: string }
+export interface Rendered { v: number; body: string; clean: boolean; folds: boolean; canon: string; books: string }
 
 /**
  * `p:<id>` → the share's latest revision (the head); `p:<id>:<n>` → revision n, frozen when revision n + 1 is saved
@@ -103,7 +103,7 @@ const str = (x: unknown): string => (typeof x === "string" ? x : "");
 const isRendered = (x: unknown): x is Rendered => {
   const r = x as Partial<Rendered> | null | undefined;
   return !!r && typeof r.v === "number" && typeof r.body === "string" && typeof r.clean === "boolean" &&
-    typeof r.folds === "boolean" && typeof r.canon === "string";
+    typeof r.folds === "boolean" && typeof r.canon === "string" && typeof r.books === "string";
 };
 
 /** Check-then-put with a retry on collision; returns the new id. A failed put (KV write quota spent) throws. */

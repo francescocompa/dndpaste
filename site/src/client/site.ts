@@ -19,6 +19,8 @@ import type { Col, Dir } from "./codes.ts";
 import { applyDisplay, displayMenuHtml, displayStore } from "./display.ts";
 import type { Display } from "./display.ts";
 import { keyFromHash, keyStore } from "./keys.ts";
+import { imageFileName } from "../shareimg.ts";
+import type { Layout } from "./share.ts";
 
 const root = document.documentElement;
 const store = displayStore(() => window.localStorage);
@@ -208,6 +210,7 @@ function wireView(): void {
   const path = rev ? `${id}/${rev}` : id;
   const main = acts.querySelector<HTMLButtonElement>(".cpy");
   const caret = acts.querySelector<HTMLButtonElement>(".caret");
+  const reddit = acts.dataset.reddit ?? "";
   const label = main?.querySelector<HTMLElement>(".cl");
   if (!main || !caret || !label) return;
   const link = document.querySelector<HTMLLinkElement>("link[rel=canonical]")?.href || `${location.origin}/${id}`;
@@ -265,20 +268,25 @@ function wireView(): void {
     `<button type="button" role="menuitem" class="it" data-copy="raw"><span class="il">${icon("copy")}Copy text</span><small>as written</small></button>` +
     `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy canonical</span><small>tidied, for apps</small></button>` +
     (editUrl ? `<button type="button" role="menuitem" class="it" data-copy="edit"><span class="il">${icon("pencil")}Copy edit link</span><small>private, to edit elsewhere</small></button>` : "") +
+    // D119 round 2: the share image and Post to Reddit live in this menu, not in the row.
+    `<button type="button" role="menuitem" class="it" data-share="image"><span class="il">${icon("image")}Share image</span><small>a picture of the whole build</small></button>` +
+    (reddit ? `<a role="menuitem" class="it" href="${esc(reddit)}" target="_blank" rel="noopener noreferrer"><span class="il">${icon("external-link")}Post to Reddit</span><small>link and title, in a new tab</small></a>` : "") +
     SHEET_HEAD,
-    "More ways to copy", "menu");
+    "More ways to copy and share", "menu");
   caret.setAttribute("aria-controls", (menu.id = "copym"));
   main.addEventListener("click", () => void copy("link"));
   // The menu lines up with the whole split button (frame view-copymenu-dark-desk); aria-expanded sits on the caret.
   caret.addEventListener("click", () => open(menu, caret, "left", (caret.closest(".splitb") as HTMLElement | null) ?? caret));
+  const openShare = wireShare(caret, id, link, () => texts.raw ?? fetchText("raw"));
   menu.addEventListener("click", (e) => {
-    const t = (e.target as Element).closest<HTMLElement>("button");
+    const t = (e.target as Element).closest<HTMLElement>("button, a");
     if (!t) return;
+    if (t.tagName === "A") { close(false); return; }   // Post to Reddit: the link opens its tab
     const k = t.dataset.copy as "raw" | "canon" | "edit" | undefined;
     close();
     if (k) void copy(k);
+    else if (t.dataset.share) openShare();
   });
-
 
   // Fold all / expand all (D87), over the level blocks' <details>.
   document.querySelector(".view .fold")?.addEventListener("click", (e) => {
@@ -296,6 +304,149 @@ function wireView(): void {
     report.open = false;
     report.querySelector<HTMLElement>("summary")?.focus();
   });
+}
+
+// ---- share image and Post to Reddit (D119) ----
+type ShareModule = typeof import("./share.ts");
+/** /assets/share.js, an ES module with the parser and the painter, loaded the first time Share opens. */
+let shareModule: Promise<ShareModule> | null = null;
+const SHARE_JS = "/assets/share.js";
+const loadShare = () => (shareModule ??= import(SHARE_JS) as Promise<ShareModule>);
+
+/** Copy image needs ClipboardItem with PNG; Share needs the system sheet to take files. Hidden where missing. */
+const canCopyImage = () => typeof ClipboardItem !== "undefined" && !!navigator.clipboard?.write &&
+  (typeof ClipboardItem.supports !== "function" || ClipboardItem.supports("image/png"));
+const canShareFiles = () => {
+  try { return typeof navigator.canShare === "function" && navigator.canShare({ files: [new File([""], "x.png", { type: "image/png" })] }); }
+  catch { return false; }
+};
+
+/** The Share image panel, opened from the Copy link menu; returns the function that opens it. */
+function wireShare(btn: HTMLButtonElement, id: string, link: string, raw: () => string | Promise<string | null>): () => void {
+  const title = document.querySelector<HTMLElement>(".view .meta .ttl");
+  const meta = {
+    title: title?.textContent ?? "", untitled: !!title?.classList.contains("none"),
+    byline: document.querySelector<HTMLElement>(".view .meta .by")?.textContent?.trim() ?? "",
+    books: document.querySelector<HTMLElement>(".view .meta .bks")?.textContent?.trim() ?? "", url: link,
+  };
+  const fileName = imageFileName(meta.untitled ? "" : meta.title, `dndpaste-${id}`);
+  const copyOk = canCopyImage();
+  const shareOk = canShareFiles();
+  const p = panel("shp", `<div class="sh"><div class="hrow"><b class="h">Share image</b>` +
+    `<span class="seg ic" role="radiogroup" aria-label="Image theme"><button type="button" role="radio" aria-checked="false" aria-label="Light" data-theme-img="light">${icon("sun")}</button>` +
+    `<button type="button" role="radio" aria-checked="false" aria-label="Dark" data-theme-img="dark">${icon("moon")}</button></span></div>` +
+    `<div class="seg lay" role="radiogroup" aria-label="Layout"><button type="button" role="radio" aria-checked="true" class="on" data-layout="tall">Tall</button><button type="button" role="radio" aria-checked="false" data-layout="wide">Wide</button></div>` +
+    `<div class="prev" role="img"><span class="wait">Drawing the image…</span></div>` +
+    `<div class="irow"><button type="button" class="bt pri" data-img="download" disabled>${icon("download")}<span>Download</span></button>` +
+    (copyOk ? `<button type="button" class="bt" data-img="copy" disabled>${icon("copy")}<span>Copy image</span></button>` : "") +
+    (shareOk ? `<button type="button" class="bt" data-img="share" disabled>${icon("share-box")}<span>Share image</span></button>` : "") + `</div>` +
+    `<small class="msg" aria-live="polite"></small></div>` + SHEET_HEAD,
+  "Share", "dialog");
+  p.id = "shp";
+  // A build of one block draws the same in both layouts: no choice to make.
+  if (document.querySelectorAll(".view .build > *").length < 2) p.querySelectorAll<HTMLElement>(".lay").forEach((el) => { el.hidden = true; });
+  const prev = p.querySelector(".prev") as HTMLElement;
+  const live = p.querySelector(".sh .msg") as HTMLElement;
+  const imgBtns = () => [...p.querySelectorAll<HTMLButtonElement>("[data-img]")];
+
+  let layout: Layout = "tall";
+  // The image's own theme (round 2): it starts as the page's and changes only the image.
+  const pageDark = () => root.dataset.theme === "dark" || (root.dataset.theme !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  let theme: "light" | "dark" = pageDark() ? "dark" : "light";
+  // One image per layout and look (theme, colour switches); the Display menu can change the look while open.
+  const made = new Map<string, Promise<{ canvas: HTMLCanvasElement; blob: Blob }>>();
+  let ready: { blob: Blob; file: File } | null = null;
+  const lookKey = () => `${layout}|${theme}|${root.className}`;
+
+  const draw = async () => {
+    for (const b of p.querySelectorAll<HTMLElement>("[data-layout]")) b.setAttribute("aria-checked", String(b.dataset.layout === layout));
+    for (const b of p.querySelectorAll<HTMLElement>("[data-layout]")) b.classList.toggle("on", b.dataset.layout === layout);
+    for (const b of p.querySelectorAll<HTMLElement>("[data-theme-img]")) {
+      b.setAttribute("aria-checked", String(b.dataset.themeImg === theme));
+      b.classList.toggle("on", b.dataset.themeImg === theme);
+    }
+    const key = lookKey();
+    ready = null;
+    for (const b of imgBtns()) b.disabled = true;
+    if (!made.has(key)) {
+      prev.innerHTML = `<span class="wait">Drawing the image…</span>`;
+      made.set(key, (async () => {
+        const [mod, text] = await Promise.all([loadShare(), raw()]);
+        if (text === null) throw new Error("no text");
+        const canvas = await mod.drawShareImage(text, layout, meta, theme);
+        return { canvas, blob: await mod.toPng(canvas) };
+      })());
+    }
+    try {
+      const { canvas, blob } = await (made.get(key) as Promise<{ canvas: HTMLCanvasElement; blob: Blob }>);
+      if (key !== lookKey()) return;
+      prev.replaceChildren(canvas);
+      prev.setAttribute("aria-label", `The share image, ${layout} layout: ${meta.title}`);
+      ready = { blob, file: new File([blob], fileName, { type: "image/png" }) };
+      for (const b of imgBtns()) b.disabled = false;
+    } catch {
+      made.delete(key);
+      prev.innerHTML = `<span class="wait">The site could not draw the image. Close this panel and try again.</span>`;
+    }
+  };
+
+  let timer = 0;
+  const flash = (b: HTMLButtonElement, text: string) => {
+    const was = b.innerHTML;
+    b.innerHTML = `${icon("check")}<span>${text}</span>`;
+    live.textContent = text;
+    clearTimeout(timer);
+    timer = window.setTimeout(() => { b.innerHTML = was; live.textContent = ""; }, 2000);
+  };
+
+  // A browser that refuses clipboard writes outright (Chromium reports it) gets no Copy image button.
+  void navigator.permissions?.query({ name: "clipboard-write" as PermissionName })
+    .then((st) => { if (st.state === "denied") p.querySelector("[data-img=copy]")?.remove(); }, () => { /* not reported: keep it */ });
+
+  const show = () => {
+    open(p, btn, "left", (btn.closest(".splitb") as HTMLElement | null) ?? btn);
+    if (current?.panel === p) void draw();
+  };
+  p.addEventListener("click", (e) => {
+    const t = (e.target as Element).closest<HTMLElement>("button, a");
+    if (!t) return;
+    if (t.classList.contains("shut")) { close(); return; }
+    const l = t.dataset.layout as Layout | undefined;
+    if (l) { if (l !== layout) { layout = l; void draw(); } return; }
+    const th = t.dataset.themeImg as "light" | "dark" | undefined;
+    if (th) { if (th !== theme) { theme = th; void draw(); } return; }
+    const act = t.dataset.img;
+    if (!act || !ready) return;
+    const b = t as HTMLButtonElement;
+    const { blob, file } = ready;
+    if (act === "download") {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+      flash(b, "Downloaded");
+    } else if (act === "copy") {
+      navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+        .then(() => flash(b, "Image copied"), () => { live.textContent = "This browser could not copy the image. Download it instead."; });
+    } else if (act === "share") {
+      navigator.share({ files: [file], title: meta.title }).catch(() => { /* closed by the reader */ });
+    }
+  });
+  // Arrow keys move the layout choice, as in a radio group.
+  p.addEventListener("keydown", (e) => {
+    const t = (e.target as Element).closest<HTMLElement>("[data-layout], [data-theme-img]");
+    if (!t || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    e.preventDefault();
+    const to = (e.key === "ArrowRight" ? t.nextElementSibling : t.previousElementSibling) as HTMLElement | null;
+    to?.click();
+    to?.focus();
+  });
+  // The Display menu's colour switches changed: redraw if the panel is open.
+  new MutationObserver(() => { if (!p.hidden) void draw(); }).observe(root, { attributes: true, attributeFilter: ["class"] });
+  return show;
 }
 
 // ---- editing (D97) ----

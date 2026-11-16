@@ -211,7 +211,7 @@ test("view: title, byline, date, OG tags, folds; untitled and anonymous", async 
   assert.equal((page.match(/<details class="lvb" open>/g) ?? []).length, 5);
   // Slice 3 (D87): the split Copy button and fold controls need JS (njs); Duplicate and edit is a plain link.
   assert.ok(page.includes(`<span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">`));
-  assert.ok(page.includes(`aria-label="More ways to copy" aria-haspopup="menu" aria-expanded="false"`));
+  assert.ok(page.includes(`aria-label="More ways to copy and share" aria-haspopup="menu" aria-expanded="false"`));
   assert.ok(page.includes(`<div class="fold njs"><button type="button" class="b" data-fold="close">Fold all levels</button>`));
   assert.ok(page.includes(`data-act="cancel-report">Cancel</button>`));
   assert.ok(page.includes(`<button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">`));
@@ -288,7 +288,8 @@ test("pages: no inline scripts, inline styles or third-party URLs", async () => 
     const scripts = [...page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[0]);
     const want = [`<script src="/assets/site.js"></script>`, ...(p === "/" ? [`<script type="module" src="/assets/form.js"></script>`] : [])];
     assert.deepEqual(scripts, want, p);
-    assert.ok(!/style=|<style|fonts\.googleapis|https?:\/\/(?!dndpaste\.test)/i.test(page), p);
+    // The one outside address is Post to Reddit's link (D119), a link the reader follows, never a resource.
+    assert.ok(!/style=|<style|fonts\.googleapis|https?:\/\/(?!dndpaste\.test|www\.reddit\.com\/submit\?url=https%3A%2F%2Fdndpaste\.test%2F)/i.test(page), p);
   }
 });
 
