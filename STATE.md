@@ -1,6 +1,6 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-16 · 0.7.0 · M1 ✅ · M2 ✅ · M3 slices 1–3 ✅ · T3.3 ✅ · 143 + 117 site tests green · v0.7.0 tagged locally, not pushed)
+## TL;DR (2026-11-16 · 0.7.0 · M1 ✅ · M2 ✅ · M3 slices 1–3 ✅ · T3.3 ✅ · T3.2d ✅ · 143 + 137 site tests green · v0.7.0 tagged locally, not pushed)
 - **Where it stands.** SPEC 0.5 + D1–D57. Library = parser + canonical emitter + data-driven checker
   (`check`/`normalise`/`finalScores`/`classSequence`) + `bin/dndpaste.mjs` CLI, zero deps, ESM + UMD.
   0.6.0 (2026-09-30) carries the fixes from character-forge's real-build stress wave (cf-D81):
@@ -39,8 +39,15 @@
   ghost × in phone sheets, icons in the desk copy menu, every phone dock status on its own ruled row, name-only pastes
   refused (client + 422). Dev-only review wiring (`site/src/devreview.ts`, `ui-review.tools.js`). 117 site tests.
   Departures and the parked list in `site/FIDELITY.md` § UI review.
-- **Single next action:** T3.2d editable shares (D97: owner edits as revisions, latest at the link, 5-minute cache),
-  in this worktree; then T3.4 deploy on Francesco's go. The overseer runs each step.
+- **T3.2d done (2026-11-16):** D97 editable shares. `/<id>` + raw/canon/json serve the latest (5-minute cache);
+  `/<id>/<n>` + raw/canon/json are revisions, fixed (data a year immutable, page a day); `/<id>/edit` GET/POST. KV: head
+  `p:<id>` (latest, `n`, `edited`, `k` = SHA-256 of the edit key) + frozen `p:<id>:<n>`; two writes per edit, one read per
+  view (why, and the no-CAS race, in SITE.md). JSON saves get a 43-char key (localStorage `dndpaste.keys`; private link
+  `/<id>/edit#k=…`, panel after save, and "Copy edit link" in the Copy menu per Francesco's mid-build note). Edits count
+  as saves for every limit; `base` 409; legacy records = revision 1, not editable. `/json` gains `edited`, `revision`.
+  137 site tests. ⚑ For review: Duplicate and edit got a new `duplicate` icon (FIDELITY § T3.2d); the "Copy edit link"
+  menu item wants a /decision entry in main (extends D97's "once").
+- **Single next action:** fresh-eyes pass on the edit routes (overseer), then T3.4 deploy on Francesco's go.
 - **Manual for Francesco:** ② the
   Notion "Character Ideas" defects (stress/REPORT.md § Theirs) if you care to; ③ ⚑ do Spellfire
   Spark / Fey Sentinel ask an ability pick (homebrew feats, only you know); ④ homebrew merge (M2

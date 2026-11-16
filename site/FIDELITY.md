@@ -219,3 +219,22 @@ SPEC 0.8; Tidy fixing name case → after launch; writing help / a starting skel
 Dev-only wiring kept for later reviews: `site/src/devreview.ts` (overlay script + loopback-only CSP when `UI_REVIEW` is
 set in the gitignored `site/.dev.vars`; `uir-fault` cookie for the 503, daily-cap and 403 paths) and
 `ui-review.tools.js` at the root. Never active in a deploy; covered by `test/devreview.test.ts`.
+
+## T3.2d editable shares (D97, 2026-11-16) — built to the decision, no frame
+- **View, owner:** Edit (pencil) sits between Copy link and Duplicate and edit, shown by site.js only when this browser keeps
+  the share's edit key; the Copy link menu gains "Copy edit link · private, to edit elsewhere" (Francesco's note mid-build,
+  extends D97's "once"). ⚑ Departure for review: **Duplicate and edit now uses a new sprite icon `duplicate`** (Lucide copy-plus)
+  instead of the pencil, so Edit and Duplicate don't share one icon. On a phone the owner's dock reads Copy link · Edit ·
+  Duplicate ("and edit" drops to fit 375 px; non-owners still see the full label).
+- **After a save:** an accent-framed panel (the import bar's frame) under the actions: "Saved", why to keep the link, the
+  link in a read-only field, Copy edit link, a ghost × (D98's sheet ×). Phone: field and button wrap to two rows.
+- **Byline:** "by X · 16 Nov 2026 · edited 17 Nov 2026" on the latest; "by X · revision 2 · <date>" on `/<id>/<n>`, with a
+  note line "This is revision 2 of the build, kept as it was. See the latest version." No Edit on a revision page.
+- **Edit form:** the paste form, a note line ("Editing <title>. Saving adds revision n + 1…", both links), a ghost Cancel
+  before the primary, primary reads "Save changes" with the check icon (dock too). No key in this browser: an amber alert
+  line naming the private link and Duplicate and edit, Save off.
+- Checked live under `wrangler dev`: save → panel → Edit in the same browser → no-key state after clearing storage → the
+  private link in a new tab → edit; revisions 1–2 unchanged, revision 3 new, `/4` 404. Desktop dark + light, phone dark.
+  Phone light not seen live (the review overlay kept the tab dark); the panel uses existing token pairs only.
+- Gotcha for the next live check: a leftover `uir-fault=xsite` cookie from the UI review makes every POST answer 403
+  "sent from another site". Clear it (`document.cookie = 'uir-fault=; Max-Age=0; path=/'`).

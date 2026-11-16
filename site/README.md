@@ -21,8 +21,11 @@ npm run fonts      # re-copy IBM Plex woff2 from @fontsource into public/assets/
 ```bash
 npx wrangler kv key list --binding PASTES --prefix r: --remote
 npx wrangler kv key get "r:<iso>:<id>:<nonce>" --binding PASTES --remote
-npx wrangler kv key delete "p:<id>" --binding PASTES --remote
+npx wrangler kv key list --binding PASTES --prefix "p:<id>" --remote      # the share and its frozen revisions (D97)
+npx wrangler kv key delete "p:<id>" --binding PASTES --remote              # the latest; repeat for each "p:<id>:<n>" listed
 ```
+Deleting only `p:<id>:<n>` takes down revision n and leaves the share. Deleting `p:<id>` alone takes down the share's link
+and its edit key; the frozen revisions' URLs then answer 404 too, but their keys stay in KV until deleted.
 
 ## Rate limits
 `SAVE_LIMITER` and `REPORT_LIMITER` (Workers rate-limiting binding, 10 a minute per IP) in `wrangler.toml`. If the plan lacks the
