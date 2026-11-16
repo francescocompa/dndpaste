@@ -12,7 +12,10 @@
  *
  * CSP `script-src 'self'`: no inline scripts; only CSSOM properties are set from here (positions), never style="".
  */
-import { icon } from "../render.ts";
+import { esc, icon } from "../render.ts";
+import type { BookType } from "../books.ts";
+import { matches, sortRows } from "./codes.ts";
+import type { Col, Dir } from "./codes.ts";
 import { applyDisplay, displayMenuHtml, displayStore } from "./display.ts";
 import type { Display } from "./display.ts";
 import { keyFromHash, keyStore } from "./keys.ts";
@@ -346,10 +349,48 @@ function wireEdit(acts: HTMLElement, id: string, link: string): string | null {
   return editUrl;
 }
 
+// ---- /codes (D103): find a code or a book; click a column head to sort, again to reverse ----
+function wireCodes(): void {
+  const table = document.querySelector<HTMLTableElement>("table.ctab");
+  const q = document.querySelector<HTMLInputElement>("#cq");
+  const count = document.querySelector<HTMLElement>(".cfind .cn");
+  const none = document.querySelector<HTMLElement>(".cnone");
+  const tbody = table?.tBodies[0];
+  const heads = [...(table?.tHead?.rows[0]?.cells ?? [])];
+  if (!table || !q || !count || !none || !tbody || !heads.length) return;
+  const rows = [...tbody.rows].map((tr) => ({
+    tr, code: tr.dataset.code ?? "", title: tr.dataset.title ?? "", type: (tr.dataset.type ?? "Extra") as BookType, y2014: tr.dataset.y2014 === "1",
+  }));
+  let col: Col = "code";
+  let dir: Dir = "asc";
+  for (const th of heads) th.innerHTML = `<button type="button" class="srt">${esc(th.textContent ?? "")}${icon("chevron-up")}${icon("chevron-down")}</button>`;
+  const draw = () => {
+    const shown = sortRows(rows, col, dir).filter((r) => matches(r, q.value));
+    tbody.replaceChildren(...shown.map((r) => r.tr));
+    for (const th of heads) {
+      if (th.dataset.col === col) th.setAttribute("aria-sort", dir === "asc" ? "ascending" : "descending");
+      else th.removeAttribute("aria-sort");
+    }
+    count.textContent = q.value.trim() ? `${shown.length} of ${rows.length}` : "";
+    none.hidden = shown.length > 0;
+  };
+  table.tHead?.addEventListener("click", (e) => {
+    const th = (e.target as Element).closest<HTMLElement>("th[data-col]");
+    if (!th) return;
+    const c = th.dataset.col as Col;
+    dir = c === col && dir === "asc" ? "desc" : "asc";
+    col = c;
+    draw();
+  });
+  q.addEventListener("input", draw);
+  draw();
+}
+
 function init(): void {
   wirePopovers();
   wireDisplay();
   wireView();
+  wireCodes();
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
