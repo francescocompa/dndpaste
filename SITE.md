@@ -93,6 +93,13 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 - **Layout** (D86): title and author on full-width lines, toolbar (Open file · Tidy · problem count · Save and get link), side column with Problems, Keys you can add, My recent shares.
 - **Tidy**: replaces the text with `emit(parse(text))`; enabled only without errors; undoable.
 - **Open or drop** a `.txt` / `.dndpaste` file into the editor.
+- **Unsaved draft** (D102): the form keeps its title, author and text in localStorage (`dndpaste.drafts`) as you type
+  (debounced, and on leaving the page), so a closed tab or a crash loses nothing and nobody saves a revision just to keep
+  progress. One draft for a new build (Duplicate and edit included), one per share being edited, with the revision the
+  form opened on; at most 20, oldest dropped. When the form opens with a draft that differs from what it loaded, a bar
+  says "You have unsaved changes from <when>." with Restore · Discard (a draft made on an older revision adds that
+  restoring replaces the changes saved since); the old draft stays until you pick. A successful save or edit clears it.
+  Nothing goes to the server; storage blocked or full → no draft, no error. JS only (`src/client/drafts.ts`).
 - Without JS: plain textarea + Save still work; the server returns the form with diagnostics on an error.
 
 ## View page (D67, D68)
@@ -106,6 +113,8 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 - **Display menu** (D82): theme Auto/Light/Dark, Colour by kind, Colour abilities, each remembered in localStorage.
 - Icons from one self-hosted SVG sprite, never text glyphs (D89). Fonts IBM Plex Sans/Mono self-hosted (D81). WCAG AA checked for every token pair (D88).
 - **My recent shares**: the ids and titles you saved, in localStorage only, listed on the form page; reads and writes wrapped in try/catch so the page works without storage.
+- **What this browser keeps** (localStorage only, never sent): `dndpaste.display` (Display menu), `dndpaste.recent` (My
+  recent shares), `dndpaste.keys` (edit keys, D97), `dndpaste.drafts` (unsaved drafts, D102).
 - OG/meta tags: title, "a D&D build on dndpaste", escaped.
 
 ## Security (review gate)
