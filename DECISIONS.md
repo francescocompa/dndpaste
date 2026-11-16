@@ -368,3 +368,77 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 - **D100 — The edit link can be copied again from the view page's Copy menu ("Copy edit link"), in the browser that holds the edit key. DECIDED (2026-11-16).** Mechanism: Francesco's note mid-build in the 3.2d session, logged by the overseer. Extends D97's "offers a private edit link once": the save panel still shows it once, and the owner's browser can copy it later to move to another device. Other browsers never see the item.
   *Rejected:* showing it only once (an owner who missed the panel had no way to reach another device).
   *Enforced by:* `site/src/client/site.ts` Copy menu, 3.2d tests (branch `claude/site-m3-ee11e4`, 56f3f64).
+
+## Pre-deploy review of edits and guide (2026-11-16) — mechanism: fresh-eyes review (Opus) of 56f3f64 + c5ba8fa, then AskUserQuestion, 1 round, overseer
+
+- **D101 — An edit counts as 2 saves against the daily cap. DECIDED (2026-11-16).** Amends D97 ("each edit is a save") and keeps D92's budget math: an edit writes twice to KV (frozen copy + new head), so it weighs 2 in `DailyCap`; 25 edits a day per rate key. New saves still weigh 1.
+  *Raw note:* picked "Edits count 2 (Recommended)".
+  *Rejected:* keeping weight 1 and documenting it (about 10 heavy users drain the free day, not 20); a separate edit cap (a third limit to explain and test).
+  *Enforced by:* fix worker on branch `claude/site-m3-ee11e4` (`site/src/daily.ts`, `app.ts`, abuse tests).
+
+- **D102 — The share form keeps an unsaved draft in the browser and offers to restore it. DECIDED (2026-11-16).** Mechanism: AskUserQuestion, 1 question, overseer, on Francesco's question ("if I save a build just to not lose progress, does it count as an edit…? Does a build get saved… if not saved before closing the browser?"). Today the only way to keep work in progress is to save, which publishes a permanent revision and, after the first save, costs 2 (D101). The form now writes its text to localStorage as you type (one draft for a new build, one per share being edited), offers to restore it on return, and clears it after a successful save. Nothing goes to the server; storage blocked → no draft, no error.
+  *Raw note:* picked "Local draft autosave (Recommended)".
+  *Rejected:* a leave-page warning only (doesn't survive a crash or a closed tab); both (the warning adds a browser prompt for little gain); not for v1 (people would publish checkpoints).
+  *Enforced by:* pre-deploy fix worker (local_9b723919), `site/src/client/form.ts`, form tests.
+
+## Short /ui-review of 3.2d + 3.2e (2026-11-16) — mechanism: /ui-review, 1 round (11 items, all approved), worker session local_175b755f; logged by the overseer
+
+- **D103 — The site never names 5etools; source codes are "the short code of the book" (PHB, XPHB, TCE), and the site lists them. DECIDED (2026-11-16).** No "usual" or "standard" wording. The list of codes lives on the site and is kept in step with 5etools silently. Content boundary unchanged (codes only, no data).
+  *Raw note:* "Drop the name, list codes, don't mention them 'as usual', we silently update the list from 5etools."
+  *Rejected:* naming 5etools on the guide (the line it replaces).
+  *Enforced by:* `site/src/guide.ts` line (297dc24); the code list page is not built yet.
+
+- **D104 — The example build (the guide's walk-through and "Start from an example") is a multiclass and shows an option header. DECIDED (2026-11-16).** Amends D99's example (Briar). Not built.
+  *Raw note:* "The example build should be a multiclass and also feature an option header from somewhere".
+  *Enforced by:* nothing yet (`site/src/example.ts`, `guide.ts`, `guide.test.ts` checks it parses clean and canonical).
+
+- **D105 — Before T3.4: SPEC 0.8 settles first, then all three site follow-ups build on it. DECIDED (2026-11-16).** Mechanism: AskUserQuestion, 1 round (2 questions), overseer. Order: a /interview on the five format questions from the review → SPEC 0.8 + library release (D57) → one site worker builds the D104 example and guide rewrite, the D103 book-code page and the Keys popover, on 0.8 keys → a short re-review → T3.4 on his go. Launch pastes never use a key that 0.8 renames.
+  *Raw note:* picked "All three before deploy" (over the recommended "1 and 2 before deploy") and "Before deploy" for the SPEC interview (over the recommended "After launch").
+  *Rejected:* deploying now and doing the follow-ups after; the Keys popover after launch; parking the SPEC questions to after launch (a key rename would follow live pastes).
+
+## SPEC 0.8 format calls (2026-11-16) — mechanism: /interview, AskUserQuestion, 6 rounds, overseer; topics from the short /ui-review (D105)
+
+- **D106 — Named scores also take `/` between entries; the guide states the six-number order. DECIDED (2026-11-16).** `STR 8/DEX 13/CON 14` parses like `STR 8, DEX 13, CON 14` (full or partial, any order); emit still writes the six-number form when all six are known. The guide and the Keys popover say `STR/DEX/CON/INT/WIS/CHA`.
+  *Raw note:* picked "Also accept `/` in named form" (over the recommended "Guide states the order" alone).
+  *Rejected:* the guide alone; the named form as canonical (every paste changes on round-trip).
+
+- **D107 — The `Ability` key goes: every ability pick is the first detail slot of the thing that asks it. DECIDED (2026-11-16).** `Feature: Spellcasting [INT]`, `Feature: Elven Lineage [INT; High]`, `Feat: Resilient [CON]` — one rule for `Feat`, `Feature` and `Options`; no ability asked → no leading slot. A feat whose score increase also sets its casting ability writes the ability once. Amends §5.1 `Ability`, §5.3.
+  *Raw note:* first picked "Widen Ability to any pick (Recommended)", then: "walking back on the previous decision: we could instead of having the ability header, have instead ex. [INT] always inline (ex. Feature: Spellcasting [INT])" · "Always first slot, also avoid redundancy in feats for example that tie spellcast ability to score increase".
+  *Rejected:* widening `Ability` to any of the six (his own first pick, walked back); printed order for the ability slot.
+
+- **D108 — `Scores` holds increases too; the `+` decides; the `ASI` key goes. DECIDED (2026-11-16).** `Scores: 8/13/14/12/10/15` (no `+`) is the base, header only, once; `Scores: +2 CHA` / `+1 INT, +1 CON` is an increase, in header, species, background or level scope. The parser types each line as base or increase, so the AST never carries the ambiguity.
+  *Raw note:* "Scores, could be the shortest one." Challenged (one key, two meanings; apps branch on the value) → kept: "One key, the + decides".
+  *Rejected:* `Score Increases` (recommended), `Ability Scores` (sits between `Scores` and `Ability`), `Increases`; increases in blocks only.
+
+- **D109 — A level's ASI is written as the feat line in both editions: `Feat: Ability Score Improvement [+2 CHA]`. DECIDED (2026-11-16).** One canonical form: the emitter is data-free and knows the edition only from `Rules:`, so a form that changes by edition can't be canonical. The checker reads it as the 2014 class ASI too, and accepts `ASI` as a short name for the feat.
+  *Raw note:* "Both could work, also ASI shortened could work as feat." · "Can't the canonical form change by edition? Otherwise, just use feat line."
+  *Rejected:* an increase line at L4 (recommended); a canonical form per edition.
+
+- **D110 — `Feat` takes an optional slot marker on its key: `Feat (Fighting Style): Archery`; the `Fighting Style` key goes. DECIDED (2026-11-16).** The marker names the limited slot the feat fills (Fighting Style, Origin, Epic Boon, Dragonmark, Dark Gift, …), so emit keeps it. Open list: the parser takes any text; the checker checks it against the feat categories in the 5etools data and hints the nearest one on a typo. No checker on the site in v1 (D66), so the site doesn't catch marker typos yet.
+  *Raw note:* "Feat with an optional marker, however the marker should be in the header ideally. A header marker highlights a limiting factor for the choice (the feat can only be a fighting style or origin etc.). A marker after the feat would instead just categorize the feat without implying the limit." · "Open list, books keep adding categories (ex. dragonmark, dark gift etc.). Could a smarter parser check for typos only in near words of an existing list of feat categories taken live from 5etools?"
+  *Rejected:* `Feat` with no marker (recommended); a marker after the feat name (categorises, doesn't limit); keeping `Fighting Style`; `Fighting Style Feat:` and `Feat/Fighting Style:` spellings; a fixed marker list.
+
+- **D111 — `Equipment` and `Items` merge into `Gear`; placement decides. DECIDED (2026-11-16).** `Gear` in the background block or the first level block is the starting pick (option letters only there; can be missing). Anywhere else in a level block it is gained in play; in the header it is carried and unplaced. Those two are never missing. Item details, `+N` and magic variants as before (D33, D40, D55).
+  *Raw note:* picked "One Gear key, placement decides (Recommended)".
+  *Rejected:* `Gear` + `Starting Gear`; keeping both keys.
+
+- **D112 — An empty value means "not chosen yet": a warning, kept by emit. DECIDED (2026-11-16).** `Spells:` parses as an empty list with a W-code, and Tidy keeps the line as a to-do. The checker treats it like absent. Replaces E006 for key lines. Closes the parked ⚑ under D96.
+  *Raw note:* pin "Empty lines shouldn't necessarily be an error"; picked "'Not chosen yet', a warning (Recommended)".
+  *Rejected:* silently dropping it (Tidy erases the to-do); keeping E006.
+
+- **D113 — 0.8 reads 0.7 keys with a "renamed key" warning and writes the 0.8 form. DECIDED (2026-11-16).** Aliases `ASI`, `Ability`, `Fighting Style`, `Equipment`, `Items` stay until 1.0. An old `Ability` line that the parser can't move into its owner's details without data stays as written, with the warning. character-forge and the 0.7 fixtures keep working.
+  *Raw note:* "Read old, write new feels better, unless the cost is too high. In general, we need an action plan for dndpaste format updates."
+  *Rejected:* a clean break.
+  ⚑ **OPEN (owner: overseer → Francesco, 2026-11-16): a format-update policy** ("an action plan for dndpaste format updates"): how a SPEC change is proposed, aliased, released, announced to consumers and retired. Drafted with the 0.8 build for his read.
+
+## T3.6 site on 0.8 (2026-11-16) — mechanism: /ui-review, 2 rounds (all approved) + AskUserQuestion, worker session local_f964a965; logged by the overseer
+
+- **D114 — `/codes` is one table (Code, Book, Type) with search and click-to-sort both ways. DECIDED (2026-11-16).** Search matches every word, accents ignored. Type = Core / Supplement / Setting / Adventure / Extra (small, free or promo), with ", 2014" on books the 2024 rules replaced. No "Partnered" (the data's partnered list is empty). Phone width hides the Type head (no sort by type there).
+  *Raw note:* "Add a search field ... sorting both a>z and z>a ... Add a column that lists the type of book (ex. partnered etc.)"; picked "Core/Supplement/Setting… (Recommended)" with the 2014 mark.
+  *Enforced by:* `site/src/books.ts`, `/codes` route (866da84).
+
+- **D115 — The book-code list is a committed file, regenerated by hand from the local mirror. DECIDED (2026-11-16).** `node site/scripts/books.mjs`, commit the diff, it ships with the next deploy. Implements D103's "kept in step silently".
+  *Raw note:* picked "Script by hand (Recommended)".
+  *Rejected:* a weekly GitHub Action; a runtime fetch (IP gate on the source).
+
+- **D116 — A feat's slot marker is drawn apart from `Feat`, in italics; in the view's key column it wraps under `Feat`, a size smaller. DECIDED (2026-11-16).** Approved as review item marker-style (cfcfbdd).

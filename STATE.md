@@ -1,37 +1,36 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-16 · main 2350b64 + build branch `claude/site-m3-ee11e4` 1fb219c · read 84k)
-- **State:** M3 share site is built through 3.2d on the branch: Worker + KV + DailyCap DO, form, view, chrome,
-  `/about`, T3.3 security fixes, a 3-round /ui-review, editable shares as revisions (D97, D100). 143 library and
-  137 site tests pass. 3.2e (`/guide` + "Start from an example", D99) is done too (142 site tests). Unmerged, unpushed, not deployed.
-- **Single next action:** run an Opus **fresh-eyes** pass (Agent `fresh-eyes`) on 3.2d's edit routes (`/<id>/edit`,
-  key hash, revisions, two KV writes per edit, 5-min cache) and 3.2e's `/guide`; route fixes to a worker in the shared
-  worktree; then a short **/ui-review** of 3.2d + 3.2e; then **T3.4 deploy on his go**; then merge the branch.
-- **Manual for Francesco:** ① push the `v0.7.0` tag (D61) when you want; ② the Notion "Character Ideas" defects
-  (stress/REPORT.md § Theirs), if you care to; ③ ⚑ do Spellfire Spark / Fey Sentinel ask an ability pick (homebrew,
-  only you know); ④ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑤ archive the finished
-  sessions below once 3.2e commits (archiving one whose cwd is the worktree may clean it up: wait for no writer);
-  ⑥ free disk (5.2 GB free, under the app's 5.4 GB for a new worktree) if builds should get their own worktrees.
+## TL;DR (2026-11-16 · main: this handoff's docs commit + build branch `claude/site-m3-ee11e4` cfcfbdd · read 96k)
+- **State:** M3 share site and library 0.8.0 are complete on the branch, reviewed and approved: Worker + KV + DailyCap DO,
+  form (with D102 drafts), view, editable shares (D97), `/guide` + Vesk example (D99, D104), `/codes` (D103, D114),
+  Keys popover, SPEC 0.8 (D106–D113). 179 library + 157 site tests pass. Unmerged, unpushed, not deployed.
+- **Single next action:** 🔶 T3.4 deploy on Francesco's go (PLAN M3: KV namespace + `wrangler deploy` + smoke test), then
+  merge the branch to `main` (fixes main's `npm run verify`), then he tags `v0.8.0` on the merged release commit (D57).
+- **Manual for Francesco:** ① the go for T3.4 (and creating the KV namespace / Cloudflare login if wrangler asks);
+  ② ⚑ read `FORMAT-UPDATES.md` on the branch (DRAFT, D113 flag; 4 questions, chiefly: aliases "until 1.0" make 1.0
+  breaking); ③ push `v0.7.0` and later `v0.8.0` tags (D57, D61); ④ the Notion "Character Ideas" defects
+  (stress/REPORT.md § Theirs), if you care to; ⑤ ⚑ do Spellfire Spark / Fey Sentinel ask an ability pick (homebrew);
+  ⑥ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑦ archive the finished sessions below once
+  merged (archiving one whose cwd is the worktree may clean it up); ⑧ free disk (5.3 GB, under the 5.4 GB a worktree needs).
 
-Working set: worktree `.claude/worktrees/release-0-7-0-5b6161` (branch `claude/site-m3-ee11e4`; its
-`.claude/launch.json` "site" = wrangler dev :8787) · `SITE.md` · `site/FIDELITY.md`
+Working set: worktree `.claude/worktrees/release-0-7-0-5b6161` (branch `claude/site-m3-ee11e4`; main repo `.claude/launch.json`
+"site" = wrangler dev :8787 from that worktree) · `SITE.md` (deploy notes) · `site/wrangler.toml`
 
-Spawned: 3.2e /guide + example (D99) · local_cad07eda · same worktree · done, unmerged (c5ba8fa, 1fb219c), verified · owed: merge after T3.4; archive
-Spawned: 3.2d editable shares (D97, D100) · local_4ac34b6d · same worktree · done, unmerged (56f3f64, f09b1cc) · owed: merge after T3.4; archive
-Spawned: /ui-review · local_de264fb8 + finisher local_6c4a58f3 · same worktree · done, unmerged (71ccde4, f9af319; D93–D95, D98) · owed: merge after T3.4; archive
-Spawned: T3.3 fixes · local_657aff77 (archived) · done, unmerged (b679c33, 63759fd; D91–D92) · owed: merge after T3.4
-Spawned: slice 3 · local_0d32913b · cwd = the worktree · done, unmerged (86d5415, c3f8e9a) · owed: merge after T3.4; archive
-Spawned: slices 1–2 (local_39b2c186, local_3be9c204) · done, unmerged · owed: merge after T3.4
+Spawned (all in the shared worktree, all done and verified, unmerged; owed: merge after T3.4, then archive):
+T3.6 site on 0.8 local_f964a965 (866da84, cfcfbdd) · T3.5 SPEC 0.8 local_9133bf7c (813b7dd…1c76d9d) · short /ui-review
+local_175b755f (297dc24) · pre-deploy fixes local_9b723919 (9fe4df1…b924ff1) · 3.2e local_cad07eda · 3.2d local_4ac34b6d ·
+/ui-review local_de264fb8 + local_6c4a58f3 · T3.3 local_657aff77 (archived) · slice 3 local_0d32913b · slices 1–2
+local_39b2c186, local_3be9c204.
 
-- **Library:** 0.7.0 (SPEC 0.7 + D1–D62), parser + emitter + data-driven checker + CLI, zero deps, ESM + UMD.
-  Releases per D57. The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
-- **Site:** scope D65–D74, D90–D100 (D91 DO cap, D97 edits, D99 guide), look D80–D89, brief `SITE.md`. Free workers.dev with a canonical-origin redirect
-  (D70); no checker in v1 (D66 follow-ups queued); plain names (D67).
-- **Gotchas:** an orphan clean worktree `.claude/worktrees/site-m3-f5c245` can go. On a turn a child's report or a
-  peer message started, the app refuses `start_session` (any folder): propose a card instead; cards can't carry `cwd`,
-  so propose in this project and have the brief `cd` into the worktree. Handover notes live in
-  `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`.
-  `npm run verify` on main fails at the test step (`node --test dist/test/` is a directory, Node 22 rejects it; all 143
-  pass by glob). The branch's `package.json` already uses `"dist/test/*.test.js"`: fixed at merge.
+- **Library:** 0.8.0 on the branch (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
+  The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
+- **Site:** scope D65–D74, D90–D116, look D80–D89, brief `SITE.md`. Free workers.dev with a canonical-origin redirect
+  (D70); no checker in v1 (D66). Book codes: `node site/scripts/books.mjs` by hand (D115).
+- **Follow-ups (post-launch):** checker counts 2024 origin languages as extras; some book titles raw from data
+  ("Project_Lamordia"); no sort by Type at phone width; `package-lock.json` still says 0.3.0.
+- **Gotchas:** orphan worktrees `site-m3-f5c245`, `hp-key-ac725e` can go. On a turn a child's report started, the app
+  refuses `start_session`: propose a card; briefs `cd` into the worktree. Handover notes:
+  `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`. Google Drive hung reading
+  `ClaudeConfig/bin` (review server script) on 2026-11-16; the review ran a connector-fetched copy.
 
-⟳ Rename previous session → "Share site slice 3 to editable shares"  · session: local_ae9b759a-6c13-42e0-a78f-6deee27f6a9c
+⟳ Rename previous session → "Pre-deploy review and SPEC 0.8"  · session: local_1ee0b1f7-b8be-4fca-b356-f3badc3fe530

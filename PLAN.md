@@ -1,6 +1,6 @@
 # PLAN — dndpaste
 
-> The queue. Decisions in `DECISIONS.md` (D1–D99). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
+> The queue. Decisions in `DECISIONS.md` (D1–D116). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
 
 ## What it is (one paragraph)
 
@@ -70,7 +70,10 @@ L<n> <Class>                   level block, n = character level
   - [x] 3.2e ✅ 2026-11-16 (c5ba8fa, 1fb219c) `/guide` page + "Start from an example" on the empty form (D99) · Opus@high · after 3.2d, same worktree · Done when: guide built with the profile key table, linked from form and /about, copy humanized, both gates green, committed.
 - [x] 🔍 T3.3 Fresh-eyes review ✅ 2026-11-16: no blockers; fixes b679c33 (D91–D92). 
 - [x] 🔍 /ui-review ✅ 2026-11-16 (71ccde4, f9af319; D93–D95, D98). Then a fresh-eyes pass on 3.2d's edit routes + 3.2e and a short /ui-review of both, before T3.4.
-- [ ] 🔶 T3.4 Deploy to workers.dev on Francesco's go (KV namespace + `wrangler deploy` + smoke test). GitHub push his.
+- [x] 🔍 Fresh-eyes on 3.2d + 3.2e ✅ 2026-11-16: no blockers; fixes 9fe4df1…05d556b (D101), D102 drafts 7136922, b924ff1. Short /ui-review ✅ 297dc24 (D103–D104).
+- [x] T3.5 ✅ 2026-11-16 (813b7dd, a575721, 1c76d9d) SPEC 0.8 + library 0.8.0 (D106–D113) · Opus@high · shared worktree, branch `claude/site-m3-ee11e4` (disk too low for a new worktree; the site needs it next) · Done when: SPEC 0.8, parser/emitter/checker per D106–D113 with 0.7 aliases (D113), fixtures migrated, `npm run verify` green, CHANGELOG + `v0.8.0` heading (tag his, D57), a drafted format-update policy for his read (⚑ D113).
+- [x] T3.6 ✅ 2026-11-16 (866da84, cfcfbdd; D114–D116) Site on 0.8 (D105) · after T3.5, branch `claude/site-m3-ee11e4` · the 0.8 library in, the D104 multiclass example + guide rewrite, the D103 book-code page linked from the guide, the Keys popover with each key's guide text, guide key table on 0.8 · Done when: site tests green, then a short /ui-review.
+- [ ] ⏳🔶 T3.4 Deploy to workers.dev on Francesco's go, after T3.6 (D105) (KV namespace + `wrangler deploy` + smoke test). GitHub push his.
 - Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
 ### M4 — character-forge interview seeding · size M in that repo
