@@ -12,8 +12,8 @@ directory = "./public"
 
 [[kv_namespaces]]
 binding = "PASTES"
-# Placeholder: valid for `wrangler dev` (a local store), refused by `wrangler deploy` until replaced.
-id = "local-pastes-replace-at-deploy"
+# The live namespace (T3.4, 2026-11-16). `wrangler dev` still uses a local store.
+id = "56d53b07251049a1907a301968bf2c60"
 
 [vars]
 # Empty = answer on any host. Set to e.g. "https://dndpaste.example" to 301 every other host there (D70).
