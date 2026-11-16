@@ -23,20 +23,26 @@ export class DailyCap {
     this.storage = state.storage;
   }
 
-  /** `?limit=<n>&day=<YYYY-MM-DD>` → `{ ok }`: true and counted when under the limit, false (not counted) when at it. */
+  /**
+   * `?limit=<n>&day=<YYYY-MM-DD>[&cost=<c>]` → `{ ok }`: true and counted when `cost` more fit under the limit, false
+   * (not counted) when they don't. `cost` defaults to 1 (a save); an edit costs 2 (D101).
+   */
   async fetch(request: Request): Promise<Response> {
     const q = new URL(request.url).searchParams;
     const limit = Number(q.get("limit"));
     const day = q.get("day") ?? "";
-    if (!Number.isInteger(limit) || limit < 0 || !DAY_RE.test(day)) return Response.json({ error: "bad request" }, { status: 400 });
-    return Response.json({ ok: await this.hit(day, limit) });
+    const cost = Number(q.get("cost") ?? "1");
+    if (!Number.isInteger(limit) || limit < 0 || !DAY_RE.test(day) || !Number.isInteger(cost) || cost < 1 || cost > 10) {
+      return Response.json({ error: "bad request" }, { status: 400 });
+    }
+    return Response.json({ ok: await this.hit(day, limit, cost) });
   }
 
-  async hit(day: string, limit: number): Promise<boolean> {
+  async hit(day: string, limit: number, cost = 1): Promise<boolean> {
     const cur = await this.storage.get<Count>("c");
     const n = cur?.day === day ? cur.n : 0;
-    if (n >= limit) return false;
-    await this.storage.put("c", { day, n: n + 1 });
+    if (n + cost > limit) return false;
+    await this.storage.put("c", { day, n: n + cost });
     // First write of a day: clean up an hour after it ends unless another day's write moves the alarm on.
     if (n === 0) await this.storage.setAlarm(nextDayStart(day) + 3_600_000);
     return true;

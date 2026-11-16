@@ -329,13 +329,13 @@ const CROSS_SITE = "This form was sent from another site. Open dndpaste and send
 const refuseCrossSite = (req: Request) =>
   isJson(req) ? json({ error: CROSS_SITE }, 403) : html(messagePage("Not sent", CROSS_SITE), 403);
 
-/** One more write for `key` today, if under `limit` (daily.ts). Fails open, like the per-minute limiters. */
-async function underDailyCap(env: Env, key: string, limit: number, now: Date): Promise<boolean> {
+/** `cost` more writes for `key` today, if they fit under `limit` (daily.ts). Fails open, like the per-minute limiters. */
+async function underDailyCap(env: Env, key: string, limit: number, now: Date, cost = 1): Promise<boolean> {
   if (!env.DAILY_CAP) return true;
   try {
     const stub = env.DAILY_CAP.get(env.DAILY_CAP.idFromName(key));
     const day = now.toISOString().slice(0, 10);
-    const r = await stub.fetch(`https://daily-cap/?limit=${limit}&day=${day}`);
+    const r = await stub.fetch(`https://daily-cap/?limit=${limit}&day=${day}${cost === 1 ? "" : `&cost=${cost}`}`);
     return ((await r.json()) as { ok?: unknown }).ok !== false;
   } catch {
     return true;
@@ -392,13 +392,16 @@ function checkBuild(f: Fields): Checked {
   return { ok: true, build, parsed };
 }
 
-/** Turnstile, the per-minute limiter and the daily cap: an edit counts as a save for all three (D97). */
-async function saveGate(request: Request, env: Env, token: string | undefined, now: Date): Promise<{ status: number; error: string } | null> {
+/**
+ * Turnstile, the per-minute limiter and the daily cap: an edit passes all three like a save (D97). `cost` is its weight
+ * in the daily cap: 1 for a save, 2 for an edit, which writes twice to KV (D101).
+ */
+async function saveGate(request: Request, env: Env, token: string | undefined, now: Date, cost = 1): Promise<{ status: number; error: string } | null> {
   const ip = ipOf(request);
   const key = rateKey(ip);
   if (!(await turnstileOk(env, token, ip))) return { status: 403, error: "The check that you are a person failed. Try again." };
   if (!(await allowed(env.SAVE_LIMITER, `save:${key}`))) return { status: 429, error: "Too many saves from your connection. Wait a minute and try again." };
-  if (!(await underDailyCap(env, `save:${key}`, LIMITS.savesPerDay, now))) return { status: 429, error: "Your connection has saved a lot of builds today. Try again tomorrow." };
+  if (!(await underDailyCap(env, `save:${key}`, LIMITS.savesPerDay, now, cost))) return { status: 429, error: "Your connection has saved a lot of builds today. Try again tomorrow." };
   return null;
 }
 
@@ -437,6 +440,8 @@ async function save(request: Request, env: Env, deps: Deps, origin: string): Pro
 export const NO_KEY = "This browser has no edit key for this build. Open the private edit link from when you saved it, or use Duplicate and edit.";
 const WRONG_KEY = "This edit key doesn't open this build. Use Duplicate and edit to save a changed copy.";
 const NOT_EDITABLE = "This build has no edit key, so it can't be edited. Use Duplicate and edit to save a changed copy.";
+/** An edit's weight in the daily cap (D101): two KV writes, so 25 edits a day at the D92 cap of 50. */
+export const EDIT_COST = 2;
 const STALE = "This build changed since you opened it. Copy your text, reload, and make your edit again.";
 
 /**
@@ -468,7 +473,7 @@ async function edit(request: Request, env: Env, deps: Deps, id: string, origin: 
   if (title === head.title && author === head.author && paste === head.paste) return done(revOf(head), 200);
 
   const now = deps.now?.() ?? new Date();
-  const gate = await saveGate(request, env, body.fields["cf-turnstile-response"], now);
+  const gate = await saveGate(request, env, body.fields["cf-turnstile-response"], now, EDIT_COST);
   if (gate) return fail(gate.status, gate.error);
 
   let rec: PasteRecord;

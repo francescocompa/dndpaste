@@ -1,12 +1,13 @@
 /** T3.3 pre-deploy review: KV write failures, daily cap, cross-site POSTs, IPv6 keys, config, title hygiene, report keys. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canonicalOrigin, oneLine, rateKey } from "../src/app.ts";
+import { EDIT_COST, canonicalOrigin, oneLine, rateKey } from "../src/app.ts";
 import { DailyCap } from "../src/daily.ts";
 import { LIMITS } from "../src/store.ts";
 import { CountingLimiter, FIXTURES, MemoryCapNamespace, MemoryKV, ORIGIN, asJson, call, form, makeEnv } from "./helpers.ts";
 
 const VICE = FIXTURES.find(([n]) => n === "vice.dndpaste")![1];
+const SHIGEN = FIXTURES.find(([n]) => n === "shigen.dndpaste")![1];
 
 /** A KV whose puts fail, as Workers KV does once the free plan's daily writes are spent. */
 class FullKV extends MemoryKV {
@@ -64,6 +65,39 @@ test("daily cap: saves stop at the day's limit per IP, other IPs and the next da
   assert.equal((await call(env, "POST", "/", ip("203.0.113.8"), { now: day1 })).status, 201);
   assert.equal((await call(env, "POST", "/", ip("203.0.113.7"), { now: () => new Date("2026-11-17T00:00:01Z") })).status, 201);
   assert.equal([...env.PASTES.map.keys()].length, LIMITS.savesPerDay + 2);
+});
+
+test("daily cap: an edit weighs 2 (D101), 25 a day per rate key; a save that still fits goes through", async () => {
+  assert.equal(EDIT_COST, 2);
+  const caps = new MemoryCapNamespace();
+  const env = makeEnv({ DAILY_CAP: caps });
+  const now = () => new Date("2026-11-16T09:00:00Z");
+  const KEY = "B".repeat(42) + "w";
+  const from = (a: string, data: Record<string, string>) => ({ ...asJson(data), headers: { "CF-Connecting-IP": a } });
+  const id = (await (await call(env, "POST", "/", from("198.51.100.1", { paste: VICE }), { now, makeKey: () => KEY })).json() as { id: string }).id;
+  // Edits from another connection: 25 fill its 50, the 26th is refused and writes nothing.
+  const edits = LIMITS.savesPerDay / EDIT_COST;
+  assert.equal(edits, 25);
+  for (let i = 1; i <= edits; i++) {
+    assert.equal((await call(env, "POST", `/${id}/edit`, from("198.51.100.2", { paste: `${VICE}\nX-Note: ${i}\n`, key: KEY }), { now })).status, 201, `edit ${i}`);
+  }
+  const over = await call(env, "POST", `/${id}/edit`, from("198.51.100.2", { paste: VICE, key: KEY }), { now });
+  assert.equal(over.status, 429);
+  assert.match((await over.json() as { error: string }).error, /tomorrow/);
+  assert.equal(JSON.parse(env.PASTES.map.get(`p:${id}`)!).n, edits + 1);
+  assert.equal((await call(env, "POST", "/", from("198.51.100.2", { paste: VICE }), { now })).status, 429, "a save doesn't fit either");
+  // 49 saves leave room for one more save but not for an edit.
+  for (let i = 1; i < LIMITS.savesPerDay; i++) assert.equal((await call(env, "POST", "/", from("198.51.100.3", { paste: VICE }), { now })).status, 201);
+  assert.equal((await call(env, "POST", `/${id}/edit`, from("198.51.100.3", { paste: SHIGEN, key: KEY }), { now })).status, 429);
+  assert.equal((await call(env, "POST", "/", from("198.51.100.3", { paste: VICE }), { now })).status, 201);
+});
+
+test("daily cap: the counter takes a cost from 1 to 10 and refuses anything else", async () => {
+  const cap = new DailyCap({ storage: { get: async () => undefined, put: async () => {}, deleteAll: async () => {}, setAlarm: async () => {} } });
+  const q = (extra: string) => cap.fetch(new Request(`https://daily-cap/?limit=50&day=2026-11-16${extra}`));
+  for (const bad of ["&cost=0", "&cost=-2", "&cost=1.5", "&cost=x", "&cost=11", "&cost="]) assert.equal((await q(bad)).status, 400, bad);
+  for (const ok of ["", "&cost=1", "&cost=2"]) assert.equal((await q(ok)).status, 200, ok);
+  assert.deepEqual(await (await cap.fetch(new Request("https://daily-cap/?limit=1&day=2026-11-16&cost=2"))).json(), { ok: false });
 });
 
 test("daily cap: reports have their own limit; refusals by the minute limiter don't count", async () => {

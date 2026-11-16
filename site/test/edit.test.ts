@@ -252,7 +252,7 @@ test("edit: the no-JS form path (with a key) lands on the share with a 303", asy
 
 // ─── limits ─────────────────────────────────────────────────────────────────
 
-test("limits: an edit counts as a save for the per-minute limit and the daily cap", async () => {
+test("limits: an edit counts as a save for the per-minute limit and as two for the daily cap (D101)", async () => {
   const env = makeEnv({ SAVE_LIMITER: new CountingLimiter(2) });
   const id = await saveJson(env);
   assert.equal((await editJson(env, id, { paste: SHIGEN, key: KEY })).status, 201);
@@ -263,13 +263,14 @@ test("limits: an edit counts as a save for the per-minute limit and the daily ca
   const caps = new MemoryCapNamespace();
   const env2 = makeEnv({ DAILY_CAP: caps });
   const id2 = await saveJson(env2);
-  for (let i = 1; i < LIMITS.savesPerDay; i++) {
+  const edits = (LIMITS.savesPerDay - 1) / 2 | 0;
+  for (let i = 1; i <= edits; i++) {
     assert.equal((await editJson(env2, id2, { paste: `${VICE}\nX-Note: ${i}\n`, key: KEY }, T0)).status, 201, `edit ${i}`);
   }
   const capped = await editJson(env2, id2, { paste: SHIGEN, key: KEY }, T0);
   assert.equal(capped.status, 429);
   assert.match((await capped.json() as { error: string }).error, /a lot of builds today/);
-  assert.equal(JSON.parse(env2.PASTES.map.get(`p:${id2}`)!).n, LIMITS.savesPerDay, "49 edits after the save: revision 50");
+  assert.equal(JSON.parse(env2.PASTES.map.get(`p:${id2}`)!).n, edits + 1, "1 save + 24 edits = 49 of 50: revision 25, the next edit doesn't fit");
 });
 
 test("limits: wrong keys don't spend the daily cap", async () => {
