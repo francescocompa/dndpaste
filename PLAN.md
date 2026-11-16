@@ -63,7 +63,7 @@ L<n> <Class>                   level block, n = character level
 ### M3 — Share site (D45, D65–D74; brief `SITE.md`) · ⏳ next · size M
 - [x] T3.1 Look jam ✅ 2026-11-15 · D80–D89, 12 frames + build brief in `jams/2026-11-15-site-look/` (local only).
 - [ ] ⏳ T3.2 Build · branch `site-m3`, own worktree, Opus@high, Mac · three slices, one session each (jam brief): 3.2a Worker core + no-JS view → 3.2b form with JS → 3.2c view interactions + chrome + `/about` · Done when: `SITE.md` done-when, up to local + reviewed.
-- [ ] 🔍 T3.3 Fresh-eyes review (Opus) inside T3.2, before deploy: escaping, CSP, abuse, IP, redirect.
+- [x] 🔍 T3.3 Fresh-eyes review (Opus) inside T3.2, before deploy: escaping, CSP, abuse, IP, redirect. Done 2026-11-16: no blockers; findings fixed (STATE).
 - [ ] 🔶 T3.4 Deploy to workers.dev on Francesco's go (KV namespace + `wrangler deploy` + smoke test). GitHub push his.
 - Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
