@@ -14,7 +14,9 @@ import type { Import, Status } from "./status.ts";
 import { recentHtml, recentStore } from "./recent.ts";
 import { editKeys as keysToTry, keyFromHash, keyStore, sendEdit } from "./keys.ts";
 import type { EditReply } from "./keys.ts";
-import { ID_RE } from "../store.ts";
+import { ID_RE, REV_RE } from "../store.ts";
+import { draftBarHtml, draftKeeper, draftSlot, draftStore } from "./drafts.ts";
+import type { Draft, Fields } from "./drafts.ts";
 import { EXAMPLE, GUIDE_LINK } from "../example.ts";
 
 const recent = recentStore(() => window.localStorage);
@@ -143,6 +145,8 @@ function init(): void {
   let st: Status = status(ta.value);
   let hints: Hints = keyHints(ta.value, 0);
   let saving = false;
+  /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
+  let changed = () => {};
 
   const cursorLine = () => ta.value.slice(0, ta.selectionStart).split("\n").length - 1;
   const refreshHints = () => {
@@ -215,6 +219,7 @@ function init(): void {
     setSaveState();
     refreshHints();
     offer.hidden = !offers || ta.value !== "";
+    changed();
   };
 
   /** Replaces a range through the browser's editing commands, so Undo brings the old text back. */
@@ -430,6 +435,38 @@ function init(): void {
   }
   window.addEventListener("resize", () => { fit(title); fit(author); });
 
+  // ---- unsaved draft (D102): kept in this browser as you type, offered back when the form opens ----
+  const openRev = editId && REV_RE.test(base) ? Number(base) : null;
+  const current = (): Fields => ({ title: title.value, author: author.value, paste: ta.value });
+  const draft = draftKeeper(draftStore(() => window.localStorage), draftSlot(editId), current(), openRev);
+  let draftTimer = 0;
+  const keepDraft = () => { clearTimeout(draftTimer); draft.keep(current()); };
+  const queueDraft = () => { clearTimeout(draftTimer); draftTimer = window.setTimeout(keepDraft, 600); };
+  const dbar = el("div", "lbar dbar");
+  dbar.setAttribute("role", "status");
+  dbar.hidden = !draft.offered;
+  if (draft.offered) dbar.innerHTML = draftBarHtml(draft.offered, new Date(), openRev);
+  tb.after(dbar);
+  dbar.addEventListener("click", (e) => {
+    const act = (e.target as Element).closest<HTMLElement>("[data-act]")?.dataset.act;
+    if (!draft.offered || (act !== "restore" && act !== "discard")) return;
+    dbar.hidden = true;
+    if (act === "discard") draft.discard();
+    else {
+      const d = draft.restore() as Draft;
+      title.value = d.title;
+      author.value = d.author;
+      fit(title);
+      fit(author);
+      replaceAll(d.paste);
+    }
+    keepDraft();
+    ta.focus({ preventScroll: true });
+  });
+  changed = queueDraft;
+  for (const f of [title, author]) f.addEventListener("input", queueDraft);
+  window.addEventListener("pagehide", keepDraft);
+
   // ---- save: JSON, so the share can join My recent shares; the no-JS path posts the form as before ----
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -456,6 +493,8 @@ function init(): void {
       if (reply.ok && typeof data.id === "string" && ID_RE.test(data.id)) {
         const id = data.id;
         const name = title.value.replace(/\s+/g, " ").trim();
+        clearTimeout(draftTimer);
+        draft.saved();
         if (editId) {
           // The share's pages cache for 5 minutes (D97): refresh this browser's copies so it shows the edit at once.
           await Promise.all(["", "/raw", "/canon", "/json"].map((s) => fetch(`/${id}${s}`, { cache: "reload" }).catch(() => null)));

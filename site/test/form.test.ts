@@ -9,6 +9,7 @@ import { findSeparator, highlight, highlightLine, highlightValue } from "../src/
 import { keyHints } from "../src/client/hints.ts";
 import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml } from "../src/client/status.ts";
 import { dayLabel, MAX_RECENT, recentHtml, recentStore } from "../src/client/recent.ts";
+import { MAX_DRAFTS, draftBarHtml, draftKeeper, draftSlot, draftStore, draftToOffer, draftWhen } from "../src/client/drafts.ts";
 import { FIXTURES, textOf } from "./helpers.ts";
 
 const NONCANON = new URL("../../fixtures/noncanonical/", import.meta.url);
@@ -254,4 +255,108 @@ test("status (D95): a name-only paste can't be saved; the toolbar, Problems and 
     assert.equal(status(text).bare, false, text);
     assert.equal(status(text).canSave, true, text);
   }
+});
+
+// ─── unsaved drafts (D102) ──────────────────────────────────────────────────
+
+const memStorage = () => {
+  const data = new Map<string, string>();
+  const s = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => { data.set(k, v); }, removeItem: (k: string) => { data.delete(k); } } as unknown as Storage;
+  return { s, data };
+};
+const NEW = { title: "", author: "", paste: "" };
+const at = (t: string) => () => new Date(t);
+
+test("drafts: a draft that differs from what the form loaded is offered back; Restore returns it, the offer closes", () => {
+  const { s } = memStorage();
+  const store = draftStore(() => s);
+  const typing = draftKeeper(store, draftSlot(null), NEW, null, at("2026-11-16T09:05:00Z"));
+  assert.equal(typing.offered, null, "nothing to offer on a first visit");
+  typing.keep({ title: "Vice", author: "ash", paste: "Name: Vice" });
+  // The tab closes; the form opens again, empty.
+  const back = draftKeeper(store, "new", NEW, null);
+  assert.deepEqual(back.offered, { title: "Vice", author: "ash", paste: "Name: Vice", rev: null, saved: "2026-11-16T09:05:00.000Z" });
+  back.keep({ title: "", author: "", paste: "N" });
+  assert.equal(store.get("new")?.paste, "Name: Vice", "typing while the offer stands keeps the old draft");
+  assert.equal(back.restore()?.paste, "Name: Vice");
+  assert.equal(back.offered, null);
+  // A draft equal to what the form loaded is not offered, and typing back to it clears the draft.
+  assert.equal(draftToOffer(store.get("new"), { title: "Vice", author: "ash", paste: "Name: Vice" }), null);
+  const same = draftKeeper(store, "new", { title: "Vice", author: "ash", paste: "Name: Vice" }, null);
+  assert.equal(same.offered, null);
+  same.keep({ title: "Vice", author: "ash", paste: "Name: Vice" });
+  assert.equal(store.get("new"), null);
+});
+
+test("drafts: cleared after a save and never written again on that page; Discard clears too", () => {
+  const { s } = memStorage();
+  const store = draftStore(() => s);
+  const k = draftKeeper(store, "new", NEW, null);
+  k.keep({ ...NEW, paste: "Name: A" });
+  assert.ok(store.get("new"));
+  k.saved();
+  assert.equal(store.get("new"), null);
+  k.keep({ ...NEW, paste: "Name: A" }); // pagehide after the save lands
+  assert.equal(store.get("new"), null);
+
+  k.saved();
+  const k2 = draftKeeper(store, "new", NEW, null);
+  k2.keep({ ...NEW, paste: "Name: B" });
+  const k3 = draftKeeper(store, "new", NEW, null);
+  assert.ok(k3.offered);
+  k3.discard();
+  assert.equal(k3.offered, null);
+  assert.equal(store.get("new"), null);
+});
+
+test("drafts: one for a new build and one per share being edited, with the revision it opened on", () => {
+  const { s } = memStorage();
+  const store = draftStore(() => s);
+  const loaded = { title: "Vice", author: "", paste: "Name: Vice" };
+  draftKeeper(store, draftSlot("abcdefghij"), loaded, 3).keep({ ...loaded, paste: "Name: Vice\nL1 Wizard" });
+  draftKeeper(store, draftSlot(null), NEW, null).keep({ ...NEW, paste: "Name: Other" });
+  assert.equal(draftSlot("abcdefghij"), "edit:abcdefghij");
+  assert.equal(store.get("edit:abcdefghij")?.rev, 3);
+  assert.equal(store.get("new")?.paste, "Name: Other");
+  draftKeeper(store, draftSlot("abcdefghij"), loaded, 3).saved();
+  assert.equal(store.get("edit:abcdefghij"), null);
+  assert.equal(store.get("new")?.paste, "Name: Other", "an edit's save leaves the new-build draft");
+  assert.equal(store.set("edit:bad id", { ...NEW, rev: null, saved: "" }), false);
+  assert.equal(store.get("p:abcdefghij"), null);
+  // Past MAX_DRAFTS the oldest goes.
+  for (let i = 0; i < MAX_DRAFTS + 2; i++) {
+    store.set(draftSlot(`a${String(i).padStart(9, "0")}`), { ...NEW, paste: `x${i}`, rev: 1, saved: `2026-11-16T10:${String(i).padStart(2, "0")}:00.000Z` });
+  }
+  assert.equal(store.get("edit:a000000000"), null);
+  assert.equal(store.get(`edit:a${String(MAX_DRAFTS + 1).padStart(9, "0")}`)?.paste, `x${MAX_DRAFTS + 1}`);
+});
+
+test("drafts: blocked, full or broken storage means no draft and no error", () => {
+  const blocked = draftStore(() => { throw new Error("SecurityError"); });
+  const k = draftKeeper(blocked, "new", NEW, null);
+  assert.equal(k.offered, null);
+  assert.doesNotThrow(() => { k.keep({ ...NEW, paste: "Name: A" }); k.discard(); k.saved(); });
+  assert.equal(blocked.set("new", { ...NEW, rev: null, saved: "2026-11-16T10:00:00.000Z" }), false);
+  const full = { getItem: () => null, setItem: () => { throw new Error("QuotaExceededError"); }, removeItem: () => {} } as unknown as Storage;
+  assert.equal(draftStore(() => full).set("new", { ...NEW, rev: null, saved: "2026-11-16T10:00:00.000Z" }), false);
+  assert.equal(draftStore(() => null).get("new"), null);
+  const { s, data } = memStorage();
+  data.set("dndpaste.drafts", "{broken");
+  assert.equal(draftStore(() => s).get("new"), null);
+  data.set("dndpaste.drafts", JSON.stringify({ new: { title: 1, paste: "x" }, "edit:abcdefghij": { title: "", author: "", paste: "x", rev: 0, saved: "" } }));
+  assert.equal(draftStore(() => s).get("new"), null, "a malformed draft reads as none");
+  assert.equal(draftStore(() => s).get("edit:abcdefghij"), null);
+});
+
+test("drafts: the restore bar says when, in plain words; an older revision says what restoring replaces", () => {
+  const now = new Date(2026, 10, 16, 18, 0);
+  assert.equal(draftWhen(new Date(2026, 10, 16, 9, 5).toISOString(), now), "today at 9:05");
+  assert.equal(draftWhen(new Date(2026, 10, 12, 14, 30).toISOString(), now), "12 Nov at 14:30");
+  assert.equal(draftWhen("nonsense", now), "earlier");
+  const d = { title: "<b>", author: "", paste: "x", rev: 2, saved: new Date(2026, 10, 16, 9, 5).toISOString() };
+  const bar = draftBarHtml(d, now, 2);
+  assert.equal(textOf(bar), "You have unsaved changes from today at 9:05.RestoreDiscard");
+  assert.ok(bar.includes(`data-act="restore"`) && bar.includes(`data-act="discard"`));
+  assert.match(textOf(draftBarHtml(d, now, 4)), /made on revision 2; restoring them replaces the changes saved since/);
+  assert.equal(textOf(draftBarHtml({ ...d, rev: null }, now, null)), "You have unsaved changes from today at 9:05.RestoreDiscard");
 });
