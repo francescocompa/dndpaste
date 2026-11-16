@@ -10,7 +10,7 @@ A pokepaste-like website: paste a build, get a short link, anyone can view it, a
 Functionality first, then the jam's look, then the QoL set. Names only, never rules text (D9, D45).
 
 ## Done when
-- Live on `https://<worker>.<subdomain>.workers.dev` with Francesco's go (D73), smoke-tested there.
+- Live on `https://dndpaste.compagnoni96.workers.dev` since 2026-11-16 (D73, D117), smoke-tested there.
 - Every route below works, including with JavaScript off for viewing and saving.
 - Every fixture in `fixtures/` saves, views, and round-trips through `/raw` and `/canon`.
 - Hostile input (HTML, script, quotes, very long lines, 32 KB + 1) is escaped or rejected, covered by tests.
