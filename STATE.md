@@ -15,7 +15,7 @@
 
 Working set: `SITE.md` (deploy + reports notes) · live site · `.claude/launch.json` "site" = wrangler dev :8787 from `site/`
 
-Spawned (all done, verified, merged 423ac7b and archived; nothing owed):
+Spawned: T3.7 share image local_011deed3 (branch `claude/share-image`, this checkout; running) → next: overseer merges, then T3.4-style redeploy on his go. Earlier (all done, merged 423ac7b, archived):
 T3.6 site on 0.8 local_f964a965 (866da84, cfcfbdd) · T3.5 SPEC 0.8 local_9133bf7c (813b7dd…1c76d9d) · short /ui-review
 local_175b755f (297dc24) · pre-deploy fixes local_9b723919 (9fe4df1…b924ff1) · 3.2e local_cad07eda · 3.2d local_4ac34b6d ·
 /ui-review local_de264fb8 + local_6c4a58f3 · T3.3 local_657aff77 (archived) · slice 3 local_0d32913b · slices 1–2
