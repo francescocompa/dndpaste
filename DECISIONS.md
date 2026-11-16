@@ -323,12 +323,12 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 
 ## /ui-review of the share site (2026-11-16) — mechanism: /ui-review round 1 (24 items, all approved) + AskUserQuestion, 2 rounds (7 questions), worker session on branch `claude/site-m3-ee11e4`
 
-- **D93 — Phone sheets close with a round × in their head, on the grab-bar line; the bottom Cancel / Close row goes. The desk copy menu carries the same icons as the sheet. DECIDED (2026-11-16).** Applies to the Copy sheet, the Display sheet and the copy-by-hand panel. A tap on the scrim and Escape still close; focus still lands on the first item. Amends D89 b's sheet anatomy (frame `view-copysheet-dark-phone`).
+- **D93 — Phone sheets close with a round × in their head, on the grab-bar line; the bottom Cancel / Close row goes. The desk copy menu carries the same icons as the sheet. DECIDED (2026-11-16); AMENDED → D98 (the × is a ghost, no fill).** Applies to the Copy sheet, the Display sheet and the copy-by-hand panel. A tap on the scrim and Escape still close; focus still lands on the first item. Amends D89 b's sheet anatomy (frame `view-copysheet-dark-phone`).
   *Raw note:* "For the scrims, maybe the close option isn't obvious" · "The icons could be present also in the dropdown form"; picked "× in the sheet head (Recommended)".
   *Rejected:* a full-width Close button at the bottom (still reads as a row of text); both (too much chrome).
   *Enforced by:* `site/src/client/site.ts` (`SHEET_HEAD`), `site/public/assets/site.css`.
 
-- **D94 — On the phone form, a problem takes its own full-width row above Keys · Save, with the message cut to one line. DECIDED (2026-11-16).** The all-clear ("No problems") stays in the row between Keys and Save. Amends D86's dock (frame `form-error-phone`).
+- **D94 — On the phone form, a problem takes its own full-width row above Keys · Save, with the message cut to one line. DECIDED (2026-11-16); AMENDED → D98 (every status on that row, ruled off).** The all-clear ("No problems") stays in the row between Keys and Save. Amends D86's dock (frame `form-error-phone`).
   *Raw note:* pin "Error line is compressed between keys and wraps badly, either we reduce info or we move it"; picked "Own line above (Recommended)".
   *Rejected:* shortening it to code + line (still squeezed; the message helps while typing); a count only.
   *Enforced by:* `site/src/client/form.ts` (`.prow`), `status.ts` `dockLineHtml`, `test/form.test.ts`.
@@ -342,7 +342,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* "Is there no way to allow edits to a build, when done from the same device that created it for example?"; picked "Design it now" over "Keep D65 for v1, park it (Recommended)".
   *Rejected:* never.
 
-- ⚑ **Parked, not decided (2026-11-16, owner: overseer):** an empty value (`Spells:` with nothing) as "unspecified / any" instead of E006 → SPEC 0.8 discussion (pin: "Empty lines shouldn't necessarily be an error"); Tidy fixing the case of known names → after launch, once a name list ships with the site; favicon "ok for now".
+- ⚑ **Parked, not decided (2026-11-16, owner: overseer):** an empty value (`Spells:` with nothing) as "unspecified / any" instead of E006 → SPEC 0.8 discussion (pin: "Empty lines shouldn't necessarily be an error"); Tidy fixing the case of known names → after launch, once a name list ships with the site; favicon "ok for now". Writing help in the form (note: "can we have the option to prefill it with at least the starting keys? How much can we help the user while writing?") → overseer, after 3.2d: a "Start a build" skeleton, smarter key hints, value suggestions once a name list ships.
 
 ## Editing shares (2026-11-16) — mechanism: AskUserQuestion, 1 round (3 questions), overseer; closes D96
 
@@ -350,3 +350,17 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* picked "Revisions, link shows latest (Recommended)", "Saving browser + edit link (Recommended)", "Any time; cache cut to 5 min (Recommended)".
   *Rejected:* replace in place (an import link changes under its reader with no way to pin, what D65 avoided); keep D65 and park it (he wants it before launch); saving browser only (a cleared browser or new phone loses the right for good); keeping the 1-hour cache (others see old text for up to an hour); a 24-hour edit window (fixes typos only).
   *Enforced by:* T3.2d build brief (overseer), SITE.md (to update in that build).
+
+## UI review round 3 (2026-11-16) — mechanism: /ui-review round 2 notes, approved in round 3, worker session
+
+- **D98 — On the phone form, every dock status sits on the row above Keys · Save, ruled off from them; the phone sheet's × is a ghost. DECIDED (2026-11-16).** Amends D94 and D93. The status row is always there: Nothing to save yet, No problems, No errors · N warnings, Only a name, errors. Nothing sits between Keys and Save, a 1px `--rule` line runs under the row, and the dock keeps one height while you type. The sheet × has no fill behind it; its tap area stays 36 × 36.
+  *Raw note:* "Use the same line for nothing to save yet and other saving status lines, so that nothing is held between the buttons. Add a divider between the line and the commands below it." · "Keep the close ghost, without fill behind it". Both approved in round 3.
+  *Rejected:* D94's split (problems above, all-clear between the buttons: the dock jumped in height and held text between the buttons); the round-2 × on a `--chip` fill (his note asked for none).
+  *Enforced by:* `site/src/client/form.ts` (`.prow`), `site/public/assets/site.css` (`.pdock .prow`, `.pop.sheet .x`).
+
+## Format guide (2026-11-16) — mechanism: AskUserQuestion, 1 round (2 questions), overseer, on Francesco's note; closes the parked "writing help/prefill" ⚑ (under D96)
+
+- **D99 — The site gets a `/guide` page in v1, and an empty form offers "Start from an example". DECIDED (2026-11-16).** `/guide` explains how a paste is laid out (header, entity blocks, level blocks, details, `Name|SOURCE`), walks one annotated example, and shows the key table built from the profile at build time so it cannot drift; `SPEC.md` stays the authority and the guide links it. Linked from the form and `/about`. The form's example is the guide's example, offered only on an empty editor. Copy is dry and plain (D88c, /humanize); examples name entities, never rules text (content boundary). Built as slice 3.2e after 3.2d, before T3.4.
+  *Raw note:* "should we include in the site also a full guide on how to use dndpaste itself, how the format is organized?" → picked "A /guide page, in v1 (Recommended)" and "Yes: an example to start from (Recommended)".
+  *Rejected:* /guide after launch (first visitors would have only the hint strip); linking SPEC.md only (written for implementers; works only once the repo is pushed); the guide alone without form help; leaving the ⚑ parked.
+  *Enforced by:* 3.2e brief (overseer).
