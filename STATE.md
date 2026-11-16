@@ -10,12 +10,12 @@
   flag; 4 questions, chiefly: aliases "until 1.0" make 1.0 breaking); ③ the public URL carries the account's workers.dev
   subdomain (`compagnoni96`); change it in the Cloudflare dashboard or add a custom domain + `CANONICAL_ORIGIN` if unwanted;
   ④ the Notion "Character Ideas" defects (stress/REPORT.md § Theirs), if you care to; ⑤ ⚑ do Spellfire Spark / Fey Sentinel
-  ask an ability pick (homebrew); ⑥ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑦ archive the
-  finished sessions below (merged now); then the worktree `release-0-7-0-5b6161` and the orphans can go; ⑧ free disk.
+  ask an ability pick (homebrew); ⑥ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑦ the
+  worktree `release-0-7-0-5b6161` (sessions archived, branch merged; its `.claude/` is untracked) and the orphans can go; ⑧ free disk.
 
 Working set: `SITE.md` (deploy + reports notes) · live site · `.claude/launch.json` "site" = wrangler dev :8787 from `site/`
 
-Spawned (all in the shared worktree, all done, verified and merged 423ac7b; owed: archive):
+Spawned (all done, verified, merged 423ac7b and archived; nothing owed):
 T3.6 site on 0.8 local_f964a965 (866da84, cfcfbdd) · T3.5 SPEC 0.8 local_9133bf7c (813b7dd…1c76d9d) · short /ui-review
 local_175b755f (297dc24) · pre-deploy fixes local_9b723919 (9fe4df1…b924ff1) · 3.2e local_cad07eda · 3.2d local_4ac34b6d ·
 /ui-review local_de264fb8 + local_6c4a58f3 · T3.3 local_657aff77 (archived) · slice 3 local_0d32913b · slices 1–2
