@@ -45,6 +45,7 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 | `POST /<id>/edit` | Edit: `title`, `author`, `paste`, `key`, optional `base` (the revision the form opened on). Order: key (403 without, wrong, or on a share that has none), `base` (409 if the share moved on), the save checks, then the save limits; an unchanged build answers 200 and writes nothing. 201 JSON `{ id, url, revision }` or 303 → `/<id>`. |
 | `POST /<id>/report` | Report: reason (required, ≤ 500 chars), contact (optional), `rev` (the revision the reader was on; a pinned page sends it). Stored, never shown. |
 | `GET /about` | What the site is; names only; unaffiliated with Wizards of the Coast; how reporting works. |
+| `GET /guide` | Format guide (D99): how a paste is laid out, one annotated example (`site/src/example.ts`, also the form's "Start from an example"), and the key table built from the library's `KEYS` at bundle time. Links SPEC.md as the authority. Fixed path, 5 chars: cannot collide with a 10-char id. |
 | anything else | 404 page. |
 
 - **Id:** 10 random base62 chars from `crypto.getRandomValues`; check-then-put, retry on collision.
@@ -81,6 +82,7 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 - **Editor** with **syntax colouring** (keys, level headers, references, `|SOURCE`, quantities, `X-` keys) plus colour by kind and abilities (D82): a transparent textarea over a highlighted layer, so the textarea stays the source of truth (accessibility, undo, mobile keyboards). **No preview pane** (D84): the coloured editor is the preview.
 - **Live diagnostics** in a Problems list (side column; phone: the dock's problem line): parse on input (debounced), errors and warnings with line numbers; clicking one jumps to the line. Save is disabled while any `E###` stands. Errors amber + E-code, never the accent (D88).
 - **Key hints** (D83): the keys the current line's block allows (profile key table, no game data), minus those used; a tap inserts `Key: `. Phone: behind a "Keys" toggle in the dock (D86).
+- **Format guide and example** (D99): the side column links `/guide` (no JS too). A new, empty form (not an edit, not Duplicate and edit: the server marks it `data-example`) shows "Start from an example" inside the empty editor; it fills the guide's example (one constant, `site/src/example.ts`), Undo empties it again, and the offer goes as soon as the editor has text.
 - **Link import** (D85): pasting only a link to this site or a bare 10-char id offers "Open it" / "Keep as text"; fetches `/<id>/json`.
 - **Layout** (D86): title and author on full-width lines, toolbar (Open file · Tidy · problem count · Save and get link), side column with Problems, Keys you can add, My recent shares.
 - **Tidy**: replaces the text with `emit(parse(text))`; enabled only without errors; undoable.

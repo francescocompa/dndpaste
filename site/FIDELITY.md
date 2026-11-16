@@ -238,3 +238,33 @@ set in the gitignored `site/.dev.vars`; `uir-fault` cookie for the 503, daily-ca
   Phone light not seen live (the review overlay kept the tab dark); the panel uses existing token pairs only.
 - Gotcha for the next live check: a leftover `uir-fault=xsite` cookie from the UI review makes every POST answer 403
   "sent from another site". Clear it (`document.cookie = 'uir-fault=; Max-Age=0; path=/'`).
+
+## 3.2e format guide and example (D99, 2026-11-16) — built to the decision, no frame
+Nothing in 3.2e has a frame (D99 came after the look jam). Every call below is a placement inside the existing look,
+for the short UI review of 3.2d + 3.2e:
+- **`/guide`:** a prose page like `/about` (Plex Sans 15 px, h2 sections), wider (`.gd`: paragraphs held to 62ch, examples
+  and the key table to the full 704 px column). Sections: the example, the header, species and background blocks, level
+  blocks, names/sources/details, short builds, canonical form and Tidy, keys, problems. Examples are drawn by the editor's
+  own highlighter (`highlightRows`, same classes and colours as the form) in a read-only `.pane`: the whole build with line
+  numbers once, then each part without numbers. No inline styles or scripts; reads the same with JS off.
+- **Key table:** built from `KEYS` (rows, order, places, value types) when the Worker is bundled; the "Holds" line is the
+  site's own words (`KEY_HOLDS`, a test fails if it and `KEYS` ever list different keys; a new value type fails the
+  typecheck until `TYPE_LABEL` has it). Keys right-aligned in Plex Mono 600, a nod to Hanging keys. Phone: one block per
+  key (key + where on the first line, what it holds below), no header row.
+- **Diagnostics:** the library keeps its messages private (`MESSAGES` is not exported), so the guide explains E vs W in one
+  paragraph and links SPEC §7 for the list, as the brief allows. `SPEC_URL` points at the GitHub repo's `main`: it
+  resolves only once the repo is public (⚑ for the deploy step).
+- **Links to the guide:** a "Guide" item in the header nav between New paste and About (all pages); in the form's side
+  column a muted line under Keys you can add ("Format guide: how a build is laid out, and every key"), also in the no-JS
+  form; one sentence on `/about`. Phone: the nav still fits one line at 375 px; the side-column line sits under Problems.
+- **"Start from an example":** inside the empty editor, under the placeholder line: a chip button with a new sprite icon
+  `example` (Lucide file-text) and "or read the format guide". It fills the example through the editor's own replace
+  (Undo empties it, the offer comes back), and hides as soon as the editor has text. Only on a plain new form: the server
+  sets `data-example` only when there is no `?from=`, no edit and no text; form.js also refuses it on an edit form.
+- **The example:** "Briar", a level 4 druid on 2024 rules: name, header keys, a Species block with a source (`Elf|XPHB`),
+  a custom Background block with a feat's details, three level blocks with a gap at level 2, Equipment letter, Items.
+  Names only. Parses clean and is already canonical, so Tidy is off after it fills (tested).
+- Checked live under `wrangler dev`: `/guide` desk light and phone dark (the browser held a saved Light theme, so dark was
+  forced on the page, not through Display); form desk light and phone dark with the offer; fill → no problems, Tidy off;
+  Undo → empty and the offer back; Duplicate and edit and Edit, both cleared to empty, never show it. Phone: no
+  horizontal scroll on `/guide` (inline code in paragraphs no longer breaks after a minus).

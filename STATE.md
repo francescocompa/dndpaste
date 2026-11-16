@@ -1,6 +1,6 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-16 · 0.7.0 · M1 ✅ · M2 ✅ · M3 slices 1–3 ✅ · T3.3 ✅ · T3.2d ✅ · 143 + 137 site tests green · v0.7.0 tagged locally, not pushed)
+## TL;DR (2026-11-16 · 0.7.0 · M1 ✅ · M2 ✅ · M3 slices 1–3 ✅ · T3.3 ✅ · T3.2d ✅ · 3.2e ✅ · 143 + 142 site tests green · v0.7.0 tagged locally, not pushed)
 - **Where it stands.** SPEC 0.5 + D1–D57. Library = parser + canonical emitter + data-driven checker
   (`check`/`normalise`/`finalScores`/`classSequence`) + `bin/dndpaste.mjs` CLI, zero deps, ESM + UMD.
   0.6.0 (2026-09-30) carries the fixes from character-forge's real-build stress wave (cf-D81):
@@ -47,7 +47,14 @@
   as saves for every limit; `base` 409; legacy records = revision 1, not editable. `/json` gains `edited`, `revision`.
   137 site tests. ⚑ For review: Duplicate and edit got a new `duplicate` icon (FIDELITY § T3.2d); the "Copy edit link"
   menu item wants a /decision entry in main (extends D97's "once").
-- **Single next action:** fresh-eyes pass on the edit routes (overseer), then T3.4 deploy on Francesco's go.
+- **3.2e done (2026-11-16, D99):** `/guide` (layout of a paste, the example walked part by part, the key table built
+  from `KEYS` at bundle time, SPEC linked as the authority, E/W explained and SPEC §7 linked since the library keeps its
+  messages private); "Guide" in the header nav, a guide line in the form's side column, a sentence on `/about`; "Start from
+  an example" inside the empty editor of a plain new form only (`data-example`), one constant `site/src/example.ts`. New
+  sprite icon `example`. 142 site tests. Placement calls (no frame) in `site/FIDELITY.md` § 3.2e. ⚑ `SPEC_URL` (GitHub
+  `main`) resolves only once the repo is public.
+- **Single next action:** fresh-eyes pass on the edit routes (overseer), a short UI review of 3.2d + 3.2e, then T3.4
+  deploy on Francesco's go.
 - **Manual for Francesco:** ② the
   Notion "Character Ideas" defects (stress/REPORT.md § Theirs) if you care to; ③ ⚑ do Spellfire
   Spark / Fey Sentinel ask an ability pick (homebrew feats, only you know); ④ homebrew merge (M2
