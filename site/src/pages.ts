@@ -1,8 +1,8 @@
 /** Server-rendered pages. No inline scripts or styles (CSP); every user value through `esc`. */
-import { isClean, parse } from "../../src/dndpaste.ts";
-import type { Diagnostic } from "../../src/dndpaste.ts";
+import { emit, isClean, parse } from "../../src/dndpaste.ts";
+import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { esc, icon, renderPaste } from "./render.ts";
-import type { PasteRecord } from "./store.ts";
+import type { PasteRecord, Rendered } from "./store.ts";
 import { LIMITS } from "./store.ts";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -56,8 +56,28 @@ export interface ViewState {
   reportContact?: string;
 }
 
+/**
+ * Bump when the view body or the canonical text a record caches would change (renderer, library parse or emit).
+ * test/cache.test.ts holds a hash of every fixture's output and fails until this moves with it.
+ */
+export const RENDER_VERSION = 1;
+
+/** Everything the view and /canon derive from the paste, computed once at save (free-plan CPU, T3.3). */
+export function prerender(paste: Paste): Rendered {
+  return {
+    v: RENDER_VERSION,
+    body: renderPaste(paste),
+    clean: isClean(paste),
+    folds: paste.levels.some((l) => l.lines.size),
+    canon: emit(paste),
+  };
+}
+
+/** The record's cached render when it is current; otherwise rendered now (a renderer change re-renders on read). */
+export const rendered = (rec: PasteRecord): Rendered => rec.r?.v === RENDER_VERSION ? rec.r : prerender(parse(rec.paste));
+
 export function viewPage(id: string, rec: PasteRecord, origin: string, s: ViewState = {}): string {
-  const paste = parse(rec.paste);
+  const r = rendered(rec);
   const title = rec.title || UNTITLED;
   const date = fmtDate(rec.created);
   const by = rec.author ? `by ${esc(rec.author)}` : "Anonymous";
@@ -74,11 +94,11 @@ export function viewPage(id: string, rec: PasteRecord, origin: string, s: ViewSt
     `<link rel="alternate" type="text/plain" href="/${id}/raw">`,
   ].join("\n") + "\n";
 
-  const unclean = isClean(paste) ? "" :
+  const unclean = r.clean ? "" :
     `<p class="note">Some lines of this build did not parse and are not shown. <a href="/${id}/raw">See the text as written</a>.</p>`;
 
   // Fold all / expand all over the level blocks' <details> (D87): shown only when a level block has lines to fold.
-  const folds = paste.levels.some((l) => l.lines.size)
+  const folds = r.folds
     ? `<div class="fold njs"><button type="button" class="b" data-fold="close">Fold all levels</button> · <button type="button" class="b" data-fold="open">Expand all</button></div>\n`
     : "";
   const report = s.reported
@@ -95,7 +115,7 @@ ${s.reportError ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.reportEr
 <div class="actrow acts" data-id="${id}"><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
     `<button type="button" class="bt pri caret icon" aria-label="More ways to copy" aria-haspopup="menu" aria-expanded="false">${icon("chevron-down")}</button></span>` +
     `<span class="grow"></span><a class="bt" href="/?from=${id}">${icon("pencil")}Duplicate and edit</a><noscript><span class="alt"><a href="/${id}/raw">Text as written</a> · <a href="/${id}/canon">Canonical text</a></span></noscript></div>
-${folds}${unclean}${renderPaste(paste)}
+${folds}${unclean}${r.body}
 ${report}`;
   return layout({ title: `${title} · dndpaste`, main, head, page: "view" });
 }
@@ -159,6 +179,14 @@ export function aboutPage(): string {
 <p>Under each build there is a line: "Something wrong with this build? Report it". Give a reason, and a contact if you want an answer. The report goes to the site&#39;s maintainer and never shows on the page. The maintainer can remove a build that copies rules text or is spam.</p>
 <p>dndpaste is not affiliated with Wizards of the Coast.</p></div>`;
   return layout({ title: "About · dndpaste", main, page: "about" });
+}
+
+/** A short refusal or outage page: a heading, one sentence and a way back. */
+export function messagePage(heading: string, text: string): string {
+  const main = `<div class="prose"><h1>${esc(heading)}</h1>
+<p>${esc(text)}</p>
+<p><a href="/">New paste</a></p></div>`;
+  return layout({ title: `${heading} · dndpaste`, main, page: "missing" });
 }
 
 export function notFoundPage(): string {

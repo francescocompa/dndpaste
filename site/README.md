@@ -20,7 +20,7 @@ npm run fonts      # re-copy IBM Plex woff2 from @fontsource into public/assets/
 ## Reading reports and taking a paste down
 ```bash
 npx wrangler kv key list --binding PASTES --prefix r: --remote
-npx wrangler kv key get "r:<iso>:<id>" --binding PASTES --remote
+npx wrangler kv key get "r:<iso>:<id>:<nonce>" --binding PASTES --remote
 npx wrangler kv key delete "p:<id>" --binding PASTES --remote
 ```
 
@@ -29,3 +29,16 @@ npx wrangler kv key delete "p:<id>" --binding PASTES --remote
 binding at deploy, delete both blocks: the Worker then skips the check, and a Cloudflare WAF rate-limiting rule takes its place
 (dashboard → Security → WAF → Rate limiting rules: `http.request.method eq "POST"` on this hostname, 10 requests per minute
 per IP, action Block for 1 minute). KV free tier is about 1,000 writes a day, saves and reports together.
+
+Rate keys are the IPv4 address, or the IPv6 /64. On top of the minute limits, a daily cap per key (`LIMITS.savesPerDay`
+50, `reportsPerDay` 20, UTC days) runs in the `DailyCap` Durable Object (`src/daily.ts`, SQLite-backed, on the Free plan;
+the `migrations` block creates it on first deploy). It stores a day and a count per key, never the address, and deletes
+itself the day after. Delete its two `wrangler.toml` blocks to run without it. When KV writes run out anyway, saves and
+reports answer 503 with the site's own page and keep the text in the form.
+
+POSTs from another site are refused (403): `Sec-Fetch-Site: cross-site`, or an `Origin` that is neither this host nor
+`CANONICAL_ORIGIN`. This is why the site sends `Referrer-Policy: same-origin`: under `no-referrer`, browsers send
+`Origin: null` on the site's own POSTs.
+
+`CANONICAL_ORIGIN` must be `https://host` (http only for localhost), with no path; anything else answers every request
+with a 500 naming the setting, so a typo cannot switch the redirect off quietly. The 301 carries `max-age=3600`.

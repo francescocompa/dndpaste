@@ -1,12 +1,37 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { handle } from "../src/app.ts";
-import type { Deps, Env, RateLimiter } from "../src/app.ts";
+import type { DailyCapNamespace, Deps, Env, RateLimiter } from "../src/app.ts";
+import { DailyCap } from "../src/daily.ts";
 import type { KVLike } from "../src/store.ts";
 
 export class MemoryKV implements KVLike {
   map = new Map<string, string>();
   async get(key: string) { return this.map.get(key) ?? null; }
   async put(key: string, value: string) { this.map.set(key, value); }
+}
+
+/** In-memory Durable Object namespace for the daily cap: one DailyCap per name, over a Map-backed storage. */
+export class MemoryCapNamespace implements DailyCapNamespace {
+  objects = new Map<string, DailyCap>();
+  alarms = new Map<string, number>();
+  idFromName(name: string) { return name; }
+  get(id: unknown) {
+    const name = id as string;
+    let o = this.objects.get(name);
+    if (!o) {
+      const data = new Map<string, unknown>();
+      const alarms = this.alarms;
+      o = new DailyCap({ storage: {
+        async get<T>(k: string) { return data.get(k) as T | undefined; },
+        async put(k: string, v: unknown) { data.set(k, structuredClone(v)); },
+        async deleteAll() { data.clear(); },
+        async setAlarm(t: number) { alarms.set(name, t); },
+      } });
+      this.objects.set(name, o);
+    }
+    const obj = o;
+    return { fetch: (input: string) => obj.fetch(new Request(input)) };
+  }
 }
 
 export class CountingLimiter implements RateLimiter {
@@ -24,7 +49,7 @@ export function makeEnv(over: Partial<Env> = {}): Env & { PASTES: MemoryKV } {
   return { PASTES: new MemoryKV(), ...over } as Env & { PASTES: MemoryKV };
 }
 
-export const ORIGIN = "http://dndpaste.test";
+export const ORIGIN = "https://dndpaste.test";
 
 export function call(env: Env, method: string, path: string, init: { body?: string | FormData; type?: string; headers?: Record<string, string> } = {}, deps: Deps = {}) {
   const headers = new Headers(init.headers ?? {});

@@ -31,7 +31,18 @@ name = "REPORT_LIMITER"
 namespace_id = "1002"
 simple = { limit = 10, period = 60 }
 
-# The client bundle (public/assets/form.js) is built before `wrangler dev` and `wrangler deploy`.
+# Daily write cap per IP (IPv6: per /64), on top of the per-minute limits (D71, T3.3; src/daily.ts). SQLite-backed
+# Durable Objects are on the Workers Free plan. Delete these two blocks to run without it: the Worker then skips it.
+[[durable_objects.bindings]]
+name = "DAILY_CAP"
+class_name = "DailyCap"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DailyCap"]
+
+# The client bundles (public/assets/form.js, site.js) are built and checked (IP gate) before `wrangler dev` and
+# `wrangler deploy`.
 [build]
-command = "node scripts/build-client.mjs"
+command = "node scripts/build-client.mjs && node scripts/check-bundle.mjs"
 watch_dir = "src"

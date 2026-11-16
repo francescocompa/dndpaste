@@ -45,9 +45,9 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 | anything else | 404 page. |
 
 - **Id:** 10 random base62 chars from `crypto.getRandomValues`; check-then-put, retry on collision.
-- **KV:** `p:<id>` → `{ v: 1, title, author, paste, created }` (ISO date). Reports `r:<iso>:<id>` → `{ id, reason, contact, created }`. Immutable, no TTL (D65).
+- **KV:** `p:<id>` → `{ v: 1, title, author, paste, created, r }` (ISO date; `r` = the view body and canon text rendered at save, stamped with `RENDER_VERSION`, re-rendered on read when the stamp is old: free-plan CPU, T3.3). Reports `r:<iso>:<id>:<nonce>` → `{ id, reason, contact, created }`. Immutable, no TTL (D65).
 - **Reading reports (for Francesco):** `npx wrangler kv key list --binding PASTES --prefix r: --remote`, then `kv key get` per key; delete a paste with `kv key delete "p:<id>"`. Write these in README.
-- **Limits (D71):** 32 KB; per-IP save limit about 10 a minute (Workers rate-limiting binding; if the free plan lacks it, a Cloudflare rate-limiting rule, documented for Francesco); reports limited the same way. Turnstile: a stubbed check behind an unset `TURNSTILE_SECRET`, off. Note: KV free tier is about 1k writes a day, pastes and reports together.
+- **Limits (D71):** 32 KB; per-IP save limit about 10 a minute (Workers rate-limiting binding; if the free plan lacks it, a Cloudflare rate-limiting rule, documented for Francesco); reports limited the same way. Turnstile: a stubbed check behind an unset `TURNSTILE_SECRET`, off. Note: KV free tier is about 1k writes a day, pastes and reports together. T3.3 added: rate keys by IPv6 /64; a daily cap per key (50 saves, 20 reports, a `DailyCap` Durable Object); a failed KV write is a 503 page with the text kept; cross-site POSTs refused (403). Details in `site/README.md`.
 
 ## Form (D68)
 - **Editor** with **syntax colouring** (keys, level headers, references, `|SOURCE`, quantities, `X-` keys) plus colour by kind and abilities (D82): a transparent textarea over a highlighted layer, so the textarea stays the source of truth (accessibility, undo, mobile keyboards). **No preview pane** (D84): the coloured editor is the preview.
@@ -72,7 +72,7 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 
 ## Security (review gate)
 - Escape every user value in every context (HTML text, attributes, OG tags, JSON). Never user HTML.
-- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`. No inline scripts or styles. `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`.
+- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`. No inline scripts or styles. ~~`Referrer-Policy: no-referrer`~~ `Referrer-Policy: same-origin` (T3.3: no-referrer makes browsers send `Origin: null` on the site's own POSTs, which breaks the cross-site check; same-origin still sends nothing to other sites), `X-Content-Type-Options: nosniff`.
 - Raw and canon are always `text/plain`. JSON is `application/json`.
 - Tests with hostile pastes, titles and authors.
 

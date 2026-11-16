@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { emit, parse } from "../../src/dndpaste.ts";
 import { CSP } from "../src/app.ts";
+import { prerender } from "../src/pages.ts";
 import { ID_RE, LIMITS } from "../src/store.ts";
 import { CountingLimiter, FIXTURES, ORIGIN, asJson, call, form, makeEnv } from "./helpers.ts";
 
@@ -49,7 +50,8 @@ test("save (JSON): 201 with id and url; the record has the D65 shape", async () 
   const out = await res.json() as { id: string; url: string };
   assert.match(out.id, ID_RE);
   assert.equal(out.url, `${ORIGIN}/${out.id}`);
-  assert.deepEqual(JSON.parse(env.PASTES.map.get(`p:${out.id}`)!), { v: 1, title: "Vice", author: "ash", paste: VICE, created: "2026-11-15T10:00:00.000Z" });
+  // `r` is the render cached at save (T3.3), derived from the paste; the share itself is the D65 fields.
+  assert.deepEqual(JSON.parse(env.PASTES.map.get(`p:${out.id}`)!), { v: 1, title: "Vice", author: "ash", paste: VICE, created: "2026-11-15T10:00:00.000Z", r: prerender(parse(VICE)) });
 });
 
 test("save: multipart form data works too", async () => {
@@ -259,13 +261,14 @@ test("routes: about, 404, 405, and fixed pages cannot collide with an id", async
   assert.equal((await call(env, "POST", "/ABCDEFGHIJ/raw")).status, 405);
 });
 
-test("headers: CSP, no-referrer and nosniff on every response", async () => {
+test("headers: CSP, same-origin referrer and nosniff on every response", async () => {
   const env = makeEnv();
   const id = await saveForm(env, { paste: VICE });
   for (const [m, p] of [["GET", "/"], ["GET", `/${id}`], ["GET", `/${id}/raw`], ["GET", "/about"], ["GET", "/x"], ["PUT", "/"]]) {
     const r = await call(env, m, p);
     assert.equal(r.headers.get("Content-Security-Policy"), CSP, p);
-    assert.equal(r.headers.get("Referrer-Policy"), "no-referrer", p);
+    // same-origin, not no-referrer: no-referrer makes browsers send `Origin: null` on our own POSTs (T3.3 cross-site check).
+    assert.equal(r.headers.get("Referrer-Policy"), "same-origin", p);
     assert.equal(r.headers.get("X-Content-Type-Options"), "nosniff", p);
   }
 });
@@ -294,6 +297,7 @@ test("CANONICAL_ORIGIN: empty serves any host; set, other hosts get a 301 with p
   assert.equal(r.status, 301);
   assert.equal(r.headers.get("Location"), `https://dndpaste.example/${id}/raw?x=1`);
   assert.equal(r.headers.get("Access-Control-Allow-Origin"), "*");
+  assert.equal(r.headers.get("Cache-Control"), "public, max-age=3600");
   env.CANONICAL_ORIGIN = ORIGIN;
   assert.equal((await call(env, "GET", `/${id}`)).status, 200);
   const j = await call(env, "POST", "/", asJson({ paste: VICE }));
@@ -302,14 +306,14 @@ test("CANONICAL_ORIGIN: empty serves any host; set, other hosts get a 301 with p
 
 // ─── reports ────────────────────────────────────────────────────────────────
 
-test("report: stored under r:<iso>:<id>, never shown; form lands on a thank-you", async () => {
+test("report: stored under r:<iso>:<id>:<nonce>, never shown; form lands on a thank-you", async () => {
   const env = makeEnv();
   const id = await saveForm(env, { paste: VICE });
   const now = () => new Date("2026-11-15T11:00:00Z");
-  const res = await call(env, "POST", `/${id}/report`, form({ reason: "Spam\r\nline two", contact: "me@example.org" }), { now });
+  const res = await call(env, "POST", `/${id}/report`, form({ reason: "Spam\r\nline two", contact: "me@example.org" }), { now, reportNonce: () => "n0nce1" });
   assert.equal(res.status, 303);
   assert.equal(res.headers.get("Location"), `/${id}?reported=1`);
-  const key = `r:2026-11-15T11:00:00.000Z:${id}`;
+  const key = `r:2026-11-15T11:00:00.000Z:${id}:n0nce1`;
   assert.deepEqual(JSON.parse(env.PASTES.map.get(key)!), { id, reason: "Spam\nline two", contact: "me@example.org", created: "2026-11-15T11:00:00.000Z" });
   const thanks = await (await call(env, "GET", `/${id}?reported=1`)).text();
   assert.ok(thanks.includes("Thanks. Your report went to the site's maintainer."));

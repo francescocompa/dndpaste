@@ -3,8 +3,8 @@
  * Static files under public/ are served by Workers static assets before this runs.
  * The Worker entry is worker.ts: it may only export handlers, so everything else lives here.
  */
-import { emit, parse } from "../../src/dndpaste.ts";
-import { aboutPage, formPage, notFoundPage, viewPage } from "./pages.ts";
+import { parse } from "../../src/dndpaste.ts";
+import { aboutPage, formPage, messagePage, notFoundPage, prerender, rendered, viewPage } from "./pages.ts";
 import type { FormState, ViewState } from "./pages.ts";
 import { ID_RE, LIMITS, getPaste, newId, putPaste, putReport } from "./store.ts";
 import type { KVLike } from "./store.ts";
@@ -12,10 +12,18 @@ import type { KVLike } from "./store.ts";
 /** Workers rate-limiting binding (D71). Absent → no check here; a WAF rule stands in (site/README.md). */
 export interface RateLimiter { limit(o: { key: string }): Promise<{ success: boolean }> }
 
+/** The Durable Object namespace behind the daily cap (daily.ts). Only `fetch` on a stub is used. */
+export interface DailyCapNamespace {
+  idFromName(name: string): unknown;
+  get(id: unknown): { fetch(input: string): Promise<Response> };
+}
+
 export interface Env {
   PASTES: KVLike;
   SAVE_LIMITER?: RateLimiter;
   REPORT_LIMITER?: RateLimiter;
+  /** Writes per rate key per UTC day (D71, T3.3). Absent → no daily cap. */
+  DAILY_CAP?: DailyCapNamespace;
   /** Empty = serve any host; set = 301 every other host to it, path and query kept (D70). */
   CANONICAL_ORIGIN?: string;
   /** Unset = Turnstile off (D71). */
@@ -23,12 +31,14 @@ export interface Env {
 }
 
 /** Injection points for tests. */
-export interface Deps { makeId?: () => string; now?: () => Date }
+export interface Deps { makeId?: () => string; now?: () => Date; reportNonce?: () => string }
 
 export const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
 const BASE_HEADERS: Record<string, string> = {
   "Content-Security-Policy": CSP,
-  "Referrer-Policy": "no-referrer",
+  // Not no-referrer: under no-referrer browsers send `Origin: null` on our own POSTs, and the cross-site check needs it.
+  // same-origin still sends nothing to other sites.
+  "Referrer-Policy": "same-origin",
   "X-Content-Type-Options": "nosniff",
 };
 const CORS: Record<string, string> = {
@@ -55,27 +65,57 @@ const SHARED = { "Cache-Control": "public, max-age=3600" };
 export async function handle(request: Request, env: Env, deps: Deps = {}): Promise<Response> {
   const url = new URL(request.url);
 
-  const canonical = canonicalOrigin(env.CANONICAL_ORIGIN);
-  if (canonical && url.origin !== canonical) return redirect(canonical + url.pathname + url.search, 301, CORS);
+  let canonical: string | null;
+  try {
+    canonical = canonicalOrigin(env.CANONICAL_ORIGIN);
+  } catch (e) {
+    // A bad setting must not quietly turn the redirect off (D70): every request says so until it is fixed.
+    console.error(e);
+    return respond(`${(e as Error).message}\n`, 500, TEXT, { "Cache-Control": "no-store" });
+  }
+  // Browsers keep a 301 with no Cache-Control indefinitely; an hour lets a wrong setting be undone.
+  if (canonical && url.origin !== canonical) return redirect(canonical + url.pathname + url.search, 301, { "Cache-Control": "public, max-age=3600", ...CORS });
 
   const origin = canonical ?? url.origin;
   const head = request.method === "HEAD";
   const method = head ? "GET" : request.method;
-  const res = await route(request, env, deps, url, method, origin);
+  let res: Response;
+  try {
+    res = await route(request, env, deps, url, method, origin, canonical);
+  } catch (e) {
+    // KV over its daily quota (or down) throws; answer with the site's own page, not Cloudflare's 1101.
+    console.error(e);
+    res = unavailable();
+  }
   return head ? new Response(null, { status: res.status, headers: res.headers }) : res;
 }
 
-function canonicalOrigin(v: string | undefined): string | null {
+/** Empty → null. Otherwise an https origin (http only for localhost), with nothing after it; anything else throws. */
+export function canonicalOrigin(v: string | undefined): string | null {
   if (!v) return null;
+  let u: URL;
   try {
-    return new URL(v).origin;
+    u = new URL(v);
   } catch {
-    return null;
+    throw new Error(`CANONICAL_ORIGIN is not a URL: "${v}". Use the form https://host.`);
   }
+  const local = u.hostname === "localhost" || u.hostname === "127.0.0.1" || u.hostname === "[::1]";
+  if (u.protocol !== "https:" && !(local && u.protocol === "http:")) {
+    throw new Error(`CANONICAL_ORIGIN must start with https:// (got "${v}").`);
+  }
+  if (u.pathname !== "/" || u.search || u.hash || u.username || u.password) {
+    throw new Error(`CANONICAL_ORIGIN must be an origin only, with no path, query or login (got "${v}").`);
+  }
+  return u.origin;
 }
 
-async function route(request: Request, env: Env, deps: Deps, url: URL, method: string, origin: string): Promise<Response> {
+const RETRY = { "Retry-After": "3600" };
+const UNAVAILABLE = "The site can't take this right now. Try again in an hour.";
+const unavailable = () => html(messagePage("Try again later", UNAVAILABLE), 503, RETRY);
+
+async function route(request: Request, env: Env, deps: Deps, url: URL, method: string, origin: string, canonical: string | null): Promise<Response> {
   const path = url.pathname;
+  if (method === "POST" && crossSite(request, url, canonical)) return refuseCrossSite(request);
   if (path === "/") {
     if (method === "GET") return newForm(env, url);
     if (method === "POST") return save(request, env, deps, origin);
@@ -113,7 +153,7 @@ async function api(env: Env, id: string, sub: string): Promise<Response> {
   }
   const extra = { ...SHARED, ...CORS };
   if (sub === "raw") return respond(rec.paste, 200, TEXT, extra);
-  if (sub === "canon") return respond(emit(parse(rec.paste)), 200, TEXT, extra);
+  if (sub === "canon") return respond(rendered(rec).canon, 200, TEXT, extra);
   return json({ title: rec.title, author: rec.author, paste: rec.paste, created: rec.created }, 200, extra);
 }
 
@@ -193,10 +233,64 @@ async function readFields(req: Request, names: readonly string[], tooLarge: stri
   return { ok: true, json, fields };
 }
 
-/** One line of plain text: control characters (newlines, tabs, NUL…) become spaces, then trimmed. */
-const oneLine = (s: string) => s.replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
+/**
+ * One line of plain text: control characters (newlines, tabs, NUL…) become spaces; zero-width and bidi controls
+ * (U+200B–200F, U+202A–202E, U+2060, U+2066–2069, U+FEFF) are dropped, so a title cannot hide or reorder text; then trimmed.
+ */
+export const oneLine = (s: string) =>
+  s.replace(/[\u200b-\u200f\u202a-\u202e\u2060\u2066-\u2069\ufeff]/g, "").replace(/[\u0000-\u001f\u007f]+/g, " ").trim();
 const chars = (s: string) => [...s].length;
 const ipOf = (req: Request) => req.headers.get("CF-Connecting-IP") ?? "unknown";
+
+/**
+ * The key a client is limited by: an IPv4 address as is, an IPv6 address by its /64 (one subscriber's block; keying
+ * the full address lets a client rotate through 2^64 of them). IPv4-mapped IPv6 counts as the IPv4 address.
+ */
+export function rateKey(ip: string): string {
+  const addr = ip.trim().toLowerCase().replace(/%.*$/, "");
+  if (!addr.includes(":")) return addr;
+  const words = (part: string) => (part ? part.split(":").flatMap((w) => (w.includes(".") ? ["0", "0"] : [w])) : []);
+  let groups: string[];
+  if (addr.includes("::")) {
+    const [a, b] = addr.split("::");
+    const head = words(a);
+    const tail = words(b);
+    groups = [...head, ...Array<string>(Math.max(0, 8 - head.length - tail.length)).fill("0"), ...tail];
+  } else {
+    groups = words(addr);
+  }
+  if (groups.length !== 8 || !groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) return addr;
+  const v4 = /:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(addr);
+  if (v4 && groups.slice(0, 5).every((g) => parseInt(g, 16) === 0) && parseInt(groups[5], 16) === 0xffff) return v4[1];
+  return `${groups.slice(0, 4).map((g) => parseInt(g, 16).toString(16)).join(":")}::/64`;
+}
+
+/**
+ * A POST from another site (a hostile page auto-submitting a form from its visitors' browsers, to spread saves over
+ * their IPs). Refused when the browser says cross-site, or sends an Origin that is neither the canonical origin nor
+ * this host. No Origin and no Sec-Fetch-Site (curl, scripts) passes: those are limited per IP like anything else.
+ */
+export function crossSite(req: Request, url: URL, canonical: string | null): boolean {
+  if (req.headers.get("Sec-Fetch-Site") === "cross-site") return true;
+  const o = req.headers.get("Origin");
+  return o !== null && o !== url.origin && o !== canonical;
+}
+const CROSS_SITE = "This form was sent from another site. Open dndpaste and send it from there.";
+const refuseCrossSite = (req: Request) =>
+  isJson(req) ? json({ error: CROSS_SITE }, 403) : html(messagePage("Not sent", CROSS_SITE), 403);
+
+/** One more write for `key` today, if under `limit` (daily.ts). Fails open, like the per-minute limiters. */
+async function underDailyCap(env: Env, key: string, limit: number, now: Date): Promise<boolean> {
+  if (!env.DAILY_CAP) return true;
+  try {
+    const stub = env.DAILY_CAP.get(env.DAILY_CAP.idFromName(key));
+    const day = now.toISOString().slice(0, 10);
+    const r = await stub.fetch(`https://daily-cap/?limit=${limit}&day=${day}`);
+    return ((await r.json()) as { ok?: unknown }).ok !== false;
+  } catch {
+    return true;
+  }
+}
 
 async function allowed(limiter: RateLimiter | undefined, key: string): Promise<boolean> {
   if (!limiter) return true;
@@ -247,11 +341,22 @@ async function save(request: Request, env: Env, deps: Deps, origin: string): Pro
   if (errors.length) return fail(422, `${errors.length} error${errors.length === 1 ? "" : "s"} in the build.`, parsed.diagnostics);
 
   const ip = ipOf(request);
+  const key = rateKey(ip);
+  const now = deps.now?.() ?? new Date();
   if (!(await turnstileOk(env, f["cf-turnstile-response"], ip))) return fail(403, "The check that you are a person failed. Try again.");
-  if (!(await allowed(env.SAVE_LIMITER, `save:${ip}`))) return fail(429, "Too many saves from your connection. Wait a minute and try again.");
+  if (!(await allowed(env.SAVE_LIMITER, `save:${key}`))) return fail(429, "Too many saves from your connection. Wait a minute and try again.");
+  if (!(await underDailyCap(env, `save:${key}`, LIMITS.savesPerDay, now))) return fail(429, "Your connection has saved a lot of builds today. Try again tomorrow.");
 
-  const created = (deps.now?.() ?? new Date()).toISOString();
-  const id = await putPaste(env.PASTES, { v: 1, title, author, paste, created }, deps.makeId ?? newId);
+  // Rendered now, kept in the same value: views then skip parse and render (free-plan CPU; no extra write).
+  const rec = { v: 1 as const, title, author, paste, created: now.toISOString(), r: prerender(parsed) };
+  let id: string;
+  try {
+    id = await putPaste(env.PASTES, rec, deps.makeId ?? newId);
+  } catch (e) {
+    // The free plan's ~1k KV writes a day are spent (or KV is down): keep the text in the form and say so.
+    console.error(e);
+    return body.json ? json({ error: UNAVAILABLE }, 503, RETRY) : html(formPage({ title, author, paste, error: UNAVAILABLE }), 503, RETRY);
+  }
   return body.json ? json({ id, url: `${origin}/${id}` }, 201) : redirect(`/${id}`, 303);
 }
 
@@ -271,9 +376,17 @@ async function report(request: Request, env: Env, deps: Deps, id: string, origin
   if (!reason) return fail(400, "Write a reason first.");
   if (chars(reason) > LIMITS.reason) return fail(400, `The reason is over ${LIMITS.reason} characters.`);
   if (chars(contact) > LIMITS.contact) return fail(400, `The contact is over ${LIMITS.contact} characters.`);
-  if (!(await allowed(env.REPORT_LIMITER, `report:${ipOf(request)}`))) return fail(429, "Too many reports from your connection. Wait a minute and try again.");
+  const key = rateKey(ipOf(request));
+  const now = deps.now?.() ?? new Date();
+  if (!(await allowed(env.REPORT_LIMITER, `report:${key}`))) return fail(429, "Too many reports from your connection. Wait a minute and try again.");
+  if (!(await underDailyCap(env, `report:${key}`, LIMITS.reportsPerDay, now))) return fail(429, "Your connection has sent a lot of reports today. Try again tomorrow.");
 
-  const created = (deps.now?.() ?? new Date()).toISOString();
-  await putReport(env.PASTES, { id, reason, contact, created });
+  try {
+    await putReport(env.PASTES, { id, reason, contact, created: now.toISOString() }, deps.reportNonce?.());
+  } catch (e) {
+    console.error(e);
+    if (body.json) return json({ error: UNAVAILABLE }, 503, RETRY);
+    return html(viewPage(id, rec, origin, { reportError: UNAVAILABLE, reportReason: reason, reportContact: contact }), 503, RETRY);
+  }
   return body.json ? json({ ok: true }, 201) : redirect(`/${id}?reported=1`, 303);
 }

@@ -14,23 +14,32 @@ export const LIMITS = {
   contact: 200,
   /** Request bodies are refused past this before parsing; form encoding can triple a 32 KB paste. */
   bodyBytes: 160 * 1024,
+  /** Writes per rate key (an IPv4 address or an IPv6 /64) per UTC day, on top of the per-minute limiters (D71). */
+  savesPerDay: 50,
+  reportsPerDay: 20,
 } as const;
 
-/** `p:<id>` → the share. Immutable, no TTL (D65). */
-export interface PasteRecord { v: 1; title: string; author: string; paste: string; created: string }
-/** `r:<iso>:<id>` → a report. Stored, never shown (D71). */
+/**
+ * The view page's body, rendered once at save and kept in the same KV value (no extra write). `v` is the renderer's
+ * RENDER_VERSION at save time; a record with another `v` is re-rendered on read (pages.ts `rendered`).
+ */
+export interface Rendered { v: number; body: string; clean: boolean; folds: boolean; canon: string }
+
+/** `p:<id>` → the share. Immutable, no TTL (D65). `r` is a cache of derived output, never served as data. */
+export interface PasteRecord { v: 1; title: string; author: string; paste: string; created: string; r?: Rendered }
+/** `r:<iso>:<id>:<nonce>` → a report. Stored, never shown (D71). */
 export interface ReportRecord { id: string; reason: string; contact: string; created: string }
 
 const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 export const ID_RE = /^[0-9A-Za-z]{10}$/;
 
-/** 10 random base62 characters from `crypto.getRandomValues`, by rejection sampling (no modulo bias). */
-export function newId(): string {
+/** `len` random base62 characters from `crypto.getRandomValues`, by rejection sampling (no modulo bias). */
+export function newId(len = 10): string {
   let id = "";
   const buf = new Uint8Array(16);
-  while (id.length < 10) {
+  while (id.length < len) {
     crypto.getRandomValues(buf);
-    for (const b of buf) if (b < 248 && id.length < 10) id += ALPHABET[b % 62];
+    for (const b of buf) if (b < 248 && id.length < len) id += ALPHABET[b % 62];
   }
   return id;
 }
@@ -42,14 +51,21 @@ export async function getPaste(kv: KVLike, id: string): Promise<PasteRecord | nu
   try {
     const r = JSON.parse(raw) as Partial<PasteRecord>;
     if (typeof r.paste !== "string") return null;
-    return { v: 1, title: str(r.title), author: str(r.author), paste: r.paste, created: str(r.created) };
+    const rec: PasteRecord = { v: 1, title: str(r.title), author: str(r.author), paste: r.paste, created: str(r.created) };
+    if (isRendered(r.r)) rec.r = r.r;
+    return rec;
   } catch {
     return null;
   }
 }
 const str = (x: unknown): string => (typeof x === "string" ? x : "");
+const isRendered = (x: unknown): x is Rendered => {
+  const r = x as Partial<Rendered> | null | undefined;
+  return !!r && typeof r.v === "number" && typeof r.body === "string" && typeof r.clean === "boolean" &&
+    typeof r.folds === "boolean" && typeof r.canon === "string";
+};
 
-/** Check-then-put with a retry on collision; returns the new id. */
+/** Check-then-put with a retry on collision; returns the new id. A failed put (KV write quota spent) throws. */
 export async function putPaste(kv: KVLike, rec: PasteRecord, makeId: () => string = newId): Promise<string> {
   for (let tries = 0; tries < 5; tries++) {
     const id = makeId();
@@ -61,6 +77,7 @@ export async function putPaste(kv: KVLike, rec: PasteRecord, makeId: () => strin
   throw new Error("no free id after 5 tries");
 }
 
-export async function putReport(kv: KVLike, rep: ReportRecord): Promise<void> {
-  await kv.put(`r:${rep.created}:${rep.id}`, JSON.stringify(rep));
+/** The nonce keeps two reports on one id in the same millisecond apart. */
+export async function putReport(kv: KVLike, rep: ReportRecord, nonce: string = newId(6)): Promise<void> {
+  await kv.put(`r:${rep.created}:${rep.id}:${nonce}`, JSON.stringify(rep));
 }
