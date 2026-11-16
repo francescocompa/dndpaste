@@ -14,6 +14,7 @@ import type { Import, Status } from "./status.ts";
 import { recentHtml, recentStore } from "./recent.ts";
 import { keyFromHash, keyStore } from "./keys.ts";
 import { ID_RE } from "../store.ts";
+import { EXAMPLE, GUIDE_LINK } from "../example.ts";
 
 const recent = recentStore(() => window.localStorage);
 const keys = keyStore(() => window.localStorage);
@@ -63,6 +64,13 @@ function init(): void {
   const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the text in the editor. Undo brings it back.</small>`);
   dropz.hidden = true;
   pane.append(dropz);
+  // D99: a new, empty form offers the guide's example. Only while the editor is empty, never on an edit or on
+  // Duplicate and edit (the server marks the form with data-example only for a plain new paste).
+  const offers = form.dataset.example === "1" && !editId;
+  const offer = el("div", "exo", `<button type="button" class="bt exb">${icon("example")}Start from an example</button>` +
+    `<span class="muted">or read the <a href="/guide">format guide</a></span>`);
+  offer.hidden = true;
+  ed.append(offer);
 
   // ---- toolbar: Open file · Tidy · summary · Save ----
   const file = el("input", "");
@@ -100,7 +108,7 @@ function init(): void {
 
   // ---- side column: Problems · Keys you can add · My recent shares ----
   aside.innerHTML = `<div class="stack sm"><span class="lbl">Problems</span><div class="probs"></div></div>` +
-    `<div class="stack sm keys"><span class="lbl klbl">Keys you can add</span><div class="chips"></div></div>` +
+    `<div class="stack sm keys"><span class="lbl klbl">Keys you can add</span><div class="chips"></div></div>` + GUIDE_LINK +
     `<div class="stack sm"><span class="lbl">My recent shares</span><div class="rlist"></div></div>`;
   const probs = aside.querySelector<HTMLElement>(".probs") as HTMLElement;
   const klbl = aside.querySelector<HTMLElement>(".klbl") as HTMLElement;
@@ -205,6 +213,7 @@ function init(): void {
     put(prow, dockLineHtml(st));
     setSaveState();
     refreshHints();
+    offer.hidden = !offers || ta.value !== "";
   };
 
   /** Replaces a range through the browser's editing commands, so Undo brings the old text back. */
@@ -359,6 +368,10 @@ function init(): void {
     if (at) { jump(Number(at.dataset.line)); return; }
     const chip = t.closest<HTMLElement>(".hc[data-key]");
     if (chip?.dataset.key) insertKey(chip.dataset.key);
+  });
+  offer.querySelector(".exb")?.addEventListener("click", () => {
+    replaceAll(EXAMPLE);
+    ta.focus({ preventScroll: true });
   });
   tidyBtn.addEventListener("click", () => {
     if (st.canTidy && st.canon !== null) replaceAll(st.canon);

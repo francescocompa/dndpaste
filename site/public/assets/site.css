@@ -263,6 +263,29 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .prose ul { margin: 0 0 0.8em; padding-left: 1.2em; }
 .prose code { font: 0.9em/1 var(--mono); }
 
+/* ---- format guide (D99): examples drawn as the editor draws them, the key table from the profile ---- */
+.gd { max-width: none; }
+.gd p, .gd ul { max-width: 62ch; }
+.gd h2 { margin-top: 1.8em; }
+.gd p code { white-space: nowrap; }
+.ex { margin: 0.4em 0 0.9em; }
+.ex .ed { min-height: 0; }
+.ex.nog .ed { --gw: 10px; } .ex.nog .ed .g { padding: 0; } .ex.nog .ed .g::before { content: none; }
+.ktab { width: 100%; border-collapse: collapse; font: 13.5px/1.45 var(--sans); margin: 0.4em 0 1em; }
+.ktab th, .ktab td { text-align: left; vertical-align: top; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--rule); font-weight: 400; }
+.ktab thead th { font: 600 11px/1.2 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+.ktab .kk { font: 600 13px/1.45 var(--mono); text-align: right; white-space: nowrap; padding-right: 1.6ch; }
+.ktab thead .kk { font: 600 11px/1.2 var(--sans); }
+.ktab .kw { color: var(--mute); width: 11em; }
+.ktab .kh small { display: block; margin-top: 2px; color: var(--mute); font-size: 12.5px; }
+.ktab code { font: 0.95em/1 var(--mono); }
+/* the form's way to the guide, and the example offer inside an empty editor (D99) */
+.glink { font-size: 12.5px; } .glink a { color: var(--fg); text-underline-offset: 3px; }
+.exo { position: absolute; z-index: 1; top: calc(8px + 2.6em); left: var(--gw); right: 10px; display: flex; flex-wrap: wrap; gap: 6px 10px;
+  align-items: center; font: 13px/1.4 var(--sans); pointer-events: none; }
+.exo > * { pointer-events: auto; }
+.exo a { color: var(--fg); text-underline-offset: 3px; }
+
 /* ---- phone ---- */
 @media (max-width: 600px) {
   body { font-size: 13px; }
@@ -315,4 +338,11 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .pop.sheet .it small { margin: 0; font-size: 12.5px; }
   .pop.sheet .it:last-of-type { border-bottom: 0; }
   .dmenu.sheet { gap: 12px; padding-left: 16px; padding-right: 16px; }
+  /* Key table (D99): one block per key, key and place on the first line, what it holds below. */
+  .ktab thead { display: none; }
+  .ktab, .ktab tbody { display: block; }
+  .ktab tr { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .ktab th, .ktab td { padding: 0; border: 0; }
+  .ktab .kk { text-align: left; } .ktab .kw { width: auto; }
+  .ktab .kh { grid-column: 1 / -1; }
 }

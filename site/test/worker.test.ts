@@ -236,7 +236,7 @@ test("view, HEAD: same status and headers, no body", async () => {
 test("form: GET / is the empty form; ?from= pre-fills it; a missing id says so", async () => {
   const env = makeEnv();
   const blank = await (await call(env, "GET", "/")).text();
-  assert.ok(blank.includes(`<form class="pform stack" method="post" action="/">`));
+  assert.ok(blank.includes(`<form class="pform stack" method="post" action="/" data-example="1">`));
   assert.ok(blank.includes(`name="paste"`));
   const id = await saveForm(env, { title: "Vice", author: "ash", paste: VICE });
   const pre = await (await call(env, "GET", `/?from=${id}`)).text();
@@ -270,7 +270,7 @@ test("routes: about, 404, 405, and fixed pages cannot collide with an id", async
 test("headers: CSP, same-origin referrer and nosniff on every response", async () => {
   const env = makeEnv();
   const id = await saveForm(env, { paste: VICE });
-  for (const [m, p] of [["GET", "/"], ["GET", `/${id}`], ["GET", `/${id}/raw`], ["GET", "/about"], ["GET", "/x"], ["PUT", "/"]]) {
+  for (const [m, p] of [["GET", "/"], ["GET", `/${id}`], ["GET", `/${id}/raw`], ["GET", "/about"], ["GET", "/guide"], ["GET", "/x"], ["PUT", "/"]]) {
     const r = await call(env, m, p);
     assert.equal(r.headers.get("Content-Security-Policy"), CSP, p);
     // same-origin, not no-referrer: no-referrer makes browsers send `Origin: null` on our own POSTs (T3.3 cross-site check).

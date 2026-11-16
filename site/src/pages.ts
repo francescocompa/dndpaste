@@ -1,6 +1,7 @@
 /** Server-rendered pages. No inline scripts or styles (CSP); every user value through `esc`. */
 import { emit, isClean, parse } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
+import { GUIDE_LINK } from "./example.ts";
 import { esc, icon, renderPaste } from "./render.ts";
 import type { PasteRecord, Rendered } from "./store.ts";
 import { LIMITS, revOf } from "./store.ts";
@@ -17,7 +18,7 @@ export function fmtDate(iso: string): string {
 interface Layout { title: string; main: string; head?: string; page: string }
 
 /**
- * Every page: the header (wordmark, New paste, About, the Display button) and /assets/site.js, a classic script in
+ * Every page: the header (wordmark, New paste, Guide, About, the Display button) and /assets/site.js, a classic script in
  * <head> that applies the saved Display settings before the first paint (D82) and wires the chrome. Controls that
  * need JavaScript carry `njs` and stay hidden without it.
  */
@@ -35,7 +36,7 @@ export function layout(o: Layout): string {
 ${o.head ?? ""}</head>
 <body class="${esc(o.page)}">
 <div class="wrap">
-<header class="top"><a class="wm" href="/">dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New paste</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("contrast")}Display</button></header>
+<header class="top"><a class="wm" href="/">dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New paste</a><a class="nav" href="/guide">Guide</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("contrast")}Display</button></header>
 <main>
 ${o.main}
 </main>
@@ -145,6 +146,8 @@ export interface FormState {
   missingFrom?: string;
   /** Editing share `id`, opened on revision `rev` (D97): the form saves to `/<id>/edit`. */
   edit?: { id: string; rev: number; title: string };
+  /** A new, empty form (not an edit, not Duplicate and edit): form.js offers the example while the editor is empty (D99). */
+  example?: boolean;
 }
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -169,12 +172,12 @@ export function formPage(s: FormState = {}): string {
   const saveBtn = e ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`;
   const hidden = e ? `<input type="hidden" name="key" value=""><input type="hidden" name="base" value="${e.rev}">` : "";
   const cancel = e ? `<a class="bt ghost cancel" href="/${e.id}">Cancel</a>` : "";
-  const main = `<form class="pform stack" method="post" action="${e ? `/${e.id}/edit` : "/"}"${e ? ` data-edit="${e.id}"` : ""}>${hidden}
+  const main = `<form class="pform stack" method="post" action="${e ? `/${e.id}/edit` : "/"}"${e ? ` data-edit="${e.id}"` : ""}${s.example && !e && !s.paste ? ` data-example="1"` : ""}>${hidden}
 ${notes}<div class="stack sm"><label class="fld"><span class="lbl">Title</span><textarea class="in fit" name="title" rows="1" maxlength="${LIMITS.title}" autocomplete="off" spellcheck="false" placeholder="Untitled build">${esc(s.title ?? "")}</textarea></label>
 <label class="fld"><span class="lbl">Author</span><textarea class="in fit" name="author" rows="1" maxlength="${LIMITS.author}" autocomplete="off" spellcheck="false" placeholder="Anonymous">${esc(s.author ?? "")}</textarea></label></div>
 <div class="tb"><span class="grow"></span>${sum}${cancel}<button class="bt pri" type="submit">${saveBtn}</button></div>
 <div class="fgrid"><div class="pane"><textarea class="src" name="paste" aria-label="Build" spellcheck="false" autocapitalize="off" autocomplete="off" rows="24" placeholder="Paste or type a build">${esc(s.paste ?? "")}</textarea></div>
-<aside class="aside"><div class="stack sm"><span class="lbl">Problems</span>${problems}</div></aside></div>
+<aside class="aside"><div class="stack sm"><span class="lbl">Problems</span>${problems}</div>${GUIDE_LINK}</aside></div>
 </form>`;
   // The editor, hints, Tidy, Open file and recent shares come from /assets/form.js (src/client/); without it this form
   // still saves, and the server answers with its diagnostics.
@@ -190,7 +193,7 @@ export function aboutPage(): string {
   const main = `<div class="prose"><h1>About</h1>
 <p>dndpaste is a site for sharing Dungeons &amp; Dragons character builds as plain text. You paste a build and save it, and the site gives you a short link. Anyone with the link can read the build, copy its text, or open a copy in the editor.</p>
 <h2>What a build holds</h2>
-<p>A build names the choices a character makes, level by level: species, background, classes, feats, spells and items. It holds names only, never rules text. The site checks that the text follows the dndpaste format. It does not check the build against the rules.</p>
+<p>A build names the choices a character makes, level by level: species, background, classes, feats, spells and items. It holds names only, never rules text. The site checks that the text follows the dndpaste format. It does not check the build against the rules. The <a href="/guide">format guide</a> shows how a build is laid out.</p>
 <h2>Saved builds</h2>
 <p>The browser that saved a build can edit it: open the build and choose Edit. After you save a build, the site also shows a private edit link. Keep it to edit the build from another device. The browser that saved the build can copy the link again from the Copy link menu. Anyone who has the link can edit the build.</p>
 <p>Each edit adds a revision. The link shows the latest revision a few minutes after the edit. The address <code>/&lt;id&gt;/2</code> always shows revision 2 as it was saved. If you lose the edit key, choose Duplicate and edit and save a copy. The copy gets a new link. You cannot delete a saved build.</p>

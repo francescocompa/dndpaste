@@ -4,6 +4,7 @@
  * The Worker entry is worker.ts: it may only export handlers, so everything else lives here.
  */
 import { parse } from "../../src/dndpaste.ts";
+import { guidePage } from "./guide.ts";
 import { aboutPage, formPage, messagePage, notFoundPage, prerender, rendered, viewPage } from "./pages.ts";
 import type { FormState, ViewState } from "./pages.ts";
 import {
@@ -132,6 +133,7 @@ async function route(request: Request, env: Env, deps: Deps, url: URL, method: s
     if (method === "POST") return save(request, env, deps, origin);
     return notAllowed("GET, HEAD, POST");
   }
+  if (path === "/guide") return method === "GET" ? html(guidePage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
   if (path === "/about") return method === "GET" ? html(aboutPage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
 
   // `/<id>`, `/<id>/<n>` (revision n, D97), each with /raw, /canon, /json; `/<id>/report` and `/<id>/edit` on the share.
@@ -191,7 +193,7 @@ async function api(env: Env, id: string, rev: number | null, sub: string): Promi
 
 async function newForm(env: Env, url: URL): Promise<Response> {
   const from = url.searchParams.get("from");
-  if (from === null) return html(formPage());
+  if (from === null) return html(formPage({ example: true }));
   // `?from=<id>` copies the latest revision, `?from=<id>/<n>` revision n (D97).
   const [fid, frev] = from.split("/");
   const ok = ID_RE.test(fid) && (frev === undefined || REV_RE.test(frev)) && from.split("/").length <= 2;
