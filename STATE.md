@@ -7,11 +7,11 @@
 - **Single next action:** Francesco tags `v0.8.0` on 423ac7b and pushes `main` + tags (D57, D61); then the ⚑ FORMAT-UPDATES
   read. M4 (character-forge seeding) runs in that repo, under its own CLAUDE.md.
 - **Manual for Francesco:** ① tag `v0.8.0` (and push `v0.7.0`, `v0.8.0`, `main`); ② ⚑ read `FORMAT-UPDATES.md` (DRAFT, D113
-  flag; 4 questions, chiefly: aliases "until 1.0" make 1.0 breaking); ③ the public URL carries the account's workers.dev
-  subdomain (`compagnoni96`); change it in the Cloudflare dashboard or add a custom domain + `CANONICAL_ORIGIN` if unwanted;
+  flag; 4 questions, chiefly: aliases "until 1.0" make 1.0 breaking); ③ rename the account's workers.dev
+  subdomain `compagnoni96` → `fcom` (dashboard → Workers & Pages → Account details; decided 2026-11-16), then docs → new URL;
   ④ the Notion "Character Ideas" defects (stress/REPORT.md § Theirs), if you care to; ⑤ ⚑ do Spellfire Spark / Fey Sentinel
   ask an ability pick (homebrew); ⑥ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑦ the
-  worktree `release-0-7-0-5b6161` (sessions archived, branch merged; its `.claude/` is untracked) and the orphans can go; ⑧ free disk.
+  worktrees removed 2026-11-16 (5.7 GB free); ⑧ free disk.
 
 Working set: `SITE.md` (deploy + reports notes) · live site · `.claude/launch.json` "site" = wrangler dev :8787 from `site/`
 
@@ -27,7 +27,7 @@ local_39b2c186, local_3be9c204.
   (D70); no checker in v1 (D66). Book codes: `node site/scripts/books.mjs` by hand (D115).
 - **Follow-ups (post-launch):** checker counts 2024 origin languages as extras; some book titles raw from data
   ("Project_Lamordia"); no sort by Type at phone width; `package-lock.json` still says 0.3.0.
-- **Gotchas:** orphan worktrees `site-m3-f5c245`, `hp-key-ac725e` can go. On a turn a child's report started, the app
+- **Gotchas:** On a turn a child's report started, the app
   refuses `start_session`: propose a card; briefs `cd` into the worktree. Handover notes:
   `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`. Google Drive hung reading
   `ClaudeConfig/bin` (review server script) on 2026-11-16; the review ran a connector-fetched copy.
