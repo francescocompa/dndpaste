@@ -1,4 +1,4 @@
-/* global uiReview, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent */
+/* global uiReview, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent, sessionStorage, addEventListener, history */
 // /ui-review dev tools for the share site (site/). Loaded only under `wrangler dev` with UI_REVIEW in site/.dev.vars
 // (site/src/devreview.ts). The site's own look stays in site/; this file only drives it.
 
@@ -29,7 +29,17 @@ const typeIn = (text, inputType = 'insertFromPaste') => {
   ta.focus(); ta.value = text; ta.setSelectionRange(text.length, text.length)
   ta.dispatchEvent(new InputEvent('input', { bubbles: true, inputType }))
 }
-const ERROR_TEXT = 'Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
+// Setups whose state exists only at page load (D97 saved panel, D102 draft bar): change storage, then reload once.
+// The overlay re-runs the open item's setup after the load, so each one first checks whether its state is there.
+const reloadOnce = (name) => {
+  const k = `uir-once:${name}`, t = Number(sessionStorage.getItem(k) || 0)
+  if (Date.now() - t < 15000) return false
+  sessionStorage.setItem(k, String(Date.now())); location.reload(); return true
+}
+const shareId = () => location.pathname.split('/')[1]
+const readJson = (k) => { try { return JSON.parse(localStorage.getItem(k) || '{}') } catch { return {} } }
+const putDraft = (slot, d) => { const all = readJson('dndpaste.drafts'); if (d) all[slot] = d; else delete all[slot]; localStorage.setItem('dndpaste.drafts', JSON.stringify(all)) }
+const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 uiReview.config({
   schema: 1,
@@ -62,6 +72,46 @@ uiReview.config({
     'form-bare': async (x) => { await x.waitFor('form.pform textarea.src'); typeIn('Vice\n'); await x.sleep(300) },
     'form-half-key': async (x) => { await x.waitFor('form.pform textarea.src'); typeIn(ERROR_TEXT.replace('Spels: Eldritch Blast\n', 'Spe'), 'insertText'); await x.sleep(200) },
     'form-link': async (x) => { await x.waitFor('form.pform textarea.src'); typeIn(`${location.origin}/${new URLSearchParams(location.search).get('review-link') || ''}`); await x.sleep(600) },
+    // D97: the one-time panel after a save. Needs this browser to keep the share's key.
+    'saved-panel': async (x) => {
+      await x.waitFor('.acts')
+      if (document.querySelector('div.saved')) return
+      const k = readJson('dndpaste.keys')[shareId()]
+      if (!k) { x.toast('This browser keeps no key for this build'); return }
+      history.replaceState(null, '', `${location.pathname}#new=${k}`)
+      reloadOnce('saved-panel')
+    },
+    // D102: a draft left on a new form two hours ago.
+    'draft-new': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) return
+      // The form clears an unchanged draft on pagehide; this listener runs after it.
+      addEventListener('pagehide', () => putDraft('new', { title: 'Shigen', author: '', paste: 'Shigen\nSpecies: Human|XPHB\n\nL1 Monk\n', rev: null, saved: new Date(Date.now() - 2 * 3600e3).toISOString() }))
+      reloadOnce('draft-new')
+    },
+    // D102: a draft made on revision 1 of a share now at revision 2.
+    'draft-edit': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) return
+      const id = shareId(), paste = editor().value.replace(/\nL3[\s\S]*$/, '\nL2 Druid\nFeature: Wild Shape\n')
+      addEventListener('pagehide', () => putDraft(`edit:${id}`, { title: 'Briar, Moon druid', author: 'Francesco', paste, rev: 1, saved: new Date(Date.now() - 26 * 3600e3).toISOString() }))
+      reloadOnce('draft-edit')
+    },
+    // D99: the example offer needs a new form with an empty editor and no draft bar.
+    'form-empty': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('form-empty')) return }
+      if (editor().value) typeIn('')
+      await x.sleep(200)
+    },
+    // 9fe4df1: an edit link whose key the server refuses (route carries a well-formed wrong #k=).
+    'wrong-key': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.ferr:not([hidden]):not(.nokey)')) return
+      await x.sleep(300)
+      document.querySelector('form.pform .tb button[type=submit]').click()
+      await x.waitFor('.ferr:not([hidden]):not(.nokey)', 4000)
+    },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
       const dt = new DataTransfer(); dt.items.add(new File(['Shigen\n'], 'shigen.dndpaste', { type: 'text/plain' }))

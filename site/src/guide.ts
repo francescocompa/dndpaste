@@ -116,7 +116,7 @@ ${code(ex.levels, "The level blocks of the example")}
 <h2 id="names">Names, sources and details</h2>
 <p>A value gives names only. It never copies rules text.</p>
 <ul>
-<li>${c("Elf|XPHB")}: a name, then ${c("|")} and the code of the book it comes from. The codes are the ones 5etools uses, such as ${c("PHB")}, ${c("XPHB")} and ${c("TCE")}. The code is optional. Without one, the edition in ${c("Rules:")} applies.</li>
+<li>${c("Elf|XPHB")}: a name, then ${c("|")} and the short code of the book it comes from, such as ${c("PHB")}, ${c("XPHB")} and ${c("TCE")}. The code is optional. Without one, the edition in ${c("Rules:")} applies.</li>
 <li>${c("Magic Initiate [WIS; Druid; Guidance, Shillelagh; Goodberry]")}: the choices that a feat or feature asks for go in brackets. A semicolon separates one choice from the next. A comma separates the names inside one choice. Each key has a fixed order for these choices (${spec("#53-detail-slot-orders", "specification, section 5.3")}).</li>
 <li>${c(`"Bag of Tricks, Gray"`)}: a name that contains a comma, a semicolon, a colon or a bracket goes in double quotes.</li>
 <li>${c("Arrows (20) x2")}: a quantity of 2 or more, on ${c("Equipment")} and ${c("Items")} only.</li>
