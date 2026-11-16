@@ -90,14 +90,14 @@ function init(): void {
 
   // ---- phone dock (D86): Keys toggle + chip row, problem line, Save ----
   const dock = el("div", "pdock",
-    `<div class="krow chips" hidden></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
+    `<div class="krow chips" hidden></div><div class="prow"></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
     `${icon("keyboard")}Keys <span class="kn"></span>${icon("chevron-up")}${icon("chevron-down")}</button>` +
-    `<span class="grow pl"></span><button type="submit" class="bt pri dsave">${icon("link")}Save and get link</button></div>`);
+    `<span class="grow"></span><button type="submit" class="bt pri dsave">${icon("link")}Save and get link</button></div>`);
   form.append(dock);
   const krow = dock.querySelector<HTMLElement>(".krow") as HTMLElement;
   const ktog = dock.querySelector<HTMLButtonElement>(".ktog") as HTMLButtonElement;
   const kn = dock.querySelector<HTMLElement>(".kn") as HTMLElement;
-  const pl = dock.querySelector<HTMLElement>(".pl") as HTMLElement;
+  const prow = dock.querySelector<HTMLElement>(".prow") as HTMLElement;
   const saves = [...form.querySelectorAll<HTMLButtonElement>("button[type=submit]")];
   keepFocus(ktog);
   keepFocus(krow);
@@ -180,7 +180,8 @@ function init(): void {
     ed.classList.toggle("w4", n >= 1000);
     put(sum as HTMLElement, summaryHtml(st));
     put(probs, problemsHtml(st));
-    put(pl, dockLineHtml(st));
+    // D94: every dock status (empty, all-clear, warnings, problems) takes its own row above Keys · Save.
+    put(prow, dockLineHtml(st));
     setSaveState();
     refreshHints();
   };

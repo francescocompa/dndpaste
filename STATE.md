@@ -1,6 +1,6 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-16 · 0.7.0 · M1 ✅ · M2 ✅ · M3 slices 1–3 ✅ · T3.3 ✅ · 143 + 111 site tests green · v0.7.0 tagged locally, not pushed)
+## TL;DR (2026-11-16 · 0.7.0 · M1 ✅ · M2 ✅ · M3 slices 1–3 ✅ · T3.3 ✅ · 143 + 117 site tests green · v0.7.0 tagged locally, not pushed)
 - **Where it stands.** SPEC 0.5 + D1–D57. Library = parser + canonical emitter + data-driven checker
   (`check`/`normalise`/`finalScores`/`classSequence`) + `bin/dndpaste.mjs` CLI, zero deps, ESM + UMD.
   0.6.0 (2026-09-30) carries the fixes from character-forge's real-build stress wave (cf-D81):
@@ -35,8 +35,12 @@
   bidi/zero-width controls; report keys get a nonce; deploy build runs `check:bundle`. Checked in a browser under
   `wrangler dev` (JS save, no-JS save, report). ⚑ For Francesco: the DO adds a binding beyond D70's "one KV namespace"
   and the 50/20 daily numbers are a first guess; both want a /decision entry (D91+ in main).
-- **Single next action:** /ui-review of branch `claude/site-m3-ee11e4`, then T3.4 deploy on Francesco's go. The overseer
-  runs each step.
+- **UI review done (2026-11-16):** three rounds on the dev build, all approved (D93–D95, D98 in main's DECISIONS.md):
+  ghost × in phone sheets, icons in the desk copy menu, every phone dock status on its own ruled row, name-only pastes
+  refused (client + 422). Dev-only review wiring (`site/src/devreview.ts`, `ui-review.tools.js`). 117 site tests.
+  Departures and the parked list in `site/FIDELITY.md` § UI review.
+- **Single next action:** T3.2d editable shares (D97: owner edits as revisions, latest at the link, 5-minute cache),
+  in this worktree; then T3.4 deploy on Francesco's go. The overseer runs each step.
 - **Manual for Francesco:** ② the
   Notion "Character Ideas" defects (stress/REPORT.md § Theirs) if you care to; ③ ⚑ do Spellfire
   Spark / Fey Sentinel ask an ability pick (homebrew feats, only you know); ④ homebrew merge (M2

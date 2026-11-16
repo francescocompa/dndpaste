@@ -337,3 +337,11 @@ test("report: reason required and ≤ 500, contact ≤ 200, unknown id 404, limi
   assert.equal((await call(env, "POST", `/${id}/report`, form({ reason: "again" }))).status, 429);
   assert.equal([...env.PASTES.map.keys()].filter((k) => k.startsWith("r:")).length, 1);
 });
+
+test("save (D95): a name-only paste is refused with 422, JSON and form alike", async () => {
+  const env = makeEnv();
+  const j = await call(env, "POST", "/", asJson({ paste: "Vice\n" }));
+  assert.equal(j.status, 422);
+  assert.match(((await j.json()) as { error: string }).error, /at least one key besides its name/);
+  assert.equal((await call(env, "POST", "/", asJson({ paste: "Vice\nSpecies: Human\n" }))).status, 201);
+});

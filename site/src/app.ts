@@ -6,7 +6,7 @@
 import { parse } from "../../src/dndpaste.ts";
 import { aboutPage, formPage, messagePage, notFoundPage, prerender, rendered, viewPage } from "./pages.ts";
 import type { FormState, ViewState } from "./pages.ts";
-import { ID_RE, LIMITS, getPaste, newId, putPaste, putReport } from "./store.ts";
+import { BARE, ID_RE, LIMITS, getPaste, isBare, newId, putPaste, putReport } from "./store.ts";
 import type { KVLike } from "./store.ts";
 
 /** Workers rate-limiting binding (D71). Absent → no check here; a WAF rule stands in (site/README.md). */
@@ -341,6 +341,7 @@ async function save(request: Request, env: Env, deps: Deps, origin: string): Pro
   const parsed = parse(paste);
   const errors = parsed.diagnostics.filter((d) => d.code.startsWith("E"));
   if (errors.length) return fail(422, `${errors.length} error${errors.length === 1 ? "" : "s"} in the build.`, parsed.diagnostics);
+  if (isBare(parsed)) return fail(422, BARE);
 
   const ip = ipOf(request);
   const key = rateKey(ip);

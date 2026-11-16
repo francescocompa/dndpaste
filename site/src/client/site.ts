@@ -129,13 +129,15 @@ function wirePopovers(): void {
   window.addEventListener("scroll", () => { if (current) place(current); }, { passive: true });
 }
 
+/** D93: on a phone sheet, a grab bar and a close × in the head (CSS puts it first; hidden off a sheet). */
+const SHEET_HEAD = `<div class="shead"><span class="grab" aria-hidden="true"></span><button type="button" class="x shut" aria-label="Close">${icon("x")}</button></div>`;
+
 // ---- Display menu (D82) ----
 function wireDisplay(): void {
   const btn = document.querySelector<HTMLButtonElement>(".top .dbtn");
   if (!btn) return;
   let d: Display = store.get();
-  const body = () => `<span class="grab" aria-hidden="true"></span>${displayMenuHtml(d, store.persistent())}` +
-    `<button type="button" class="it q shut">Close</button>`;
+  const body = () => displayMenuHtml(d, store.persistent()) + SHEET_HEAD;
   const p = panel("dmenu", body(), "Display", "dialog");
   btn.setAttribute("aria-controls", (p.id = "dmenu"));
   const redraw = (focus: string) => {
@@ -232,8 +234,7 @@ function wireView(): void {
   // Last resort: show the text selected, for the reader to copy by hand.
   const manual = panel("ovf manual", "", "Copy by hand", "dialog");
   const showManual = (text: string) => {
-    manual.innerHTML = `<span class="grab" aria-hidden="true"></span><b>Select the text and copy it</b>` +
-      `<textarea class="in" readonly spellcheck="false"></textarea><button type="button" class="it q shut">Close</button>`;
+    manual.innerHTML = `<b>Select the text and copy it</b><textarea class="in" readonly spellcheck="false"></textarea>${SHEET_HEAD}`;
     const ta = manual.querySelector("textarea") as HTMLTextAreaElement;
     ta.value = text;
     open(manual, main, "left", (main.closest(".splitb") as HTMLElement | null) ?? main);
@@ -250,10 +251,9 @@ function wireView(): void {
   };
 
   const menu = panel("ovf copym",
-    `<span class="grab" aria-hidden="true"></span>` +
     `<button type="button" role="menuitem" class="it" data-copy="raw"><span class="il">${icon("copy")}Copy text</span><small>as written</small></button>` +
-    `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy canonical</span><small>tidied, for apps</small></button>` +
-    `<button type="button" class="it q shut">Cancel</button>`, "More ways to copy", "menu");
+    `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy canonical</span><small>tidied, for apps</small></button>` + SHEET_HEAD,
+    "More ways to copy", "menu");
   caret.setAttribute("aria-controls", (menu.id = "copym"));
   main.addEventListener("click", () => void copy("link"));
   // The menu lines up with the whole split button (frame view-copymenu-dark-desk); aria-expanded sits on the caret.

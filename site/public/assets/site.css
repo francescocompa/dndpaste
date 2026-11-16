@@ -68,12 +68,13 @@ html:not(.hasjs) .njs { display: none !important; }
 .pop { position: fixed; z-index: 20; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px;
   box-shadow: 0 10px 28px rgb(0 0 0 / 0.16); font: 13px/1.4 var(--sans); overflow-y: auto; overscroll-behavior: contain; }
 .scrim { position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / 0.32); }
-.pop:not(.sheet) .grab, .pop:not(.sheet) .shut { display: none; }
+.pop:not(.sheet) .shead { display: none; }
 .pop .it { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 5px; padding: 8px 10px; color: var(--fg); cursor: pointer; }
 .pop .it:hover, .pop .it:focus-visible { background: var(--chip); }
 .pop .it small { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; }
 .pop .il { display: flex; gap: 8px; align-items: center; }
-.pop .il svg.i { display: none; }
+/* D93: the desk menu carries the sheet's icons; its second line lines up with the label, past the icon. */
+.pop:not(.sheet) .il + small { padding-left: 23px; }
 .ovf { min-width: 190px; border-radius: 8px; padding: 4px; display: grid; }
 .manual { width: 340px; max-width: calc(100vw - 16px); padding: 12px; gap: 8px; }
 .manual b { font-weight: 600; }
@@ -265,7 +266,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   /* Phone dock (D86): problem line, Save, and the key hints behind "Keys"; it rides above the keyboard (--kb, set
      from visualViewport by form.js). Summary and Save leave the toolbar; the side column keeps Problems and shares. */
   .js .new .tb > .grow, .js .new .tb > .dsum, .js .new .tb > .bt.pri, .js .new .aside .keys { display: none; }
-  .js .new .wrap { padding-bottom: 132px; }
+  .js .new .wrap { padding-bottom: 164px; }
   .js .pdock { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; transform: translateY(calc(-1 * var(--kb, 0px)));
     border-top: 1px solid var(--rule); background: var(--bg); font-family: var(--sans); }
   .pdock .krow { flex-wrap: nowrap; overflow-x: auto; padding: 8px 14px 0; scrollbar-width: none;
@@ -275,6 +276,10 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .pdock .srow .grow { flex: 1; min-width: 0; display: flex; }
   .pdock .perr { display: inline-flex; gap: 5px; align-items: center; color: var(--err); background: none; border: 0; padding: 0; font: 13px/1.15 var(--sans);
     text-align: left; min-width: 0; cursor: pointer; }
+  /* D94: the status has its own row above Keys · Save (a problem's message cut to one line), ruled off from them. */
+  .pdock .prow { display: flex; padding: 8px 14px; border-bottom: 1px solid var(--rule); }
+  .pdock .prow .perr { display: flex; width: 100%; font-size: 13.5px; }
+  .pdock .pmsg { color: var(--fg); margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pdock .perr b { color: var(--err); } .pdock .perr .more { color: var(--mute); }
   /* View dock (D87, frame view-vice-phone): Copy link split + Duplicate and edit, fixed at the bottom */
   .hasjs .view .wrap { padding-bottom: 84px; }
@@ -286,12 +291,14 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .pop.sheet { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-width: none; max-height: 85vh; border: 0;
     border-top: 1px solid var(--rule); border-radius: 14px 14px 0 0; box-shadow: 0 -10px 28px rgb(0 0 0 / 0.2);
     padding: 8px 14px calc(14px + env(safe-area-inset-bottom)); display: grid; gap: 4px; font: 14px/1.3 var(--sans); }
-  .pop.sheet .grab { display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--rule); justify-self: center; margin-bottom: 6px; }
-  .pop.sheet .shut { display: block; }
+  /* D93: the sheet's head (grab bar + a close ×) sits last in the markup, so focus lands on the content first. */
+  .pop.sheet .shead { order: -1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: -2px -6px 2px; }
+  .pop.sheet .grab { grid-column: 2; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--rule); }
+  .pop.sheet .x { grid-column: 3; justify-self: end; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0;
+    border-radius: 50%; background: none; color: var(--fg); cursor: pointer; }
+  .pop.sheet .x svg.i { width: 16px; height: 16px; }
   .pop.sheet .it { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 4px; border-radius: 0; border-bottom: 1px solid var(--rule); }
   .pop.sheet .it small { margin: 0; font-size: 12.5px; }
-  .pop.sheet .it.q { color: var(--mute); border-bottom: 0; }
-  .pop.sheet .il svg.i { display: block; }
+  .pop.sheet .it:last-of-type { border-bottom: 0; }
   .dmenu.sheet { gap: 12px; padding-left: 16px; padding-right: 16px; }
-  .dmenu.sheet .it.q { margin-top: -4px; }
 }

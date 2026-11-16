@@ -131,7 +131,7 @@ test("status: X- keys warn (W001) and still save; errors and drops; Tidy only wh
   assert.equal(bad.canTidy, false);
   assert.equal(summaryHtml(bad), "<b>1 error</b> · fix it to save");
   assert.match(problemsHtml(bad), /<span class="code">E002<\/span><button type="button" class="at" data-line="18">line 18<\/button><span>Unknown key: Spels<\/span>/);
-  assert.match(dockLineHtml(bad), /data-line="18">.*<b>E002<\/b> line 18<\/button>$/);
+  assert.match(dockLineHtml(bad), /data-line="18">.*<b>E002<\/b> line 18<span class="pmsg">Unknown key: Spels<\/span><\/button>$/);
 });
 
 test("status: an empty paste does not save", () => {
@@ -239,4 +239,19 @@ test("status, D90: an E001 on the line being typed is held; Save still blocks; l
   assert.equal(two.held, 1);
   assert.equal(two.diagnostics.filter((d) => d.code === "E001").length, 1);
   assert.equal(status(text, 0).held, 0);
+});
+
+test("status (D95): a name-only paste can't be saved; the toolbar, Problems and dock say why", () => {
+  for (const text of ["Vice\n", "https://dndpaste.example/ABCDEFGHIJ\n"]) {
+    const s = status(text);
+    assert.equal(s.bare, true, text);
+    assert.equal(s.canSave, false, text);
+    assert.match(summaryHtml(s), /Only a name/);
+    assert.match(problemsHtml(s), /Add at least one key besides the name/);
+    assert.match(dockLineHtml(s), /perr.*Only a name/);
+  }
+  for (const text of ["Vice\nSpecies: Human\n", "Vice\nX-Note: hi\n", "Vice\n\nL1 Fighter\n", "Rules: 2024\n"]) {
+    assert.equal(status(text).bare, false, text);
+    assert.equal(status(text).canSave, true, text);
+  }
 });

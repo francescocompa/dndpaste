@@ -5,7 +5,7 @@
 import { emit, parse } from "../../../src/dndpaste.ts";
 import type { Diagnostic } from "../../../src/dndpaste.ts";
 import { esc, icon } from "../render.ts";
-import { ID_RE, LIMITS } from "../store.ts";
+import { ID_RE, LIMITS, isBare } from "../store.ts";
 
 export interface Status {
   diagnostics: Diagnostic[];
@@ -13,6 +13,8 @@ export interface Status {
   warnings: number;
   bytes: number;
   empty: boolean;
+  /** D95: no errors, but nothing besides the name; Save stays off. */
+  bare: boolean;
   over: boolean;
   canSave: boolean;
   /** `emit(parse(text))` when the text has no errors, else null. */
@@ -40,10 +42,11 @@ export function status(text: string, holdLine = 0): Status {
   const bytes = enc.encode(t).byteLength;
   const empty = !t.trim();
   const over = bytes > LIMITS.pasteBytes;
+  const bare = !empty && !errors && !held && isBare(paste);
   const canon = errors || held ? null : emit(paste);
   return {
-    diagnostics, errors, warnings: diagnostics.length - errors, bytes, empty, over,
-    canSave: !empty && !over && !errors && !held,
+    diagnostics, errors, warnings: diagnostics.length - errors, bytes, empty, bare, over,
+    canSave: !empty && !over && !errors && !held && !bare,
     canon,
     canTidy: !empty && canon !== null && canon.trimEnd() !== t.trimEnd(),
     held,
@@ -58,6 +61,7 @@ export function summaryHtml(s: Status): string {
   if (s.empty) return "Nothing to save yet";
   if (s.over) return `<b>Over ${LIMITS.pasteBytes / 1024} KB</b> · shorten it to save`;
   if (s.errors) return `<b>${plural(s.errors, "error")}</b> · fix ${s.errors === 1 ? "it" : "them"} to save`;
+  if (s.bare) return `<b>Only a name</b> · add a key to save`;
   if (s.warnings) return `<span class="okc">No errors</span> · ${plural(s.warnings, "warning")}, ready to save`;
   return `<span class="okc">No problems</span> · ready to save`;
 }
@@ -69,7 +73,9 @@ export const PROBLEMS_SHOWN = 100;
 export function problemsHtml(s: Status): string {
   const size = s.over
     ? `<div class="dg e"><span class="code">Size</span><span class="at">${(s.bytes / 1024).toFixed(1)} KB</span><span>Over the ${LIMITS.pasteBytes / 1024} KB limit</span></div>`
-    : "";
+    : s.bare
+      ? `<div class="dg e"><span class="code">Keys</span><span class="at"></span><span>Add at least one key besides the name, such as Species:</span></div>`
+      : "";
   if (!s.diagnostics.length && !size) {
     return `<div class="dsum"><span class="okc">No problems.</span> Warnings show here; they don't block saving.</div>`;
   }
@@ -88,9 +94,10 @@ export function dockLineHtml(s: Status): string {
   const e = s.diagnostics.find((d) => d.code.startsWith("E"));
   if (e) {
     const more = s.errors > 1 ? ` <span class="more">+${s.errors - 1}</span>` : "";
-    const inner = `${icon("alert")}<b>${esc(e.code)}</b>${e.line ? ` line ${e.line}` : ""}${more}`;
+    const inner = `${icon("alert")}<b>${esc(e.code)}</b>${e.line ? ` line ${e.line}` : ""}${more}<span class="pmsg">${esc(cap(e.message))}</span>`;
     return e.line ? `<button type="button" class="dsum perr" data-line="${e.line}">${inner}</button>` : `<span class="dsum perr">${inner}</span>`;
   }
+  if (s.bare) return `<span class="dsum perr">${icon("alert")}<b>Only a name</b><span class="pmsg">Add a key, such as Species:</span></span>`;
   if (s.warnings) return `<span class="dsum"><span class="okc">No errors</span> · ${plural(s.warnings, "warning")}</span>`;
   return `<span class="dsum"><span class="okc">No problems</span></span>`;
 }

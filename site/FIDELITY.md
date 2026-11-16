@@ -196,3 +196,26 @@ Shared:
 - `test/contrast.test.ts` now also checks: switch track on and off against the menu and the knob against each track (3:1);
   the import bar's and the open Display button's mixed surfaces against their text (4.5:1, computed as the browser mixes
   them); and that every token `site.css` uses as a text colour is in the checked list. Light and dark both pass.
+
+## UI review (2026-11-16) — three rounds, all approved
+
+`/ui-review` on the dev build (review folder `reviews/2026-11-16-share-site/`, local only). Round 1: 24 items, round 2:
+4, round 3: 2 plus the digest. Departures from the frames it decided (D93–D95, D98 in main's `DECISIONS.md`):
+
+- **view-copysheet-dark-phone → D93, D98.** Sheets (Copy, Display, copy-by-hand) close with a ghost × on the grab-bar
+  line (no fill, 36 × 36 tap area); the frame's bottom Cancel / Close row is gone. Scrim tap and Escape still close;
+  focus lands on the first item. The desk copy menu now carries the sheet's icons, its `small` lines indented under them.
+- **form-error-phone, form-keys-dark-phone → D94, D98.** Every dock status sits on its own row above Keys · Save,
+  ruled off by a 1px `--rule` line: Nothing to save yet, No problems, No errors · N warnings, Only a name, and errors
+  (code, line, message cut to one line; a tap still jumps to the line). Nothing sits between Keys and Save, and the dock
+  keeps one height while typing. The frames put the status between the buttons.
+- **Not framed → D95.** A name-only paste does not save: Save is off with "Only a name · Add a key, such as Species:",
+  and the server answers 422. SPEC still allows it; this is a site rule.
+
+Parked by the review (⚑ under D96 in main's `DECISIONS.md`, owner overseer): an empty value as "any" instead of E006 →
+SPEC 0.8; Tidy fixing name case → after launch; writing help / a starting skeleton → after 3.2d. The favicon is
+**ok for now** (no change).
+
+Dev-only wiring kept for later reviews: `site/src/devreview.ts` (overlay script + loopback-only CSP when `UI_REVIEW` is
+set in the gitignored `site/.dev.vars`; `uir-fault` cookie for the 503, daily-cap and 403 paths) and
+`ui-review.tools.js` at the root. Never active in a deploy; covered by `test/devreview.test.ts`.
