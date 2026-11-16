@@ -24,8 +24,11 @@ npx wrangler kv key get "r:<iso>:<id>:<nonce>" --binding PASTES --remote
 npx wrangler kv key list --binding PASTES --prefix "p:<id>" --remote      # the share and its frozen revisions (D97)
 npx wrangler kv key delete "p:<id>" --binding PASTES --remote              # the latest; repeat for each "p:<id>:<n>" listed
 ```
-Deleting only `p:<id>:<n>` takes down revision n and leaves the share. Deleting `p:<id>` alone takes down the share's link
+Deleting only `p:<id>:<n>` takes down an older revision n and leaves the share. The latest revision has no key of its own
+(it lives only at `p:<id>`), so it comes down only with the whole share. Deleting `p:<id>` alone takes down the share's link
 and its edit key; the frozen revisions' URLs then answer 404 too, but their keys stay in KV until deleted.
+A takedown doesn't reach copies that browsers and proxies already cached: up to 5 minutes for the link and the latest
+revision, up to a year for an older revision's raw, canon and JSON (a day for its page).
 
 ## Rate limits
 `SAVE_LIMITER` and `REPORT_LIMITER` (Workers rate-limiting binding, 10 a minute per IP) in `wrangler.toml`. If the plan lacks the
@@ -34,7 +37,7 @@ binding at deploy, delete both blocks: the Worker then skips the check, and a Cl
 per IP, action Block for 1 minute). KV free tier is about 1,000 writes a day, saves and reports together.
 
 Rate keys are the IPv4 address, or the IPv6 /64. On top of the minute limits, a daily cap per key (`LIMITS.savesPerDay`
-50, `reportsPerDay` 20, UTC days) runs in the `DailyCap` Durable Object (`src/daily.ts`, SQLite-backed, on the Free plan;
+50, `reportsPerDay` 20, UTC days; an edit counts as 2 saves, so 25 edits a day, D101) runs in the `DailyCap` Durable Object (`src/daily.ts`, SQLite-backed, on the Free plan;
 the `migrations` block creates it on first deploy). It stores a day and a count per key, never the address, and deletes
 itself the day after. Delete its two `wrangler.toml` blocks to run without it. When KV writes run out anyway, saves and
 reports answer 503 with the site's own page and keep the text in the form.

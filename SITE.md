@@ -41,7 +41,7 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 | `GET /<id>/canon` | `emit(parse(text))`, same headers. |
 | `GET /<id>/json` | `{ title, author, paste, created, edited, revision }` (`edited` null until the first edit), CORS `*`. |
 | `GET /<id>/<n>` (+ `/raw`, `/canon`, `/json`) | Revision n (1–999999, no leading zero), fixed forever (D97); same types and CORS. Past the latest: 404. |
-| `GET /<id>/edit` | The paste form filled with the latest, saving to `/<id>/edit`. The key comes from the browser (localStorage, or `#k=<key>` in the private edit link, read and cleared by form.js). Without JS it says editing needs JS. |
+| `GET /<id>/edit` | The paste form filled with the latest, saving to `/<id>/edit`. The key comes from the browser (localStorage, or `#k=<key>` in the private edit link, read and cleared by form.js; a link's key is tried first, then the kept one, and kept only after an edit it opened succeeds). Without JS it says editing needs JS. |
 | `POST /<id>/edit` | Edit: `title`, `author`, `paste`, `key`, optional `base` (the revision the form opened on). Order: key (403 without, wrong, or on a share that has none), `base` (409 if the share moved on), the save checks, then the save limits; an unchanged build answers 200 and writes nothing. 201 JSON `{ id, url, revision }` or 303 → `/<id>`. |
 | `POST /<id>/report` | Report: reason (required, ≤ 500 chars), contact (optional), `rev` (the revision the reader was on; a pinned page sends it). Stored, never shown. |
 | `GET /about` | What the site is; names only; unaffiliated with Wizards of the Coast; how reporting works. |
@@ -60,7 +60,8 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
     it all). Both trade the common path, views, for the rare one. So an edit writes the frozen copy of the current head, then
     the new head: a save is still one write, a view one read, a revision URL two reads (the head first, so a frozen key is
     never read, and its miss cached, before it exists). If the second write fails, the share is unchanged. An edit costs
-    two of the free plan's ~1k daily writes but counts once against the D71/D92 limits.
+    two of the free plan's ~1k daily writes, so it counts twice against the D92 daily cap (D101: 25 edits a day per rate
+    key) and once against the D71 per-minute limit.
   - **Known limit:** KV has no compare-and-set. Two edits of one share from two places within KV's ~60 s spread can read the
     same head; the later one wins and the earlier's revision number is reused. `base` turns the common case (a second tab
     or device with an older form) into a 409; the race left is the owner editing from two places within a minute.
@@ -70,13 +71,18 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
   (`dndpaste.keys`, id → key); the view shows Edit and a "Copy edit link" item in the Copy link menu when it has one
   (Francesco, 2026-11-16, extends D97's "once"), and the private edit link in a panel after the save (from a
   `#new=<key>` fragment, shown only if it is the key this browser just kept, or when storage is blocked; cleared from the
-  address at once). A no-JS save gets no key: it has nowhere to keep one. A lost key leaves Duplicate and edit.
+  address at once). An edit link's `#k=` key stays in memory until an edit with it succeeds, so a crafted link never replaces
+  a kept key (and "Copy edit link" never copies an untested one). A no-JS save gets no key: it has nowhere to keep one. A lost key leaves Duplicate and edit.
 - **Cache (D97):** `/<id>` and its raw/canon/json `public, max-age=300` (an edit shows everywhere within ~5 min plus KV's
   spread; the editing browser re-fetches them with `cache: "reload"` before it lands on the share). `/<id>/<n>` raw/canon/json
   `public, max-age=31536000, immutable`; its page `public, max-age=86400` (the page also carries the chrome, which can change).
+  Pinned only once frozen: `/<id>/<n>` for the latest revision caches like `/<id>` (5 min), since the edit race above can
+  still overwrite it.
   `/<id>/edit`, errors and 404s `no-store`.
-- **Reading reports (for Francesco):** `npx wrangler kv key list --binding PASTES --prefix r: --remote`, then `kv key get` per key; take a share down with `kv key list --prefix "p:<id>"` and `kv key delete` on each key it lists (the head and every frozen revision); one revision alone: delete `p:<id>:<n>`. In README.
-- **Limits (D71):** each edit counts as a save for every limit below (D97). 32 KB; per-IP save limit about 10 a minute (Workers rate-limiting binding; if the free plan lacks it, a Cloudflare rate-limiting rule, documented for Francesco); reports limited the same way. Turnstile: a stubbed check behind an unset `TURNSTILE_SECRET`, off. Note: KV free tier is about 1k writes a day, pastes and reports together. T3.3 added: rate keys by IPv6 /64; a daily cap per key (50 saves, 20 reports, a `DailyCap` Durable Object); a failed KV write is a 503 page with the text kept; cross-site POSTs refused (403). Details in `site/README.md`.
+- **Reading reports (for Francesco):** `npx wrangler kv key list --binding PASTES --prefix r: --remote`, then `kv key get` per key; take a share down with `kv key list --prefix "p:<id>"` and `kv key delete` on each key it lists (the head and every frozen revision); one older revision alone: delete `p:<id>:<n>`. The latest revision lives only at
+  `p:<id>`, so it comes down only with the whole share. A takedown doesn't reach copies browsers and proxies already
+  cached: up to 5 minutes for the link and the latest revision, up to a year for an older revision's data. In README.
+- **Limits (D71):** each edit counts as a save for every limit below (D97), and as two saves for the daily cap (D101). 32 KB; per-IP save limit about 10 a minute (Workers rate-limiting binding; if the free plan lacks it, a Cloudflare rate-limiting rule, documented for Francesco); reports limited the same way. Turnstile: a stubbed check behind an unset `TURNSTILE_SECRET`, off. Note: KV free tier is about 1k writes a day, pastes and reports together. T3.3 added: rate keys by IPv6 /64; a daily cap per key (50 saves, 20 reports, a `DailyCap` Durable Object); a failed KV write is a 503 page with the text kept; cross-site POSTs refused (403). Details in `site/README.md`.
 
 ## Form (D68)
 - **Editor** with **syntax colouring** (keys, level headers, references, `|SOURCE`, quantities, `X-` keys) plus colour by kind and abilities (D82): a transparent textarea over a highlighted layer, so the textarea stays the source of truth (accessibility, undo, mobile keyboards). **No preview pane** (D84): the coloured editor is the preview.
