@@ -21,7 +21,7 @@ Spawned: slice 1 Worker core · local_39b2c186 · worktree `claude/site-m3-ee11e
 Spawned: slice 2 form with JS · local_3be9c204 · same worktree (cwd), same branch · done, unmerged · owed: merge after T3.4
 Spawned: site look jam · local_a6b79b97 · jam · done, folded (D80–D89) · owed: —
 Spawned: T3.3 fixes · local_657aff77 · same worktree, same branch · done, unmerged (b679c33, 63759fd); its two flags settled as D91–D92 · owed: merge after T3.4
-Spawned: /ui-review · local_de264fb8 · same worktree, same branch · running, round 2 with Francesco (D93–D95) · next: 3.2d editable shares (D97) as a fresh worker in the same worktree → fresh-eyes on edit routes → T3.4 deploy on his go → merge
+Spawned: /ui-review · local_de264fb8 · same worktree, same branch · running, round 2 with Francesco (D93–D95) · next: 3.2d editable shares (D97), card task_df636083, to start after the review commits (Francesco: wait, no parallel worktree) → fresh-eyes on edit routes → T3.4 deploy on his go → merge
 Spawned: slice 3 view + chrome + /about + D90 · local_0d32913b · same worktree (cwd), same branch · done, unmerged (86d5415, c3f8e9a) · owed: merge after T3.4 · T3.3 review: no blockers, fixes went to a fresh worker (it hit the size limit) · owed: archive
 
 - **Library:** 0.7.0 (SPEC 0.7 + D1–D62), parser + emitter + data-driven checker + CLI, zero deps, ESM + UMD.
