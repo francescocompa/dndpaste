@@ -3,6 +3,8 @@ import { emit, isClean, parse } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { GUIDE_LINK } from "./example.ts";
 import { esc, icon, renderPaste } from "./render.ts";
+import { citedBooks, redditSubmitUrl } from "./shareimg.ts";
+import type { CitedBook } from "./shareimg.ts";
 import type { PasteRecord, Rendered } from "./store.ts";
 import { LIMITS, revOf } from "./store.ts";
 
@@ -63,7 +65,7 @@ export interface ViewState {
  * Bump when the view body or the canonical text a record caches would change (renderer, library parse or emit).
  * test/cache.test.ts holds a hash of every fixture's output and fails until this moves with it.
  */
-export const RENDER_VERSION = 3;
+export const RENDER_VERSION = 4;
 
 /** Everything the view and /canon derive from the paste, computed once at save (free-plan CPU, T3.3). */
 export function prerender(paste: Paste): Rendered {
@@ -73,7 +75,15 @@ export function prerender(paste: Paste): Rendered {
     clean: isClean(paste),
     folds: paste.levels.some((l) => l.lines.size),
     canon: emit(paste),
+    books: booksLine(citedBooks(paste)),
   };
+}
+
+/** D120: "Books: <title> (<code>) · …" under the byline; a code `BOOKS` lacks shows as written; none cited, no line. */
+export function booksLine(list: CitedBook[]): string {
+  if (!list.length) return "";
+  const one = (b: CitedBook) => (b.title ? `${esc(b.title)} <span class="bc">(${esc(b.code)})</span>` : `<span class="bc">${esc(b.code)}</span>`);
+  return `<div class="bks">Books: ${list.map(one).join(" · ")}</div>`;
 }
 
 /** The record's cached render when it is current; otherwise rendered now (a renderer change re-renders on read). */
@@ -87,6 +97,7 @@ export function viewPage(id: string, rec: PasteRecord, origin: string, s: ViewSt
   // A pinned revision is its own page: its link, its raw text, its copy source.
   const path = s.pinned ? `${id}/${n}` : id;
   const url = `${origin}/${path}`;
+  const reddit = redditSubmitUrl(url, title);
   const time = (iso: string | undefined) => (iso && fmtDate(iso) ? `<time datetime="${esc(iso)}">${fmtDate(iso)}</time>` : "");
   // D97: the latest says when it was edited; a pinned revision says which one it is and when it was saved.
   const dates = s.pinned
@@ -125,11 +136,13 @@ ${s.reportError ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.reportEr
 <small>Reports go to the site's maintainer and are never shown on this page.</small>
 </form></details>`;
 
+  // D119: data-reddit is Post to Reddit's link for the Copy link menu (site.js), which also opens Share image; without
+  // JS the Reddit link is in the <noscript> line.
   // data-rev marks a pinned page: site.js copies its texts and offers no Edit there (an edit applies to the latest).
-  const main = `<div class="meta"><h1 class="ttl${rec.title ? "" : " none"}">${esc(title)}</h1><div class="by">${byline}</div></div>
-<div class="actrow acts" data-id="${id}"${s.pinned ? ` data-rev="${n}"` : ""}><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
-    `<button type="button" class="bt pri caret icon" aria-label="More ways to copy" aria-haspopup="menu" aria-expanded="false">${icon("chevron-down")}</button></span>` +
-    `<span class="grow"></span><a class="bt dup" href="/?from=${path}">${icon("duplicate")}<span>Duplicate<span class="dl"> and edit</span></span></a><noscript><span class="alt"><a href="/${path}/raw">Text as written</a> · <a href="/${path}/canon">Canonical text</a></span></noscript></div>
+  const main = `<div class="meta"><h1 class="ttl${rec.title ? "" : " none"}">${esc(title)}</h1><div class="by">${byline}</div>${r.books}</div>
+<div class="actrow acts" data-id="${id}"${s.pinned ? ` data-rev="${n}"` : ""} data-reddit="${esc(reddit)}"><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
+    `<button type="button" class="bt pri caret icon" aria-label="More ways to copy and share" aria-haspopup="menu" aria-expanded="false">${icon("chevron-down")}</button></span>` +
+    `<span class="grow"></span><a class="bt dup" href="/?from=${path}">${icon("duplicate")}<span>Duplicate<span class="dl"> and edit</span></span></a><noscript><span class="alt"><a href="/${path}/raw">Text as written</a> · <a href="/${path}/canon">Canonical text</a> · <a href="${esc(reddit)}" target="_blank" rel="noopener noreferrer">Post to Reddit</a></span></noscript></div>
 ${pinnedNote}${folds}${unclean}${r.body}
 ${report}`;
   return layout({ title: `${title} · dndpaste`, main, head, page: "view" });

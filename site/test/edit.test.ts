@@ -134,7 +134,7 @@ test("edit with the key: revision 2 at the link, revision 1 kept at /<id>/1; cre
 
   const view = await text(env, `/${id}`);
   assert.ok(view.includes("edited <time datetime=\"2026-11-17T09:30:00.000Z\">17 Nov 2026</time>"), "Edited <date> on the view");
-  assert.ok(view.includes(`data-id="${id}"><span`), "the latest has no data-rev, so it offers Edit");
+  assert.ok(view.includes(`data-id="${id}" data-reddit=`) && !view.includes(`data-rev=`), "the latest has no data-rev, so it offers Edit");
   const pinned = await text(env, `/${id}/1`);
   assert.ok(pinned.includes(`data-rev="1"`));
   assert.ok(pinned.includes("This is revision 1 of the build, kept as it was."));

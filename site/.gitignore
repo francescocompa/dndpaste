@@ -5,3 +5,4 @@ node_modules/
 # The client bundle (scripts/build-client.mjs), built before dev, deploy and verify
 public/assets/form.js
 public/assets/site.js
+public/assets/share.js

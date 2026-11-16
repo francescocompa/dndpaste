@@ -34,6 +34,23 @@
   --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
 }
 
+/* D119 round 2: the share image's own theme switch. The probe that reads the image's colours carries one of these, so
+   the image can be light or dark whatever the page shows. Same values as above (test/contrast.test.ts checks). */
+.th-light {
+  --bg: #fbfbfc; --fg: #17181c; --mute: #696d7b; --rule: #e4e5ea; --key: #696d7b; --chip: #eef0f4; --field: #ffffff;
+  --acc: #a51d4a; --accfg: #ffffff; --num: #a51d4a; --src: #6f7481; --det: #8a4b0f; --drop: #c2255c;
+  --err: #b45309; --errbg: #fdf3e7; --warnc: #696d7b; --tog: #868a96;
+  --ab-str: #b4462c; --ab-dex: #2f64ad; --ab-con: #9a5b12; --ab-int: #6b4db3; --ab-wis: #2e7b4c; --ab-cha: #a73d7f;
+  --kd-class: #3f5bb5; --kd-subclass: #1d7482; --kd-species: #4d7420; --kd-background: #94632c; --kd-feat: #b0476a; --kd-spell: #7f4cc0; --kd-item: #7f6410;
+}
+.th-dark {
+  --bg: #0e1014; --fg: #e6e7ea; --mute: #8c909b; --rule: #24272e; --key: #8c909b; --chip: #1a1d23; --field: #14171c;
+  --acc: #f48fb1; --accfg: #0e1014; --num: #f48fb1; --src: #7c808b; --det: #f0b46c; --drop: #f783ac;
+  --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b; --tog: #666a75;
+  --ab-str: #f0907c; --ab-dex: #86abef; --ab-con: #e2a35e; --ab-int: #b9a2f5; --ab-wis: #82cf98; --ab-cha: #ec95c6;
+  --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
+}
+
 /* ---- base ---- */
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -71,6 +88,7 @@ html:not(.hasjs) .njs { display: none !important; }
 .pop:not(.sheet) .shead { display: none; }
 .pop .it { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 5px; padding: 8px 10px; color: var(--fg); cursor: pointer; }
 .pop .it:hover, .pop .it:focus-visible { background: var(--chip); }
+.pop a.it { text-decoration: none; }
 .pop .it small { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; }
 .pop .il { display: flex; gap: 8px; align-items: center; }
 /* D93: the desk menu carries the sheet's icons; its second line lines up with the label, past the icon. */
@@ -82,9 +100,9 @@ html:not(.hasjs) .njs { display: none !important; }
 /* Display menu (D82, frame view-display-desk) */
 .dmenu { width: 280px; max-width: calc(100vw - 16px); padding: 12px 14px; display: grid; gap: 12px; }
 .dmenu .h { font-weight: 600; }
-.dmenu .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--chip); border-radius: 7px; padding: 2px; }
-.dmenu .seg button { text-align: center; padding: 4px 0; border: 0; border-radius: 5px; background: none; color: var(--mute); cursor: pointer; }
-.dmenu .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.dmenu .seg, .shp .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--chip); border-radius: 7px; padding: 2px; }
+.dmenu .seg button, .shp .seg button { text-align: center; padding: 4px 0; border: 0; border-radius: 5px; background: none; color: var(--mute); cursor: pointer; }
+.dmenu .seg button.on, .shp .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
 .dmenu .sw { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; width: 100%; padding: 0; border: 0; background: none;
   color: var(--fg); text-align: left; cursor: pointer; }
 .dmenu .sw small { color: var(--mute); grid-column: 1; }
@@ -98,6 +116,23 @@ html:not(.hasjs) .njs { display: none !important; }
 .sw-background { background: var(--kd-background); } .sw-feat { background: var(--kd-feat); } .sw-spell { background: var(--kd-spell); }
 .sw-item { background: var(--kd-item); }
 .dmenu .saved { color: var(--mute); }
+/* Share (D119): the share image (layout, preview, Download / Copy image / Share image) and Post to Reddit */
+.shp { width: 380px; max-width: calc(100vw - 16px); padding: 12px 14px 14px; display: grid; gap: 14px; }
+.shp .sh { display: grid; gap: 8px; }
+.shp .h { font-weight: 600; }
+.shp .seg { grid-template-columns: repeat(2, 1fr); }
+.shp .msg { color: var(--mute); font-size: 12px; }
+.shp .msg:empty { display: none; }
+.shp .prev { max-height: 300px; overflow: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--chip); min-height: 96px;
+  display: grid; place-items: center; overscroll-behavior: contain; }
+.shp .prev canvas { display: block; width: 100%; height: auto; align-self: start; }
+.shp .prev .wait { color: var(--mute); padding: 24px 12px; text-align: center; }
+.shp .irow { display: flex; flex-wrap: wrap; gap: 8px; }
+.shp .irow .bt { flex: 1 1 auto; }
+.shp .hrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shp .seg.ic { display: inline-grid; grid-template-columns: repeat(2, 34px); }
+.shp .seg.ic button { display: grid; place-items: center; padding: 5px 0; }
+.shp .seg.ic svg.i { width: 14px; height: 14px; }
 
 /* ---- buttons ---- */
 .bt { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 400 13px/1 var(--sans); border: 0; border-radius: 6px;
@@ -125,6 +160,9 @@ html:not(.hasjs) .njs { display: none !important; }
 .meta .ttl { font-size: 1.6em; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0; overflow-wrap: anywhere; }
 .meta .ttl.none { color: var(--mute); font-style: italic; }
 .meta .by { color: var(--mute); overflow-wrap: anywhere; }
+/* D120: the books the build cites, under the byline */
+.meta .bks { color: var(--mute); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.meta .bks .bc { font: 0.95em var(--mono); }
 .note { font: 13px/1.4 var(--sans); color: var(--mute); margin: 0 0 12px; }
 
 /* ---- the build, Hanging keys (D81): keys right-aligned in a margin, values in one mono column ---- */
@@ -322,6 +360,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .hasjs .view .acts .grow { display: block; flex: 1; }
   /* D97: the owner's dock holds Copy link, Edit and Duplicate: Duplicate drops "and edit" to fit a 375 px phone. */
   .hasjs .view .acts.own .dl { display: none; }
+  .shp.sheet { gap: 12px; } .shp.sheet .prev { max-height: 38vh; }
   .saved .erow { flex-wrap: wrap; } .saved .erow .bt { flex: 1; }
   .hasjs .view .meta { padding-bottom: 10px; }
   /* Sheets (D89 b, frame view-copysheet-dark-phone) */

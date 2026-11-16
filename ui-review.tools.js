@@ -66,6 +66,12 @@ uiReview.config({
   setups: {
     'open-copy-menu': async (x) => { await x.waitFor('.caret'); await x.click('.caret'); await x.sleep(150) },
     'open-display': async (x) => { await x.waitFor('.top .dbtn'); await x.click('.top .dbtn'); await x.sleep(150) },
+    // D119: the Share image panel, opened from the Copy link menu (review round 2); ready when its canvas is in the preview.
+    'open-share-menu': async (x) => {
+      if (document.querySelector('.shp:not([hidden]) .prev canvas')) return
+      await x.waitFor('.caret'); await x.click('.caret'); await x.waitFor('#copym [data-share]'); await x.click('#copym [data-share]')
+      await x.waitFor('.shp .prev canvas', 8000)
+    },
     'open-report': async (x) => { await x.waitFor('details.report summary'); await x.click('details.report summary'); await x.sleep(150) },
     'fold-all': async (x) => { await x.waitFor('[data-fold=close]'); await x.click('[data-fold=close]'); await x.sleep(100) },
     'form-error': async (x) => { await x.waitFor('form.pform textarea.src'); typeIn(ERROR_TEXT); await x.sleep(1800) },
