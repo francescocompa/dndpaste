@@ -1,14 +1,14 @@
 # STATE — dndpaste
 
 ## TL;DR (2026-11-16 · main 423ac7b merge + T3.4 docs commit · read 96k)
-- **State:** M3 is done. The share site is live at `https://dndpaste.compagnoni96.workers.dev` (D117), smoke-tested, KV empty.
+- **State:** M3 is done. The share site is live at `https://dndpaste.fcomfy.workers.dev` (D117), smoke-tested, KV empty.
   `claude/site-m3-ee11e4` is merged into `main` (423ac7b): library 0.8.0 + site, 179 library + 157 site tests pass on main.
   Not pushed to GitHub; `v0.8.0` not tagged.
 - **Single next action:** Francesco tags `v0.8.0` on 423ac7b and pushes `main` + tags (D57, D61); then the ⚑ FORMAT-UPDATES
   read. M4 (character-forge seeding) runs in that repo, under its own CLAUDE.md.
 - **Manual for Francesco:** ① tag `v0.8.0` (and push `v0.7.0`, `v0.8.0`, `main`); ② ⚑ read `FORMAT-UPDATES.md` (DRAFT, D113
-  flag; 4 questions, chiefly: aliases "until 1.0" make 1.0 breaking); ③ rename the account's workers.dev
-  subdomain `compagnoni96` → `fcom` (dashboard → Workers & Pages → Account details; decided 2026-11-16), then docs → new URL;
+  flag; 4 questions, chiefly: aliases "until 1.0" make 1.0 breaking); ③ (done: the workers.dev
+  subdomain is now `fcomfy`, D118);
   ④ the Notion "Character Ideas" defects (stress/REPORT.md § Theirs), if you care to; ⑤ ⚑ do Spellfire Spark / Fey Sentinel
   ask an ability pick (homebrew); ⑥ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑦ the
   worktrees removed 2026-11-16 (5.7 GB free); ⑧ free disk.

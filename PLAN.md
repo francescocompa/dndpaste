@@ -73,7 +73,7 @@ L<n> <Class>                   level block, n = character level
 - [x] 🔍 Fresh-eyes on 3.2d + 3.2e ✅ 2026-11-16: no blockers; fixes 9fe4df1…05d556b (D101), D102 drafts 7136922, b924ff1. Short /ui-review ✅ 297dc24 (D103–D104).
 - [x] T3.5 ✅ 2026-11-16 (813b7dd, a575721, 1c76d9d) SPEC 0.8 + library 0.8.0 (D106–D113) · Opus@high · shared worktree, branch `claude/site-m3-ee11e4` (disk too low for a new worktree; the site needs it next) · Done when: SPEC 0.8, parser/emitter/checker per D106–D113 with 0.7 aliases (D113), fixtures migrated, `npm run verify` green, CHANGELOG + `v0.8.0` heading (tag his, D57), a drafted format-update policy for his read (⚑ D113).
 - [x] T3.6 ✅ 2026-11-16 (866da84, cfcfbdd; D114–D116) Site on 0.8 (D105) · after T3.5, branch `claude/site-m3-ee11e4` · the 0.8 library in, the D104 multiclass example + guide rewrite, the D103 book-code page linked from the guide, the Keys popover with each key's guide text, guide key table on 0.8 · Done when: site tests green, then a short /ui-review.
-- [x] T3.4 ✅ 2026-11-16 Deployed to `https://dndpaste.compagnoni96.workers.dev` (D117), smoke-tested; branch merged into `main` (423ac7b). GitHub push and the `v0.8.0` tag his.
+- [x] T3.4 ✅ 2026-11-16 Deployed to `https://dndpaste.fcomfy.workers.dev` (D117), smoke-tested; branch merged into `main` (423ac7b). GitHub push and the `v0.8.0` tag his.
 - Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
 ### M4 — character-forge interview seeding · size M in that repo
