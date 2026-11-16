@@ -64,28 +64,29 @@ test("shigen: structure", () => {
   assert.equal(p.identifier, "Shigen");
   assert.equal(p.entities.length, 2);
   assert.equal(p.entities[0].key, "Species");
-  assert.equal(p.entities[1].item.ref.source, "HB");
+  assert.equal(p.entities[1].item?.ref.source, "HB");
   assert.deepEqual(items(p, p.entities[1].lines, "Feat"), ["Mark of Making"]);
   assert.deepEqual(p.levels.map((l) => l.n), [1, 2, 3, 4, 5, 6]);
   const opts = p.levels[1].lines.get("Options");
   assert.ok(opts && opts.type === "items");
   assert.deepEqual(opts.items[0].details, [[{ ref: { name: "True Strike", source: null }, at: null }]]);
-  const asi = p.entities[1].lines.get("ASI");
-  assert.ok(asi && asi.type === "asi");
-  assert.deepEqual(asi.bonuses, [{ amount: 2, ability: "CHA" }, { amount: 1, ability: "DEX" }]);
+  const inc = p.entities[1].lines.get("Scores");
+  assert.ok(inc && inc.type === "scores");
+  assert.deepEqual(inc.increase, [{ amount: 2, ability: "CHA" }, { amount: 1, ability: "DEX" }]);
+  assert.ok(inc.values.every((x) => x === null), "a block holds no base scores");
 });
 
 test("items: quoting, quantity, drop, empty groups, @n", () => {
   const p = parse([
     "L1 Fighter",
-    'Equipment: "Bag of Tricks, Gray", Arrows (20) x2, Longsword|XPHB',
+    'Gear: "Bag of Tricks, Gray", Arrows (20) x2, Longsword|XPHB',
     "Feat: Skilled [; Arcana, History]",
     "L4 Fighter",
     "Spells: Misty Step, -Hex",
     "Feat: Magic Initiate [WIS; Cleric; Guidance, Sacred Flame @5; Bless]",
   ].join("\n"));
   assert.deepEqual(codes(p), []);
-  const eq = p.levels[0].lines.get("Equipment");
+  const eq = p.levels[0].lines.get("Gear");
   assert.ok(eq && eq.type === "items");
   assert.equal(eq.items[0].ref.name, "Bag of Tricks, Gray");
   assert.equal(eq.items[1].ref.name, "Arrows (20)");
@@ -100,13 +101,13 @@ test("items: quoting, quantity, drop, empty groups, @n", () => {
   const mi = p.levels[1].lines.get("Feat");
   assert.ok(mi && mi.type === "items");
   assert.equal(mi.items[0].details[2][1].at, 5);
-  assert.equal(emit(p).split("\n")[2], 'Equipment: "Bag of Tricks, Gray", Arrows (20) x2, Longsword|XPHB');
+  assert.equal(emit(p).split("\n")[2], 'Gear: "Bag of Tricks, Gray", Arrows (20) x2, Longsword|XPHB');
 });
 
 test("case-insensitive keys, canonical case on emit", () => {
-  const p = parse("rules: 2024\nclasses: fighter 1\n\nl1 Fighter\nfighting style: Archery");
+  const p = parse("rules: 2024\nclasses: fighter 1\n\nl1 Fighter\nfeat (Fighting Style): Archery");
   assert.deepEqual(codes(p), []);
-  assert.equal(emit(p), "Rules: 2024\nClasses: fighter 1\n\nL1 Fighter\nFighting Style: Archery\n");
+  assert.equal(emit(p), "Rules: 2024\nClasses: fighter 1\n\nL1 Fighter\nFeat (Fighting Style): Archery\n");
 });
 
 test("extension keys are kept with W001", () => {
@@ -173,10 +174,10 @@ test("Classes runs: canonical emit prints totals and a header at each class chan
 });
 
 test("Classes runs: existing blocks are kept, missing switch points get an empty block", () => {
-  const p = parse("Classes: Rogue 1 / Fighter 5 / Rogue 14 / Fighter 6\n\nL2 Fighter\nFighting Style: Two-Weapon Fighting\n\nL8 Rogue\nSubclass: Thief");
+  const p = parse("Classes: Rogue 1 / Fighter 5 / Rogue 14 / Fighter 6\n\nL2 Fighter\nFeat (Fighting Style): Two-Weapon Fighting\n\nL8 Rogue\nSubclass: Thief");
   assert.deepEqual(codes(p), []);
   const once = emit(p);
-  assert.equal(once, "Classes: Rogue 14 / Fighter 6\n\nL2 Fighter\nFighting Style: Two-Weapon Fighting\n\nL7 Rogue\n\nL8 Rogue\nSubclass: Thief\n\nL20 Fighter\n");
+  assert.equal(once, "Classes: Rogue 14 / Fighter 6\n\nL2 Fighter\nFeat (Fighting Style): Two-Weapon Fighting\n\nL7 Rogue\n\nL8 Rogue\nSubclass: Thief\n\nL20 Fighter\n");
   assert.equal(emit(parse(once)), once);
   assert.equal(seqNames(parse(once)), seqNames(p));
 });
@@ -198,9 +199,9 @@ test("reading rule: a flat paste stays flat, and its order is Classes order", ()
 });
 
 test("reading rule: once a paste has level blocks, an unheadered class change gets a header", () => {
-  const p = parse("Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\nFighting Style: Archery\n\nL4 Warlock\nSubclass: Fiend Patron");
+  const p = parse("Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\nFeat (Fighting Style): Archery\n\nL4 Warlock\nSubclass: Fiend Patron");
   assert.equal(seqNames(p), "fwwwww");
-  assert.equal(emit(p), "Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\nFighting Style: Archery\n\nL2 Warlock\n\nL4 Warlock\nSubclass: Fiend Patron\n");
+  assert.equal(emit(p), "Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\nFeat (Fighting Style): Archery\n\nL2 Warlock\n\nL4 Warlock\nSubclass: Fiend Patron\n");
 });
 
 test("reading rule: an unheadered level continues the current class, keeping levels a later header claims", () => {
@@ -214,7 +215,7 @@ test("reading rule: an unheadered level continues the current class, keeping lev
 });
 
 test("W003: a header whose class has no levels left (totals form) is kept and flagged", () => {
-  const p = parse("Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\n\nL2 Fighter\nFighting Style: Archery");
+  const p = parse("Classes: Fighter 1 / Warlock 5\n\nL1 Fighter\n\nL2 Fighter\nFeat (Fighting Style): Archery");
   assert.deepEqual(codes(p), ["W003"]);
   assert.equal(p.diagnostics[0].line, 5);
   assert.ok(isClean(p));
@@ -236,7 +237,7 @@ const errorCases: [string, string, string[]][] = [
   ["E004 out of range", "L21 Bard", ["E004"]],
   ["E005 wrong scope", "Ability: WIS", ["E005"]],
   ["E005 header-only in block", "L1 Bard\nRules: 2024", ["E005"]],
-  ["E006 empty value", "Skills:", ["E006"]],
+  ["W004 empty value (not chosen yet, D112)", "Skills:", ["W004"]],
   ["E007 list on item key", "Species: Elf, Human", ["E007"]],
   ["E007 items¹ in level", "L1 Bard\nSubclass: Lore, Valor", ["E007"]],
   ["E008 drop in header", "Spells: -Hex", ["E008"]],
@@ -250,7 +251,12 @@ const errorCases: [string, string, string[]][] = [
   ["E012 scores unknown ability", "Scores: DEX 15, LCK 12", ["E012"]],
   ["E012 scores placeholder", "Scores: ?/15/13/?/?/?", ["E012"]],
   ["E012 scores bare number", "Scores: 15", ["E012"]],
-  ["E012 scores mixed forms", "Scores: DEX 15/CON 13", ["E012"]],
+  ["E012 scores mixed forms", "Scores: DEX 15/13", ["E012"]],
+  ["E012 base and increase on one line", "Scores: +2 CHA, DEX 15", ["E012"]],
+  ["E005 base scores outside the header", "Species: Elf\nScores: 8/13/14/12/10/15", ["E005"]],
+  ["E002 slot marker on a key other than Feat", "Skills (Origin): Arcana", ["E002"]],
+  ["E002 empty slot marker", "Feat (): Alert", ["E002"]],
+  ["E003 the same slot marker twice", "Feat (Origin): Alert\nFeat (origin): Lucky", ["E003"]],
   ["E012 asi", "ASI: 2 CHA", ["E012"]],
   ["E012 rules", "Rules: 2020", ["E012"]],
   ["E012 bare class with blocks", "Classes: Bard\n\nL1 Bard\nSkills: Arcana", ["E012"]],
@@ -294,10 +300,10 @@ test("HP: header method and level overrides parse, case-insensitive", () => {
 });
 
 test("HP: canonical emit puts it after Classes and first in a level block; round-trips", () => {
-  const p = parse("Rules: 2024\nHP: rolled\nClasses: Fighter 4\n\nL2 Fighter\nSkills: Athletics\nHP: 9\n\nL4 Fighter\nASI: +2 STR\nHP: fixed");
+  const p = parse("Rules: 2024\nHP: rolled\nClasses: Fighter 4\n\nL2 Fighter\nSkills: Athletics\nHP: 9\n\nL4 Fighter\nFeat: Ability Score Improvement [+2 STR]\nHP: fixed");
   assert.deepEqual(codes(p), []);
   const out = emit(p);
-  assert.equal(out, "Rules: 2024\nClasses: Fighter 4\nHP: Rolled\n\nL2 Fighter\nHP: 9\nSkills: Athletics\n\nL4 Fighter\nHP: Fixed\nASI: +2 STR\n");
+  assert.equal(out, "Rules: 2024\nClasses: Fighter 4\nHP: Rolled\n\nL2 Fighter\nHP: 9\nSkills: Athletics\n\nL4 Fighter\nHP: Fixed\nFeat: Ability Score Improvement [+2 STR]\n");
   assert.equal(emit(parse(out)), out);
 });
 

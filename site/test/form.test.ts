@@ -55,7 +55,8 @@ test("highlight: a canonical line's value is the renderer's own markup (same spa
       checked++;
     }
   }
-  assert.ok(checked >= 90, `checked ${checked} canonical lines`);
+  // SPEC 0.8: a block's `Scores: +2 CHA` shares its key with the header's base line, so the lookup above skips it.
+  assert.ok(checked >= 85, `checked ${checked} canonical lines`);
 });
 
 test("highlight: the frames' marks — identifier bold, level header accent, unknown key, X- key, drops, quotes", () => {
@@ -71,21 +72,21 @@ test("highlight: the frames' marks — identifier bold, level header accent, unk
     .includes(`<span class="p">&quot;</span><span class="r kd-item">Bag of Tricks, Gray</span><span class="p">&quot;</span><span class="p">, </span><span class="r kd-item">Arrows (20)</span> <span class="q">x2</span>`));
 });
 
-test("hints: the frames' key lists (header 24, drop-dark header 16, L5 Warlock 17, half-typed Spe → Spells)", () => {
+test("hints: the frames' key lists (header 21, drop-dark header 14, L5 Warlock 14, half-typed Spe → Spells; SPEC 0.8)", () => {
   const empty = keyHints("", 0);
   assert.equal(empty.label, "the header");
-  assert.equal(empty.keys.length, 24);
+  assert.equal(empty.keys.length, 21);
   assert.deepEqual(empty.keys.slice(0, 5), ["Paste", "Producer", "Rules", "Scores", "Classes"]);
 
-  const drop = `Rules: 2024\nClasses: Fighter 3 / Warlock 3\nSubclass: Battle Master, Celestial\nFeat: Resilient [CON]\nFighting Style: Archery\nOptions: Riposte\nCantrips: Eldritch Blast\nSpells: Hex`;
-  assert.deepEqual(keyHints(drop, 3).keys, ["Paste", "Producer", "Scores", "HP", "Species", "Background", "ASI", "Skills", "Tools",
-    "Languages", "Expertise", "Masteries", "Feature", "Prepared", "Equipment", "Items"]);
+  const drop = `Rules: 2024\nClasses: Fighter 3 / Warlock 3\nSubclass: Battle Master, Celestial\nFeat: Resilient [CON]\nFeat (Fighting Style): Archery\nOptions: Riposte\nCantrips: Eldritch Blast\nSpells: Hex`;
+  assert.deepEqual(keyHints(drop, 3).keys, ["Paste", "Producer", "Scores", "HP", "Species", "Background", "Skills", "Tools",
+    "Languages", "Expertise", "Masteries", "Feature", "Prepared", "Gear"]);
 
   const vice = fixture("vice.dndpaste").trimEnd();
   const last = vice.split("\n").length - 1;
   const l5 = keyHints(vice, last);
   assert.equal(l5.label, "L5 Warlock");
-  assert.equal(l5.keys.length, 17);
+  assert.equal(l5.keys.length, 14);
   assert.ok(!l5.keys.includes("Options") && !l5.keys.includes("Species"));
 
   const typing = keyHints(vice + "\nSpe", last + 1);
@@ -93,19 +94,19 @@ test("hints: the frames' key lists (header 24, drop-dark header 16, L5 Warlock 1
   assert.equal(typing.narrowed, true);
   const noMatch = keyHints(vice + "\nZz", last + 1);
   assert.equal(noMatch.narrowed, false);
-  assert.equal(noMatch.keys.length, 17);
+  assert.equal(noMatch.keys.length, 14);
 });
 
 test("hints: Species and Background blocks, and keys used once leave the list", () => {
   const text = "Rules: 2024\n\nSpecies: Elf\nSkills: Perception\n\nBackground: Sage\n";
   const sp = keyHints(text, 3);
   assert.equal(sp.label, "the Species block");
-  assert.ok(!sp.keys.includes("Skills") && !sp.keys.includes("Species") && !sp.keys.includes("Background") && sp.keys.includes("Ability"));
+  assert.ok(!sp.keys.includes("Skills") && !sp.keys.includes("Species") && !sp.keys.includes("Background") && sp.keys.includes("Feature"));
   assert.ok(keyHints("Species: Elf\n", 0).keys.includes("Background"), "a Background line may still open its block");
   assert.ok(!sp.keys.includes("Rules"), "header-only keys are not offered in a block");
   const bg = keyHints(text, 5);
   assert.equal(bg.label, "the Background block");
-  assert.ok(bg.keys.includes("Equipment") && !bg.keys.includes("Background") && !bg.keys.includes("Species"));
+  assert.ok(bg.keys.includes("Gear") && !bg.keys.includes("Background") && !bg.keys.includes("Species"));
   const head = keyHints(text, 0);
   assert.ok(!head.keys.includes("Rules") && !head.keys.includes("Species") && !head.keys.includes("Background"));
 });

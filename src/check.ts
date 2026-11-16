@@ -4,9 +4,10 @@
  * Output: findings. Never edits the paste; `normalise` returns a new one.
  * Every finding is a warning or an info — extras are accepted (D34).
  */
-import type { Paste, Item, Ref, Scope, Value, LevelBlock } from "./dndpaste.js";
-// The one runtime import: the reading rule lives in the data-free library (the UMD build inlines both modules).
-import { classSequence, classTotals } from "./dndpaste.js";
+import type { Paste, Item, Ref, Scope, Value, LevelBlock, Bonus, Detail } from "./dndpaste.js";
+// The one runtime import: the reading rule and the key helpers live in the data-free library (the UMD build inlines
+// both modules).
+import { classSequence, classTotals, isFeatKey, isAbilitySlot, splitMarker, ASI_FEAT } from "./dndpaste.js";
 
 // ─── Slot table types (loose on purpose: the extract may grow fields) ────────
 
@@ -40,6 +41,8 @@ export interface Slots {
   backgrounds: Record<string, BackgroundSlots>; feats: Record<string, FeatSlots>; optionalFeatures: Record<string, OptionalFeatureSlots>;
   families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number; classes?: string[]; subclasses?: string[] }>; items: Record<string, ItemSlots>;
   magicVariants?: Record<string, MagicVariantSlots>;
+  /** 5etools feat category codes → names (`FS` → `Fighting Style`), for `Feat (<marker>)` (D110). */
+  featCategories?: Record<string, string>;
 }
 /** `base`/`props`: a base item (items-base) and the type codes and flags magic variants match on (D55). */
 export interface ItemSlots { name: string; source: string; rarity: string; edition?: string | null; base?: boolean; props?: Record<string, unknown> }
@@ -129,6 +132,55 @@ function items(scope: Scope, key: string): Item[] {
   const v = scope.get(key);
   return v && v.type === "items" ? v.items : [];
 }
+/** True when the key has a line with a value: an empty value is "not chosen yet" and reads as absent (D112). */
+function has(scope: Scope, key: string): boolean {
+  const v = scope.get(key);
+  if (!v || v.type === "empty") return false;
+  if (v.type === "items") return v.items.length > 0;
+  if (v.type === "scores") return Boolean(v.increase?.length) || v.values.some((x) => x !== null);
+  return true;
+}
+/** Every feat of a scope with its line's slot marker: `Feat` and each `Feat (<marker>)` line (D110). */
+function featItems(scope: Scope): { item: Item; marker: string | null }[] {
+  return [...scope.keys()].filter(isFeatKey).flatMap((k) => items(scope, k).map((item) => ({ item, marker: splitMarker(k).marker })));
+}
+/** The scope's score increase (`Scores: +2 CHA`, D108), or null. */
+function increaseOf(scope: Scope): Bonus[] | null {
+  const v = scope.get("Scores");
+  return v && v.type === "scores" && v.increase?.length ? v.increase : null;
+}
+/** An item's picks after its ability slot, when it has one (D107): `Elven Lineage [INT; High]` → `[High]`. */
+function picks(it: Item): Detail[][] {
+  return isAbilitySlot(it.details[0]) ? it.details.slice(1) : it.details;
+}
+/** A level's ASI as a feat line (D109): its full name or the short `ASI`. */
+const isAsiFeat = (it: Item): boolean => lc(it.ref.name) === lc(ASI_FEAT) || lc(it.ref.name) === "asi";
+/** `+2 CHA` details as bonuses; null when one is not of that shape. */
+function bonusesOf(group: readonly Detail[]): Bonus[] | null {
+  const out: Bonus[] = [];
+  for (const d of group) {
+    const m = /^\+(\d+)\s+(STR|DEX|CON|INT|WIS|CHA)$/i.exec(d.ref.name);
+    if (!m || d.ref.source) return null;
+    out.push({ amount: Number(m[1]), ability: m[2].toUpperCase() as Bonus["ability"] });
+  }
+  return out;
+}
+
+// ─── Feat categories (D110) ─────────────────────────────────────────────────
+// 5etools' own names for its feat category codes. The extract reads them from the mirror; a table without them
+// falls back to this list. Names only.
+const FEAT_CATEGORIES: Record<string, string> = {
+  D: "Dragonmark", DG: "Dark Gift", G: "General", O: "Origin", FS: "Fighting Style",
+  "FS:P": "Fighting Style Replacement (Paladin)", "FS:R": "Fighting Style Replacement (Ranger)", EB: "Epic Boon",
+};
+function levenshtein(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]; row[0] = i;
+    for (let j = 1; j <= b.length; j++) { const t = row[j]; row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = t; }
+  }
+  return row[b.length];
+}
 function adds(scope: Scope, key: string): Item[] { return items(scope, key).filter((i) => !i.drop); }
 function drops(scope: Scope, key: string): Item[] { return items(scope, key).filter((i) => i.drop); }
 function delta(p: number[] | null | undefined, k: number): number {
@@ -147,7 +199,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     let r = index.resolve(ref, rules, extra);
     // Generic magic variants ("+1 Longsword") are not 5etools entities: strip the bonus and resolve the base item (D40).
     const base = stripPlus(ref.name);
-    if (r.status === "none" && base && (key === "Items" || key === "Equipment")) r = index.resolve({ name: base, source: ref.source }, rules, extra);
+    if (r.status === "none" && base && key === "Gear") r = index.resolve({ name: base, source: ref.source }, rules, extra);
     if (r.status === "none") add("unresolved", sev, where, `${key}: "${refStr(ref)}" matches nothing in the loaded data`, key, refStr(ref));
     else if (r.status === "ambiguous") add("unresolved", "info", where, `${key}: "${refStr(ref)}" matches several sources; add |SOURCE`, key, refStr(ref));
     else if (r.status === "alias" && r.hit) {
@@ -159,7 +211,17 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   };
   const uidOf = (t: { name: string; source: string }) => `${t.name}|${t.source}`;
 
-  // ── Items and Equipment: exact name, then a generic magic variant (D55), then the D43 alias and D40 `+N` fallbacks ──
+  // ── Slot markers (D110): a marker names a feat category by name or code; a fighting style's slot also takes a
+  // 5etools "Fighting Style Replacement" feat. Open list: an unknown marker is accepted, a near miss gets a hint. ──
+  const categories: Record<string, string> = { ...FEAT_CATEGORIES, ...(slots.featCategories ?? {}) };
+  for (const f of Object.values(slots.feats)) if (f.category && !categories[f.category]) categories[f.category] = f.category;
+  const markerCats = (marker: string): string[] => Object.entries(categories)
+    .filter(([code, name]) => lc(code) === lc(marker) || lc(name) === lc(marker) || lc(name).startsWith(lc(marker) + " ")).map(([code]) => code);
+  const isFsCat = (c: string | null | undefined): boolean => Boolean(c && c.toUpperCase().startsWith("FS"));
+  /** A feat that fills a fighting-style slot: its marker says so, or, unmarked, the data does. */
+  const fsFeat = (it: Item, marker: string | null): boolean => (marker ? markerCats(marker).some(isFsCat) : isFsCat(ix.feats.resolve(it.ref, rules).hit?.category));
+
+  // ── Gear: exact name, then a generic magic variant (D55), then the D43 alias and D40 `+N` fallbacks ──
   const baseItems = Object.values(slots.items).filter((i) => i.base);
   const variantList = Object.values(slots.magicVariants ?? {});
   const vName = (v: MagicVariantSlots) => v.name.replace(/ \(\*\)$/, "");
@@ -196,7 +258,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     add("unresolved", "info", where, `${key}: "${r}": ${vName(p.v)}|${p.v.source} does not apply to ${p.b.name}`, key, r);
     return true;
   };
-  const resolveItem = (ref: Ref, where: string, key: "Items" | "Equipment") => {
+  const resolveItem = (ref: Ref, where: string, key: "Gear") => {
     const exact = ix.items.resolve(ref, rules, undefined, false);
     if (exact.status === "ok") return;
     if (exact.status === "ambiguous") { add("unresolved", "info", where, `${key}: "${refStr(ref)}" matches several sources; add |SOURCE`, key, refStr(ref)); return; }
@@ -273,7 +335,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       const sk = n === 1 ? cd.skills : cd.multiclassSkills;
       const cnt = (sk?.choose?.count ?? 0) + (sk?.any ?? 0);
       if (cnt) owe(cls, "Skills", n, cnt);
-      if (n === 1 && cd.equipmentOptions.length && rules !== "2014") owe(cls, "Equipment", n, 0); // default A is silent
+      if (n === 1 && cd.equipmentOptions.length && rules !== "2014") owe(cls, "Gear", n, 0); // default A is silent
       if ((cd.masteries && cd.masteries[0]) || cd.hasMastery) owe(cls, "Masteries", n, 1);
     }
     if (cd.subclassLevel === k) owe(cls, "Subclass", n, 1);
@@ -316,7 +378,15 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   };
   // A feat an option grants (Lessons of the First Ones → an Origin feat) is not an ASI-slot feat (D50).
   const granted = new Set<Item>();
-  const featOrAsi = (scope: Scope) => adds(scope, "Feat").filter((it) => !granted.has(it)).length + (scope.get("ASI") ? 1 : 0);
+  // A level's ASI is a feat line (D109), so it counts here like any feat; a fighting-style feat fills its own slot (D110).
+  const featOrAsi = (scope: Scope) => featItems(scope).filter(({ item, marker }) => !item.drop && !granted.has(item) && !fsFeat(item, marker)).length;
+  const countStyles = (cls: string, scope: Scope, where: string) => {
+    const fs = featItems(scope).filter(({ item, marker }) => !granted.has(item) && fsFeat(item, marker));
+    if (!fs.length) return;
+    const s = slot(cls, "Fighting Style");
+    for (const { item } of fs) if (item.drop) s.dropped++; else s.picked++;
+    s.where.push(where);
+  };
   optionFeats(paste.header, "header");
   for (const lv of paste.levels) optionFeats(lv.lines, `L${lv.n}`);
 
@@ -326,11 +396,12 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
     const beyond = played !== null && lv.n > played;
     const fullList = Boolean(cd?.casting && cd.casting.preparedChange === "restLong" && !supplement.spellbook?.[uidOf(cd)]);
     const knownCaster = Boolean(cd?.casting?.known && !supplement.spellbook?.[uidOf(cd)]);
-    for (const key of ["Skills", "Tools", "Languages", "Expertise", "Fighting Style", "Cantrips"]) countInto(cls, key, lv.lines, where);
-    if (lv.lines.get("Spells") && fullList) add("redundant", "info", where, `${cd?.name} prepares from its whole list; write the default loadout as Prepared, not Spells`, "Spells");
+    for (const key of ["Skills", "Tools", "Languages", "Expertise", "Cantrips"]) countInto(cls, key, lv.lines, where);
+    countStyles(cls, lv.lines, where);
+    if (has(lv.lines, "Spells") && fullList) add("redundant", "info", where, `${cd?.name} prepares from its whole list; write the default loadout as Prepared, not Spells`, "Spells");
     else countInto(cls, "Spells", lv.lines, where);
-    if (lv.lines.get("Prepared") && knownCaster) add("redundant", "info", where, `${cd?.name} knows a fixed list of spells and does not prepare; drop Prepared`, "Prepared");
-    if (lv.lines.get("Masteries")) { const s = slot(cls, "Masteries"); s.picked = Math.max(s.picked, 1); s.where.push(where); }
+    if (has(lv.lines, "Prepared") && knownCaster) add("redundant", "info", where, `${cd?.name} knows a fixed list of spells and does not prepare; drop Prepared`, "Prepared");
+    if (has(lv.lines, "Masteries")) { const s = slot(cls, "Masteries"); s.picked = Math.max(s.picked, 1); s.where.push(where); }
     if (featOrAsi(lv.lines)) { const s = slot(cls, "ASI/Feat"); s.picked += featOrAsi(lv.lines); s.where.push(where); }
     for (const it of items(lv.lines, "Options")) {
       const ocf = Object.entries(cd?.optionalClassFeatures ?? {}).find(([n]) => lc(n) === lc(it.ref.name));
@@ -339,8 +410,8 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       const fam = of ? of.types.join("/") : "?";
       const s = slot(cls, fam.startsWith("FS") ? "Fighting Style" : `Options:${fam}`); if (it.drop) s.dropped++; else s.picked++; s.where.push(where);
       if (of?.prereqLevel && classLevelAt(lv.n, cls) < of.prereqLevel && !beyond) add("misplaced", "warning", where, `"${of.name}" needs class level ${of.prereqLevel}`, "Options", of.name);
-      const picks = supplement.optionPicks?.[uidOf(of ?? { name: it.ref.name, source: "" })] ?? 0;
-      if (of && picks && !it.drop && (it.details[0]?.length ?? 0) < picks) add("missing", "info", where, `"${of.name}" asks for ${picks} pick(s) in brackets`, "Options", of.name);
+      const pickCount = supplement.optionPicks?.[uidOf(of ?? { name: it.ref.name, source: "" })] ?? 0;
+      if (of && pickCount && !it.drop && (picks(it)[0]?.length ?? 0) < pickCount) add("missing", "info", where, `"${of.name}" asks for ${pickCount} pick(s) in brackets`, "Options", of.name);
     }
     for (const it of adds(lv.lines, "Feature")) {
       const ocf = Object.entries(cd?.optionalClassFeatures ?? {}).find(([n]) => lc(n) === lc(it.ref.name));
@@ -351,18 +422,22 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       const s = slot(cls, `Feature:${lc(it.ref.name)}`);
       s.picked++; s.where.push(where);
       if (!fs && any) add("misplaced", "warning", where, `"${it.ref.name}" is chosen at class level ${any[1].level}`, "Feature", it.ref.name);
-      if (fs && fs.options.length && it.details[0]?.length && !it.details[0].some((d) => fs.options.some((o) => lc(o) === lc(d.ref.name)))) add("unresolved", "info", where, `"${it.ref.name}" pick "${it.details[0][0].ref.name}" is not one of: ${fs.options.join(", ")}`, "Feature", it.ref.name);
+      const p0 = picks(it)[0];
+      if (fs && fs.options.length && p0?.length && !p0.some((d) => fs.options.some((o) => lc(o) === lc(d.ref.name)))) add("unresolved", "info", where, `"${it.ref.name}" pick "${p0[0].ref.name}" is not one of: ${fs.options.join(", ")}`, "Feature", it.ref.name);
     }
-    for (const it of adds(lv.lines, "Feat")) checkFeat(it, where, "L", lv.n, beyond);
+    for (const { item, marker } of featItems(lv.lines)) if (!item.drop) checkFeat(item, marker, where, "L", lv.n, beyond);
     for (const it of adds(lv.lines, "Spells")) checkSpell(it, where, "Spells", cls, lv.n);
     for (const it of adds(lv.lines, "Cantrips")) checkSpell(it, where, "Cantrips", cls, lv.n);
     for (const it of adds(lv.lines, "Prepared")) checkSpell(it, where, "Prepared", cls, lv.n);
-    if (lv.lines.get("Prepared") && cd?.casting?.preparedChange === "level" && !supplement.spellbook?.[uidOf(cd)]) add("redundant", "info", where, `${cd.name} picks its prepared spells on level-up; write them as Spells`, "Prepared");
-    for (const it of adds(lv.lines, "Items")) resolveItem(it.ref, where, "Items");
-    for (const it of adds(lv.lines, "Equipment")) if (!/^[A-Z]$/.test(it.ref.name)) resolveItem(it.ref, where, "Equipment");
-    const letter = adds(lv.lines, "Equipment").find((i) => /^[A-Z]$/.test(i.ref.name));
-    if (letter && cd && !cd.equipmentOptions.includes(letter.ref.name.toUpperCase())) add("unresolved", "info", where, `${cd.name} has no starting-equipment option ${letter.ref.name}`, "Equipment", letter.ref.name);
-    if (letter && rules === "2014") add("unresolved", "info", where, `starting-equipment letters exist only under 2024 rules`, "Equipment", letter.ref.name);
+    if (has(lv.lines, "Prepared") && cd?.casting?.preparedChange === "level" && !supplement.spellbook?.[uidOf(cd)]) add("redundant", "info", where, `${cd.name} picks its prepared spells on level-up; write them as Spells`, "Prepared");
+    // Gear (D111): placement decides. In the first level block it is the class's starting pick, where an option
+    // letter may stand; anywhere else it is gear gained in play, never owed, and a letter is out of place.
+    for (const it of adds(lv.lines, "Gear")) {
+      if (!/^[A-Z]$/.test(it.ref.name)) { resolveItem(it.ref, where, "Gear"); continue; }
+      if (lv.n !== 1) { add("misplaced", "info", where, `Gear: option letter ${it.ref.name} goes in the background or the first level block`, "Gear", it.ref.name); continue; }
+      if (cd && !cd.equipmentOptions.includes(it.ref.name.toUpperCase())) add("unresolved", "info", where, `${cd.name} has no starting-equipment option ${it.ref.name}`, "Gear", it.ref.name);
+      if (rules === "2014") add("unresolved", "info", where, `starting-equipment letters exist only under 2024 rules`, "Gear", it.ref.name);
+    }
   }
 
   // ── Unplaced header picks: distribute to classes that still owe (D28) ─────
@@ -377,21 +452,24 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       const s = slot(target, lk); s.picked++; s.where.push("header");
     }
   };
-  for (const key of ["Skills", "Tools", "Languages", "Expertise", "Fighting Style", "Cantrips", "Spells", "Prepared"]) distribute(key, () => key, adds(paste.header, key));
-  if (paste.header.get("Masteries")) distribute("Masteries", () => "Masteries", [{ ref: { name: "Masteries", source: null }, drop: false, details: [], qty: null }]);
-  distribute("Feat", () => "ASI/Feat", adds(paste.header, "Feat").filter((it) => !granted.has(it)));
-  if (paste.header.get("ASI")) distribute("ASI", () => "ASI/Feat", [{ ref: { name: "ASI", source: null }, drop: false, details: [], qty: null }]);
+  for (const key of ["Skills", "Tools", "Languages", "Expertise", "Cantrips", "Spells", "Prepared"]) distribute(key, () => key, adds(paste.header, key));
+  const headerFeats = featItems(paste.header).filter(({ item }) => !item.drop && !granted.has(item));
+  distribute("Feat", () => "Fighting Style", headerFeats.filter(({ item, marker }) => fsFeat(item, marker)).map(({ item }) => item));
+  if (has(paste.header, "Masteries")) distribute("Masteries", () => "Masteries", [{ ref: { name: "Masteries", source: null }, drop: false, details: [], qty: null }]);
+  distribute("Feat", () => "ASI/Feat", headerFeats.filter(({ item, marker }) => !fsFeat(item, marker)).map(({ item }) => item));
   distribute("Options", (it) => { const of = resolveRef(ix.options, it.ref, "header", "Options"); return `Options:${of ? of.types.join("/") : "?"}`; }, adds(paste.header, "Options"));
   for (const it of adds(paste.header, "Feature")) {
     const owner = classNames.find((c) => Object.keys(classData.get(c)?.features ?? {}).some((n) => lc(n) === lc(it.ref.name)));
     if (owner) { const s = slot(owner, `Feature:${lc(it.ref.name)}`); s.picked++; s.where.push("header"); continue; }
     add("unplaced", "info", "header", `Feature "${it.ref.name}" has no class that asks for it; a species, subclass or homebrew pick — accepted`, "Feature", it.ref.name);
   }
-  for (const it of adds(paste.header, "Feat")) checkFeat(it, "header", "H", null, false);
+  for (const { item, marker } of headerFeats) checkFeat(item, marker, "header", "H", null, false);
   for (const it of adds(paste.header, "Spells")) checkSpell(it, "header", "Spells", null);
   for (const it of adds(paste.header, "Cantrips")) checkSpell(it, "header", "Cantrips", null);
-  for (const it of adds(paste.header, "Items")) resolveItem(it.ref, "header", "Items");
-  for (const it of adds(paste.header, "Equipment")) resolveItem(it.ref, "header", "Equipment");
+  for (const it of adds(paste.header, "Gear")) {
+    if (/^[A-Z]$/.test(it.ref.name)) add("misplaced", "info", "header", `Gear: option letter ${it.ref.name} goes in the background or the first level block`, "Gear", it.ref.name);
+    else resolveItem(it.ref, "header", "Gear");
+  }
   for (const s of subclassLines) if (s.n === null) { const cls = subclassOf.size ? [...subclassOf.entries()].find(([, v]) => v && lc(v.name) === lc(s.item.ref.name) || (v && lc(v.shortName) === lc(s.item.ref.name)))?.[0] : undefined; if (cls) { const sl = slot(cls, "Subclass"); sl.picked++; sl.where.push("header"); } }
 
   // ── Ledger → findings ─────────────────────────────────────────────────────
@@ -407,30 +485,32 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
 
   // ── Species block ─────────────────────────────────────────────────────────
   const sp = paste.entities.find((e) => e.key === "Species");
-  if (sp) {
+  if (sp?.item) {
     const where = "Species";
     const sd = resolveRef(ix.species, sp.item.ref, where, "Species");
     if (sd) {
-      const owe = (key: string, n: number, sev: "warning" | "info" = "warning", what = key) => {
-        const got = key === "ASI" ? (sp.lines.get("ASI") ? 1 : 0) : adds(sp.lines, key).length;
+      const owe = (key: string, n: number, sev: "warning" | "info" = "warning", what = key, got = adds(sp.lines, key).length, extra = true) => {
         if (got < n) add("missing", sev, where, `${sd.name} asks for ${n - got} more ${what} pick(s)`, key);
-        if (got > n && key !== "ASI") add("extra", "info", where, `${sd.name}: ${got - n} ${what} pick(s) beyond what the species grants — accepted`, key);
+        if (got > n && extra) add("extra", "info", where, `${sd.name}: ${got - n} ${what} pick(s) beyond what the species grants — accepted`, key);
       };
       owe("Skills", (sd.skills?.choose?.count ?? 0) + (sd.skills?.any ?? 0));
       owe("Tools", (sd.tools?.choose?.count ?? 0) + (sd.tools?.any ?? 0));
       owe("Languages", (sd.languages?.choose?.count ?? 0) + (sd.languages?.any ?? 0));
-      owe("Feat", sd.feats.reduce((a, f) => a + (f.count ?? 0), 0));
-      if (sd.spellAbility) owe("Ability", 1, "info", "casting-ability");
+      owe("Feat", sd.feats.reduce((a, f) => a + (f.count ?? 0), 0), "warning", "Feat", featItems(sp.lines).filter(({ item }) => !item.drop).length);
+      // The casting-ability pick is the first detail of the line that asks it (D107), or a 0.7 `Ability` line that stayed.
+      const abilityPicked = has(sp.lines, "Ability") || [...adds(sp.lines, "Feature"), ...featItems(sp.lines).map(({ item }) => item)].some((x) => isAbilitySlot(x.details[0]));
+      if (sd.spellAbility) owe("Feature", 1, "info", "casting-ability", abilityPicked ? 1 : 0, false);
       if (sd.cantripChoose) owe("Cantrips", sd.cantripChoose, "info");
-      if (sd.ability && rules !== "2024") owe("ASI", 1, "info", "ability-bonus");
+      if (sd.ability && rules !== "2024") owe("Scores", 1, "info", "ability-bonus", increaseOf(sp.lines) ? 1 : 0, false);
       const trait = supplement.lineageTrait?.[uidOf(sd)] ?? (sd.versions.length ? `${sd.name} Lineage` : null);
       const feats = adds(sp.lines, "Feature");
       const extraFeatures = new Set(Object.keys(supplement.speciesFeatures?.[uidOf(sd)] ?? {}).map(lc));
       if (trait) {
-        const f = feats.find((x) => lc(x.ref.name) === lc(trait)) ?? feats.find((x) => x.details[0]?.length && sd.versions.some((v) => looseEq(v, x.details[0][0].ref.name)));
+        const f = feats.find((x) => lc(x.ref.name) === lc(trait)) ?? feats.find((x) => picks(x)[0]?.length && sd.versions.some((v) => looseEq(v, picks(x)[0][0].ref.name)));
         if (f) extraFeatures.add(lc(f.ref.name));
+        const fp = f ? picks(f)[0] : undefined;
         if (!f) add("missing", "warning", where, `${sd.name} asks for a Feature: ${trait} [${sd.versions.join(" | ")}]`, "Feature", trait);
-        else if (f.details[0]?.length && sd.versions.length && !sd.versions.some((v) => looseEq(v, f.details[0][0].ref.name))) add("unresolved", "info", where, `"${trait}" pick "${f.details[0][0].ref.name}" is not one of: ${sd.versions.join(", ")}`, "Feature", trait);
+        else if (fp?.length && sd.versions.length && !sd.versions.some((v) => looseEq(v, fp[0].ref.name))) add("unresolved", "info", where, `"${trait}" pick "${fp[0].ref.name}" is not one of: ${sd.versions.join(", ")}`, "Feature", trait);
         extraFeatures.add(lc(trait));
       }
       // Size: Medium is the silent default (D39); only an invalid explicit pick is reported.
@@ -438,25 +518,25 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
       if (sizeLine && sd.size && sizeLine.details[0]?.length && !sd.size.some((s) => lc(s) === lc(sizeLine.details[0][0].ref.name[0]))) add("unresolved", "info", where, `${sd.name} size must be one of ${sd.size.join("/")}`, "Feature", "Size");
       extraFeatures.add("size");
       for (const f of feats) if (!extraFeatures.has(lc(f.ref.name))) add("extra", "info", where, `Feature "${f.ref.name}" is not a pick the data knows for ${sd.name} — accepted`, "Feature", f.ref.name);
-      for (const it of adds(sp.lines, "Feat")) checkFeat(it, where, "S", null, false);
+      for (const { item, marker } of featItems(sp.lines)) if (!item.drop) checkFeat(item, marker, where, "S", null, false);
       for (const it of [...adds(sp.lines, "Cantrips"), ...adds(sp.lines, "Spells")]) if (sd.grantedSpells.some((g) => lc(g) === lc(it.ref.name))) add("redundant", "info", where, `"${it.ref.name}" is granted by ${sd.name}, not chosen`, "Spells", it.ref.name);
     }
   }
 
   // ── Background block ──────────────────────────────────────────────────────
   const bg = paste.entities.find((e) => e.key === "Background");
-  if (bg) {
+  if (bg?.item) {
     const where = "Background";
     const custom = lc(bg.item.ref.name) === "custom";
     const bd = custom ? null : resolveRef(ix.backgrounds, bg.item.ref, where, "Background", "info");
     if (bd) {
-      const asi = bg.lines.get("ASI");
+      const inc = increaseOf(bg.lines);
       if (bd.ability?.choose) {
-        if (!asi) add("missing", "warning", where, `${bd.name} asks for ability bonuses (+2/+1 or +1/+1/+1 from ${bd.ability.choose.from.map((a) => a.toUpperCase()).join(", ")})`, "ASI");
-        else if (asi.type === "asi") {
-          const total = asi.bonuses.reduce((a, b) => a + b.amount, 0);
+        if (!inc) add("missing", "warning", where, `${bd.name} asks for ability bonuses (Scores: +2/+1 or +1/+1/+1 from ${bd.ability.choose.from.map((a) => a.toUpperCase()).join(", ")})`, "Scores");
+        else {
+          const total = inc.reduce((a, b) => a + b.amount, 0);
           const from = bd.ability.choose.from.map((a) => a.toUpperCase());
-          if (total !== 3 || asi.bonuses.some((b) => !from.includes(b.ability))) add("unresolved", "info", where, `${bd.name} bonuses should total +3 from ${from.join(", ")}`, "ASI");
+          if (total !== 3 || inc.some((b) => !from.includes(b.ability))) add("unresolved", "info", where, `${bd.name} bonuses should total +3 from ${from.join(", ")}`, "Scores");
         }
       }
       for (const key of ["Skills", "Tools", "Languages"] as const) {
@@ -467,16 +547,18 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
         if (got < owed) add("missing", "warning", where, `${bd.name} asks for ${owed - got} more ${key} pick(s)`, key);
         if (got > owed) add("extra", "info", where, `${bd.name}: ${got - owed} ${key} pick(s) beyond what it grants — accepted`, key);
       }
-      for (const it of adds(bg.lines, "Feat")) {
+      for (const { item: it, marker } of featItems(bg.lines)) {
+        if (it.drop) continue;
+        checkMarker(marker, where);
         if (bd.feats.some((f) => lc(f).split(";")[0].trim() === lc(it.ref.name))) add("redundant", "info", where, `Feat "${it.ref.name}" is granted by ${bd.name}, not chosen`, "Feat", it.ref.name);
         else add("extra", "info", where, `Feat "${it.ref.name}" is not granted by ${bd.name} — accepted`, "Feat", it.ref.name);
       }
-      const letter = adds(bg.lines, "Equipment").find((i) => /^[A-Z]$/.test(i.ref.name));
-      if (letter && !bd.equipmentOptions.includes(letter.ref.name.toUpperCase())) add("unresolved", "info", where, `${bd.name} has no starting-equipment option ${letter.ref.name}`, "Equipment", letter.ref.name);
+      const letter = adds(bg.lines, "Gear").find((i) => /^[A-Z]$/.test(i.ref.name));
+      if (letter && !bd.equipmentOptions.includes(letter.ref.name.toUpperCase())) add("unresolved", "info", where, `${bd.name} has no starting-equipment option ${letter.ref.name}`, "Gear", letter.ref.name);
     } else {
       // custom or homebrew: fully specified by the block; only resolve feats.
-      for (const it of adds(bg.lines, "Feat")) checkFeat(it, where, "B", null, false);
-      if (custom && rules !== "2014" && !bg.lines.get("ASI")) add("missing", "warning", where, "a custom background states its ability bonuses (ASI)", "ASI");
+      for (const { item, marker } of featItems(bg.lines)) if (!item.drop) checkFeat(item, marker, where, "B", null, false);
+      if (custom && rules !== "2014" && !increaseOf(bg.lines)) add("missing", "warning", where, "a custom background states its ability bonuses (Scores: +2 WIS, +1 DEX)", "Scores");
     }
   }
 
@@ -506,7 +588,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   // which carries those picks: `Feat: Magic Initiate [CHA; Wizard; …]`. A bare option claims the first Feat line in
   // its scope whose category it grants. Claimed Feat lines are neither ASI-slot feats nor extras.
   function optionFeats(scope: Scope, where: string) {
-    const feats = adds(scope, "Feat");
+    const feats = featItems(scope).map(({ item }) => item).filter((it) => !it.drop);
     const free = () => feats.filter((f) => !granted.has(f));
     const featOf = (name: string) => ix.feats.resolve({ name, source: null }, rules).hit;
     for (const it of adds(scope, "Options")) {
@@ -515,7 +597,7 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
         const cats = g.category.map((c) => c.toUpperCase());
         const kind = cats.map((c) => (c === "O" ? "Origin" : c === "G" ? "General" : c)).join("/");
         const a = /^[AEIOU]/i.test(kind) ? "an" : "a";
-        const named = (it.details[0] ?? []).slice(0, g.count);
+        const named = (picks(it)[0] ?? []).slice(0, g.count);
         for (const d of named) {
           const carrier = free().find((f) => lc(f.ref.name) === lc(d.ref.name));
           if (carrier) granted.add(carrier);
@@ -535,13 +617,37 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   }
 
   // ── shared checks ─────────────────────────────────────────────────────────
-  function checkFeat(it: Item, where: string, scope: "H" | "S" | "B" | "L", n: number | null, beyond: boolean) {
+  /** A slot marker's categories (D110); an unknown one is reported, with the nearest category name on a near miss. */
+  function checkMarker(marker: string | null, where: string): string[] | null {
+    if (marker === null) return null;
+    const cats = markerCats(marker);
+    if (cats.length) return cats;
+    const near = [...new Set(Object.values(categories))].map((n) => ({ n, d: levenshtein(lc(marker), lc(n)) })).sort((a, b) => a.d - b.d)[0];
+    if (near && near.d <= Math.max(2, Math.floor(marker.length / 4))) add("unresolved", "warning", where, `Feat (${marker}): no feat category has that name; did you mean "${near.n}"?`, `Feat (${marker})`, marker);
+    else add("unresolved", "info", where, `Feat (${marker}): not a feat category in the loaded data — accepted`, `Feat (${marker})`, marker);
+    return [];
+  }
+  /** A level's ASI as a feat (D109): `[+2 CHA]` or `[+1 INT, +1 CON]`, read as the 2014 class ASI too. */
+  function checkAsiFeat(it: Item, where: string) {
+    const g = it.details[0];
+    if (!g?.length) { add("missing", "info", where, `${ASI_FEAT} asks for its increases in brackets: [+2 CHA] or [+1 INT, +1 CON]`, "Feat", ASI_FEAT); return; }
+    const b = bonusesOf(g);
+    if (!b || it.details.length > 1 || b.length > 2 || b.reduce((a, x) => a + x.amount, 0) !== 2) add("unresolved", "info", where, `${ASI_FEAT} takes +2 to one ability or +1 to two: [+2 CHA] or [+1 INT, +1 CON]`, "Feat", ASI_FEAT);
+  }
+  function checkFeat(it: Item, marker: string | null, where: string, scope: "H" | "S" | "B" | "L", n: number | null, beyond: boolean) {
+    const cats = checkMarker(marker, where);
+    if (isAsiFeat(it)) { checkAsiFeat(it, where); return; }
+    // A 2014 fighting style is an optional feature, not a feat: a fighting-style slot takes either.
+    if (cats?.some(isFsCat) && ix.feats.resolve(it.ref, rules).status === "none" && ix.options.resolve(it.ref, rules, (o) => o.types.some((t) => t.startsWith("FS"))).hit) return;
     const fd = resolveRef(ix.feats, it.ref, where, "Feat");
     if (!fd) return;
+    if (cats?.length && fd.category && !cats.includes(fd.category)) add("misplaced", "warning", where, `"${fd.name}" is a feat of category ${categories[fd.category] ?? fd.category}; this line's slot is ${marker}`, "Feat", fd.name);
     const slot0 = it.details[0] ?? [];
     if (fd.abilityChoose && !slot0.length) add("missing", "info", where, `"${fd.name}" asks for an ability pick in its first bracket slot`, "Feat", fd.name);
     if (fd.abilityChoose && slot0.length && !fd.abilityChoose.some((a) => lc(a) === lc(slot0[0].ref.name))) add("unresolved", "info", where, `"${fd.name}" ability must be one of ${fd.abilityChoose.map((a) => a.toUpperCase()).join(", ")}`, "Feat", fd.name);
-    if (fd.versions.length && !(it.details[1]?.length)) add("missing", "info", where, `"${fd.name}" asks for a version in its second slot: ${fd.versions.join(", ")}`, "Feat", fd.name);
+    // The ability slot exists only when the feat asks one (D107); a 0.7 paste may still lead with an empty slot.
+    const lead = fd.abilityChoose ? 1 : it.details.length > 1 && !it.details[0].length ? 1 : 0;
+    if (fd.versions.length && !(it.details[lead]?.length)) add("missing", "info", where, `"${fd.name}" asks for a version in brackets${lead ? ", after its ability" : ""}: ${fd.versions.join(", ")}`, "Feat", fd.name);
     // An Origin feat at an ASI level is legal: the 2024 Ability Score Improvement feature grants "another feat of your
     // choice for which you qualify", and Origin feats have no prerequisite (D54). The reverse stays a warning.
     if (fd.category === "G" && (scope === "S" || scope === "B")) add("misplaced", "warning", where, `"${fd.name}" is a General feat; a species or background grants an Origin feat`, "Feat", fd.name);
@@ -611,16 +717,16 @@ export function normalise(paste: Paste, slots: Slots, supplement: Supplement = {
 }
 
 // ─── T2.2: 2014 starting-equipment picks (self-contained; one call site in check()) ──
-// 2024 lets a paste name a lettered `Equipment: A`/`B`/`C` option (handled above, alongside the
+// 2024 lets a paste name a lettered `Gear: A`/`B`/`C` option (handled above, alongside the
 // letter-validity check). 2014 classes and backgrounds instead offer "(a) X or (b) Y" choices —
-// the paste names the chosen item(s) directly (SPEC §5.1 `Equipment`). `equipmentGroups`
+// the paste names the chosen item(s) directly (SPEC §5.1 `Gear`). `equipmentGroups`
 // (scripts/extract-slots.mjs) holds each such choice as { letter → item-name-ref[] }; a group is
-// satisfied when any item on the Equipment line names one of its options. Items the rules don't
-// owe are never flagged (D33/D34), so unmatched Equipment lines are left alone — only an unmet
+// satisfied when any item on the Gear line names one of its options. Items the rules don't
+// owe are never flagged (D33/D34), so unmatched Gear lines are left alone — only an unmet
 // group produces a finding, at the same severity the 2024 letter check uses (info).
 function chosenEquipmentNames(scope: Scope): Set<string> {
   const out = new Set<string>();
-  for (const it of adds(scope, "Equipment")) {
+  for (const it of adds(scope, "Gear")) {
     out.add(lc(stripPlus(it.ref.name) ?? it.ref.name));
   }
   return out;
@@ -638,7 +744,7 @@ function checkStartingEquipment2014(
       const met = Object.values(group).some((names) => names.some((n) => have.has(lc(n.split("|")[0]))));
       if (met) return;
       const options = Object.entries(group).filter(([, names]) => names.length).map(([letter, names]) => `(${letter}) ${names.map((n) => n.split("|")[0]).join(" and ")}`);
-      add("missing", "info", where, `${ownerName} starting equipment: no item chosen for pick ${i + 1}${options.length ? ` — ${options.join(" or ")}` : ""}`, "Equipment");
+      add("missing", "info", where, `${ownerName} starting equipment: no item chosen for pick ${i + 1}${options.length ? ` — ${options.join(" or ")}` : ""}`, "Gear");
     });
   };
   const l1 = paste.levels.find((lv) => lv.n === 1);
@@ -647,7 +753,7 @@ function checkStartingEquipment2014(
     if (cd?.equipmentGroups?.length) reportGroups("L1", l1.lines, cd.name, cd.equipmentGroups);
   }
   const bg = paste.entities.find((e) => e.key === "Background");
-  if (bg && lc(bg.item.ref.name) !== "custom") {
+  if (bg?.item && lc(bg.item.ref.name) !== "custom") {
     const bd = ix.backgrounds.resolve(bg.item.ref, rules).hit;
     if (bd?.equipmentGroups?.length) reportGroups("Background", bg.lines, bd.name, bd.equipmentGroups);
   }
@@ -655,8 +761,8 @@ function checkStartingEquipment2014(
 
 // ═══════════════════════════════════════════════════════════════════════════
 // T2.4 — ability-score arithmetic (finalScores)
-// Pure: Scores → species fixed increments + species/background ASI lines
-// (SPEC §5.1 ASI, D36 "only played levels count") + every level ASI line +
+// Pure: Scores → species fixed increments + species/background increases
+// (SPEC §5.1 Scores, D108; D36 "only played levels count") + every level increase and ASI feat (D109) +
 // feat ability picks (half-feats, Feat's abilityChoose §5.3). Never edits the
 // paste. A pick already reported "missing" elsewhere is not re-flagged here.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -692,23 +798,23 @@ function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, s
 
   // ASIs and half-feats stop at 20; an Epic Boon (category EB) raises a score to 30. A bump that
   // overshoots its cap is warned and capped, never lowering a score a boon already took past 20.
-  const bump = (ability: string, amount: number, where: string, cap = 20) => {
+  const bump = (ability: string, amount: number, where: string, cap = 20, findingKey = "Scores") => {
     const key = ability.toLowerCase() as AbilityKey;
     if (!ABILITY_KEYS.includes(key)) return;
     const cur = scores[key];
     if (cur === null) return; // unknown base: the final stays unknown
     const next = cur + amount;
-    if (next > cap) add("misplaced", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the ${cap} cap (+${amount})`, "ASI", key.toUpperCase());
+    if (next > cap) add("misplaced", "warning", where, `${key.toUpperCase()} would rise to ${next}, past the ${cap} cap (+${amount})`, findingKey, key.toUpperCase());
     scores[key] = Math.max(cur, Math.min(cap, next));
   };
-  const applyAsi = (v: Value | undefined, where: string) => {
-    if (!v || v.type !== "asi") return;
-    for (const b of v.bonuses) {
-      bump(b.ability, b.amount, where);
-    }
+  const applyIncrease = (bonuses: Bonus[] | null, where: string) => {
+    for (const b of bonuses ?? []) bump(b.ability, b.amount, where);
   };
-  const applyFeatPicks = (list: Item[], where: string) => {
-    for (const it of list) {
+  const applyFeatPicks = (scope: Scope, where: string) => {
+    for (const { item: it } of featItems(scope)) {
+      if (it.drop) continue;
+      // A level's ASI as a feat (D109): its bracket holds the increases themselves.
+      if (isAsiFeat(it)) { for (const b of bonusesOf(it.details[0] ?? []) ?? []) bump(b.ability, b.amount, where, 20, "Feat"); continue; }
       const r = ix.feats.resolve(it.ref, rules);
       // Origin feats (Magic Initiate, …) reuse the same bracket slot for a casting-ability pick, not a
       // score bonus (SPEC §5.3): only a non-Origin feat's ability pick raises the score.
@@ -717,34 +823,35 @@ function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, s
       if (!pick) continue; // absent-when-owed is already reported as "missing" by check()
       const ability = pick.ref.name;
       if (!r.hit.abilityChoose.some((a) => a.toLowerCase() === ability.toLowerCase())) { add("unresolved", "warning", where, `"${r.hit.name}" ability pick "${ability}" is not one of: ${r.hit.abilityChoose.map((a) => a.toUpperCase()).join(", ")}`, "Feat", r.hit.name); continue; }
-      bump(ability, 1, where, r.hit.category === "EB" ? 30 : 20);
+      bump(ability, 1, where, r.hit.category === "EB" ? 30 : 20, "Feat");
     }
   };
 
-  // Species: fixed increments (automatic — never written, rule 0.1) + its own ASI line (a 2014 choice among options).
+  // Species: fixed increments (automatic — never written, rule 0.1) + its own increase line (a 2014 choice among options).
   const sp = paste.entities.find((e) => e.key === "Species");
   if (sp) {
-    const hit = ix.species.resolve(sp.item.ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null;
+    const hit = sp.item ? ix.species.resolve(sp.item.ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null : null;
     if (hit?.ability?.fixed) for (const [ability, amount] of Object.entries(hit.ability.fixed)) bump(ability, amount, "Species");
-    applyAsi(sp.lines.get("ASI"), "Species");
-    applyFeatPicks(adds(sp.lines, "Feat"), "Species");
+    applyIncrease(increaseOf(sp.lines), "Species");
+    applyFeatPicks(sp.lines, "Species");
   }
 
   // Background: the 2024 pick among the background's three abilities (+2/+1 or +1/+1/+1) — read the written line.
   const bg = paste.entities.find((e) => e.key === "Background");
   if (bg) {
-    applyAsi(bg.lines.get("ASI"), "Background");
-    applyFeatPicks(adds(bg.lines, "Feat"), "Background");
+    applyIncrease(increaseOf(bg.lines), "Background");
+    applyFeatPicks(bg.lines, "Background");
   }
 
-  // Every ASI line and feat ability pick at a level, played levels only (D36).
+  // Every increase and feat ability pick at a level, played levels only (D36); then the unplaced ones in the header.
   for (const lv of paste.levels) {
     if (!isPlayed(lv.n)) continue;
     const where = `L${lv.n}`;
-    applyAsi(lv.lines.get("ASI"), where);
-    applyFeatPicks(adds(lv.lines, "Feat"), where);
+    applyIncrease(increaseOf(lv.lines), where);
+    applyFeatPicks(lv.lines, where);
   }
-  applyFeatPicks(adds(paste.header, "Feat"), "header");
+  applyIncrease(increaseOf(paste.header), "header");
+  applyFeatPicks(paste.header, "header");
 
   return { scores, findings: F };
 }

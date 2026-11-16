@@ -5,12 +5,12 @@ Classes: Cleric 3
 Species: Dwarf|XPHB
 
 Background: Soldier|XPHB
-ASI: +2 CON
+Scores: +2 CON
 
 L1 Cleric
 Cantrips: Guidance, Sacred Flame
 Prepared: Bless, Blindness/Deafness, Cure Wounds
-Equipment: "Bag of Tricks, Gray", Arrows (20) x2, Alchemist's Fire (flask), +1 Rod of the Pact Keeper|DMG
+Gear: "Bag of Tricks, Gray", Arrows (20) x2, Alchemist's Fire (flask), +1 Rod of the Pact Keeper|DMG
 
 L2 Cleric
 Feature: "Channel Divinity: Harness Divine Power" [Harness Divine Power]

@@ -326,12 +326,19 @@ for (const f of listDir("spells", "spells-")) for (const s of load(join("spells"
   spells[uid(s)] = { name: s.name, source: s.source, edition: edition(s), srd: isSrd(s), level: s.level, classes, ...(subclasses.length ? { subclasses } : {}) };
 }
 for (const tbl of [classes, subclasses, species, backgrounds, feats, optionalFeatures, spells, items, magicVariants]) for (const e of Object.values(tbl)) e.core = core(e);
+// Feat category names for `Feat (<marker>)` (D110). 5etools keeps them in js/parser.js, not in its data files: read them
+// from the mirror next to `data/` (names only); a mirror without that file leaves the checker on its own fallback list.
+const featCategories = {};
+try {
+  const m = /Parser\.FEAT_CATEGORY_TO_FULL = \{([\s\S]*?)\};/.exec(readFileSync(join(root, "..", "js", "parser.js"), "utf8"));
+  for (const [, code, name] of m?.[1].matchAll(/"([^"]+)":\s*"([^"]+)"/g) ?? []) featCategories[code] = name;
+} catch { /* optional */ }
 const meta = { mirror: root, generated: new Date().toISOString().slice(0, 10), counts: {} };
-const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, spells, items, magicVariants };
-for (const k of Object.keys(full)) if (k !== "meta" && k !== "families") meta.counts[k] = Object.keys(full[k]).length;
+const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, featCategories, spells, items, magicVariants };
+for (const k of Object.keys(full)) if (k !== "meta" && k !== "families" && k !== "featCategories") meta.counts[k] = Object.keys(full[k]).length;
 
 const srdFilter = (tbl) => Object.fromEntries(Object.entries(tbl).filter(([, v]) => v.srd));
-const srd = { meta: { ...meta, subset: "srd" }, families, ...Object.fromEntries(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].map((k) => [k, srdFilter(full[k])])) };
+const srd = { meta: { ...meta, subset: "srd" }, families, featCategories, ...Object.fromEntries(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].map((k) => [k, srdFilter(full[k])])) };
 srd.meta.counts = Object.fromEntries(Object.keys(meta.counts).map((k) => [k, Object.keys(srd[k]).length]));
 
 mkdirSync(new URL("../data/srd/", import.meta.url), { recursive: true });

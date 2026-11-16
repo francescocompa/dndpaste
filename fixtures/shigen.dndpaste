@@ -8,13 +8,13 @@ Species: Human
 Feat: Spellfire Spark|FRHoF
 
 Background: Archer Priest|HB
-ASI: +2 CHA, +1 DEX
+Scores: +2 CHA, +1 DEX
 Skills: Religion, Persuasion
 Tools: Woodcarver's Tools
 Feat: Mark of Making|EFA
 
 L1 Fighter
-Fighting Style: Archery
+Feat (Fighting Style): Archery
 Masteries: Longbow, Rapier, Warhammer
 
 L2 Warlock

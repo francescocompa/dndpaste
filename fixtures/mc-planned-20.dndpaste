@@ -6,7 +6,7 @@ Species: Tiefling|XPHB
 Feature: Fiendish Legacy [Infernal]
 
 Background: Charlatan|XPHB
-ASI: +2 CHA, +1 DEX
+Scores: +2 CHA, +1 DEX
 
 L1 Warlock
 Subclass: Archfey Patron
@@ -39,7 +39,7 @@ L11 Warlock
 Spells: Circle of Death
 
 L12 Warlock
-ASI: +2 CHA
+Feat: Ability Score Improvement [+2 CHA]
 
 L13 Warlock
 Spells: Finger of Death
@@ -48,7 +48,7 @@ L15 Warlock
 Spells: Dominate Monster
 
 L16 Warlock
-ASI: +2 CHA
+Feat: Ability Score Improvement [+2 CHA]
 
 L17 Warlock
 Spells: Power Word Kill
@@ -57,5 +57,5 @@ L19 Warlock
 Feat: Boon of Spell Recall|XPHB
 
 L20 Fighter
-Fighting Style: Dueling|XPHB
+Feat (Fighting Style): Dueling|XPHB
 Masteries: Longsword, Shortbow

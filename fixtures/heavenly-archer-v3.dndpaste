@@ -8,16 +8,16 @@ Skills: Arcana
 Feat: Spellfire Spark|HB
 
 Background: Custom
-ASI: +2 CHA, +1 CON
+Scores: +2 CHA, +1 CON
 Skills: Religion, Persuasion
 Tools: Woodcarver's Tools
 Feat: Mark of Making|EFA
 
 L1 Fighter
 Skills: Acrobatics, Intimidation
-Fighting Style: Archery
+Feat (Fighting Style): Archery
 Masteries: Longbow, Warhammer, Trident
-Equipment: Breastplate
+Gear: Breastplate
 
 L2 Warlock
 Options: Eldritch Mind
@@ -49,7 +49,7 @@ Options: Devil's Sight
 Spells: Sickening Radiance
 
 L9 Warlock
-ASI: +2 CHA
+Feat: Ability Score Improvement [+2 CHA]
 Spells: Dimension Door
 
 L10 Warlock

@@ -14,5 +14,5 @@ Subclass: Life Domain
 Cantrips: Guidance, Light, Sacred Flame
 
 L4 Cleric
-ASI: +2 WIS
+Feat: Ability Score Improvement [+2 WIS]
 Cantrips: Toll the Dead|XGE

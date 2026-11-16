@@ -12,12 +12,11 @@ Scores: 10/14/13/8/16/12
 Classes: Druid 4
 
 Species: Elf|XPHB
-Ability: WIS
 Skills: Perception
-Feature: Elven Lineage [Wood]
+Feature: Elven Lineage [WIS; Wood]
 
 Background: Custom
-ASI: +2 WIS, +1 DEX
+Scores: +2 WIS, +1 DEX
 Skills: Insight, Stealth
 Tools: Herbalism Kit
 Feat: Magic Initiate [WIS; Druid; Guidance, Shillelagh; Goodberry]
@@ -26,12 +25,12 @@ L1 Druid
 Skills: Nature, Survival
 Feature: Primal Order [Warden]
 Cantrips: Produce Flame, Thorn Whip
-Equipment: A
+Gear: A
 
 L3 Druid
 Subclass: Circle of the Moon
 
 L4 Druid
 Feat: Resilient [CON]
-Items: Cloak of Protection
+Gear: Cloak of Protection
 `;

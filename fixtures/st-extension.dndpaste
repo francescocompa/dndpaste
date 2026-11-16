@@ -7,11 +7,11 @@ Species: Human|XPHB
 Feat: Alert|XPHB
 
 Background: Soldier|XPHB
-ASI: +2 STR
+Scores: +2 STR
 
 L3 fighter
 Subclass: Battle Master|XPHB
-Fighting Style: Great Weapon Fighting
+Feat (Fighting Style): Great Weapon Fighting
 Masteries: Greatsword, Handaxe
 X-campaign: Foglie Silenti
 X-portrait: a half-orc with a chipped tusk

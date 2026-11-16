@@ -26,7 +26,7 @@ export const TYPE_LABEL: Readonly<Record<ValueType, (d: KeyDef) => string>> = {
   enum: (d) => (d.enumValues ?? []).map(c).join(" or "),
   int: () => "a whole number",
   classes: () => `${c("Fighter 1 / Warlock 5")}, in the order taken`,
-  scores: () => `${c("8/13/14/12/10/15")}, or only the known ones: ${c("DEX 15, CON 13")}`,
+  scores: () => `${c("8/13/14/12/10/15")}, or only the known ones: ${c("DEX 15, CON 13")}, or an increase: ${c("+2 CHA")}`,
   asi: () => `${c("+2 CHA")} or ${c("+1 INT, +1 CON")}`,
   hp: () => `${c("Fixed")} or ${c("Rolled")}, and in a level block also the number rolled`,
   text: () => "one line of text",
@@ -40,28 +40,24 @@ export const KEY_HOLDS: Readonly<Record<string, string>> = {
   Paste: "The version of the format. Leave it out for version 1.",
   Producer: "The app and version that wrote the text.",
   Rules: "The edition for names that have no source code.",
-  Scores: "Base ability scores, before any bonus.",
+  Scores: "Base ability scores in the header. An increase, such as +2 CHA, in any block.",
   Classes: "Each class and its levels.",
   HP: "How the build gains hit points.",
   Species: "The species. Its choices follow in its block.",
   Background: "The background. Its choices follow in its block.",
   Subclass: "The subclass.",
-  ASI: "Ability score increases.",
-  Ability: "A spellcasting ability chosen for a trait or feature.",
   Skills: "Skill proficiencies chosen.",
   Tools: "Tool proficiencies chosen.",
   Languages: "Languages chosen.",
   Expertise: "Skills chosen for expertise.",
-  Feat: "Feats, with their choices in brackets.",
-  "Fighting Style": "Fighting styles.",
+  Feat: "Feats, with their choices in brackets. The key can name the slot: Feat (Fighting Style).",
   Masteries: "Weapon masteries.",
   Options: "Optional features: invocations, metamagic, maneuvers and others.",
   Feature: "A named feature and its choice, or an optional class feature taken.",
   Cantrips: "Cantrips chosen.",
   Spells: "Spells added to the build at that level.",
   Prepared: "The usual prepared spells, for a caster who knows more spells than it prepares.",
-  Equipment: "Starting gear, or the letter of a starting gear option.",
-  Items: "Magic items and other gear gained in play.",
+  Gear: "Starting gear in the background or at level 1, or a starting option's letter. Anywhere else, gear gained in play.",
 };
 
 /** Where a key may go, in words: "Header, Level"; a block-opening key says so. */
@@ -119,7 +115,7 @@ ${code(ex.levels, "The level blocks of the example")}
 <li>${c("Elf|XPHB")}: a name, then ${c("|")} and the short code of the book it comes from, such as ${c("PHB")}, ${c("XPHB")} and ${c("TCE")}. The code is optional. Without one, the edition in ${c("Rules:")} applies.</li>
 <li>${c("Magic Initiate [WIS; Druid; Guidance, Shillelagh; Goodberry]")}: the choices that a feat or feature asks for go in brackets. A semicolon separates one choice from the next. A comma separates the names inside one choice. Each key has a fixed order for these choices (${spec("#53-detail-slot-orders", "specification, section 5.3")}).</li>
 <li>${c(`"Bag of Tricks, Gray"`)}: a name that contains a comma, a semicolon, a colon or a bracket goes in double quotes.</li>
-<li>${c("Arrows (20) x2")}: a quantity of 2 or more, on ${c("Equipment")} and ${c("Items")} only.</li>
+<li>${c("Arrows (20) x2")}: a quantity of 2 or more, on ${c("Gear")} only.</li>
 </ul>
 <h2 id="short">Short builds</h2>
 <p>No key is required. ${c("Classes: Warlock")} alone is a valid build. Write what you know and leave out the rest. The site saves a build when it has at least one line besides the name.</p>
