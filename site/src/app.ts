@@ -28,6 +28,8 @@ export interface Env {
   CANONICAL_ORIGIN?: string;
   /** Unset = Turnstile off (D71). */
   TURNSTILE_SECRET?: string;
+  /** Dev only (`.dev.vars`): the /ui-review kit origin; see devreview.ts. */
+  UI_REVIEW?: string;
 }
 
 /** Injection points for tests. */
