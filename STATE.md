@@ -1,13 +1,12 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-16 · main 2350b64 + build branch `claude/site-m3-ee11e4` f09b1cc · read 84k)
+## TL;DR (2026-11-16 · main 2350b64 + build branch `claude/site-m3-ee11e4` 1fb219c · read 84k)
 - **State:** M3 share site is built through 3.2d on the branch: Worker + KV + DailyCap DO, form, view, chrome,
   `/about`, T3.3 security fixes, a 3-round /ui-review, editable shares as revisions (D97, D100). 143 library and
-  137 site tests pass. 3.2e (`/guide` + "Start from an example", D99) is building. Unmerged, unpushed, not deployed.
-- **Single next action:** when 3.2e reports (session [local_cad07eda], not linked to the next overseer: check it
-  with `list_sessions` and the branch log), verify it, then run an Opus **fresh-eyes** pass (Agent `fresh-eyes`) on
-  3.2d's edit routes (`/<id>/edit`, key hash, revisions, two KV writes per edit, 5-min cache) and 3.2e, route fixes
-  to a worker, then a short **/ui-review** of 3.2d + 3.2e, then **T3.4 deploy on his go**, then merge the branch.
+  137 site tests pass. 3.2e (`/guide` + "Start from an example", D99) is done too (142 site tests). Unmerged, unpushed, not deployed.
+- **Single next action:** run an Opus **fresh-eyes** pass (Agent `fresh-eyes`) on 3.2d's edit routes (`/<id>/edit`,
+  key hash, revisions, two KV writes per edit, 5-min cache) and 3.2e's `/guide`; route fixes to a worker in the shared
+  worktree; then a short **/ui-review** of 3.2d + 3.2e; then **T3.4 deploy on his go**; then merge the branch.
 - **Manual for Francesco:** ① push the `v0.7.0` tag (D61) when you want; ② the Notion "Character Ideas" defects
   (stress/REPORT.md § Theirs), if you care to; ③ ⚑ do Spellfire Spark / Fey Sentinel ask an ability pick (homebrew,
   only you know); ④ the homebrew merge (M2 queue) needs a real 5etools-format homebrew file; ⑤ archive the finished
@@ -17,7 +16,7 @@
 Working set: worktree `.claude/worktrees/release-0-7-0-5b6161` (branch `claude/site-m3-ee11e4`; its
 `.claude/launch.json` "site" = wrangler dev :8787) · `SITE.md` · `site/FIDELITY.md`
 
-Spawned: 3.2e /guide + example (D99) · local_cad07eda · same worktree, same branch · running · owed: verify, then fresh-eyes
+Spawned: 3.2e /guide + example (D99) · local_cad07eda · same worktree · done, unmerged (c5ba8fa, 1fb219c), verified · owed: merge after T3.4; archive
 Spawned: 3.2d editable shares (D97, D100) · local_4ac34b6d · same worktree · done, unmerged (56f3f64, f09b1cc) · owed: merge after T3.4; archive
 Spawned: /ui-review · local_de264fb8 + finisher local_6c4a58f3 · same worktree · done, unmerged (71ccde4, f9af319; D93–D95, D98) · owed: merge after T3.4; archive
 Spawned: T3.3 fixes · local_657aff77 (archived) · done, unmerged (b679c33, 63759fd; D91–D92) · owed: merge after T3.4

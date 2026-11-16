@@ -67,7 +67,7 @@ L<n> <Class>                   level block, n = character level
   - [x] 3.2b form with JS ✅ 2026-11-15 (d444fb0, 7a03bfe)
   - [x] 3.2c view interactions + chrome + `/about` + D90's fix ✅ 2026-11-16 (86d5415, c3f8e9a)
   - [x] 3.2d editable shares as revisions ✅ 2026-11-16 (56f3f64, f09b1cc; D97, D100)
-  - [ ] ⏳ 3.2e `/guide` page + "Start from an example" on the empty form (D99) · Opus@high · after 3.2d, same worktree · Done when: guide built with the profile key table, linked from form and /about, copy humanized, both gates green, committed. Running: local_cad07eda.
+  - [x] 3.2e ✅ 2026-11-16 (c5ba8fa, 1fb219c) `/guide` page + "Start from an example" on the empty form (D99) · Opus@high · after 3.2d, same worktree · Done when: guide built with the profile key table, linked from form and /about, copy humanized, both gates green, committed.
 - [x] 🔍 T3.3 Fresh-eyes review ✅ 2026-11-16: no blockers; fixes b679c33 (D91–D92). 
 - [x] 🔍 /ui-review ✅ 2026-11-16 (71ccde4, f9af319; D93–D95, D98). Then a fresh-eyes pass on 3.2d's edit routes + 3.2e and a short /ui-review of both, before T3.4.
 - [ ] 🔶 T3.4 Deploy to workers.dev on Francesco's go (KV namespace + `wrangler deploy` + smoke test). GitHub push his.
