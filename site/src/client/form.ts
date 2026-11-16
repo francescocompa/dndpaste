@@ -12,7 +12,8 @@ import type { Hints } from "./hints.ts";
 import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml } from "./status.ts";
 import type { Import, Status } from "./status.ts";
 import { recentHtml, recentStore } from "./recent.ts";
-import { keyFromHash, keyStore } from "./keys.ts";
+import { editKeys as keysToTry, keyFromHash, keyStore, sendEdit } from "./keys.ts";
+import type { EditReply } from "./keys.ts";
 import { ID_RE } from "../store.ts";
 import { EXAMPLE, GUIDE_LINK } from "../example.ts";
 
@@ -42,15 +43,15 @@ function init(): void {
   let ta: HTMLTextAreaElement = found;
   document.documentElement.classList.add("js");
 
-  // ---- editing a share (D97): the key from the edit link's fragment, else the one this browser kept ----
+  // ---- editing a share (D97): the key from the edit link's fragment, then the one this browser kept ----
   const editId = form.dataset.edit && ID_RE.test(form.dataset.edit) ? form.dataset.edit : null;
-  let editKey: string | null = null;
+  let editKeys: string[] = [];
   if (editId) {
     const fromLink = keyFromHash(location.hash, "k");
     // Out of the address bar and history at once; the fragment never reached the server.
     if (location.hash) window.history.replaceState(null, "", location.pathname + location.search);
-    if (fromLink) keys.set(editId, fromLink);
-    editKey = fromLink ?? keys.get(editId);
+    // The link's key stays in memory: sendEdit keeps it only once the server takes it.
+    editKeys = keysToTry(fromLink, keys.get(editId));
   }
   const base = form.querySelector<HTMLInputElement>("input[name=base]")?.value ?? "";
 
@@ -93,7 +94,7 @@ function init(): void {
     errBox.hidden = !msg;
     errBox.innerHTML = msg ? `${icon("alert")}${esc(msg)}` : "";
   };
-  if (editId && !editKey) {
+  if (editId && !editKeys.length) {
     const nokey = el("p", "ferr nokey", `${icon("alert")}<span>This browser has no edit key for this build. Open the private edit link ` +
       `from when you saved it, or <a href="/?from=${editId}">duplicate and edit</a> it.</span>`);
     nokey.setAttribute("role", "alert");
@@ -167,7 +168,7 @@ function init(): void {
     refresh();
   };
   const setSaveState = () => {
-    const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving && !(editId && !editKey);
+    const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving && !(editId && !editKeys.length);
     for (const b of saves) { b.disabled = !on; b.classList.toggle("off", !on); }
     tidyBtn.disabled = !st.canTidy;
     tidyBtn.classList.toggle("off", !st.canTidy);
@@ -434,18 +435,25 @@ function init(): void {
     e.preventDefault();
     release();
     st = status(ta.value);
-    if (!st.canSave || saving || (editId && !editKey)) { setSaveState(); return; }
+    if (!st.canSave || saving || (editId && !editKeys.length)) { setSaveState(); return; }
     saving = true;
     setSaveState();
     const fields = { title: title.value, author: author.value, paste: ta.value };
     try {
-      const res = await fetch(editId ? `/${editId}/edit` : "/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(editId ? { ...fields, key: editKey, base } : fields),
-      });
-      const data = (await res.json().catch(() => ({}))) as { id?: unknown; key?: unknown; error?: unknown };
-      if (res.ok && typeof data.id === "string" && ID_RE.test(data.id)) {
+      const post = async (key: string | null): Promise<EditReply> => {
+        const res = await fetch(editId ? `/${editId}/edit` : "/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(editId ? { ...fields, key, base } : fields),
+        });
+        const body: unknown = await res.json().catch(() => ({}));
+        return { ok: res.ok, status: res.status, data: body && typeof body === "object" ? body as Record<string, unknown> : {} };
+      };
+      let reply: EditReply;
+      if (editId) ({ reply, keys: editKeys } = await sendEdit(editId, editKeys, post, keys));
+      else reply = await post(null);
+      const data = reply.data;
+      if (reply.ok && typeof data.id === "string" && ID_RE.test(data.id)) {
         const id = data.id;
         const name = title.value.replace(/\s+/g, " ").trim();
         if (editId) {

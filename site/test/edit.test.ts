@@ -5,7 +5,8 @@ import { NO_KEY } from "../src/app.ts";
 import { formPage } from "../src/pages.ts";
 import { KEY_RE, LIMITS, getRevision, hashKey, keyOpens, newEditKey } from "../src/store.ts";
 import type { PasteRecord } from "../src/store.ts";
-import { keyFromHash, keyStore } from "../src/client/keys.ts";
+import { editKeys, keyFromHash, keyStore, sendEdit } from "../src/client/keys.ts";
+import type { EditReply } from "../src/client/keys.ts";
 import { CountingLimiter, FIXTURES, MemoryCapNamespace, MemoryKV, asJson, call, form, makeEnv } from "./helpers.ts";
 
 const VICE = FIXTURES.find(([n]) => n === "vice.dndpaste")![1];
@@ -57,6 +58,53 @@ test("edit keys in the browser: kept per id, blocked storage says so, fragments 
   assert.equal(keyFromHash(`#k=${KEY}`, "k"), KEY);
   assert.equal(keyFromHash(`#new=${KEY}`, "new"), KEY);
   for (const h of ["", "#k=", `#k=${KEY}x`, `#k=${KEY}&x=1`, `#new=${KEY}`]) assert.equal(keyFromHash(h, "k"), null, h);
+});
+
+test("edit keys from a link: held in memory, kept only once the server takes one; a crafted link never replaces a kept key", async () => {
+  const env = makeEnv();
+  const id = await saveJson(env);
+  const browser = () => {
+    const data = new Map<string, string>();
+    return keyStore(() => ({ getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => { data.set(k, v); }, removeItem: (k: string) => { data.delete(k); } }) as unknown as Storage);
+  };
+  let sent = 0;
+  const send = (paste: string) => async (key: string): Promise<EditReply> => {
+    sent++;
+    const r = await editJson(env, id, { paste, key });
+    return { ok: r.ok, status: r.status, data: await r.json() as Record<string, unknown> };
+  };
+  const junk = newEditKey();
+
+  // The owner's browser kept the real key; a crafted `/<id>/edit#k=<junk>` is tried, refused, and the kept key edits.
+  const owner = browser();
+  owner.set(id, KEY);
+  assert.deepEqual(editKeys(junk, owner.get(id)), [junk, KEY]);
+  const a = await sendEdit(id, editKeys(junk, owner.get(id)), send(SHIGEN), owner);
+  assert.equal(a.reply.status, 201);
+  assert.equal(sent, 2);
+  assert.equal(owner.get(id), KEY, "the junk key never reached storage");
+  assert.deepEqual(a.keys, [KEY], "the refused link key drops out");
+
+  // A browser with no key: the junk link is refused and storage stays empty.
+  const other = browser();
+  const b = await sendEdit(id, editKeys(junk, null), send(VICE), other);
+  assert.equal(b.reply.status, 403);
+  assert.equal(other.get(id), null);
+  assert.deepEqual(b.keys, [junk], "the last key stays, so Save stays on and the error shows");
+
+  // The real edit link in a fresh browser: kept once the edit lands. Same key in link and storage: one try.
+  const c = await sendEdit(id, editKeys(KEY, null), send(VICE), other);
+  assert.equal(c.reply.status, 201);
+  assert.equal(other.get(id), KEY);
+  assert.deepEqual(editKeys(KEY, KEY), [KEY]);
+  assert.deepEqual(editKeys(null, null), []);
+
+  // A key the server took but a build it refused (422): nothing kept yet.
+  const fresh = browser();
+  const d = await sendEdit(id, editKeys(KEY, null), send(""), fresh);
+  assert.equal(d.reply.ok, false);
+  assert.notEqual(d.reply.status, 403);
+  assert.equal(fresh.get(id), null);
 });
 
 // ─── the edit route ─────────────────────────────────────────────────────────

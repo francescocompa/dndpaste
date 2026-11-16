@@ -68,3 +68,32 @@ export function keyFromHash(hash: string, name: "k" | "new"): string | null {
   const m = new RegExp(`^#${name}=([A-Za-z0-9_-]{43})$`).exec(hash);
   return m ? m[1] : null;
 }
+
+/** What the edit route answered: its status and JSON body (`{}` when the body was not JSON). */
+export interface EditReply { ok: boolean; status: number; data: Record<string, unknown> }
+
+/** The keys an edit tries, in order: the edit link's (held in memory only), then the one this browser kept. */
+export function editKeys(fromLink: string | null, kept: string | null): string[] {
+  return [...new Set([fromLink, kept].filter((k): k is string => k !== null))];
+}
+
+/**
+ * Sends an edit with each key in turn, moving to the next only when the server refuses one (403). A key is kept in
+ * `store` only once the server took it, so a crafted `#k=` link can never replace a working key; a refused key
+ * leaves storage as it was. Returns the last reply and the keys still worth trying (a refused key drops out while
+ * another remains).
+ */
+export async function sendEdit(id: string, tries: string[], send: (key: string) => Promise<EditReply>, store: KeyStore):
+Promise<{ reply: EditReply; keys: string[] }> {
+  let left = tries;
+  let reply: EditReply = { ok: false, status: 0, data: {} };
+  for (const key of tries) {
+    reply = await send(key);
+    if (reply.status !== 403) {
+      if (reply.ok && store.get(id) !== key) store.set(id, key);
+      return { reply, keys: left };
+    }
+    if (left.length > 1) left = left.filter((k) => k !== key);
+  }
+  return { reply, keys: left };
+}
