@@ -1,0 +1,86 @@
+/**
+ * `/guide` (D99): how a paste is laid out, one annotated example (the form's "Start from an example"), and the key
+ * table built from the library's profile table (`KEYS`) when the Worker is bundled, so it cannot drift from the
+ * parser. SPEC.md stays the authority and the page links it. Copy is dry and plain (D88 c, /humanize). Names only,
+ * never rules text (content boundary). No inline scripts or styles (CSP); reads the same without JavaScript.
+ */
+import { KEYS } from "../../src/dndpaste.ts";
+import { highlightRows } from "./client/highlight.ts";
+import { EXAMPLE } from "./example.ts";
+import { KEY_HOLDS, TYPE_LABEL, whereLabel } from "./keydocs.ts";
+import { layout } from "./pages.ts";
+import { esc } from "./render.ts";
+
+const c = (s: string) => `<code>${esc(s)}</code>`;
+
+/** The format's authority (D99). Resolves once the repository is public. */
+export const SPEC_URL = "https://github.com/francescocompa/dndpaste/blob/main/SPEC.md";
+
+/** The key table, one row per key of the profile, in canonical order. */
+export function keyTable(): string {
+  const rows = KEYS.map((d) => `<tr><th scope="row" class="kk">${esc(d.key)}</th><td class="kw">${esc(whereLabel(d))}</td>` +
+    `<td class="kh">${esc(KEY_HOLDS[d.key] ?? "")}<small>Value: ${TYPE_LABEL[d.type](d)}</small></td></tr>`).join("");
+  return `<table class="ktab"><thead><tr><th scope="col" class="kk">Key</th><th scope="col">Goes in</th><th scope="col">Holds</th></tr></thead>` +
+    `<tbody>${rows}</tbody></table>`;
+}
+
+/** Source text drawn as the editor draws it (same highlight, same classes), read-only. */
+function code(text: string, label: string, numbers = false): string {
+  return `<figure class="pane ex${numbers ? "" : " nog"}" aria-label="${esc(label)}"><div class="ed"><div class="hl">` +
+    `${highlightRows(text.replace(/\n$/, ""), []).join("")}</div></div></figure>`;
+}
+
+/** The example's parts: the header, then each block (blank lines separate them in canonical form). */
+export function exampleParts(): { header: string; entities: string; levels: string } {
+  const parts = EXAMPLE.trimEnd().split("\n\n");
+  const levels = parts.findIndex((p) => /^L\d/.test(p));
+  return { header: parts[0], entities: parts.slice(1, levels).join("\n\n"), levels: parts.slice(levels).join("\n\n") };
+}
+
+const spec = (anchor: string, text: string) => `<a href="${SPEC_URL}${anchor}">${text}</a>`;
+
+export function guidePage(): string {
+  const ex = exampleParts();
+  const main = `<div class="prose gd"><h1>Format guide</h1>
+<p>A dndpaste is a character build written as plain text. Each line records a choice the player made. This page shows how the lines fit together, with one example build. The ${spec("", "specification")} has the full rules. Where this page and the specification differ, the specification is correct.</p>
+<h2 id="example">The example</h2>
+<p>Vesk is a level 5 character: one level in Fighter, then four in Warlock. To open this build in the editor, start a <a href="/">new paste</a> and choose Start from an example.</p>
+${code(EXAMPLE, "The example build", true)}
+<h2 id="header">The header</h2>
+${code(ex.header, "The header of the example")}
+<p>The first line is the build's name. It is optional, and it cannot contain a colon.</p>
+<p>Every other line is a key line: a key, a colon, a space and a value. The key lines before the first block are the header. In this build they give the edition, the base ability scores and the classes.</p>
+<p>The six base scores are in ${c("STR/DEX/CON/INT/WIS/CHA")} order. If you know only some of them, name each one: ${c("STR 15/CON 13")} or ${c("STR 15, CON 13")}. ${c("Classes")} gives each class with its levels, in the order the character took them.</p>
+<p>A choice in the header, such as ${c("Feat: Alert")}, is not tied to a level. The text does not say at which level the player made it.</p>
+<h2 id="blocks">Species and background blocks</h2>
+${code(ex.entities, "The species and background blocks of the example")}
+<p>${c("Species:")} and ${c("Background:")} each open a block. The lines under the key, up to the next block, are the choices that the species or background asks for. Here the tiefling has a legacy, and the soldier has score increases and a gaming set.</p>
+<p>When a choice asks for an ability, the ability comes first in the brackets: ${c("Fiendish Legacy [CHA; Infernal]")}. A ${c("Scores")} line with a plus sign is an increase, not a base score.</p>
+<p>An official background lists only the choices it asks for, as this one does. A custom or homebrew background lists everything it gives. Both blocks come before the first level block.</p>
+<h2 id="levels">Level blocks</h2>
+${code(ex.levels, "The level blocks of the example")}
+<p>${c("L1 Fighter")} opens the block for character level 1, taken in Fighter. Its lines are the choices made at that level. ${c("L2 Warlock")} is the first level in Warlock. Level blocks go up in order, and each one names its class, so the text shows where each class starts. A level with no choices needs no block.</p>
+<p>${c("Feat (Fighting Style): Defense")} names the slot that the feat fills, in parentheses after the key. ${c("Options")} lists optional features, here the warlock's invocations. At level 5 the ability score improvement is a feat: ${c("Ability Score Improvement [+2 CHA]")}.</p>
+<p>In a level block, a minus sign before a name removes it from the build at that level. ${c("Spells: -Hex, Hold Person")} drops Hex and adds Hold Person.</p>
+<h2 id="names">Names, sources and details</h2>
+<p>A value gives names only. It never copies rules text.</p>
+<ul>
+<li>${c("Tiefling|XPHB")}: a name, then ${c("|")} and the short code of the book it comes from, such as ${c("PHB")}, ${c("XPHB")} and ${c("TCE")} (<a href="/codes">all book codes</a>). The code is optional. Without one, the edition in ${c("Rules:")} applies.</li>
+<li>${c("Magic Initiate [WIS; Druid; Guidance, Shillelagh; Goodberry]")}: the choices that a feat or feature asks for go in brackets. A semicolon separates one choice from the next. A comma separates the names inside one choice. Each key has a fixed order for these choices (${spec("#53-detail-slot-orders", "specification, section 5.3")}).</li>
+<li>${c(`"Bag of Tricks, Gray"`)}: a name that contains a comma, a semicolon, a colon or a bracket goes in double quotes.</li>
+<li>${c("Arrows (20) x2")}: a quantity of 2 or more, on ${c("Gear")} only.</li>
+</ul>
+<h2 id="short">Short builds</h2>
+<p>No key is required. ${c("Classes: Warlock")} alone is a valid build. Write what you know and leave out the rest. The site saves a build when it has at least one line besides the name.</p>
+<p>A key with no value, such as ${c("Spells:")}, means not chosen yet. The editor shows the warning W004, the site saves the build, and Tidy keeps the line as a reminder.</p>
+<h2 id="canonical">Canonical form and Tidy</h2>
+<p>Each build has one canonical form. Keys follow the order of the key table, one blank line comes before each block, and each key has the spelling in the table. ${c("Classes")} gives one total for each class. In a build with level blocks, a level header marks each change of class.</p>
+<p>Tidy, in the editor's toolbar, rewrites the text in canonical form. It changes the layout, not the choices. Tidy works when the text has no errors. The ${c("/<id>/canon")} address of a saved build gives the same text.</p>
+<h2 id="keys">Keys</h2>
+<p>These are all the keys, in canonical order. Keys are not case-sensitive. A key that starts with ${c("X-")} is an extension for apps: the site keeps it and shows the warning W001.</p>
+<p>Some keys were renamed in version 0.8 of the format. The old keys still work until version 1: ${c("ASI")}, ${c("Ability")}, ${c("Fighting Style")}, ${c("Equipment")} and ${c("Items")}. The editor shows the warning W005, and Tidy writes the new form.</p>
+${keyTable()}
+<h2 id="problems">Problems</h2>
+<p>The editor checks the text as you type and lists each problem with its line. A code that starts with E is an error: fix it before you save. A code that starts with W is a warning: the build saves as it is. ${spec("#7-diagnostics", "Section 7 of the specification")} lists every code.</p></div>`;
+  return layout({ title: "Format guide · dndpaste", main, page: "guide" });
+}

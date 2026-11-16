@@ -1,0 +1,378 @@
+/* dndpaste share site. Look: D80–D89 (Hanging keys, IBM Plex, Garnet). Tokens ported from the jam's project.css.
+   Theme: light on :root; dark by prefers-color-scheme unless [data-theme="light"]; [data-theme="dark"] forces dark.
+   D88 (a) re-check moved four greys off the jam values to reach AA: light --mute/--key/--warnc #6e7280 → #696d7b,
+   light --src #737885 → #6f7481, dark --src #6c707b → #7c808b (test/contrast.test.ts). --tog (a switch's off track) is
+   new: the jam's --rule track is 1.2:1 on the menu, under the 3:1 a UI part needs.
+   Colour switches (D82): html.ck = colour by kind, html.ca = colour abilities. No inline styles anywhere (CSP). */
+
+:root {
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light;
+  --bg: #fbfbfc; --fg: #17181c; --mute: #696d7b; --rule: #e4e5ea; --key: #696d7b; --chip: #eef0f4; --field: #ffffff;
+  --acc: #a51d4a; --accfg: #ffffff; --num: #a51d4a; --src: #6f7481; --det: #8a4b0f; --drop: #c2255c;
+  --err: #b45309; --errbg: #fdf3e7; --warnc: #696d7b; --tog: #868a96;
+  --ab-str: #b4462c; --ab-dex: #2f64ad; --ab-con: #9a5b12; --ab-int: #6b4db3; --ab-wis: #2e7b4c; --ab-cha: #a73d7f;
+  --kd-class: #3f5bb5; --kd-subclass: #1d7482; --kd-species: #4d7420; --kd-background: #94632c; --kd-feat: #b0476a; --kd-spell: #7f4cc0; --kd-item: #7f6410;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1014; --fg: #e6e7ea; --mute: #8c909b; --rule: #24272e; --key: #8c909b; --chip: #1a1d23; --field: #14171c;
+    --acc: #f48fb1; --accfg: #0e1014; --num: #f48fb1; --src: #7c808b; --det: #f0b46c; --drop: #f783ac;
+    --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b; --tog: #666a75;
+    --ab-str: #f0907c; --ab-dex: #86abef; --ab-con: #e2a35e; --ab-int: #b9a2f5; --ab-wis: #82cf98; --ab-cha: #ec95c6;
+    --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1014; --fg: #e6e7ea; --mute: #8c909b; --rule: #24272e; --key: #8c909b; --chip: #1a1d23; --field: #14171c;
+  --acc: #f48fb1; --accfg: #0e1014; --num: #f48fb1; --src: #7c808b; --det: #f0b46c; --drop: #f783ac;
+  --err: #f5b04a; --errbg: #2a2116; --warnc: #8c909b; --tog: #666a75;
+  --ab-str: #f0907c; --ab-dex: #86abef; --ab-con: #e2a35e; --ab-int: #b9a2f5; --ab-wis: #82cf98; --ab-cha: #ec95c6;
+  --kd-class: #94a6f2; --kd-subclass: #6cc6d2; --kd-species: #a8d16f; --kd-background: #dcab76; --kd-feat: #f19ab3; --kd-spell: #c49cf3; --kd-item: #e3c35b;
+}
+
+/* ---- base ---- */
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 13.5px/1.55 var(--mono); }
+a { color: inherit; }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; border-radius: 3px; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 28px 40px; }
+.muted { color: var(--mute); margin: 0; font: 13px/1.4 var(--sans); }
+
+/* ---- icons (D89): one sprite, outline strokes ---- */
+svg.i { width: 15px; height: 15px; flex: none; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- site chrome ---- */
+.top { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--rule); font-family: var(--sans); }
+.top .wm { font-weight: 600; letter-spacing: -0.02em; font-size: 1.1em; margin-right: auto; text-decoration: none; }
+.top .wm .dot { color: var(--acc); }
+.top .navs { display: flex; gap: 18px; }
+.top .nav { color: var(--mute); text-decoration: none; white-space: nowrap; }
+.top .nav:hover, .top .wm:hover { text-decoration: underline; text-underline-offset: 3px; }
+.top .dbtn { display: inline-flex; align-items: center; gap: 5px; align-self: center; font: 13.5px/1.4 var(--sans); color: var(--fg); background: var(--chip);
+  border: 0; border-radius: 6px; padding: 3px 9px; cursor: pointer; }
+.top .dbtn[aria-expanded="true"] { background: color-mix(in srgb, var(--acc) 12%, var(--chip)); }
+
+/* ---- needs JavaScript: site.js sets html.hasjs before the first paint ---- */
+html:not(.hasjs) .njs { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.offscreen { position: fixed; top: 0; left: -9999px; opacity: 0; }
+
+/* ---- popovers (D89 b): a panel placed by site.js inside the viewport; on a phone a bottom sheet ---- */
+.pop { position: fixed; z-index: 20; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.16); font: 13px/1.4 var(--sans); overflow-y: auto; overscroll-behavior: contain; }
+.scrim { position: fixed; inset: 0; z-index: 19; background: rgb(0 0 0 / 0.32); }
+.pop:not(.sheet) .shead { display: none; }
+.pop .it { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 5px; padding: 8px 10px; color: var(--fg); cursor: pointer; }
+.pop .it:hover, .pop .it:focus-visible { background: var(--chip); }
+.pop .it small { display: block; color: var(--mute); font-size: 12px; margin-top: 2px; }
+.pop .il { display: flex; gap: 8px; align-items: center; }
+/* D93: the desk menu carries the sheet's icons; its second line lines up with the label, past the icon. */
+.pop:not(.sheet) .il + small { padding-left: 23px; }
+.ovf { min-width: 190px; border-radius: 8px; padding: 4px; display: grid; }
+.manual { width: 340px; max-width: calc(100vw - 16px); padding: 12px; gap: 8px; }
+.manual b { font-weight: 600; }
+.manual textarea { min-height: 8em; font: 12px/1.5 var(--mono); resize: vertical; }
+/* Display menu (D82, frame view-display-desk) */
+.dmenu { width: 280px; max-width: calc(100vw - 16px); padding: 12px 14px; display: grid; gap: 12px; }
+.dmenu .h { font-weight: 600; }
+.dmenu .seg { display: grid; grid-template-columns: repeat(3, 1fr); background: var(--chip); border-radius: 7px; padding: 2px; }
+.dmenu .seg button { text-align: center; padding: 4px 0; border: 0; border-radius: 5px; background: none; color: var(--mute); cursor: pointer; }
+.dmenu .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.dmenu .sw { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; width: 100%; padding: 0; border: 0; background: none;
+  color: var(--fg); text-align: left; cursor: pointer; }
+.dmenu .sw small { color: var(--mute); grid-column: 1; }
+.dmenu .tog { grid-row: 1 / span 2; grid-column: 2; width: 34px; height: 20px; border-radius: 10px; background: var(--tog); position: relative; }
+.dmenu .tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); transition: left 0.12s; }
+.dmenu .tog.on { background: var(--acc); } .dmenu .tog.on::after { left: 16px; }
+.dmenu .swatches { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -6px; }
+.dmenu .swatches i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.sw-class { background: var(--kd-class); } .sw-subclass { background: var(--kd-subclass); } .sw-species { background: var(--kd-species); }
+.sw-background { background: var(--kd-background); } .sw-feat { background: var(--kd-feat); } .sw-spell { background: var(--kd-spell); }
+.sw-item { background: var(--kd-item); }
+.dmenu .saved { color: var(--mute); }
+
+/* ---- buttons ---- */
+.bt { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: 400 13px/1 var(--sans); border: 0; border-radius: 6px;
+  padding: 8px 12px; background: var(--chip); color: var(--fg); white-space: nowrap; text-decoration: none; cursor: pointer; }
+.bt.pri { background: var(--acc); color: var(--accfg); }
+.bt.ghost { background: none; color: var(--mute); padding-left: 4px; padding-right: 4px; }
+.bt.off, .bt:disabled { opacity: 0.42; cursor: default; }
+.actrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.actrow .grow { flex: 1; }
+.acts { padding: 6px 0 14px; }
+.acts .grow { display: none; }
+.bt.icon { padding: 8px 9px; }
+/* Split button (D87): Copy link + ▾; the copied state keeps the button's colours (D88 b) */
+.splitb { display: inline-flex; }
+.splitb > .bt:first-child { border-radius: 6px 0 0 6px; }
+.splitb > .bt.caret { border-radius: 0 6px 6px 0; padding: 8px 10px; border-left: 1px solid color-mix(in srgb, var(--accfg) 35%, transparent); }
+.splitb > .bt.caret[aria-expanded="true"] svg.i { transform: rotate(180deg); }
+.fold { color: var(--mute); padding-bottom: 6px; font: 13px/1.4 var(--sans); }
+.fold .b { background: none; border: 0; padding: 0; color: var(--mute); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.fold .b:hover { color: var(--fg); }
+.alt { font: 13px/1.4 var(--sans); color: var(--mute); }
+
+/* ---- view: title and byline ---- */
+.meta { padding: 22px 0 6px; font-family: var(--sans); }
+.meta .ttl { font-size: 1.6em; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0; overflow-wrap: anywhere; }
+.meta .ttl.none { color: var(--mute); font-style: italic; }
+.meta .by { color: var(--mute); overflow-wrap: anywhere; }
+.note { font: 13px/1.4 var(--sans); color: var(--mute); margin: 0 0 12px; }
+
+/* ---- the build, Hanging keys (D81): keys right-aligned in a margin, values in one mono column ---- */
+.build > * + * { margin-top: 0.9em; }
+.bl { display: grid; grid-template-columns: 15ch minmax(0, 1fr); column-gap: 1.6ch; row-gap: 1px; }
+.hk { text-align: right; color: var(--key); white-space: nowrap; }
+.hv { white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
+.grp { border-left: 2px solid var(--rule); padding-left: 1.2ch; }
+.hv.idv, .hv.ehv, .hv.lvv { font-weight: 600; }
+.hk.lvk { color: var(--acc); font-weight: 600; }
+.lvb > .bl + .bl, details.lvb > .bl { margin-top: 1px; }
+details.lvb > summary { list-style: none; cursor: pointer; }
+details.lvb > summary::-webkit-details-marker { display: none; }
+.mk { color: var(--mute); font-weight: 400; margin-left: 1ch; white-space: nowrap; }
+.mk svg.i { width: 13px; height: 13px; display: inline-block; vertical-align: -2px; }
+.mk .cnt { margin-left: 0.5ch; }
+details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:not([open]) .mk .i-chevron-down { display: none; }
+
+/* syntax (shared with the editor, slice 2): key, punctuation, ref, |SOURCE, number, enum, detail, quantity, drop */
+.k { color: var(--key); } .xk { font-style: italic; }
+.p { color: var(--mute); } .r { color: var(--fg); } .s { color: var(--src); }
+.n, .e, .q, .ab { color: var(--num); }
+.d .r { color: var(--det); }
+.x { color: var(--drop); font-weight: 600; }
+.drop .r { color: var(--mute); text-decoration: line-through; text-decoration-color: var(--drop); }
+.ca .ab-str { color: var(--ab-str); } .ca .ab-dex { color: var(--ab-dex); } .ca .ab-con { color: var(--ab-con); }
+.ca .ab-int { color: var(--ab-int); } .ca .ab-wis { color: var(--ab-wis); } .ca .ab-cha { color: var(--ab-cha); }
+.ck .kd-class { color: var(--kd-class); } .ck .kd-subclass { color: var(--kd-subclass); } .ck .kd-species { color: var(--kd-species); }
+.ck .kd-background { color: var(--kd-background); } .ck .kd-feat { color: var(--kd-feat); } .ck .kd-spell { color: var(--kd-spell); }
+.ck .kd-item { color: var(--kd-item); }
+.ck .drop .r { color: var(--mute); }
+
+/* ---- report (D87): a quiet line under the build, the form opens in place ---- */
+.report { margin-top: 22px; font: 13px/1.4 var(--sans); color: var(--mute); }
+.report > summary { cursor: pointer; list-style: none; width: fit-content; }
+.report > summary::-webkit-details-marker { display: none; }
+.report .u { text-decoration: underline; text-underline-offset: 3px; }
+.report[open] > summary { margin-bottom: 10px; }
+/* With JS the open form takes the line's place (frame view-sparse-report-dark-desk); Cancel closes it. */
+.hasjs .report[open] > summary { display: none; }
+.report.done { display: flex; gap: 6px; align-items: center; }
+.rform { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); color: var(--fg); }
+.rform small { color: var(--mute); }
+.rform .ta { min-height: 70px; resize: vertical; }
+
+/* ---- form fields ---- */
+.stack { display: grid; gap: 14px; } .stack.sm { gap: 8px; }
+.fld { display: grid; gap: 4px; min-width: 0; }
+.lbl { font: 600 11px/1.2 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+.in { font: 14px/1.3 var(--sans); background: var(--field); border: 1px solid var(--rule); border-radius: 6px; padding: 7px 10px; color: var(--fg); min-width: 0; width: 100%; }
+.in::placeholder, .src::placeholder { color: var(--mute); opacity: 1; }
+.ferr { display: flex; gap: 8px; align-items: center; margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--errbg); color: var(--err); font: 13px/1.4 var(--sans); }
+
+/* ---- paste form, no-JS (slice 2 adds the editor, hints and recent shares) ---- */
+.pform { padding: 16px 0 20px; }
+.tb { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-family: var(--sans); }
+.tb .grow { flex: 1; }
+.dsum { font: 13px/1.3 var(--sans); color: var(--mute); } .dsum b { color: var(--err); font-weight: 600; }
+.fgrid { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 20px; align-items: start; }
+.pane { border: 1px solid var(--rule); border-radius: 8px; background: var(--field); min-width: 0; overflow: hidden; }
+.pane:focus-within { border-color: var(--acc); }
+.src { display: block; width: 100%; min-height: 28em; margin: 0; border: 0; background: transparent; padding: 8px 12px; font: 12.5px/1.65 var(--mono);
+  color: var(--fg); resize: vertical; outline: none; }
+.aside { display: grid; gap: 18px; align-content: start; }
+.diag { display: grid; gap: 2px; font: 13px/1.4 var(--sans); }
+.dg { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 6px 10px; border-radius: 6px; }
+.dg.e { background: var(--errbg); }
+.dg .code { font: 600 11.5px/1 var(--mono); color: var(--err); } .dg.w .code { color: var(--warnc); }
+.dg .at { font: 12px/1 var(--mono); color: var(--mute); white-space: nowrap; }
+
+/* ---- paste form with JS (slice 2): the editor is a transparent textarea over a highlight layer (D84) ----
+   The layer (.hl) and the textarea share font, line height, padding and wrapping, so every character sits over its
+   coloured twin; the layer sets the height and the textarea fills it (no inner scroll). */
+/* The form takes the width the frames give it (full width at 1024), capped so the editor stays readable. */
+.new .wrap { max-width: 1120px; }
+.in.fit { display: block; resize: none; overflow: hidden; overflow-wrap: anywhere; line-height: 1.3; }
+.pane { position: relative; }
+.ed { position: relative; --gw: 4ch; font: 12.5px/1.65 var(--mono); font-variant-ligatures: none; min-height: 15em; }
+.ed.w3 { --gw: 5ch; } .ed.w4 { --gw: 6ch; }
+.ed .hl { padding: 8px 0; pointer-events: none; counter-reset: ln; }
+.ed .row { counter-increment: ln; } .ed .g::before { content: counter(ln); }
+.ed .row { display: grid; grid-template-columns: var(--gw) minmax(0, 1fr); min-height: 1.65em; }
+.ed .g { text-align: right; padding-right: 1.4ch; color: var(--src); user-select: none; }
+.ed .t { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 10px; min-width: 0; }
+.ed b { font-weight: 600; }
+.ed .row.err { background: var(--errbg); } .ed .row.err .g { color: var(--err); font-weight: 600; }
+.ed .row.warn .g { color: var(--warnc); font-weight: 600; }
+.ed .bad { text-decoration: underline wavy var(--err); text-underline-offset: 3px; color: var(--err); }
+.ed .lvh { font-weight: 600; } .ed .lvh .lvn { color: var(--acc); }
+.ed > .src { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 8px 10px 8px var(--gw); font: inherit;
+  font-variant-ligatures: none; white-space: pre-wrap; overflow-wrap: anywhere; color: transparent; -webkit-text-fill-color: transparent;
+  caret-color: var(--fg); background: transparent; resize: none; overflow: hidden; }
+.ed > .src::placeholder { color: var(--mute); -webkit-text-fill-color: var(--mute); }
+.ed > .src::selection { background: color-mix(in srgb, var(--acc) 24%, transparent); }
+.dropz { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; text-align: center; gap: 6px; border: 2px dashed var(--acc);
+  border-radius: 8px; background: color-mix(in srgb, var(--field) 94%, transparent); font: 14px/1.4 var(--sans); pointer-events: none; }
+.dropz b { color: var(--acc); font-weight: 600; } .dropz small { color: var(--mute); }
+.dsum .okc { color: var(--kd-species); font-weight: 600; }
+.lbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 9px 12px; border: 1px solid var(--acc); border-radius: 8px;
+  background: color-mix(in srgb, var(--acc) 8%, var(--field)); font: 13.5px/1.4 var(--sans); }
+.lbar .grow { flex: 1; } .lbar b { font-weight: 600; overflow-wrap: anywhere; }
+/* D97: the private edit link, shown once on the view after a save; the same accent frame as the import bar */
+.saved { display: grid; gap: 8px; margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--acc); border-radius: 8px;
+  background: color-mix(in srgb, var(--acc) 8%, var(--field)); font: 13.5px/1.45 var(--sans); }
+.saved .shd { display: flex; align-items: center; justify-content: space-between; margin: -4px -6px -4px 0; }
+.saved .shd b { display: inline-flex; gap: 6px; align-items: center; font-weight: 600; }
+.saved .x { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--fg); cursor: pointer; }
+.saved .x svg.i { width: 16px; height: 16px; }
+.saved p { margin: 0; }
+.saved .erow { display: flex; gap: 8px; align-items: center; }
+.saved .erow .in { flex: 1; font: 12.5px/1.3 var(--mono); }
+.note.editing a, .note.pinned a { color: inherit; text-underline-offset: 3px; }
+.diag { max-height: 22em; overflow-y: auto; }
+.dg .at { background: none; border: 0; padding: 0; color: var(--mute); }
+.dg button.at { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.hc { font: 12px/1 var(--mono); padding: 5px 7px; border: 0; border-radius: 4px; background: var(--chip); color: var(--fg); white-space: nowrap; cursor: pointer; }
+.hc:hover { background: color-mix(in srgb, var(--acc) 12%, var(--chip)); }
+.recent { display: grid; gap: 2px; font: 13px/1.4 var(--sans); }
+.recent .rr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.recent .rr a { color: var(--fg); text-decoration: none; overflow-wrap: anywhere; } .recent .rr a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.recent .rr a.none { color: var(--mute); font-style: italic; }
+.recent .rr .id { font: 12px/1.4 var(--mono); color: var(--mute); }
+.recent .empty { color: var(--mute); font-size: 12.5px; }
+.aside small.dsum { display: block; }
+.pdock { display: none; }
+.ktog .i-chevron-down, .pdock.open .ktog .i-chevron-up, .pdock.open .kn { display: none; }
+.pdock.open .ktog .i-chevron-down { display: block; }
+.kn { color: var(--mute); }
+
+/* ---- prose pages (about, 404) ---- */
+.prose { padding: 22px 0; font: 15px/1.6 var(--sans); max-width: 60ch; }
+.prose h1 { font-size: 1.6em; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 12px; }
+.prose h2 { font-size: 1em; font-weight: 600; margin: 1.6em 0 0.3em; }
+.prose p { margin: 0 0 0.8em; }
+.prose ul { margin: 0 0 0.8em; padding-left: 1.2em; }
+.prose code { font: 0.9em/1 var(--mono); }
+
+/* ---- format guide (D99): examples drawn as the editor draws them, the key table from the profile ---- */
+.gd { max-width: none; }
+.gd p, .gd ul { max-width: 62ch; }
+.gd h2 { margin-top: 1.8em; }
+.gd p code { white-space: nowrap; }
+.ex { margin: 0.4em 0 0.9em; }
+.ex .ed { min-height: 0; }
+.ex.nog .ed { --gw: 10px; } .ex.nog .ed .g { padding: 0; } .ex.nog .ed .g::before { content: none; }
+.ktab { width: 100%; border-collapse: collapse; font: 13.5px/1.45 var(--sans); margin: 0.4em 0 1em; }
+.ktab th, .ktab td { text-align: left; vertical-align: top; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--rule); font-weight: 400; }
+.ktab thead th { font: 600 11px/1.2 var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); }
+.ktab .kk { font: 600 13px/1.45 var(--mono); text-align: right; white-space: nowrap; padding-right: 1.6ch; }
+.ktab thead .kk { font: 600 11px/1.2 var(--sans); }
+.ktab .kw { color: var(--mute); width: 11em; }
+.ktab .kh small { display: block; margin-top: 2px; color: var(--mute); font-size: 12.5px; }
+.ktab code { font: 0.95em/1 var(--mono); }
+/* the form's way to the guide, and the example offer inside an empty editor (D99) */
+.glink { font-size: 12.5px; } .glink a { color: var(--fg); text-underline-offset: 3px; }
+.exo { position: absolute; z-index: 1; top: calc(8px + 2.6em); left: var(--gw); right: 10px; display: flex; flex-wrap: wrap; gap: 6px 10px;
+  align-items: center; font: 13px/1.4 var(--sans); pointer-events: none; }
+.exo > * { pointer-events: auto; }
+.exo a { color: var(--fg); text-underline-offset: 3px; }
+
+/* ---- phone ---- */
+@media (max-width: 600px) {
+  body { font-size: 13px; }
+  .wrap { padding: 0 16px 32px; }
+  .top { flex-wrap: wrap; gap: 6px 12px; }
+  .top .navs { gap: 12px; }
+  .bl { grid-template-columns: 11ch minmax(0, 1fr); column-gap: 1.2ch; }
+  .hk { white-space: normal; }
+  .fgrid { grid-template-columns: minmax(0, 1fr); }
+  .src { min-height: 20em; }
+  .ed { min-height: 12em; }
+  /* Phone dock (D86): problem line, Save, and the key hints behind "Keys"; it rides above the keyboard (--kb, set
+     from visualViewport by form.js). Summary and Save leave the toolbar; the side column keeps Problems and shares. */
+  .js .new .tb > .grow, .js .new .tb > .dsum, .js .new .tb > .bt.pri, .js .new .aside .keys { display: none; }
+  .js .new .wrap { padding-bottom: 164px; }
+  .js .pdock { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; transform: translateY(calc(-1 * var(--kb, 0px)));
+    border-top: 1px solid var(--rule); background: var(--bg); font-family: var(--sans); }
+  .pdock .krow { flex-wrap: nowrap; overflow-x: auto; padding: 8px 14px 0; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .pdock .krow::-webkit-scrollbar { display: none; }
+  .pdock .srow { display: flex; gap: 8px; align-items: center; padding: 8px 14px 10px; }
+  .pdock .srow .grow { flex: 1; min-width: 0; display: flex; }
+  .pdock .perr { display: inline-flex; gap: 5px; align-items: center; color: var(--err); background: none; border: 0; padding: 0; font: 13px/1.15 var(--sans);
+    text-align: left; min-width: 0; cursor: pointer; }
+  /* D94: the status has its own row above Keys · Save (a problem's message cut to one line), ruled off from them. */
+  .pdock .prow { display: flex; padding: 8px 14px; border-bottom: 1px solid var(--rule); }
+  .pdock .prow .perr { display: flex; width: 100%; font-size: 13.5px; }
+  .pdock .pmsg { color: var(--fg); margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pdock .perr b { color: var(--err); } .pdock .perr .more { color: var(--mute); }
+  /* View dock (D87, frame view-vice-phone): Copy link split + Duplicate and edit, fixed at the bottom */
+  .hasjs .view .wrap { padding-bottom: 84px; }
+  .hasjs .view .acts { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; flex-wrap: nowrap; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--rule); background: var(--bg); font-family: var(--sans); }
+  .hasjs .view .acts .grow { display: block; flex: 1; }
+  /* D97: the owner's dock holds Copy link, Edit and Duplicate: Duplicate drops "and edit" to fit a 375 px phone. */
+  .hasjs .view .acts.own .dl { display: none; }
+  .saved .erow { flex-wrap: wrap; } .saved .erow .bt { flex: 1; }
+  .hasjs .view .meta { padding-bottom: 10px; }
+  /* Sheets (D89 b, frame view-copysheet-dark-phone) */
+  .pop.sheet { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto; max-width: none; max-height: 85vh; border: 0;
+    border-top: 1px solid var(--rule); border-radius: 14px 14px 0 0; box-shadow: 0 -10px 28px rgb(0 0 0 / 0.2);
+    padding: 8px 14px calc(14px + env(safe-area-inset-bottom)); display: grid; gap: 4px; font: 14px/1.3 var(--sans); }
+  /* D93: the sheet's head (grab bar + a close ×) sits last in the markup, so focus lands on the content first. */
+  .pop.sheet .shead { order: -1; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: -2px -6px 2px; }
+  .pop.sheet .grab { grid-column: 2; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--rule); }
+  .pop.sheet .x { grid-column: 3; justify-self: end; display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0;
+    border-radius: 50%; background: none; color: var(--fg); cursor: pointer; }
+  .pop.sheet .x svg.i { width: 16px; height: 16px; }
+  .pop.sheet .it { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 4px; border-radius: 0; border-bottom: 1px solid var(--rule); }
+  .pop.sheet .it small { margin: 0; font-size: 12.5px; }
+  .pop.sheet .it:last-of-type { border-bottom: 0; }
+  .dmenu.sheet { gap: 12px; padding-left: 16px; padding-right: 16px; }
+  /* Key table (D99): one block per key, key and place on the first line, what it holds below. */
+  .ktab thead { display: none; }
+  .ktab, .ktab tbody { display: block; }
+  .ktab tr { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+  .ktab th, .ktab td { padding: 0; border: 0; }
+  .ktab .kk { text-align: left; } .ktab .kw { width: auto; }
+  .ktab .kh { grid-column: 1 / -1; }
+  .ctab tr { grid-template-columns: 10ch minmax(0, 1fr); }
+  .ctab .ct { grid-column: 2; width: auto; font-size: 12.5px; }
+  .ctab thead .ct { display: none; }
+  .cfind .in { max-width: none; }
+}
+
+/* ---- Keys popover (T3.6): the guide's description of a key, under its chip ---- */
+.ktip { max-width: min(340px, calc(100vw - 16px)); padding: 9px 11px; pointer-events: none; }
+.ktip .kdk { font: 600 12.5px/1.4 var(--mono); }
+.ktip small { display: block; margin-top: 5px; color: var(--mute); font-size: 12px; }
+.ktip code { font: 12px/1.4 var(--mono); }
+
+/* ---- slot marker on a Feat key (D110), view and editor. In the view's key column (15ch) the marker takes a
+   second line under the key, a size down, so Feat (Fighting Style) fits the column. ---- */
+.km { font-style: italic; }
+.hk:has(.km) { white-space: normal; }
+.hk .km { white-space: nowrap; font-size: 0.86em; }
+
+/* ---- /codes (D103): one table, a search field, sortable heads (site.js) ---- */
+.ctab { max-width: 72ch; }
+.ctab .kk { width: 10ch; }
+.ctab .ct { color: var(--mute); white-space: nowrap; width: 9em; }
+.cfind { display: flex; gap: 12px; align-items: center; max-width: 72ch; margin: 1em 0 0.2em; }
+.cfind .in { max-width: 320px; }
+.ctab .srt { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit;
+  text-transform: inherit; color: inherit; cursor: pointer; }
+.ctab .srt:hover, .ctab th[aria-sort] .srt { color: var(--fg); }
+.ctab .srt .i { width: 12px; height: 12px; visibility: hidden; }
+.ctab th:not([aria-sort]) .srt .i-chevron-down, .ctab th[aria-sort=ascending] .srt .i-chevron-down, .ctab th[aria-sort=descending] .srt .i-chevron-up { display: none; }
+.ctab th[aria-sort] .srt .i, .ctab .srt:hover .i { visibility: visible; }
+.ctab thead .kk .srt { flex-direction: row-reverse; }

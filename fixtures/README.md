@@ -3,7 +3,10 @@
 Hand-written pastes used as conformance cases. They **name** game entities and nothing else
 (content boundary, CLAUDE.md). `vice` and `shigen` are Francesco's two real builds (D17); the
 compiled sheets they mirror live outside this repo. Both follow SPEC 0.3 (entity blocks, bracket
-details, `Options`).
+details, `Options`). Every file in `fixtures/` is in SPEC 0.8 form (migrated 2026-11-16 through the
+0.8 parser and emitter). `fixtures/v0.7/` keeps the 0.7 text of `druid-custom-background` (an
+`Ability` line, background and level `ASI`): the test asserts it reads with `W005` only and emits
+its 0.8 sibling. `noncanonical/st-extension` and `noncanonical/st-quoting` are 0.7 text too.
 
 Fidelity notes:
 - `vice`: the paper sheet lists three invocations at level 1; a 2024 Warlock has one at level 1 and

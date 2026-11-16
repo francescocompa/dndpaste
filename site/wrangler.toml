@@ -1,0 +1,48 @@
+# dndpaste share site — one Worker, static assets, one KV namespace (SITE.md, D70, D73).
+# Local only for now: `npm run dev` runs this under `wrangler dev` with a local KV store and local rate limits.
+# Deploy (T3.4, on Francesco's go): create the namespace (`npx wrangler kv namespace create PASTES`),
+# put its id below, then `npx wrangler deploy`.
+name = "dndpaste"
+main = "src/worker.ts"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[assets]
+directory = "./public"
+
+[[kv_namespaces]]
+binding = "PASTES"
+# The live namespace (T3.4, 2026-11-16). `wrangler dev` still uses a local store.
+id = "56d53b07251049a1907a301968bf2c60"
+
+[vars]
+# Empty = answer on any host. Set to e.g. "https://dndpaste.example" to 301 every other host there (D70).
+CANONICAL_ORIGIN = ""
+
+# Workers rate-limiting binding, per IP (D71). If the account's plan lacks it, delete these two blocks:
+# the Worker then skips the check, and a Cloudflare WAF rate-limiting rule on POST takes its place (site/README.md).
+[[ratelimits]]
+name = "SAVE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
+[[ratelimits]]
+name = "REPORT_LIMITER"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }
+
+# Daily write cap per IP (IPv6: per /64), on top of the per-minute limits (D71, T3.3; src/daily.ts). SQLite-backed
+# Durable Objects are on the Workers Free plan. Delete these two blocks to run without it: the Worker then skips it.
+[[durable_objects.bindings]]
+name = "DAILY_CAP"
+class_name = "DailyCap"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["DailyCap"]
+
+# The client bundles (public/assets/form.js, site.js) are built and checked (IP gate) before `wrangler dev` and
+# `wrangler deploy`.
+[build]
+command = "node scripts/build-client.mjs && node scripts/check-bundle.mjs"
+watch_dir = "src"

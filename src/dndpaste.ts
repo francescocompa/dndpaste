@@ -1,10 +1,10 @@
 /**
  * dndpaste — reference parser and canonical emitter.
- * Implements SPEC.md 0.6 (core grammar §1–4, profile `dnd5e` §5).
+ * Implements SPEC.md 0.8 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113).
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.6";
+export const SPEC_VERSION = "0.8";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────
@@ -12,6 +12,8 @@ export const PASTE_MAJOR = 1;
 export interface Ref { name: string; source: string | null }
 export interface Detail { ref: Ref; at: number | null }
 export interface Item { ref: Ref; drop: boolean; details: Detail[][]; qty: number | null }
+/** One score increase: `+2 CHA` (§5.2). */
+export interface Bonus { amount: number; ability: Ability }
 
 export type Ability = "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA";
 export const ABILITIES: readonly Ability[] = ["STR", "DEX", "CON", "INT", "WIS", "CHA"];
@@ -24,17 +26,23 @@ export type Value =
   | { type: "text"; value: string }
   /** As written: a class may appear more than once (runs, §5.2); `foldClasses` gives the totals. */
   | { type: "classes"; entries: ClassEntry[] }
-  /** Base scores in STR/DEX/CON/INT/WIS/CHA order; `null` = not written (the named partial form, §5.2). */
-  | { type: "scores"; values: (number | null)[] }
-  | { type: "asi"; bonuses: { amount: number; ability: Ability }[] }
+  /**
+   * The `Scores` lines of one scope (§5.2, D108). `values`: base scores in STR/DEX/CON/INT/WIS/CHA order, `null` = not
+   * written (all six `null` when the scope has no base line; a base goes in the header only). `increase`: the increase
+   * line (`+2 CHA`), or `null`. Both empty: a `Scores:` line with no value yet (D112).
+   */
+  | { type: "scores"; values: (number | null)[]; increase: Bonus[] | null }
   /** Hit-point method (§5.2, D59): `roll` is a die result, level blocks only, and implies `Rolled`. */
-  | { type: "hp"; method: HpMethod; roll: number | null };
+  | { type: "hp"; method: HpMethod; roll: number | null }
+  /** A key with no value yet ("not chosen yet", D112) whose type has no empty form: `Paste`, `Rules`, `HP`. */
+  | { type: "empty" };
 
 export type HpMethod = "Fixed" | "Rolled";
 export const HP_METHODS: readonly HpMethod[] = ["Fixed", "Rolled"];
 
 export type Scope = Map<string, Value>;
-export interface EntityBlock { key: string; item: Item; lines: Scope }
+/** `item` is `null` when the block-opening line has no value yet (`Species:`, D112). */
+export interface EntityBlock { key: string; item: Item | null; lines: Scope }
 export interface LevelBlock { n: number; class: Ref; lines: Scope }
 export interface Diagnostic { code: string; line: number; message: string }
 export interface Paste {
@@ -49,6 +57,7 @@ export interface Paste {
 
 /** Scope letters: H header · S species block · B background block · L level block. */
 export type ScopeKind = "H" | "S" | "B" | "L";
+/** `asi` is the 0.7 `ASI` key's type, kept for that alias only. */
 export type ValueType = "items" | "item" | "items¹" | "enum" | "int" | "classes" | "scores" | "asi" | "hp" | "text";
 
 export interface KeyDef {
@@ -57,46 +66,73 @@ export interface KeyDef {
   scopes: readonly ScopeKind[];
   opensBlock?: "S" | "B";
   enumValues?: readonly string[];
+  /** A 0.7 key that 0.8 reads as an alias (D113): what it is written as now. Never in `KEYS`. */
+  renamed?: string;
 }
 
-/** Table order is canonical order (SPEC §5.5). */
+/** Table order is canonical order (SPEC §5.5). SPEC 0.8 keys only; the 0.7 aliases are `LEGACY_KEYS`. */
 export const KEYS: readonly KeyDef[] = [
   { key: "Paste", type: "int", scopes: ["H"] },
   { key: "Producer", type: "text", scopes: ["H"] },
   { key: "Rules", type: "enum", scopes: ["H"], enumValues: ["2014", "2024"] },
-  { key: "Scores", type: "scores", scopes: ["H"] },
+  { key: "Scores", type: "scores", scopes: ["H", "S", "B", "L"] },
   { key: "Classes", type: "classes", scopes: ["H"] },
   { key: "HP", type: "hp", scopes: ["H", "L"] },
   { key: "Species", type: "item", scopes: ["H"], opensBlock: "S" },
   { key: "Background", type: "item", scopes: ["H"], opensBlock: "B" },
   { key: "Subclass", type: "items¹", scopes: ["H", "L"] },
-  { key: "ASI", type: "asi", scopes: ["H", "S", "B", "L"] },
-  { key: "Ability", type: "item", scopes: ["S", "B", "L"] },
   { key: "Skills", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Tools", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Languages", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Expertise", type: "items", scopes: ["H", "L"] },
   { key: "Feat", type: "items", scopes: ["H", "S", "B", "L"] },
-  { key: "Fighting Style", type: "items", scopes: ["H", "L"] },
   { key: "Masteries", type: "items", scopes: ["H", "L"] },
   { key: "Options", type: "items", scopes: ["H", "L"] },
   { key: "Feature", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Cantrips", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Spells", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Prepared", type: "items", scopes: ["H", "L"] },
-  { key: "Equipment", type: "items", scopes: ["H", "B", "L"] },
-  { key: "Items", type: "items", scopes: ["H", "L"] },
+  { key: "Gear", type: "items", scopes: ["H", "B", "L"] },
 ];
 
-const KEY_BY_LOWER = new Map(KEYS.map((k) => [k.key.toLowerCase(), k]));
+/** SPEC 0.7 keys, read until 1.0 with a W005 "renamed key" warning and written in their 0.8 form (D113). */
+export const LEGACY_KEYS: readonly KeyDef[] = [
+  { key: "ASI", type: "asi", scopes: ["H", "S", "B", "L"], renamed: "Scores: +2 CHA in a Species or Background block; Feat: Ability Score Improvement [+2 CHA] at a level" },
+  { key: "Ability", type: "item", scopes: ["S", "B", "L"], renamed: "the first detail of the Feat, Feature or Options that asks it: Feature: Elven Lineage [WIS; Wood]" },
+  { key: "Fighting Style", type: "items", scopes: ["H", "L"], renamed: "Feat (Fighting Style): Archery" },
+  { key: "Equipment", type: "items", scopes: ["H", "B", "L"], renamed: "Gear" },
+  { key: "Items", type: "items", scopes: ["H", "L"], renamed: "Gear" },
+];
+
+/** The 2024 name of a level's Ability Score Improvement as a feat (D109); the checker also accepts `ASI`. */
+export const ASI_FEAT = "Ability Score Improvement";
+
+const KEY_BY_LOWER = new Map([...KEYS, ...LEGACY_KEYS].map((k) => [k.key.toLowerCase(), k]));
 const LEVEL_MIN = 1;
 const LEVEL_MAX = 20;
 
+/** A key line's key split into the key and its slot marker: `Feat (Fighting Style)` → `Feat`, `Fighting Style` (D110). */
+export function splitMarker(key: string): { key: string; marker: string | null } {
+  const m = /^(.*?)\s*\(([^()]*)\)$/.exec(key.trim());
+  return m ? { key: m[1].trim(), marker: m[2].trim() } : { key: key.trim(), marker: null };
+}
+/** The key's definition, 0.8 or 0.7 alias; a `Feat (<marker>)` key gives `Feat`'s. */
 export function keyDef(key: string): KeyDef | undefined {
-  return KEY_BY_LOWER.get(key.toLowerCase());
+  const hit = KEY_BY_LOWER.get(key.trim().toLowerCase());
+  if (hit) return hit;
+  const { key: base, marker } = splitMarker(key);
+  return marker && base.toLowerCase() === "feat" ? KEY_BY_LOWER.get("feat") : undefined;
 }
 export function isExtensionKey(key: string): boolean {
   return /^x-[a-z0-9-]+$/i.test(key);
+}
+/** True for `Feat` and every `Feat (<marker>)` key of a scope. */
+export function isFeatKey(key: string): boolean {
+  return key === "Feat" || key.startsWith("Feat (");
+}
+/** True when the detail group is an ability pick: exactly one bare ability (`[INT; High]`'s `INT`, D107). */
+export function isAbilitySlot(group: readonly Detail[] | undefined): boolean {
+  return Boolean(group && group.length === 1 && !group[0].ref.source && ABILITIES.includes(group[0].ref.name.toUpperCase() as Ability));
 }
 
 // ─── Errors ─────────────────────────────────────────────────────────────────
@@ -107,10 +143,9 @@ const MESSAGES: Record<string, string> = {
   E003: "duplicate key in this scope",
   E004: "level header not strictly increasing or out of range",
   E005: "key not allowed in this scope",
-  E006: "empty value",
   E007: "list given to a single-item key",
   E008: "drop prefix outside a level scope or on a non-list key",
-  E009: "quantity on a key other than Equipment or Items",
+  E009: "quantity on a key other than Gear",
   E010: "reserved line ---",
   E011: "malformed item",
   E012: "value does not match the key's type",
@@ -121,6 +156,8 @@ const MESSAGES: Record<string, string> = {
   W001: "extension key kept but not understood",
   W002: "parenthesised suffix looks like a detail — details go in [brackets]",
   W003: "level header's class has no levels left in Classes",
+  W004: "no value yet (not chosen)",
+  W005: "renamed key (SPEC 0.7)",
 };
 
 class Diag {
@@ -371,39 +408,44 @@ export function classSequence(paste: Paste): ClassSequence {
   return { played, levels };
 }
 
-/**
- * Two forms, both base scores (§5.2, D46): six integers `8/15/13/10/14/12`, or the named partial form
- * `DEX 15, CON 13` — an ability and its value, in any order, missing abilities simply absent.
- */
-function parseScores(raw: string, diag: Diag, line: number): Value | null {
-  if (raw.includes("/")) {
-    const parts = raw.split("/").map((p) => p.trim());
-    if (parts.length !== 6 || parts.some((p) => !/^\d+$/.test(p))) {
-      diag.add("E012", line, "Scores needs six integers separated by /, or named scores such as DEX 15, CON 13");
-      return null;
-    }
-    return { type: "scores", values: parts.map(Number) };
-  }
-  const values: (number | null)[] = [null, null, null, null, null, null];
-  for (const part of raw.split(",")) {
-    const m = /^([A-Za-z]{3})\s+(\d+)$/.exec(part.trim());
-    const i = m ? ABILITIES.indexOf(m[1].toUpperCase() as Ability) : -1;
-    if (!m || i < 0) { diag.add("E012", line, `bad score "${part.trim()}": use six integers separated by /, or named scores such as DEX 15, CON 13`); return null; }
-    if (values[i] !== null) { diag.add("E012", line, `${ABILITIES[i]} given twice`); return null; }
-    values[i] = Number(m[2]);
-  }
-  return { type: "scores", values };
-}
+const NO_SCORES = (): (number | null)[] => [null, null, null, null, null, null];
 
-function parseAsi(raw: string, diag: Diag, line: number): Value | null {
-  const bonuses: { amount: number; ability: Ability }[] = [];
+/** `+2 CHA` or `+1 INT, +1 CON`: score increases, `,`-separated; grouping is kept (§5.2). */
+function parseBonuses(raw: string, diag: Diag, line: number): Bonus[] | null {
+  const bonuses: Bonus[] = [];
   for (const part of raw.split(",")) {
     const m = /^\+(\d+)\s+([A-Za-z]{3})$/.exec(part.trim());
     const ab = m ? (m[2].toUpperCase() as Ability) : null;
-    if (!m || !ab || !ABILITIES.includes(ab)) { diag.add("E012", line, `bad ASI entry "${part.trim()}"`); return null; }
+    if (!m || !ab || !ABILITIES.includes(ab)) { diag.add("E012", line, `bad increase "${part.trim()}": use +2 CHA or +1 INT, +1 CON`); return null; }
     bonuses.push({ amount: Number(m[1]), ability: ab });
   }
-  return { type: "asi", bonuses };
+  return bonuses;
+}
+
+/**
+ * `Scores` (§5.2): the `+` decides (D108). A base is six integers `8/15/13/10/14/12` in STR/DEX/CON/INT/WIS/CHA
+ * order, or the named form for the known ones, `DEX 15, CON 13` or `DEX 15/CON 13` (D106). An increase is `+2 CHA`
+ * or `+1 INT, +1 CON`.
+ */
+function parseScores(raw: string, diag: Diag, line: number): Value | null {
+  if (raw.startsWith("+")) {
+    const increase = parseBonuses(raw, diag, line);
+    return increase ? { type: "scores", values: NO_SCORES(), increase } : null;
+  }
+  const parts = raw.split(/[,/]/).map((p) => p.trim());
+  if (raw.includes("/") && parts.every((p) => /^\d+$/.test(p))) {
+    if (parts.length !== 6) { diag.add("E012", line, "Scores needs six integers separated by / (STR/DEX/CON/INT/WIS/CHA), named scores such as DEX 15, CON 13, or an increase such as +2 CHA"); return null; }
+    return { type: "scores", values: parts.map(Number), increase: null };
+  }
+  const values = NO_SCORES();
+  for (const part of parts) {
+    const m = /^([A-Za-z]{3})\s+(\d+)$/.exec(part);
+    const i = m ? ABILITIES.indexOf(m[1].toUpperCase() as Ability) : -1;
+    if (!m || i < 0) { diag.add("E012", line, `bad score "${part}": use six integers separated by / (STR/DEX/CON/INT/WIS/CHA), named scores such as DEX 15, CON 13, or an increase such as +2 CHA`); return null; }
+    if (values[i] !== null) { diag.add("E012", line, `${ABILITIES[i]} given twice`); return null; }
+    values[i] = Number(m[2]);
+  }
+  return { type: "scores", values, increase: null };
 }
 
 /** `Fixed` or `Rolled`; in a level block also the die result rolled there, which implies `Rolled` (§5.2, D59). */
@@ -417,6 +459,9 @@ function parseHp(raw: string, scope: ScopeKind, diag: Diag, line: number): Value
   if (!hit) { diag.add("E012", line, scope === "L" ? "Fixed, Rolled or a rolled result expected" : "Fixed or Rolled expected"); return null; }
   return { type: "hp", method: hit, roll: null };
 }
+
+const HINT_KEYS = ["Feat", "Options", "Feature", "Subclass", "Fighting Style"];
+const QTY_KEYS = ["Gear", "Equipment", "Items"];
 
 function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line: number): Value | null {
   switch (def.type) {
@@ -432,7 +477,10 @@ function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line
     case "text": return { type: "text", value: raw.trim() };
     case "classes": return parseClasses(raw, diag, line);
     case "scores": return parseScores(raw, diag, line);
-    case "asi": return parseAsi(raw, diag, line);
+    case "asi": {
+      const increase = parseBonuses(raw, diag, line);
+      return increase ? { type: "scores", values: NO_SCORES(), increase } : null;
+    }
     case "hp": return parseHp(raw, scope, diag, line);
     case "item":
     case "items":
@@ -441,15 +489,31 @@ function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line
       if (!items) return null;
       const single = def.type === "item" || (def.type === "items¹" && scope === "L");
       if (single && items.length > 1) { diag.add("E007", line); return null; }
-      const hintKeys = ["Feat", "Options", "Feature", "Subclass", "Fighting Style"];
       for (const it of items) {
-        if (hintKeys.includes(def.key) && !it.details.length && /\s\([^()]*\)$/.test(it.ref.name)) diag.add("W002", line, it.ref.name);
+        if (HINT_KEYS.includes(def.key) && !it.details.length && /\s\([^()]*\)$/.test(it.ref.name)) diag.add("W002", line, it.ref.name);
         if (it.drop && (scope !== "L" || single)) { diag.add("E008", line); return null; }
-        if (it.qty !== null && def.key !== "Equipment" && def.key !== "Items") { diag.add("E009", line); return null; }
+        if (it.qty !== null && !QTY_KEYS.includes(def.key)) { diag.add("E009", line); return null; }
       }
       return { type: "items", items };
     }
   }
+}
+
+/** The value of a key line with nothing after the `:` — "not chosen yet" (D112): the empty form of its type. */
+function emptyValue(def: KeyDef): Value {
+  switch (def.type) {
+    case "item": case "items": case "items¹": return { type: "items", items: [] };
+    case "classes": return { type: "classes", entries: [] };
+    case "scores": case "asi": return { type: "scores", values: NO_SCORES(), increase: null };
+    case "text": return { type: "text", value: "" };
+    default: return { type: "empty" };
+  }
+}
+
+/** A level's ASI as the feat line (D109): `Feat: Ability Score Improvement [+2 CHA]`. */
+function asiFeat(bonuses: readonly Bonus[]): Item {
+  const details = bonuses.length ? [bonuses.map((b) => ({ ref: { name: `+${b.amount} ${b.ability}`, source: null }, at: null }))] : [];
+  return { ref: { name: ASI_FEAT, source: null }, drop: false, details, qty: null };
 }
 
 // ─── Parser ─────────────────────────────────────────────────────────────────
@@ -467,6 +531,17 @@ export function parse(text: string): Paste {
   let lastLevel = 0;
   const opened = new Set<string>();
   const headerLine = new Map<number, number>();   // level n → its header's line number
+  // One line per key per scope (E003). A line's identity is its key, a Feat's marker included; a 0.7 alias has its own,
+  // so `Equipment` and `Items` both merge into `Gear`; `Scores` has one for the base and one for the increase.
+  const seen = new Map<Scope, Set<string>>();
+  const once = (sc: Scope, id: string, no: number, label: string): boolean => {
+    let s = seen.get(sc);
+    if (!s) { s = new Set(); seen.set(sc, s); }
+    if (s.has(id.toLowerCase())) { diag.add("E003", no, label); return false; }
+    s.add(id.toLowerCase());
+    return true;
+  };
+  const abilityLines: { scope: Scope; no: number }[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -504,26 +579,31 @@ export function parse(text: string): Paste {
 
     if (isExtensionKey(rawKey)) {
       diag.add("W001", no, rawKey);
-      if (!rawValue) { diag.add("E006", no); continue; }
-      const items = parseItems(rawValue, diag, no);
       // The reserved prefix is written `X-`; the rest of the name stays as authored (§2.5, D56).
       // Keys are case-insensitive, so `X-Plan-B` and `x-plan-b` are the same key in one scope.
       const key = "X-" + rawKey.slice(2);
-      if (items && [...current.keys()].some((k) => k.toLowerCase() === key.toLowerCase())) { diag.add("E003", no, key); continue; }
-      if (items) setOnce(current, key, { type: "items", items }, diag, no);
+      if (!rawValue) diag.add("W004", no, key);
+      const items = rawValue ? parseItems(rawValue, diag, no) : [];
+      if (items && once(current, key, no, key)) current.set(key, { type: "items", items });
       continue;
     }
 
-    const def = keyDef(rawKey);
+    const { key: baseKey, marker } = splitMarker(rawKey);
+    const def = KEY_BY_LOWER.get(baseKey.toLowerCase());
     if (!def) { diag.add("E002", no, rawKey); continue; }
-    if (!rawValue) { diag.add("E006", no); continue; }
+    if (marker !== null && (def.key !== "Feat" || !marker)) { diag.add("E002", no, `${rawKey}: only Feat takes a slot marker, as in Feat (Fighting Style)`); continue; }
+    const label = marker ? `Feat (${marker})` : def.key;
 
     if (def.opensBlock) {
       if (scope === "L" || opened.has(def.key)) { diag.add("E014", no, def.key); continue; }
-      const v = parseValue(def, rawValue, "H", diag, no);
-      if (!v || v.type !== "items") continue;
+      let item: Item | null = null;
+      if (rawValue) {
+        const v = parseValue(def, rawValue, "H", diag, no);
+        if (!v || v.type !== "items") continue;
+        item = v.items[0];
+      } else diag.add("W004", no, def.key);
       opened.add(def.key);
-      const block: EntityBlock = { key: def.key, item: v.items[0], lines: new Map() };
+      const block: EntityBlock = { key: def.key, item, lines: new Map() };
       paste.entities.push(block);
       scope = def.opensBlock;
       current = block.lines;
@@ -531,9 +611,64 @@ export function parse(text: string): Paste {
     }
 
     if (!def.scopes.includes(scope)) { diag.add("E005", no, `${def.key} in ${scopeName(scope)} scope`); continue; }
-    const v = parseValue(def, rawValue, scope, diag, no);
+    const v = rawValue ? parseValue(def, rawValue, scope, diag, no) : emptyValue(def);
     if (!v) continue;
-    setOnce(current, def.key, v, diag, no);
+    if (!rawValue) diag.add("W004", no, label);
+
+    // ── 0.7 keys (D113): read, written in their 0.8 form ──
+    if (def.renamed) {
+      if (!once(current, def.key, no, def.key)) continue;
+      if (def.key === "ASI" && v.type === "scores") {
+        if (scope === "S" || scope === "B") {
+          mergeScores(current, v);
+          diag.add("W005", no, `ASI is written as Scores: ${emitValue({ ...v, values: NO_SCORES() }) || "+2 CHA"} (D108)`);
+        } else {
+          appendItems(current, "Feat", [asiFeat(v.increase ?? [])]);
+          diag.add("W005", no, `ASI is written as Feat: ${ASI_FEAT}${v.increase ? ` [${emitValue({ ...v, values: NO_SCORES() })}]` : ""} (D109)`);
+        }
+      } else if (def.key === "Ability") {
+        current.set("Ability", v);
+        abilityLines.push({ scope: current, no });
+      } else if (def.key === "Fighting Style" && v.type === "items") {
+        appendItems(current, featKey(current, "Fighting Style"), v.items);
+        diag.add("W005", no, "Fighting Style is written as Feat (Fighting Style) (D110)");
+      } else if (v.type === "items") {
+        appendItems(current, "Gear", v.items);
+        diag.add("W005", no, `${def.key} is written as Gear (D111)`);
+      }
+      continue;
+    }
+
+    if (v.type === "scores") {
+      const base = v.values.some((x) => x !== null);
+      if (base && scope !== "H") { diag.add("E005", no, "base Scores go in the header; an increase starts with + (+2 CHA)"); continue; }
+      if (!once(current, base ? "Scores" : v.increase ? "Scores+" : "Scores:", no, "Scores")) continue;
+      mergeScores(current, v);
+      continue;
+    }
+    if (def.key === "Feat" && v.type === "items") {
+      const key = marker ? featKey(current, marker) : "Feat";
+      if (once(current, key, no, label)) appendItems(current, key, v.items);
+      continue;
+    }
+    if (once(current, def.key, no, def.key)) {
+      if (v.type === "items") appendItems(current, def.key, v.items);
+      else current.set(def.key, v);
+    }
+  }
+
+  // A 0.7 `Ability` line moves into its owner's details when the scope has exactly one owner, a single `Feature`
+  // item (`Size` aside, D39); otherwise it stays as written (D107, D113). The parser has no data to do more.
+  for (const a of abilityLines) {
+    const v = a.scope.get("Ability");
+    const ab = v && v.type === "items" ? v.items[0] : undefined;
+    const f = a.scope.get("Feature");
+    const owners = f && f.type === "items" ? f.items.filter((it) => !it.drop && it.ref.name.toLowerCase() !== "size") : [];
+    if (ab && owners.length === 1 && !isAbilitySlot(owners[0].details[0])) {
+      owners[0].details = [[{ ref: ab.ref, at: null }], ...owners[0].details];
+      a.scope.delete("Ability");
+      diag.add("W005", a.no, `Ability is written as the first detail of Feature: ${owners[0].ref.name} (D107)`);
+    } else diag.add("W005", a.no, "Ability kept as written: write the ability as the first detail of the Feat, Feature or Options that asks it (D107)");
   }
 
   // Whole-document checks.
@@ -546,7 +681,26 @@ export function parse(text: string): Paste {
   // Level headers against Classes (§5.4, D49): a header that contradicts the runs is E016; in the totals form, a
   // header whose class has no levels left is W003 (the header still fixes its level's class).
   for (const pr of sequenceOf(paste).problems) diag.add(pr.code, headerLine.get(pr.n) ?? 0, pr.message);
+  diag.list.sort((a, b) => a.line - b.line);   // stable: same-line diagnostics keep their order
   return paste;
+}
+
+/** Adds items to a key's list, creating it: the one way a list grows, so a 0.7 alias merges into its 0.8 key. */
+function appendItems(scope: Scope, key: string, items: readonly Item[]): void {
+  const prev = scope.get(key);
+  scope.set(key, { type: "items", items: [...(prev && prev.type === "items" ? prev.items : []), ...items] });
+}
+/** Merges a `Scores` line into its scope's value: a base fills `values`, an increase appends to `increase`. */
+function mergeScores(scope: Scope, v: Extract<Value, { type: "scores" }>): void {
+  const prev = scope.get("Scores");
+  if (!prev || prev.type !== "scores") { scope.set("Scores", { type: "scores", values: [...v.values], increase: v.increase ? [...v.increase] : null }); return; }
+  const increase = prev.increase || v.increase ? [...(prev.increase ?? []), ...(v.increase ?? [])] : null;
+  scope.set("Scores", { type: "scores", values: prev.values.map((x, i) => v.values[i] ?? x), increase });
+}
+/** The scope's key for a marked feat line: an existing spelling of the same marker, else `Feat (<marker>)`. */
+function featKey(scope: Scope, marker: string): string {
+  const want = `Feat (${marker})`;
+  return [...scope.keys()].find((k) => k.toLowerCase() === want.toLowerCase()) ?? want;
 }
 
 function findSeparator(line: string): number {
@@ -554,10 +708,6 @@ function findSeparator(line: string): number {
   if (i < 0) return -1;
   if (i === line.length - 1 || line[i + 1] === " ") return i;
   return -1;
-}
-function setOnce(scope: Scope, key: string, v: Value, diag: Diag, line: number): void {
-  if (scope.has(key)) { diag.add("E003", line, key); return; }
-  scope.set(key, v);
 }
 function scopeName(s: ScopeKind): string {
   return s === "H" ? "header" : s === "S" ? "Species" : s === "B" ? "Background" : "level";
@@ -584,6 +734,10 @@ function fmtItem(it: Item): string {
   if (it.qty !== null) s += ` x${it.qty}`;
   return s;
 }
+/**
+ * One value as one line's text; empty for a value not chosen yet. A `scores` value holding both a base and an
+ * increase gives the base: `scopeLines` splits it into its two lines.
+ */
 export function emitValue(v: Value): string {
   switch (v.type) {
     case "items": return v.items.map(fmtItem).join(", ");
@@ -593,23 +747,57 @@ export function emitValue(v: Value): string {
     // Runs fold to totals, one entry per class in first-appearance order; the order moves to level headers (§5.5).
     case "classes": return foldClasses(v.entries).map((e) => fmtRef(e.ref) + (e.levels === null ? "" : ` ${e.levels}`)).join(" / ");
     // All six known → the six-number form; otherwise the named form, STR…CHA order (§5.5).
-    case "scores": return v.values.every((x) => x !== null)
-      ? v.values.join("/")
-      : ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [`${a} ${v.values[i]}`])).join(", ");
-    case "asi": return v.bonuses.map((b) => `+${b.amount} ${b.ability}`).join(", ");
+    case "scores":
+      if (v.values.every((x) => x !== null)) return v.values.join("/");
+      if (v.values.some((x) => x !== null)) return ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [`${a} ${v.values[i]}`])).join(", ");
+      return (v.increase ?? []).map((b) => `+${b.amount} ${b.ability}`).join(", ");
     case "hp": return v.roll !== null ? String(v.roll) : v.method;
+    case "empty": return "";
   }
 }
 
-function emitScope(scope: Scope, out: string[]): void {
+const cmpCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const cmpKey = (a: string, b: string) => cmpCode(a.toLowerCase(), b.toLowerCase()) || cmpCode(a, b);
+
+/**
+ * A scope's key lines in canonical order (§5.5), one entry per line, each with that line's value: the order of the
+ * profile table; `Feat` then its marked lines by marker, ignoring case; a base `Scores` line then its increase; an
+ * `Ability` line that stayed as written (D113); `X-` keys alphabetically ignoring case.
+ */
+export function scopeLines(scope: Scope): [string, Value][] {
+  const out: [string, Value][] = [];
   for (const def of KEYS) {
+    if (def.key === "Feat") {
+      const v = scope.get("Feat");
+      if (v) out.push(["Feat", v]);
+      for (const k of [...scope.keys()].filter((x) => x.startsWith("Feat (")).sort(cmpKey)) out.push([k, scope.get(k) as Value]);
+      continue;
+    }
     const v = scope.get(def.key);
-    if (v) out.push(`${def.key}: ${emitValue(v)}`);
+    if (!v) continue;
+    if (v.type === "scores") {
+      const base = v.values.some((x) => x !== null);
+      if (base) out.push(["Scores", { type: "scores", values: v.values, increase: null }]);
+      if (v.increase) out.push(["Scores", { type: "scores", values: NO_SCORES(), increase: v.increase }]);
+      if (!base && !v.increase) out.push(["Scores", v]);
+      continue;
+    }
+    out.push([def.key, v]);
   }
+  for (const def of LEGACY_KEYS) { const v = scope.get(def.key); if (v) out.push([def.key, v]); }
   // Alphabetical ignoring case (code-unit order, locale-free), so an authored `X-Plan-B` sorts where `x-plan-b` would.
-  const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-  const ext = [...scope.keys()].filter((k) => k.startsWith("X-")).sort((a, b) => cmp(a.toLowerCase(), b.toLowerCase()) || cmp(a, b));
-  for (const k of ext) out.push(`${k}: ${emitValue(scope.get(k) as Value)}`);
+  for (const k of [...scope.keys()].filter((x) => x.startsWith("X-")).sort(cmpKey)) out.push([k, scope.get(k) as Value]);
+  return out;
+}
+
+/** `Key: value`, or `Key:` for a value not chosen yet (D112). */
+function lineOfValue(key: string, v: Value): string {
+  const s = emitValue(v);
+  return s ? `${key}: ${s}` : `${key}:`;
+}
+
+function emitScope(scope: Scope, out: string[]): void {
+  for (const [k, v] of scopeLines(scope)) out.push(lineOfValue(k, v));
 }
 
 export function emit(paste: Paste): string {
@@ -621,7 +809,7 @@ export function emit(paste: Paste): string {
     const e = paste.entities.find((b) => b.key === key);
     if (!e) continue;
     if (out.length) out.push("");
-    out.push(`${key}: ${fmtItem(e.item)}`);
+    out.push(e.item ? `${key}: ${fmtItem(e.item)}` : `${key}:`);
     emitScope(e.lines, out);
   }
   for (const lv of withSwitchHeaders(paste)) {

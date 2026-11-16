@@ -1,6 +1,6 @@
 {
   "name": "dndpaste",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Pokepaste-style plain-text format for D&D 5e builds: reference parser and canonical emitter",
   "license": "MIT",
   "type": "module",
@@ -16,8 +16,9 @@
     "build": "tsc -p tsconfig.json && node scripts/umd.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src test",
-    "test": "npm run build && node --test dist/test/",
-    "verify": "npm run typecheck && npm run lint && npm run test"
+    "test": "npm run build && node --test \"dist/test/*.test.js\"",
+    "verify": "npm run typecheck && npm run lint && npm run test",
+    "verify:site": "npm --prefix site run verify"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

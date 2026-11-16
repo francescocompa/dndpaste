@@ -2,6 +2,47 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## 0.8.0 — 2026-11-16
+- **SPEC 0.8** (D106–D113, decided in the pre-deploy review): fewer keys, one canonical place for each pick.
+  A 0.7 paste still parses, with a `W005` "renamed key" warning per old line, and emits in 0.8 form (D113).
+  - Ability picks are the first detail of the `Feat`, `Feature` or `Options` that asks them; no ability asked,
+    no leading slot (D107). `Ability` goes.
+  - `Scores` carries increases: the `+` decides (`Scores: +2 CHA`), in any scope; a base stays header-only
+    (D108). `ASI` goes. A level's ASI is `Feat: Ability Score Improvement [+2 CHA]` in both editions; the
+    checker accepts `ASI` as its short name (D109).
+  - `Feat` takes an optional slot marker: `Feat (Fighting Style): Archery`. Open list, kept by emit; the
+    checker matches it to 5etools' feat categories and hints the nearest name on a typo (D110).
+    `Fighting Style` goes.
+  - `Gear` replaces `Equipment` and `Items`; placement decides starting pick (background, L1) or gear in
+    play (D111). Quantities on `Gear` only.
+  - Named scores take `/` too: `STR 8/DEX 13/CON 14` (D106).
+  - An empty value is "not chosen yet": `W004`, an empty value in the AST, kept by emit; the checker reads
+    it as absent (D112). `E006` is retired.
+- AST: a `scores` value has `increase`; the `asi` value type is gone; `{ type: "empty" }` is new;
+  `EntityBlock.item` may be `null`; a marked feat line is the scope key `Feat (<marker>)`. New exports:
+  `LEGACY_KEYS`, `scopeLines`, `splitMarker`, `isFeatKey`, `isAbilitySlot`, `ASI_FEAT`, type `Bonus`.
+- Checker: increases, ASI feat lines, slot markers, `Gear` placement and to-dos as above. The slot table
+  carries `featCategories`, read by the extract from the mirror's `js/parser.js` (names only); the committed
+  SRD table gains just that field. On every fixture the full-table findings and final scores match 0.7.
+- `FORMAT-UPDATES.md`: a DRAFT policy for format changes (⚑ under D113).
+
+### Migrating from 0.7
+Readers need nothing: 0.7 keys read until 1.0. Writers switch line by line:
+
+| 0.7 | 0.8 |
+|---|---|
+| `Ability: WIS` + `Feature: Elven Lineage [Wood]` | `Feature: Elven Lineage [WIS; Wood]` |
+| `ASI: +2 CHA, +1 DEX` (species or background block) | `Scores: +2 CHA, +1 DEX` |
+| `ASI: +2 CHA` (level block or header) | `Feat: Ability Score Improvement [+2 CHA]` |
+| `Fighting Style: Archery` | `Feat (Fighting Style): Archery` |
+| `Equipment: A`, `Items: Cloak of Protection` | `Gear: A`, `Gear: Cloak of Protection` |
+| `Feat: Skilled [; Arcana, History, Insight]` | `Feat: Skilled [Arcana, History, Insight]` |
+| `Skills:` (was `E006`) | `Skills:` is a to-do (`W004`) |
+
+Code reading the AST: read increases from `Scores` (`value.increase`), feats from every `Feat` and
+`Feat (<marker>)` key (`isFeatKey`), gear from `Gear`; handle `{ type: "empty" }` and a `null` entity item.
+To rewrite stored pastes in 0.8 form, pass them through `emit(parse(text))`.
+
 ## 0.7.0 — 2026-11-10
 - **SPEC 0.7** (additions only): an optional header key `Producer` stamps what wrote the paste and its
   version (`Producer: character-forge 2.1`), free single-line text (D62). Canonical emit places it right

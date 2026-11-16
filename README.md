@@ -15,7 +15,7 @@ Species: Human
 Feat: Spellfire Spark|FRHoF
 
 L1 Fighter
-Fighting Style: Archery
+Feat (Fighting Style): Archery
 Masteries: Longbow, Rapier, Warhammer
 
 L2 Warlock
@@ -27,7 +27,11 @@ Cantrips: Blade Ward, True Strike
 - **Library:** `src/dndpaste.ts`, zero dependencies. `parse(text)` → AST with diagnostics
   (never throws); `emit(ast)` → canonical text, data-free; `isClean(ast)`;
   `classSequence(ast)` → the class of every character level by the spec's reading rule
-  (§5.4), with `classTotals(ast)` for one entry per class when `Classes` is written as runs.
+  (§5.4), with `classTotals(ast)` for one entry per class when `Classes` is written as runs;
+  `scopeLines(scope)` → a scope's lines in canonical order, one entry per line. SPEC 0.7 keys
+  still parse, with a `W005` warning, and emit in their 0.8 form (SPEC §2.6, §5.6).
+- **Format changes:** [`FORMAT-UPDATES.md`](FORMAT-UPDATES.md) — how a change is proposed,
+  aliased, released and retired (draft).
 - **Builds:** `npm run build` → `dist/src/dndpaste.js` (ESM + `.d.ts`) and
   `dist/dndpaste.umd.cjs` (single file for no-build pages, global `dndpaste`).
 - **Verify:** `npm run verify` (typecheck, lint, tests incl. byte-for-byte round-trip of

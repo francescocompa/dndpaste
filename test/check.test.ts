@@ -42,17 +42,17 @@ test("Fighter 1 with nothing: owes skills, fighting style, masteries", () => {
 test("a complete Fighter 3 Champion is quiet", () => {
   const f = run([
     "Rules: 2024", "Classes: Fighter 3", "",
-    "L1 Fighter", "Skills: Athletics, Perception", "Fighting Style: Archery", "Masteries: Longbow, Shortsword, Greatsword",
+    "L1 Fighter", "Skills: Athletics, Perception", "Feat (Fighting Style): Archery", "Masteries: Longbow, Shortsword, Greatsword",
     "L3 Fighter", "Subclass: Champion",
   ].join("\n"));
   assert.deepEqual(f.filter((x) => x.severity === "warning"), [], JSON.stringify(f));
 });
 
 test("extras are accepted and flagged as info (D34)", () => {
-  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFighting Style: Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL4 Fighter\nFeat: Alert, Savage Attacker");
+  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFeat (Fighting Style): Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL4 Fighter\nFeat: Alert, Savage Attacker");
   assert.equal(kinds(f, "extra").length, 1, JSON.stringify(f));
   assert.match(kinds(f, "extra")[0].message, /ASI\/Feat/);
-  const g = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFighting Style: Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL2 Fighter\nFighting Style: Defense\n\nL4 Fighter\nFeat: Alert");
+  const g = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFeat (Fighting Style): Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL2 Fighter\nFeat (Fighting Style): Defense\n\nL4 Fighter\nFeat: Alert");
   const extra = kinds(g, "extra");
   assert.equal(extra.length, 1, JSON.stringify(g));
   assert.equal(extra[0].severity, "info");
@@ -60,8 +60,8 @@ test("extras are accepted and flagged as info (D34)", () => {
   assert.match(extra[0].message, /DM boon/);
 });
 
-test("Items are resolved but never owed", () => {
-  const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nSkills: Athletics, Perception\nFighting Style: Archery\nMasteries: Longbow, Shortsword, Greatsword\nItems: Bag of Holding, Sword of Nowhere");
+test("Gear in play is resolved but never owed", () => {
+  const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nSkills: Athletics, Perception\nFeat (Fighting Style): Archery\nMasteries: Longbow, Shortsword, Greatsword\nGear: Bag of Holding, Sword of Nowhere");
   assert.equal(kinds(f, "missing").length, 0);
   const u = kinds(f, "unresolved").filter((x) => /matches nothing/.test(x.message));
   assert.equal(u.length, 1, JSON.stringify(f));
@@ -75,7 +75,7 @@ test("subclass at the wrong class level is misplaced", () => {
 });
 
 test("an Origin feat in an ASI slot is legal (C1, D54); unknown feat is unresolved", () => {
-  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFighting Style: Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL3 Fighter\nSubclass: Champion\n\nL4 Fighter\nFeat: Magic Initiate [WIS; Cleric; Guidance, Light; Bless]");
+  const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFeat (Fighting Style): Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL3 Fighter\nSubclass: Champion\n\nL4 Fighter\nFeat: Magic Initiate [WIS; Cleric; Guidance, Light; Bless]");
   assert.equal(kinds(f, "misplaced").length, 0, JSON.stringify(f));
   assert.equal(kinds(f, "extra").length, 0, "it fills the ASI slot");
   assert.deepEqual(f.filter((x) => x.severity === "warning"), [], JSON.stringify(f));
@@ -115,14 +115,14 @@ test("species block: lineage, skill, ability", () => {
   const f = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf");
   assert.ok(has(f, "missing", /Elven Lineage/), JSON.stringify(f));
   assert.ok(has(f, "missing", /Skills/));
-  const g = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf\nAbility: WIS\nSkills: Perception\nFeature: Elven Lineage [Wood]");
+  const g = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf\nSkills: Perception\nFeature: Elven Lineage [WIS; Wood]");
   assert.equal(g.filter((x) => x.where === "Species" && x.severity === "warning").length, 0, JSON.stringify(g));
 });
 
 test("official background: ASI owed, granted skills redundant", () => {
   const f = run("Rules: 2024\nClasses: Wizard 1\n\nBackground: Sage");
   assert.ok(has(f, "missing", /ability bonuses/), JSON.stringify(f));
-  const g = run("Rules: 2024\nClasses: Wizard 1\n\nBackground: Sage\nASI: +2 INT, +1 CON\nSkills: Arcana");
+  const g = run("Rules: 2024\nClasses: Wizard 1\n\nBackground: Sage\nScores: +2 INT, +1 CON\nSkills: Arcana");
   assert.ok(has(g, "redundant", /Arcana/));
 });
 
@@ -147,7 +147,7 @@ test("size: Medium is silent, an invalid size is reported", () => {
 });
 
 test("+N prefix resolves the base item", () => {
-  const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nItems: +1 Longsword, +2 Nonsense Blade");
+  const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: +1 Longsword, +2 Nonsense Blade");
   const u = kinds(f, "unresolved").filter((x) => /matches nothing/.test(x.message));
   assert.equal(u.length, 1, JSON.stringify(f));
   assert.match(u[0].message, /Nonsense/);
@@ -158,7 +158,7 @@ describe("F4: Classes runs (D49)", () => {
     "Rules: 2024", "Classes: Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14", "",
     "L4 Rogue", "Subclass: Thief", "",
     "L6 Fighter", "Subclass: Champion", "",
-    "L10 Rogue", "ASI: +2 DEX",
+    "L10 Rogue", "Feat: ASI [+2 DEX]",
   ].join("\n");
 
   test("class levels follow the runs: subclasses and ASIs sit at the right class level", () => {
@@ -240,7 +240,7 @@ describe("F5/F6: feats an option grants (D50, D51), Scholar expertise", () => {
 });
 
 describe("C2: generic magic variants (D55)", () => {
-  const items = (rules: string, list: string) => run(`Rules: ${rules}\nClasses: Fighter 1\n\nL1 Fighter\nItems: ${list}`).filter((x) => x.key === "Items");
+  const items = (rules: string, list: string) => run(`Rules: ${rules}\nClasses: Fighter 2\n\nL2 Fighter\nGear: ${list}`).filter((x) => x.key === "Gear");
 
   test("a variant's own name and variant + base item resolve", () => {
     assert.deepEqual(items("2024", "Flame Tongue Warhammer, Vicious Weapon, Vicious Longsword, +2 Armor, +3 Shield, +1 Plate Armor, Flame Tongue"), []);
@@ -267,8 +267,8 @@ describe("C2: generic magic variants (D55)", () => {
   });
 
   test("variant + base wins over a contains-match on a named item (skipped when data/slots.json is absent)", { skip: !full }, () => {
-    const f = run("Rules: 2014\nClasses: Fighter 1\n\nL1 Fighter\nItems: Flame Tongue Shortsword", full as Slots);
-    assert.equal(f.filter((x) => x.key === "Items").length, 0, JSON.stringify(f));
+    const f = run("Rules: 2014\nClasses: Fighter 2\n\nL2 Fighter\nGear: Flame Tongue Shortsword", full as Slots);
+    assert.equal(f.filter((x) => x.key === "Gear").length, 0, JSON.stringify(f));
   });
 });
 
@@ -287,7 +287,7 @@ describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
   });
 
   test("Class 0 with a level block for that class is not dangling", () => {
-    const f = run("Rules: 2024\nClasses: Warlock 5 / Fighter 0\n\nL1 Warlock\nSkills: Arcana, Deception\n\nL6 Fighter\nFighting Style: Archery");
+    const f = run("Rules: 2024\nClasses: Warlock 5 / Fighter 0\n\nL1 Warlock\nSkills: Arcana, Deception\n\nL6 Fighter\nFeat (Fighting Style): Archery");
     assert.equal(f.filter((x) => /declares nothing/.test(x.message)).length, 0, JSON.stringify(f));
   });
 
@@ -307,7 +307,7 @@ describe("T2.5: dangling Class 0 (D42) and name-alias fallback (D43)", () => {
   });
 
   test("a name-alias with two or more contains-matches stays unresolved", () => {
-    const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nItems: Water");
+    const f = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: Water");
     assert.ok(has(f, "unresolved", /"Water" matches nothing/), JSON.stringify(f));
     assert.equal(f.filter((x) => /resolved as/.test(x.message)).length, 0, JSON.stringify(f));
   });
@@ -327,7 +327,7 @@ describe("2014 starting-equipment picks (T2.2)", () => {
     // Cleric's crossbow-or-any-simple-weapon group and Acolyte's book-or-prayer-book group carry a
     // generic option, so they are dropped by the extract and never reported.
     assert.equal(f.filter((x) => /Acolyte starting equipment/.test(x.message)).length, 0, JSON.stringify(f));
-    const missing = kinds(f, "missing").filter((x) => x.key === "Equipment");
+    const missing = kinds(f, "missing").filter((x) => x.key === "Gear");
     assert.equal(missing.length, 3, JSON.stringify(missing)); // 3 fully-named Cleric groups
     assert.ok(missing.every((x) => x.severity === "info"));
   });
@@ -335,33 +335,33 @@ describe("2014 starting-equipment picks (T2.2)", () => {
   test("naming the chosen items clears every pick", () => {
     const f = run([
       "Rules: 2014", "Classes: Cleric 1", "",
-      "Background: Acolyte", "Equipment: Book", "",
-      "L1 Cleric", "Equipment: Warhammer, Chain Mail, Light Crossbow, Crossbow Bolts (20), Explorer's Pack",
+      "Background: Acolyte", "Gear: Book", "",
+      "L1 Cleric", "Gear: Warhammer, Chain Mail, Light Crossbow, Crossbow Bolts (20), Explorer's Pack",
     ].join("\n"));
-    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 0, JSON.stringify(f));
+    assert.equal(kinds(f, "missing").filter((x) => x.key === "Gear").length, 0, JSON.stringify(f));
   });
 
-  test("an Equipment item outside any group is left alone (D33/D34)", () => {
+  test("a Gear item outside any group is left alone (D33/D34)", () => {
     const f = run([
       "Rules: 2014", "Classes: Cleric 1", "",
-      "Background: Acolyte", "Equipment: Book", "",
-      "L1 Cleric", "Equipment: Warhammer, Chain Mail, Light Crossbow, Crossbow Bolts (20), Explorer's Pack, Rope, Torch",
+      "Background: Acolyte", "Gear: Book", "",
+      "L1 Cleric", "Gear: Warhammer, Chain Mail, Light Crossbow, Crossbow Bolts (20), Explorer's Pack, Rope, Torch",
     ].join("\n"));
-    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 0, JSON.stringify(f));
+    assert.equal(kinds(f, "missing").filter((x) => x.key === "Gear").length, 0, JSON.stringify(f));
     assert.equal(f.filter((x) => /Rope|Torch/.test(x.message)).length, 0, JSON.stringify(f));
   });
 
-  test("2024 pastes are unaffected: no 2014-style Equipment missing findings", () => {
+  test("2024 pastes are unaffected: no 2014-style Gear missing findings", () => {
     const f = run("Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric");
-    assert.equal(f.filter((x) => x.kind === "missing" && x.key === "Equipment").length, 0, JSON.stringify(f));
+    assert.equal(f.filter((x) => x.kind === "missing" && x.key === "Gear").length, 0, JSON.stringify(f));
   });
 
   test("existing 2014 fixture (old-subrace-cleric-5) gets no new warnings, only info-level equipment picks", () => {
     const f = run(readFileSync(join(root, "fixtures", "old-subrace-cleric-5.dndpaste"), "utf8"));
-    // The fixture has no Equipment lines at all; the new check reports that at info severity only —
+    // The fixture has no Gear lines at all; the new check reports that at info severity only —
     // it must not add or upgrade any warning (pre-existing warnings here are unrelated, D-noted elsewhere).
-    assert.ok(f.every((x) => x.key !== "Equipment" || x.severity === "info"), JSON.stringify(f));
-    assert.equal(kinds(f, "missing").filter((x) => x.key === "Equipment").length, 3, JSON.stringify(f));
+    assert.ok(f.every((x) => x.key !== "Gear" || x.severity === "info"), JSON.stringify(f));
+    assert.equal(kinds(f, "missing").filter((x) => x.key === "Gear").length, 3, JSON.stringify(f));
   });
 });
 
@@ -420,23 +420,23 @@ test("finalScores: Vice and Shigen compute to their sheet values (skipped when d
 });
 
 test("finalScores: partial Scores leave the other abilities unknown, never 10 (F1, D46)", () => {
-  const p = parse("Rules: 2024\nScores: DEX 16, CHA 17\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA, +1 STR");
+  const p = parse("Rules: 2024\nScores: DEX 16, CHA 17\nClasses: Fighter 4\n\nL4 Fighter\nScores: +2 CHA, +1 STR");
   const { scores, findings } = finalScores(p, srd, supplement);
   assert.deepEqual(scores, { str: null, dex: 16, con: null, int: null, wis: null, cha: 19 });
   assert.deepEqual(findings, []);
 });
 
 test("finalScores: an increase on an unknown score is not cap-checked", () => {
-  const p = parse("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  const p = parse("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Ability Score Improvement [+2 CHA]");
   const { scores, findings } = finalScores(p, srd, supplement);
   assert.equal(scores?.cha, null);
   assert.equal(findings.filter((f) => /cap/.test(f.message)).length, 0, JSON.stringify(findings));
-  const f = run("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  const f = run("Rules: 2024\nScores: DEX 15\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Ability Score Improvement [+2 CHA]");
   assert.equal(f.filter((x) => /cap/.test(x.message)).length, 0, JSON.stringify(f));
 });
 
 test("finalScores: an increment past the 20 cap is warned and the score is capped", () => {
-  const p = parse("Rules: 2024\nScores: 8/13/14/12/10/19\nClasses: Fighter 4\n\nL4 Fighter\nASI: +2 CHA");
+  const p = parse("Rules: 2024\nScores: 8/13/14/12/10/19\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Ability Score Improvement [+2 CHA]");
   const { scores, findings } = finalScores(p, srd, supplement);
   assert.equal(scores?.cha, 20);
   assert.ok(findings.some((f) => f.severity === "warning" && /past the 20 cap/.test(f.message)), JSON.stringify(findings));
@@ -450,14 +450,14 @@ test("finalScores: an Epic Boon feat raises a score past 20, up to 30, without a
 });
 
 test("finalScores: an ASI after an Epic Boon warns on the 20 cap but never lowers the score", () => {
-  const p = parse("Rules: 2024\nScores: 8/13/14/12/10/20\nClasses: Fighter 19\n\nL19 Fighter\nFeat: Boon of Combat Prowess [CHA]\nASI: +2 CHA");
+  const p = parse("Rules: 2024\nScores: 8/13/14/12/10/20\nClasses: Fighter 19\n\nL19 Fighter\nFeat: Boon of Combat Prowess [CHA], Ability Score Improvement [+2 CHA]");
   const { scores, findings } = finalScores(p, srd, supplement);
   assert.equal(scores?.cha, 21, JSON.stringify(findings));
   assert.ok(findings.some((f) => f.severity === "warning" && /past the 20 cap/.test(f.message)), JSON.stringify(findings));
 });
 
 test("finalScores: an illegal background ability pick is reported once, by the background check (info)", () => {
-  const p = parse("Rules: 2024\nScores: 10/10/10/10/10/10\nClasses: Wizard 1\n\nBackground: Sage\nASI: +2 STR, +1 DEX\nSkills: Arcana, History");
+  const p = parse("Rules: 2024\nScores: 10/10/10/10/10/10\nClasses: Wizard 1\n\nBackground: Sage\nScores: +2 STR, +1 DEX\nSkills: Arcana, History");
   const { scores, findings } = finalScores(p, srd, supplement);
   assert.equal(scores?.str, 12); // still applied — the paste's own stated fact
   assert.equal(scores?.dex, 11);

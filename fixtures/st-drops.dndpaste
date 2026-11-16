@@ -5,7 +5,7 @@ Classes: Sorcerer 8 / Warlock 2
 Species: Tiefling|XPHB
 
 Background: Sage|XPHB
-ASI: +2 CHA
+Scores: +2 CHA
 
 L1 Sorcerer
 Cantrips: Fire Bolt, Prestidigitation
@@ -19,7 +19,7 @@ Subclass: Draconic Sorcery|XPHB
 Spells: -Shield, Mage Armor
 
 L4 Sorcerer
-ASI: +2 CHA
+Feat: Ability Score Improvement [+2 CHA]
 Spells: -Chromatic Orb, Scorching Ray
 
 L5 Sorcerer

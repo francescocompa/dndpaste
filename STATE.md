@@ -33,4 +33,3 @@ local_39b2c186, local_3be9c204.
   `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`. Google Drive hung reading
   `ClaudeConfig/bin` (review server script) on 2026-11-16; the review ran a connector-fetched copy.
 
-⟳ Rename previous session → "Pre-deploy review and SPEC 0.8"  · session: local_1ee0b1f7-b8be-4fca-b356-f3badc3fe530
