@@ -158,16 +158,21 @@ async function route(request: Request, env: Env, deps: Deps, url: URL, method: s
   const found = await load(env, id, rev);
   if (!found) return notFound();
   const reported = url.searchParams.get("reported") === "1";
-  return html(viewPage(id, found.rec, origin, { reported, pinned: rev !== null }), 200, reported ? {} : rev === null ? SHARED : PINNED_PAGE);
+  return html(viewPage(id, found.rec, origin, { reported, pinned: rev !== null }), 200, reported ? {} : found.frozen ? PINNED_PAGE : SHARED);
 }
 
-/** The latest revision (`rev` null) or revision `rev`. */
-async function load(env: Env, id: string, rev: number | null): Promise<{ rec: PasteRecord } | null> {
+/**
+ * The latest revision (`rev` null) or revision `rev`. `frozen` once `rev` is older than the head: only a frozen
+ * `p:<id>:<n>` is fixed for good. `/<id>/<n>` at the head caches like the link, since an edit race (SITE.md) can
+ * still overwrite the head's revision number.
+ */
+async function load(env: Env, id: string, rev: number | null): Promise<{ rec: PasteRecord; frozen: boolean } | null> {
   if (rev === null) {
     const rec = await getPaste(env.PASTES, id);
-    return rec ? { rec } : null;
+    return rec ? { rec, frozen: false } : null;
   }
-  return getRevision(env.PASTES, id, rev);
+  const found = await getRevision(env.PASTES, id, rev);
+  return found ? { rec: found.rec, frozen: rev < revOf(found.head) } : null;
 }
 
 const notFound = () => html(notFoundPage(), 404);
@@ -182,7 +187,7 @@ async function api(env: Env, id: string, rev: number | null, sub: string): Promi
       : respond("Not found\n", 404, TEXT, { "Cache-Control": "no-store", ...CORS });
   }
   const { rec } = found;
-  const extra = { ...(rev === null ? SHARED : PINNED_DATA), ...CORS };
+  const extra = { ...(found.frozen ? PINNED_DATA : SHARED), ...CORS };
   if (sub === "raw") return respond(rec.paste, 200, TEXT, extra);
   if (sub === "canon") return respond(rendered(rec).canon, 200, TEXT, extra);
   // D69's four fields, then D97's: when this revision was saved (null for revision 1) and its number, to pin it.

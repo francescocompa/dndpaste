@@ -346,7 +346,7 @@ test("revisions: numbers past the latest, zero, leading zeros, seven digits and 
   assert.equal((await call(env, "GET", `/${id}/1`)).status, 200, "revision 1 of a share never edited is the head");
 });
 
-test("cache: the latest for 5 minutes; a revision's data for a year, its page for a day; CORS and types on every new route", async () => {
+test("cache: the latest for 5 minutes; a frozen revision's data for a year, its page for a day; CORS and types on every new route", async () => {
   const env = makeEnv();
   const id = await saveJson(env);
   await editJson(env, id, { paste: SHIGEN, key: KEY });
@@ -356,10 +356,13 @@ test("cache: the latest for 5 minutes; a revision's data for a year, its page fo
     [`/${id}/canon`, "public, max-age=300", "text/plain; charset=utf-8"],
     [`/${id}/json`, "public, max-age=300", "application/json; charset=utf-8"],
     [`/${id}/1`, "public, max-age=86400", "text/html; charset=utf-8"],
-    [`/${id}/2`, "public, max-age=86400", "text/html; charset=utf-8"],
     [`/${id}/1/raw`, "public, max-age=31536000, immutable", "text/plain; charset=utf-8"],
     [`/${id}/1/canon`, "public, max-age=31536000, immutable", "text/plain; charset=utf-8"],
-    [`/${id}/2/json`, "public, max-age=31536000, immutable", "application/json; charset=utf-8"],
+    [`/${id}/1/json`, "public, max-age=31536000, immutable", "application/json; charset=utf-8"],
+    // Revision 2 is the head: an edit race can still overwrite it, so it caches like the link until it is frozen.
+    [`/${id}/2`, "public, max-age=300", "text/html; charset=utf-8"],
+    [`/${id}/2/raw`, "public, max-age=300", "text/plain; charset=utf-8"],
+    [`/${id}/2/json`, "public, max-age=300", "application/json; charset=utf-8"],
   ];
   for (const [p, cache, type] of want) {
     const r = await call(env, "GET", p);
@@ -375,6 +378,15 @@ test("cache: the latest for 5 minutes; a revision's data for a year, its page fo
   assert.equal(missing.status, 404);
   assert.equal(missing.headers.get("Access-Control-Allow-Origin"), "*");
   assert.equal((await call(env, "GET", `/${id}?reported=1`)).headers.get("Cache-Control"), "no-store");
+
+  // The next edit freezes revision 2: from then on it is pinned.
+  await editJson(env, id, { paste: VICE, key: KEY });
+  assert.equal((await call(env, "GET", `/${id}/2`)).headers.get("Cache-Control"), "public, max-age=86400");
+  assert.equal((await call(env, "GET", `/${id}/2/json`)).headers.get("Cache-Control"), "public, max-age=31536000, immutable");
+  assert.equal((await call(env, "GET", `/${id}/3/raw`)).headers.get("Cache-Control"), "public, max-age=300");
+  // A share never edited: /<id>/1 is its head.
+  const once = await saveJson(env);
+  assert.equal((await call(env, "GET", `/${once}/1/raw`)).headers.get("Cache-Control"), "public, max-age=300");
 });
 
 // ─── legacy and the rest ────────────────────────────────────────────────────
