@@ -1,6 +1,6 @@
 # PLAN — dndpaste
 
-> The queue. Decisions in `DECISIONS.md` (D1–D92). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
+> The queue. Decisions in `DECISIONS.md` (D1–D97). Status lines: ⏳ next · 🔶 decide-gate · 🔍 review gate.
 
 ## What it is (one paragraph)
 
@@ -65,8 +65,10 @@ L<n> <Class>                   level block, n = character level
 - [ ] ⏳ T3.2 Build · branch `claude/site-m3-ee11e4` (worktree `release-0-7-0-5b6161`), Opus@high, Mac · one session per slice (jam brief) · Done when: `SITE.md` done-when, up to local + reviewed.
   - [x] 3.2a Worker core + no-JS view ✅ 2026-11-15 (6572fa9, ff9484d, 7712889)
   - [x] 3.2b form with JS ✅ 2026-11-15 (d444fb0, 7a03bfe)
-  - [ ] ⏳ 3.2c view interactions + chrome + `/about` + D90's fix
-- [ ] 🔍 T3.3 Fresh-eyes review (Opus) inside T3.2, before deploy: escaping, CSP, abuse, IP, redirect.
+  - [x] 3.2c view interactions + chrome + `/about` + D90's fix ✅ 2026-11-16 (86d5415, c3f8e9a)
+  - [ ] ⏳ 3.2d editable shares as revisions (D97) · Opus@high · after /ui-review commits, same worktree · Done when: D97 built, SITE.md updated, both gates green, committed.
+- [x] 🔍 T3.3 Fresh-eyes review ✅ 2026-11-16: no blockers; fixes b679c33 (D91–D92). A second fresh-eyes pass on 3.2d's edit routes before T3.4.
+- [ ] 🔍 /ui-review (running, D93–D95) · then 3.2d.
 - [ ] 🔶 T3.4 Deploy to workers.dev on Francesco's go (KV namespace + `wrangler deploy` + smoke test). GitHub push his.
 - Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
