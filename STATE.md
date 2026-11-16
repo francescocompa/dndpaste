@@ -22,7 +22,8 @@ Spawned: slice 2 form with JS · local_3be9c204 · same worktree (cwd), same bra
 Spawned: site look jam · local_a6b79b97 · jam · done, folded (D80–D89) · owed: —
 Spawned: T3.3 fixes · local_657aff77 · same worktree, same branch · done, unmerged (b679c33, 63759fd); its two flags settled as D91–D92 · owed: merge after T3.4
 Spawned: /ui-review · local_de264fb8 + finisher local_6c4a58f3 · done, unmerged (71ccde4, f9af319; D93–D95, D98) · owed: merge after T3.4
-Spawned: 3.2d editable shares (D97) · local_4ac34b6d · same worktree, same branch · building (resumed 2026-11-16) · next: verify → 3.2e /guide + example (D99), same session if it has room, else a card → fresh-eyes on edit routes → overseer /handoff (Francesco: hand off after 3.2d) → T3.4 deploy on his go → merge
+Spawned: 3.2d editable shares (D97, D100) · local_4ac34b6d · same worktree · done, unmerged (56f3f64, f09b1cc; two KV writes per edit, see SITE.md) · owed: merge after T3.4
+Spawned: 3.2e /guide + example (D99) · local_cad07eda · same worktree, same branch · building · next: verify → fresh-eyes on 3.2d edit routes + 3.2e → short /ui-review of 3.2d+3.2e → T3.4 deploy on his go → merge
 Spawned: slice 3 view + chrome + /about + D90 · local_0d32913b · same worktree (cwd), same branch · done, unmerged (86d5415, c3f8e9a) · owed: merge after T3.4 · T3.3 review: no blockers, fixes went to a fresh worker (it hit the size limit) · owed: archive
 
 - **Library:** 0.7.0 (SPEC 0.7 + D1–D62), parser + emitter + data-driven checker + CLI, zero deps, ESM + UMD.

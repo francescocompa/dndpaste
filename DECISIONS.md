@@ -364,3 +364,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* "should we include in the site also a full guide on how to use dndpaste itself, how the format is organized?" → picked "A /guide page, in v1 (Recommended)" and "Yes: an example to start from (Recommended)".
   *Rejected:* /guide after launch (first visitors would have only the hint strip); linking SPEC.md only (written for implementers; works only once the repo is pushed); the guide alone without form help; leaving the ⚑ parked.
   *Enforced by:* 3.2e brief (overseer).
+
+- **D100 — The edit link can be copied again from the view page's Copy menu ("Copy edit link"), in the browser that holds the edit key. DECIDED (2026-11-16).** Mechanism: Francesco's note mid-build in the 3.2d session, logged by the overseer. Extends D97's "offers a private edit link once": the save panel still shows it once, and the owner's browser can copy it later to move to another device. Other browsers never see the item.
+  *Rejected:* showing it only once (an owner who missed the panel had no way to reach another device).
+  *Enforced by:* `site/src/client/site.ts` Copy menu, 3.2d tests (branch `claude/site-m3-ee11e4`, 56f3f64).
