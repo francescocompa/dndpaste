@@ -1,6 +1,6 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-17 · main 6c78f01 · read 105k)
+## TL;DR (2026-11-17 · main ba0e0ab + handoff commit · read 120k)
 - **State:** M3 done and live at `https://dndpaste.fcomfy.workers.dev` (D117, D118), deployed: library 0.8.0
   + site + T3.7 share image, Post to Reddit, Books line (D119, D120) + T3.8 "Start a build" class presets (D121–D128)
   + T3.9 ghost pick counts (D129–D134), deployed f4c67871 on 2026-11-17. 179 library + 197 site tests pass on main.
@@ -9,13 +9,13 @@
   Name stays dndpaste until a custom domain (D135).
 - **Manual for Francesco:** ① tag `v0.8.0` on 423ac7b (D57; the site commits after it are not library changes), push `main`,
   `v0.7.0`, `v0.8.0`; ② ⚑ read `FORMAT-UPDATES.md` (DRAFT, D113 flag; 4 questions, chiefly: aliases "until 1.0" make 1.0
-  breaking); ③ archive the T3.7, T3.8 and T3.9 sessions (done and merged); ④ the Notion "Character Ideas" defects (stress/REPORT.md
+  breaking); ③ archive the T3.9 session (done and merged); T3.7 if still open; ④ the Notion "Character Ideas" defects (stress/REPORT.md
   § Theirs), if you care to; ⑤ ⚑ do Spellfire Spark / Fey Sentinel ask an ability pick (homebrew); ⑥ the homebrew merge (M2
   queue) needs a real 5etools-format homebrew file; ⑦ free disk (2.0 GB on 2026-11-17; a new worktree needs 5.4 GB).
 
 Working set: none
 
-Spawned: T3.9 ghost counts · local_3bdc7be8 · merged 6c78f01, deployed · owed: archive. T3.8 · local_919dd4a8 · merged · owed: archive. T3.7 · local_011deed3 · merged · owed: archive.
+Spawned: T3.9 ghost counts · local_3bdc7be8 · merged 6c78f01, deployed · owed: archive (his yes).
 
 - **Library:** 0.8.0 on main (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
   The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
@@ -28,4 +28,4 @@ Spawned: T3.9 ghost counts · local_3bdc7be8 · merged 6c78f01, deployed · owed
   `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`. Google Drive hung reading
   `ClaudeConfig/bin` (review server script) on 2026-11-16; the review ran a connector-fetched copy.
 
-
+⟳ Rename previous session → "Class presets, ghost counts and naming panel"  · session: local_d594e90f-35bb-46c4-9931-87984e922a5b

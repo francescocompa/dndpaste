@@ -1,5 +1,10 @@
 # Time log
 
+## 2026-11-17
+- 09:56–12:29 (2h33m) — Class presets, ghost counts and naming panel
+
+**Day total: 2h33m**
+
 ## 2026-11-16
 - 16:36–17:52 (1h16m) — Share site deploy and share image
 - 12:50–15:59 (3h09m) — Pre-deploy review and SPEC 0.8
