@@ -543,3 +543,25 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* picked "Fix both now (Recommended)".
   *Rejected:* attribution only; queueing both.
   *Enforced by:* prose only (no test checks `meta`). ⚑ (overseer → Francesco, 2026-11-17): check the two attribution sentences against WotC's SRD pages; `isSrd` in `scripts/extract-slots.mjs` also counts Basic Rules entities (`basicRules`, `basicRules2024`), which are free but not CC-licensed: names and counts only, but decide whether the committed subset keeps them. The public history still holds the old `meta.mirror` value.
+
+## Build stamp and update notice (2026-11-17) — mechanism: AskUserQuestion, 2 rounds (6 questions) + /ui-review, 2 rounds, worker session on `claude/build-stamp`
+
+- **D137 — Every page ends with the site's version, one muted mono line in the foot: `v0.8.0`, the root `package.json` version. The commit is not shown. DECIDED (2026-11-17).** Works without JS; on the phone it sits above the dock's padding. Written at build time by `site/scripts/stamp.mjs` into `site/src/build.gen.ts` (gitignored, rewritten only when it changes, since `wrangler dev` watches `src/`); site.js rewrites the line with its own build, since a cached page can be older than its script. The foot holds nothing else (D89 c still stands).
+  *Raw note:* picked "Page foot (Recommended)"; review round 1: "We can remove the build and only use the version. The version will need to be updated regularly, I prefer having one single versioning option that is clear."
+  *Rejected:* `/about` only (not on every page); the Display menu (JS only, hidden); `v0.8.0 · 39e1cab` (two version numbers on screen); a site version separate from the library's (two numbers in the project).
+  *Enforced by:* `site/test/update.test.ts` (foot on every page), `site/test/worker.test.ts` (the foot holds only the version).
+
+- **D138 — A deployed build different from the page's own gets a fixed toast with Reload: bottom centre on a wide screen, at the top on a phone (clear of the docks), under sheets and menus. DECIDED (2026-11-17).** `GET /version` answers `{ version, commit, date }` with `Cache-Control: no-store`; the page compares the version and the hidden commit (so every deploy offers Reload with no version bump, and D57's release process stays as is). It checks when the tab comes back (visibilitychange, focus, back-forward cache) and every 15 minutes while visible, at most once a minute, none in the first minute after load, never on typing; a failed check says nothing. × closes it for that deployed build in this tab (sessionStorage).
+  *Raw note:* picked "Fixed toast (Recommended)"; compare: picked "Hidden commit (Recommended)" after the version-only note.
+  *Rejected:* an inline bar under the header (pushes the editor while you type); a toast at the top everywhere; comparing the library version only (a site deploy without a library bump, tag and CHANGELOG heading would never show it).
+  *Enforced by:* `site/test/update.test.ts` (route, headers, timing, dismissal, failures).
+
+- **D139 — Reload from the toast puts the form's title, author and text back without the draft bar; an edit form opened from an edit link keeps the link's key over the reload. DECIDED (2026-11-17).** Amends D102 for this one path: site.js fires `dndpaste:before-reload`, the form writes its draft and a sessionStorage flag naming the page, and the reloaded form restores at once. If an older draft's bar was still open and you typed since, the newer text wins; with nothing typed, the bar comes back as before. A plain browser reload still shows the bar. An untested link key (held in memory, D97) goes back in the address as `#k=` for the reload.
+  *Raw note:* picked "Restore silently (Recommended)".
+  *Rejected:* the usual D102 bar after an update reload (an extra click for text the user never chose to leave).
+  *Enforced by:* `site/test/update.test.ts` (hand-over), checked live on the dev build (text and an edit-link save after Reload).
+
+- **D140 — The toast reads "A new version of dndpaste is out." with Reload (rotate icon) and a ghost × labelled Close. DECIDED (2026-11-17).**
+  *Raw note:* picked "A new version is out (Recommended)"; review round 1: "Remove the second line (your text stays)".
+  *Rejected:* a second line "Your text stays." on the form; "dndpaste was updated. Reload to use the new version."; "New version available".
+  *Enforced by:* `site/test/update.test.ts` (copy, icons not glyphs).

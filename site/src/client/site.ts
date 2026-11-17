@@ -7,6 +7,7 @@
  *   expand all over the level blocks, the report form's Cancel, the phone dock (CSS) and sheets.
  * - Editing (D97): Edit on the latest revision when this browser keeps the share's edit key; after a save, the private
  *   edit link once, from the `#new=<key>` fragment (cleared from the address at once).
+ * - Updates (D137–D140): the foot shows this script's build; a toast offers Reload once a newer build is deployed.
  * - Popovers (D89 b): on a wide screen a panel under its button, shifted or flipped to stay inside the viewport; on a
  *   phone a bottom sheet over a scrim. Escape, a tap outside or leaving with Tab closes; focus returns to the button.
  *
@@ -20,6 +21,10 @@ import { applyDisplay, displayMenuHtml, displayStore } from "./display.ts";
 import type { Display } from "./display.ts";
 import { keyFromHash, keyStore } from "./keys.ts";
 import { imageFileName } from "../shareimg.ts";
+import { BUILD } from "../build.gen.ts";
+import {
+  BEFORE_RELOAD, CHECK_EVERY_MS, CHECK_NOW, DISMISSED_KEY, stampText, toastHtml, updateChecker,
+} from "./update.ts";
 import type { Layout } from "./share.ts";
 
 const root = document.documentElement;
@@ -537,7 +542,68 @@ function wireCodes(): void {
   draw();
 }
 
+/** Session storage, or null where it is blocked. */
+const session = (): Storage | null => {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * D137–D140. The foot says which build this script is (a page from the browser cache can be older than its script);
+ * GET /version says which build is deployed. A different one gets the toast: bottom centre, top on a phone (CSS).
+ */
+function wireUpdate(): void {
+  const bld = document.querySelector<HTMLElement>(".foot .bld");
+  if (bld && bld.textContent !== stampText(BUILD)) {
+    bld.textContent = stampText(BUILD);
+    bld.removeAttribute("title");
+  }
+  let toast: HTMLElement | null = null;
+  const checker = updateChecker({
+    current: BUILD,
+    fetchBuild: async () => {
+      const r = await fetch("/version", { cache: "no-store", headers: { Accept: "application/json" } });
+      if (!r.ok) throw new Error(`/version ${r.status}`);
+      return r.json();
+    },
+    dismissed: {
+      get: () => { try { return session()?.getItem(DISMISSED_KEY) ?? null; } catch { return null; } },
+      set: (id) => { try { session()?.setItem(DISMISSED_KEY, id); } catch { /* storage blocked */ } },
+    },
+    onNew: () => {
+      if (toast) return;
+      toast = document.createElement("div");
+      toast.className = "utoast";
+      toast.setAttribute("role", "status");
+      toast.innerHTML = toastHtml();
+      toast.addEventListener("click", (e) => {
+        const act = (e.target as Element).closest<HTMLElement>("[data-act]")?.dataset.act;
+        if (act === "reload") {
+          // The form keeps its draft and its edit-link key first (form.ts), then the page loads the new build.
+          window.dispatchEvent(new Event(BEFORE_RELOAD));
+          window.location.reload();
+        } else if (act === "close") {
+          checker.dismiss();
+          toast?.remove();
+          toast = null;
+        }
+      });
+      document.body.append(toast);
+    },
+  });
+  const check = () => { if (!document.hidden) void checker.check(); };
+  document.addEventListener("visibilitychange", check);
+  window.addEventListener("focus", check);
+  window.addEventListener("pageshow", (e) => { if (e.persisted) check(); });
+  window.setInterval(check, CHECK_EVERY_MS);
+  window.addEventListener(CHECK_NOW, () => void checker.check(true));
+}
+
 function init(): void {
+  wireUpdate();
   wirePopovers();
   wireDisplay();
   wireView();

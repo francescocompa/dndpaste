@@ -46,6 +46,7 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 | `POST /<id>/report` | Report: reason (required, ≤ 500 chars), contact (optional), `rev` (the revision the reader was on; a pinned page sends it). Stored, never shown. |
 | `GET /about` | What the site is; names only; unaffiliated with Wizards of the Coast; how reporting works. |
 | `GET /guide` | Format guide (D99): how a paste is laid out, one annotated example (`site/src/example.ts`), and the key table built from the library's `KEYS` at bundle time. Links SPEC.md as the authority. Fixed path, 5 chars: cannot collide with a 10-char id. |
+| `GET /version` | The deployed build, `{ version, commit, date }` (D138), `no-store`. The page's update check compares it with its own. Fixed path, 7 chars. |
 | anything else | 404 page. |
 
 - **Id:** 10 random base62 chars from `crypto.getRandomValues`; check-then-put, retry on collision.
@@ -104,6 +105,17 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
   Nothing goes to the server; storage blocked or full → no draft, no error. JS only (`src/client/drafts.ts`).
 - Without JS: plain textarea + Save still work; the server returns the form with diagnostics on an error.
 
+## Version and updates (D137–D140)
+- **Stamp:** `site/scripts/stamp.mjs` (run by the client build, so before dev, deploy and verify) writes `site/src/build.gen.ts`
+  (gitignored): the root `package.json` version, the short commit (`+` when `site/` or `src/` has uncommitted changes) and its
+  date. Every page's foot shows `v<version>` only (D137); the commit is for the update check.
+- **Update toast:** site.js asks `GET /version` when the tab comes back and every 15 min while visible (at most once a minute,
+  not in the first minute). A different version or commit gets a fixed toast, "A new version of dndpaste is out." · Reload · ×
+  (bottom centre; top on a phone). × closes it for that build in this tab. Reload puts the form's text back without the
+  draft bar, and an edit link's untested key back in the address (D139, `src/client/update.ts`, `drafts.ts` `handOver`).
+- **Dev:** the /ui-review Faults group has "A newer build is deployed" (`/version` answers another commit) and "Check for an
+  update now".
+
 ## View page (D67, D68)
 - Title, author, date; the build rendered from the AST: identifier, header keys, species and background blocks, one block per level. **Names are plain text, no links** (D67). Only what the user wrote: no descriptions, stat lines, images or icons.
 - Rendered in **Hanging keys** (D81): keys right-aligned in a margin, values in one mono column, level numbers in the Garnet accent.
@@ -116,7 +128,8 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 - Icons from one self-hosted SVG sprite, never text glyphs (D89). Fonts IBM Plex Sans/Mono self-hosted (D81). WCAG AA checked for every token pair (D88).
 - **My recent shares**: the ids and titles you saved, in localStorage only, listed on the form page; reads and writes wrapped in try/catch so the page works without storage.
 - **What this browser keeps** (localStorage only, never sent): `dndpaste.display` (Display menu), `dndpaste.recent` (My
-  recent shares), `dndpaste.keys` (edit keys, D97), `dndpaste.drafts` (unsaved drafts, D102).
+  recent shares), `dndpaste.keys` (edit keys, D97), `dndpaste.drafts` (unsaved drafts, D102). In sessionStorage, for this tab:
+  `dndpaste.update-closed` (the build whose toast was closed) and `dndpaste.reload` (set just before an update reload, D139).
 - OG/meta tags: title, "a D&D build on dndpaste", escaped.
 
 ## Security (review gate)

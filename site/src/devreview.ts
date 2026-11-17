@@ -28,12 +28,17 @@ export async function withUiReview(res: Response, setting: string | undefined): 
 /**
  * Dev only, and only with a valid `UI_REVIEW`: the review's fault switches, set as a `uir-fault` cookie by the dev
  * tools (ui-review.tools.js), so the 503, daily-cap and cross-site pages can be reached through their real code paths.
- * `kv` makes every KV write fail, `cap` answers every daily-cap check with "over", `xsite` marks POSTs cross-site.
+ * `kv` makes every KV write fail, `cap` answers every daily-cap check with "over", `xsite` marks POSTs cross-site;
+ * `build` is read by fakeNewBuild.
  */
+const faultsOf = (request: Request): Set<string> => {
+  const m = /(?:^|;\s*)uir-fault=([a-z,]+)/.exec(request.headers.get("Cookie") ?? "");
+  return new Set(m ? m[1]!.split(",") : []);
+};
+
 export function withFaults(request: Request, env: Env): { request: Request; env: Env } {
   if (!reviewOrigin(env.UI_REVIEW)) return { request, env };
-  const m = /(?:^|;\s*)uir-fault=([a-z,]+)/.exec(request.headers.get("Cookie") ?? "");
-  const f = new Set(m ? m[1]!.split(",") : []);
+  const f = faultsOf(request);
   if (!f.size) return { request, env };
   const e: Env = { ...env };
   if (f.has("kv")) e.PASTES = { get: (k) => env.PASTES.get(k), put: async () => { throw new Error("uir-fault: kv"); } };
@@ -44,4 +49,13 @@ export function withFaults(request: Request, env: Env): { request: Request; env:
     request = new Request(request, { headers: h });
   }
   return { request, env: e };
+}
+
+/**
+ * Dev only, with a valid `UI_REVIEW` and the `build` fault: GET /version answers a build other than this one, so the
+ * update toast (D138) can be reviewed without a deploy. Null = no fault; the real route answers.
+ */
+export function fakeNewBuild(request: Request, env: Env, build: { version: string; commit: string; date: string }): Response | null {
+  if (!reviewOrigin(env.UI_REVIEW) || !faultsOf(request).has("build") || new URL(request.url).pathname !== "/version") return null;
+  return Response.json({ ...build, commit: "0000000" }, { headers: { "Cache-Control": "no-store" } });
 }
