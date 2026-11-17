@@ -463,7 +463,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Enforced by:* `site/test/share.test.ts` (dedupe, unknown codes, none cited, the view's Books line).
 
   Landed: 746734c (c2c9270), deployed ffd80c9c.
-## Class presets (2026-11-17) — mechanism: /interview, AskUserQuestion, 2 rounds (6 questions), overseer at /start; closes T3.8's open list
+## Class presets (2026-11-17) — mechanism: /interview, AskUserQuestion, 2 rounds (6 questions), overseer at /start; closes T3.8's open list · Landed (D121–D128): merged 9f8c697, deployed 16fea8f4
 
 - **D121 — On the empty paste form, a "Start a build" mini-builder replaces "Start from an example"; the example stays on `/guide` only. DECIDED (2026-11-17).** Amends D99 ("an empty form offers Start from an example") and D104 (the example is still the guide's walk-through). Like the example today, the builder shows only on an empty editor and fills it once; after that you edit the text. No merge into an existing paste, no restart button.
   *Raw note:* "start from class presets instead of the example, so that the main lines are mostly all laid out" (PLAN T3.8); picked "Replace the example" (over the recommended "Class first, example quiet") and "Empty editor only (Recommended)".
