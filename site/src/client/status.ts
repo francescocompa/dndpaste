@@ -3,7 +3,7 @@
  * summary, the Problems list, the phone dock's problem line and the link-import bar (D83–D86, D88 d).
  */
 import { emit, parse } from "../../../src/dndpaste.ts";
-import type { Diagnostic } from "../../../src/dndpaste.ts";
+import type { Diagnostic, Paste } from "../../../src/dndpaste.ts";
 import { esc, icon } from "../render.ts";
 import { ID_RE, LIMITS, isBare } from "../store.ts";
 
@@ -23,6 +23,8 @@ export interface Status {
   canTidy: boolean;
   /** D90: E001s held back on the line being typed. Not in `diagnostics` or `errors`; Save still blocks on them. */
   held: number;
+  /** The parsed text, for the editor's ghost pick counts (D129). */
+  paste: Paste;
 }
 
 const enc = new TextEncoder();
@@ -50,6 +52,7 @@ export function status(text: string, holdLine = 0): Status {
     canon,
     canTidy: !empty && canon !== null && canon.trimEnd() !== t.trimEnd(),
     held,
+    paste,
   };
 }
 
@@ -94,7 +97,7 @@ export function dockLineHtml(s: Status): string {
   const e = s.diagnostics.find((d) => d.code.startsWith("E"));
   if (e) {
     const more = s.errors > 1 ? ` <span class="more">+${s.errors - 1}</span>` : "";
-    const inner = `${icon("alert")}<b>${esc(e.code)}</b>${e.line ? ` line ${e.line}` : ""}${more}<span class="pmsg">${esc(cap(e.message))}</span>`;
+    const inner = `${icon("alert")}<b>${esc(e.code)}</b>${e.line ? ` <span class="pln">line ${e.line}</span>` : ""}${more}<span class="pmsg">${esc(cap(e.message))}</span>`;
     return e.line ? `<button type="button" class="dsum perr" data-line="${e.line}">${inner}</button>` : `<span class="dsum perr">${inner}</span>`;
   }
   if (s.bare) return `<span class="dsum perr">${icon("alert")}<b>Only a name</b><span class="pmsg">Add a key, such as Species:</span></span>`;

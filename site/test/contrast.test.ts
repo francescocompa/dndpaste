@@ -33,6 +33,8 @@ const PAIRS: [string, string, number][] = [
   ...TEXT.flatMap((t) => SURFACES.map((s): [string, string, number] => [t, s, 4.5])),
   ["fg", "chip", 4.5], ["mute", "chip", 4.5], ["accfg", "acc", 4.5], ["err", "errbg", 4.5], ["err", "bg", 4.5], ["err", "field", 4.5],
   ["mute", "errbg", 4.5],
+  // T3.9: the ghost tag is --mute on bg, field, errbg and (as a chip) chip, all above; its over icon is a UI part.
+  ["err", "chip", 3],
   // Slice 3. Menus and sheets sit on bg; a hovered item on chip (both above). A switch (D82) is a UI part: 3:1 for the
   // track against the menu, and for the knob (bg) against the track, on and off.
   ["tog", "bg", 3], ["bg", "tog", 3], ["acc", "bg", 3], ["bg", "acc", 3],
