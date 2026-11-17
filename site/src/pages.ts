@@ -159,8 +159,8 @@ export interface FormState {
   missingFrom?: string;
   /** Editing share `id`, opened on revision `rev` (D97): the form saves to `/<id>/edit`. */
   edit?: { id: string; rev: number; title: string };
-  /** A new, empty form (not an edit, not Duplicate and edit): form.js offers the example while the editor is empty (D99). */
-  example?: boolean;
+  /** A new, empty form (not an edit, not Duplicate and edit): form.js offers "Start a build" while the editor is empty (D121). */
+  start?: boolean;
 }
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
@@ -185,7 +185,7 @@ export function formPage(s: FormState = {}): string {
   const saveBtn = e ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`;
   const hidden = e ? `<input type="hidden" name="key" value=""><input type="hidden" name="base" value="${e.rev}">` : "";
   const cancel = e ? `<a class="bt ghost cancel" href="/${e.id}">Cancel</a>` : "";
-  const main = `<form class="pform stack" method="post" action="${e ? `/${e.id}/edit` : "/"}"${e ? ` data-edit="${e.id}"` : ""}${s.example && !e && !s.paste ? ` data-example="1"` : ""}>${hidden}
+  const main = `<form class="pform stack" method="post" action="${e ? `/${e.id}/edit` : "/"}"${e ? ` data-edit="${e.id}"` : ""}${s.start && !e && !s.paste ? ` data-start="1"` : ""}>${hidden}
 ${notes}<div class="stack sm"><label class="fld"><span class="lbl">Title</span><textarea class="in fit" name="title" rows="1" maxlength="${LIMITS.title}" autocomplete="off" spellcheck="false" placeholder="Untitled build">${esc(s.title ?? "")}</textarea></label>
 <label class="fld"><span class="lbl">Author</span><textarea class="in fit" name="author" rows="1" maxlength="${LIMITS.author}" autocomplete="off" spellcheck="false" placeholder="Anonymous">${esc(s.author ?? "")}</textarea></label></div>
 <div class="tb"><span class="grow"></span>${sum}${cancel}<button class="bt pri" type="submit">${saveBtn}</button></div>

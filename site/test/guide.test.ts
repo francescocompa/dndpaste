@@ -147,9 +147,9 @@ test("the guide is linked from the header, the form and /about", async () => {
   assert.ok((await (await call(env, "GET", "/about")).text()).includes(`<a href="/guide">format guide</a>`));
 });
 
-test("example offer: marked only on a new, empty form (not edit, not Duplicate and edit, not a refused save)", async () => {
+test("Start a build: offered only on a new, empty form (not edit, not Duplicate and edit, not a refused save)", async () => {
   const env = makeEnv();
-  const has = async (method: string, path: string, init = {}) => (await (await call(env, method, path, init)).text()).includes(`data-example="1"`);
+  const has = async (method: string, path: string, init = {}) => (await (await call(env, method, path, init)).text()).includes(`data-start="1"`);
   assert.equal(await has("GET", "/"), true);
   const res = await call(env, "POST", "/", asJson({ title: "Vice", author: "", paste: VICE }));
   const { id, key } = (await res.json()) as { id: string; key: string };

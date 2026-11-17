@@ -1,4 +1,4 @@
-/* global uiReview, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent, sessionStorage, addEventListener, history */
+/* global uiReview, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent, sessionStorage, addEventListener, history, Event, PointerEvent */
 // /ui-review dev tools for the share site (site/). Loaded only under `wrangler dev` with UI_REVIEW in site/.dev.vars
 // (site/src/devreview.ts). The site's own look stays in site/; this file only drives it.
 
@@ -39,6 +39,19 @@ const reloadOnce = (name) => {
 const shareId = () => location.pathname.split('/')[1]
 const readJson = (k) => { try { return JSON.parse(localStorage.getItem(k) || '{}') } catch { return {} } }
 const putDraft = (slot, d) => { const all = readJson('dndpaste.drafts'); if (d) all[slot] = d; else delete all[slot]; localStorage.setItem('dndpaste.drafts', JSON.stringify(all)) }
+// Fills the "Start a build" rows the way picking in the selects does (each change redraws the builder).
+const starter = (rows, edition = '2024') => {
+  const sb = document.querySelector('.sb'); if (!sb) return
+  sb.querySelector(`[data-ed="${edition}"]`)?.click()
+  while (sb.querySelectorAll('.sbrow').length > 1) sb.querySelector('.sbdel')?.click()
+  rows.forEach(([cls, lv], i) => {
+    if (i) sb.querySelector('.sbadd')?.click()
+    for (const [f, v] of [['cls', cls], ['lv', String(lv)]]) {
+      const sel = sb.querySelector(`.sbrow[data-i="${i}"] select[data-f="${f}"]`)
+      if (sel) { sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })) }
+    }
+  })
+}
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 uiReview.config({
@@ -57,6 +70,8 @@ uiReview.config({
     { id: 'form', label: 'Paste form', open: false, controls: [
       { id: 'err', label: 'Type a build with an error', kind: 'action', dodge: false, run: () => typeIn(ERROR_TEXT) },
       { id: 'clear', label: 'Clear the editor', kind: 'action', dodge: false, run: () => typeIn('') },
+      { id: 'start-multi', label: 'Start a build: Fighter 1 / Warlock 4', kind: 'action', dodge: false, run: () => starter([['Fighter', 1], ['Warlock', 4]]) },
+      { id: 'start-solo', label: 'Start a build: Wizard 20 (2014)', kind: 'action', dodge: false, run: () => starter([['Wizard', 20]], '2014') },
     ] },
   ],
   presets: [
@@ -103,7 +118,7 @@ uiReview.config({
       addEventListener('pagehide', () => putDraft(`edit:${id}`, { title: 'Briar, Moon druid', author: 'Francesco', paste, rev: 1, saved: new Date(Date.now() - 26 * 3600e3).toISOString() }))
       reloadOnce('draft-edit')
     },
-    // D99: the example offer needs a new form with an empty editor and no draft bar.
+    // D121: "Start a build" needs a new form with an empty editor and no draft bar.
     'form-empty': async (x) => {
       await x.waitFor('form.pform textarea.src')
       if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('form-empty')) return }
@@ -118,12 +133,36 @@ uiReview.config({
       document.querySelector('form.pform .tb button[type=submit]').click()
       await x.waitFor('.ferr:not([hidden]):not(.nokey)', 4000)
     },
-    // T3.6: the example in the editor (Start from an example), on a new empty form.
-    'form-example': async (x) => {
+    // T3.8 (D121–D124): "Start a build" with two rows, Fighter 1 then Warlock 4, not laid out yet.
+    'starter-multi': async (x) => {
       await x.waitFor('form.pform textarea.src')
-      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('form-example')) return }
-      if (!editor().value.startsWith('Vesk')) { if (editor().value) typeIn(''); await x.sleep(150); document.querySelector('.exb')?.click() }
-      await x.sleep(250)
+      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('starter-multi')) return }
+      if (editor().value) typeIn('')
+      await x.waitFor('.sb .sbrow')
+      starter([['Fighter', 1], ['Warlock', 4]])
+      await x.sleep(150)
+    },
+    // T3.8 round 2 (D127): Fighter 2, then an Other class named Blood Hunter|TDCC for 3.
+    'starter-other': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('starter-other')) return }
+      if (editor().value) typeIn('')
+      await x.waitFor('.sb .sbrow')
+      starter([['Fighter', 2], ['other', 3]])
+      const inp = document.querySelector('.sb .sbname')
+      if (inp) { inp.value = 'Blood Hunter|TDCC'; inp.dispatchEvent(new InputEvent('input', { bubbles: true })) }
+      await x.sleep(150)
+    },
+    // T3.8: the same rows laid out in the editor.
+    'starter-laid': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('starter-laid')) return }
+      if (editor().value.startsWith('Rules: 2024\nScores:\nClasses: Fighter|XPHB 1 / Warlock|XPHB 4')) return
+      if (editor().value) typeIn('')
+      await x.waitFor('.sb .sbrow')
+      starter([['Fighter', 1], ['Warlock', 4]])
+      document.querySelector('.sb .sbmake')?.click()
+      await x.sleep(300)
     },
     // T3.6: the Keys popover on the Feat (…) chip, as a mouse hover shows it.
     'keys-popover': async (x) => {

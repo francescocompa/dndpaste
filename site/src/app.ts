@@ -200,7 +200,7 @@ async function api(env: Env, id: string, rev: number | null, sub: string): Promi
 
 async function newForm(env: Env, url: URL): Promise<Response> {
   const from = url.searchParams.get("from");
-  if (from === null) return html(formPage({ example: true }));
+  if (from === null) return html(formPage({ start: true }));
   // `?from=<id>` copies the latest revision, `?from=<id>/<n>` revision n (D97).
   const [fid, frev] = from.split("/");
   const ok = ID_RE.test(fid) && (frev === undefined || REV_RE.test(frev)) && from.split("/").length <= 2;

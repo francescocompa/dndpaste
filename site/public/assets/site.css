@@ -317,12 +317,34 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ktab .kw { color: var(--mute); width: 11em; }
 .ktab .kh small { display: block; margin-top: 2px; color: var(--mute); font-size: 12.5px; }
 .ktab code { font: 0.95em/1 var(--mono); }
-/* the form's way to the guide, and the example offer inside an empty editor (D99) */
+/* the form's way to the guide (D99), and "Start a build" inside an empty editor (D121) */
 .glink { font-size: 12.5px; } .glink a { color: var(--fg); text-underline-offset: 3px; }
-.exo { position: absolute; z-index: 1; top: calc(8px + 2.6em); left: var(--gw); right: 10px; display: flex; flex-wrap: wrap; gap: 6px 10px;
-  align-items: center; font: 13px/1.4 var(--sans); pointer-events: none; }
-.exo > * { pointer-events: auto; }
-.exo a { color: var(--fg); text-underline-offset: 3px; }
+.sb { position: absolute; z-index: 1; top: calc(8px + 2.6em); left: var(--gw); right: 10px; max-width: 460px; display: grid; gap: 10px;
+  font: 13px/1.4 var(--sans); }
+.sb[hidden] { display: none; }
+.sb a { color: var(--fg); text-underline-offset: 3px; }
+.sbhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
+.sbt { font-weight: 600; }
+.sbrules { display: inline-flex; align-items: center; gap: 8px; }
+.sb .seg { display: inline-grid; grid-template-columns: repeat(2, 52px); background: var(--chip); border-radius: 7px; padding: 2px; }
+.sb .seg button { text-align: center; padding: 4px 0; border: 0; border-radius: 5px; background: none; color: var(--mute); font: inherit; cursor: pointer; }
+.sb .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.sbrows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sbrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sbrow .sbname { flex: 1 0 100%; min-height: 36px; font-size: 13px; }
+.sbrow .sbname[aria-invalid="true"] { border-color: var(--err); }
+.sbrow .sbhint { flex: 1 0 100%; margin-top: -2px; font-size: 12px; }
+.sbrow .grow { flex: 1; min-width: 0; }
+.sel { position: relative; display: block; }
+.sel select { appearance: none; -webkit-appearance: none; padding-right: 30px; font-size: 13px; cursor: pointer; }
+.sel svg.i { position: absolute; right: 9px; top: 50%; translate: 0 -50%; width: 14px; height: 14px; color: var(--mute); pointer-events: none; }
+.sel.lv { width: 8.6em; flex: none; }
+.sb .sel select { min-height: 36px; }
+.sb .sbdel { width: 36px; height: 36px; padding: 0; flex: none; }
+.sbfoot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -4px; }
+.sbfoot .sbadd { color: var(--fg); }
+.sbtot { font-size: 12px; font-variant-numeric: tabular-nums; }
+.sbgo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 2px; }
 
 /* ---- phone ---- */
 @media (max-width: 600px) {

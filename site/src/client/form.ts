@@ -17,7 +17,8 @@ import type { EditReply } from "./keys.ts";
 import { ID_RE, REV_RE } from "../store.ts";
 import { draftBarHtml, draftKeeper, draftSlot, draftStore } from "./drafts.ts";
 import type { Draft, Fields } from "./drafts.ts";
-import { EXAMPLE, GUIDE_LINK } from "../example.ts";
+import { GUIDE_LINK } from "../example.ts";
+import { mountStarter } from "./starter.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
 
 const recent = recentStore(() => window.localStorage);
@@ -68,13 +69,16 @@ function init(): void {
   const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the text in the editor. Undo brings it back.</small>`);
   dropz.hidden = true;
   pane.append(dropz);
-  // D99: a new, empty form offers the guide's example. Only while the editor is empty, never on an edit or on
-  // Duplicate and edit (the server marks the form with data-example only for a plain new paste).
-  const offers = form.dataset.example === "1" && !editId;
-  const offer = el("div", "exo", `<button type="button" class="bt exb">${icon("example")}Start from an example</button>` +
-    `<span class="muted">or read the <a href="/guide">format guide</a></span>`);
+  // D121: a new, empty form offers "Start a build". Only while the editor is empty, never on an edit or on Duplicate
+  // and edit (the server marks the form with data-start only for a plain new paste). Mounted below, once replaceAll
+  // exists.
+  const offers = form.dataset.start === "1" && !editId;
+  const offer = el("div", "sb");
   offer.hidden = true;
   ed.append(offer);
+  /** The builder sits over the empty editor; the editor grows to hold it. */
+  const fitOffer = () => { ed.style.minHeight = offer.hidden ? "" : `${offer.offsetTop + offer.offsetHeight + 12}px`; };
+  if (offers) new ResizeObserver(fitOffer).observe(offer);
 
   // ---- toolbar: Open file · Tidy · summary · Save ----
   const file = el("input", "");
@@ -221,6 +225,7 @@ function init(): void {
     setSaveState();
     refreshHints();
     offer.hidden = !offers || ta.value !== "";
+    fitOffer();
     changed();
   };
 
@@ -447,9 +452,14 @@ function init(): void {
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tipFor) hideTip(); });
   window.addEventListener("scroll", hideTip, { passive: true });
-  offer.querySelector(".exb")?.addEventListener("click", () => {
-    replaceAll(EXAMPLE);
+  if (offers) mountStarter(offer, (text) => {
+    replaceAll(text);
+    // The caret waits at the end of the Scores line, the first thing to fill.
+    const at = text.indexOf("\nScores:");
     ta.focus({ preventScroll: true });
+    if (at >= 0) ta.setSelectionRange(at + 8, at + 8);
+    refreshHints();
+    ed.scrollIntoView({ block: "nearest" });
   });
   tidyBtn.addEventListener("click", () => {
     if (st.canTidy && st.canon !== null) replaceAll(st.canon);
