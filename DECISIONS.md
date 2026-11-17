@@ -360,7 +360,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 
 ## Format guide (2026-11-16) — mechanism: AskUserQuestion, 1 round (2 questions), overseer, on Francesco's note; closes the parked "writing help/prefill" ⚑ (under D96)
 
-- **D99 — The site gets a `/guide` page in v1, and an empty form offers "Start from an example". DECIDED (2026-11-16).** `/guide` explains how a paste is laid out (header, entity blocks, level blocks, details, `Name|SOURCE`), walks one annotated example, and shows the key table built from the profile at build time so it cannot drift; `SPEC.md` stays the authority and the guide links it. Linked from the form and `/about`. The form's example is the guide's example, offered only on an empty editor. Copy is dry and plain (D88c, /humanize); examples name entities, never rules text (content boundary). Built as slice 3.2e after 3.2d, before T3.4.
+- **D99 — The site gets a `/guide` page in v1, and an empty form offers "Start from an example". DECIDED (2026-11-16); AMENDED → D121 (the form offers a class mini-builder instead; the example stays on `/guide`).** `/guide` explains how a paste is laid out (header, entity blocks, level blocks, details, `Name|SOURCE`), walks one annotated example, and shows the key table built from the profile at build time so it cannot drift; `SPEC.md` stays the authority and the guide links it. Linked from the form and `/about`. The form's example is the guide's example, offered only on an empty editor. Copy is dry and plain (D88c, /humanize); examples name entities, never rules text (content boundary). Built as slice 3.2e after 3.2d, before T3.4.
   *Raw note:* "should we include in the site also a full guide on how to use dndpaste itself, how the format is organized?" → picked "A /guide page, in v1 (Recommended)" and "Yes: an example to start from (Recommended)".
   *Rejected:* /guide after launch (first visitors would have only the hint strip); linking SPEC.md only (written for implementers; works only once the repo is pushed); the guide alone without form help; leaving the ⚑ parked.
   *Enforced by:* 3.2e brief (overseer).
@@ -463,3 +463,26 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Enforced by:* `site/test/share.test.ts` (dedupe, unknown codes, none cited, the view's Books line).
 
   Landed: 746734c (c2c9270), deployed ffd80c9c.
+## Class presets (2026-11-17) — mechanism: /interview, AskUserQuestion, 2 rounds (6 questions), overseer at /start; closes T3.8's open list
+
+- **D121 — On the empty paste form, a "Start a build" mini-builder replaces "Start from an example"; the example stays on `/guide` only. DECIDED (2026-11-17).** Amends D99 ("an empty form offers Start from an example") and D104 (the example is still the guide's walk-through). Like the example today, the builder shows only on an empty editor and fills it once; after that you edit the text. No merge into an existing paste, no restart button.
+  *Raw note:* "start from class presets instead of the example, so that the main lines are mostly all laid out" (PLAN T3.8); picked "Replace the example" (over the recommended "Class first, example quiet") and "Empty editor only (Recommended)".
+  *Rejected:* the builder first with the example as a quiet link under it; two equal buttons; a builder usable any time that replaces the text after a confirm; one that adds the missing lines to an existing paste (a merge into existing blocks: a much bigger build to test).
+  *Enforced by:* T3.8 build (form tests).
+
+- **D122 — A preset lays out the build up to a chosen level, with only the lines owed at each level, as empty "not chosen yet" values (D112). DECIDED (2026-11-17).** Header (`Rules`, `Classes`, `Scores:`), the `Species` and `Background` blocks, then `L1`…`Ln`. Each level holds what its class owes there, from the slot table: skills and the starting `Gear` at L1, `Subclass` at the subclass level, a `Feat` at ASI levels, `Cantrips`/`Spells`/`Options`/`Masteries` where the count goes up. Every slot line is empty, so the form shows each as a warning until it is filled, and Tidy keeps it.
+  *Raw note:* picked "Up to a chosen level (Recommended)".
+  *Rejected:* level 1 only (skips the subclass and ASI milestones); milestones only, no per-level spell lines (casters lose most of their lines).
+  *Enforced by:* T3.8 build (preset tests: each preset parses with no `E###` and is already canonical).
+
+- **D123 — Presets cover all 12 classes in 2014 and 2024; an edition switch defaults to 2024 and sets `Rules:` and the `|PHB`/`|XPHB` source. DECIDED (2026-11-17).** Artificer is not in the SRD subset, so not in v1.
+  *Raw note:* picked "Both, 2024 default (Recommended)".
+  *Rejected:* 2024 only (2014 players rewrite the start).
+
+- **D124 — The mini-builder allows free multiclassing as rows in the order taken: each row a class and a number of levels, a class may come back, up to level 20. DECIDED (2026-11-17).** The rows map one-to-one onto `Classes` runs (D49); the preset is emitted, so the switch headers come from `emit`. A class taken after the first owes its multiclass picks from the table (`multiclassSkills`, no starting `Gear`).
+  *Raw note:* "In this mini-builder, we can include free multiclassing" (over the recommended "Single class in v1"); then picked "Rows in order taken (Recommended)".
+  *Rejected:* single class in v1; classes plus totals with no interleaving (a dip back into the first class can't be written).
+
+- **D125 — Presets are built from the committed SRD slot table (`data/srd/slots.json`) into a generated site file; no new data leaves the repo. DECIDED (2026-11-17).** The subset holds the 24 core class entries with the counts and levels a preset needs (subclass level, ASI levels, skill counts, cantrip/spell counts, option progressions, masteries): numbers and key names, no rules text, no subclass or spell names. Regenerated by a script, like D115.
+  *Mechanism:* settled by evidence at /start (the subset's contents), stated in the interview's report, not asked.
+  *Rejected:* the full gitignored table (publishes non-SRD data); a hand-written table (goes stale).

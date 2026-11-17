@@ -4,8 +4,8 @@
 - **State:** M3 done and live at `https://dndpaste.fcomfy.workers.dev` (D117, D118), deployed version ffd80c9c: library 0.8.0
   + site + T3.7 share image, Post to Reddit, Books line (D119, D120). 179 library + 175 site tests pass on main; KV empty.
   Not pushed to GitHub; `v0.8.0` not tagged.
-- **Single next action:** 🔶 T3.8 class presets (PLAN M3): `/interview` Francesco on its open questions, log the calls, then
-  spawn the build. Parallel, his: tag + push.
+- **Single next action:** T3.8 class presets (PLAN M3, D121–D125, interviewed 2026-11-17): build session running; then its
+  /ui-review, merge to main, redeploy on his go. Parallel, his: tag + push.
 - **Manual for Francesco:** ① tag `v0.8.0` on 423ac7b (D57; the site commits after it are not library changes), push `main`,
   `v0.7.0`, `v0.8.0`; ② ⚑ read `FORMAT-UPDATES.md` (DRAFT, D113 flag; 4 questions, chiefly: aliases "until 1.0" make 1.0
   breaking); ③ archive the T3.7 session (done and merged); ④ the Notion "Character Ideas" defects (stress/REPORT.md
@@ -28,4 +28,3 @@ Spawned: T3.7 share image · local_011deed3 · branch `claude/share-image` (this
   `ClaudeConfig/bin` (review server script) on 2026-11-16; the review ran a connector-fetched copy.
 
 
-⟳ Rename previous session → "Share site deploy and share image"  · session: local_467d39d0-a951-462b-86bf-f4ce4cf671c2
