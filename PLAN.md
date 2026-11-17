@@ -76,7 +76,7 @@ L<n> <Class>                   level block, n = character level
 - [x] T3.4 ✅ 2026-11-16 Deployed to `https://dndpaste.fcomfy.workers.dev` (D117), smoke-tested; branch merged into `main` (423ac7b). GitHub push and the `v0.8.0` tag his.
 - [x] T3.7 ✅ 2026-11-16 (c2c9270, 18a7fd0; merged 746734c, deployed ffd80c9c) Share image + Post to Reddit on the view page (D119) + Books line (D120) · Opus@high · Done when: Tall/Wide full-build PNG drawn in the browser (Download, Copy image, Share sheet), Reddit button, site tests green, `npm run verify` green, a /ui-review approved; deploy again on Francesco's go.
 - [x] T3.8 ✅ 2026-11-17 (3e28685, 0d23c85; merged 9f8c697, deployed 16fea8f4) Class presets: "Start a build" on the empty form replaces "Start from an example" (D121–D128); /ui-review 3 rounds, all approved; 179 + 185 tests.
-- [ ] ⚑ T3.9 Pick counts as ghost text in the editor (Francesco, 2026-11-17; see the ⚑ after D128) · needs planning by the overseer first.
+- [x] T3.9 ✅ 2026-11-17 (fb682b9, 9275fd0; merged 6c78f01, deployed f4c67871) Ghost pick counts in the editor: a `have/of` tag on lines that owe picks, from the SRD table (D129–D134); /ui-review 2 rounds, all approved; 179 + 197 tests.
 - Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
 ### M4 — character-forge interview seeding · size M in that repo
