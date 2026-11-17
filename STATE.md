@@ -1,9 +1,10 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-17 · main ba0e0ab + handoff commit · read 120k)
+## TL;DR (2026-11-17 · main 9d5925e + this commit · read 120k)
 - **State:** M3 done and live at `https://dndpaste.fcomfy.workers.dev` (D117, D118), deployed: library 0.8.0
   + site + T3.7 share image, Post to Reddit, Books line (D119, D120) + T3.8 "Start a build" class presets (D121–D128)
-  + T3.9 ghost pick counts (D129–D134), deployed f4c67871 on 2026-11-17. 179 library + 197 site tests pass on main.
+  + T3.9 ghost pick counts (D129–D134) + build stamp and update toast (D137–D140; `/version`), deployed f80cf721 on
+  2026-11-17. 179 library + 211 site tests pass on main.
   GitHub (public): `main` pushed at 58bbefe and `v0.6.0`; later commits, `v0.7.0` and `v0.8.0` not pushed; `v0.8.0` not tagged.
 - **Single next action:** ⚑ D136 checks (attribution wording; Basic Rules entities in the SRD subset), then his: tag + push.
   Name stays dndpaste until a custom domain (D135).
@@ -15,7 +16,7 @@
 
 Working set: none
 
-Spawned: T3.9 ghost counts · local_3bdc7be8 · merged 6c78f01, deployed · owed: archive (his yes).
+Spawned: build stamp · local_3382801d · merged 9d5925e, deployed · owed: archive. T3.9 · local_3bdc7be8 · merged · owed: archive.
 
 - **Library:** 0.8.0 on main (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
   The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.

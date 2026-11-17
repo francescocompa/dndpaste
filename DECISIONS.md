@@ -544,7 +544,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Rejected:* attribution only; queueing both.
   *Enforced by:* prose only (no test checks `meta`). ⚑ (overseer → Francesco, 2026-11-17): check the two attribution sentences against WotC's SRD pages; `isSrd` in `scripts/extract-slots.mjs` also counts Basic Rules entities (`basicRules`, `basicRules2024`), which are free but not CC-licensed: names and counts only, but decide whether the committed subset keeps them. The public history still holds the old `meta.mirror` value.
 
-## Build stamp and update notice (2026-11-17) — mechanism: AskUserQuestion, 2 rounds (6 questions) + /ui-review, 2 rounds, worker session on `claude/build-stamp`
+## Build stamp and update notice (2026-11-17) — mechanism: AskUserQuestion, 2 rounds (6 questions) + /ui-review, 2 rounds, worker session on `claude/build-stamp` · Landed (D137–D140): merged 9d5925e, deployed f80cf721
 
 - **D137 — Every page ends with the site's version, one muted mono line in the foot: `v0.8.0`, the root `package.json` version. The commit is not shown. DECIDED (2026-11-17).** Works without JS; on the phone it sits above the dock's padding. Written at build time by `site/scripts/stamp.mjs` into `site/src/build.gen.ts` (gitignored, rewritten only when it changes, since `wrangler dev` watches `src/`); site.js rewrites the line with its own build, since a cached page can be older than its script. The foot holds nothing else (D89 c still stands).
   *Raw note:* picked "Page foot (Recommended)"; review round 1: "We can remove the build and only use the version. The version will need to be updated regularly, I prefer having one single versioning option that is clear."
