@@ -219,7 +219,12 @@ export function highlight(text: string, diagnostics: readonly Diagnostic[]): str
 }
 
 /** The layer's rows, one HTML string each, so the editor can patch only the rows that changed. */
-export function highlightRows(text: string, diagnostics: readonly Diagnostic[]): string[] {
+/**
+ * `ghosts`: per 1-based line, display-only markup drawn after the line (D130: the ghost pick counts, ghost.ts
+ * `ghostHtml`). It sits in this layer only, at zero width, so it never wraps a row, moves the caret or enters the
+ * textarea's text.
+ */
+export function highlightRows(text: string, diagnostics: readonly Diagnostic[], ghosts?: ReadonlyMap<number, string>): string[] {
   const byLine = new Map<number, string[]>();
   for (const d of diagnostics) if (d.line) byLine.set(d.line, [...(byLine.get(d.line) ?? []), d.code]);
   const lines = text.split(/\r?\n/);
@@ -230,6 +235,7 @@ export function highlightRows(text: string, diagnostics: readonly Diagnostic[]):
     if (first) seen = true;
     const cls = codes.some((c) => c.startsWith("E")) ? " err" : codes.length ? " warn" : "";
     // The line number comes from a CSS counter (.g::before), so a row's markup does not depend on its position.
-    return `<div class="row${cls}"><span class="g"></span><span class="t">${highlightLine(line, { first, codes })}</span></div>`;
+    const gh = ghosts?.get(i + 1);
+    return `<div class="row${cls}"><span class="g"></span><span class="t">${highlightLine(line, { first, codes })}${gh ?? ""}</span></div>`;
   });
 }

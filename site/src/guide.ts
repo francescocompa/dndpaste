@@ -73,6 +73,7 @@ ${code(ex.levels, "The level blocks of the example")}
 <h2 id="short">Short builds</h2>
 <p>No key is required. ${c("Classes: Warlock")} alone is a valid build. Write what you know and leave out the rest. The site saves a build when it has at least one line besides the name.</p>
 <p>A key with no value, such as ${c("Spells:")}, means not chosen yet. The editor shows the warning W004, the site saves the build, and Tidy keeps the line as a reminder.</p>
+<p>In a level block, the editor also shows a small count after lines such as ${c("Spells")}. A count of 2/4 means two picks of the four that the class gets at that level. The count is a note in the editor. It is not part of the build.</p>
 <h2 id="canonical">Canonical form and Tidy</h2>
 <p>Each build has one canonical form. Keys follow the order of the key table, one blank line comes before each block, and each key has the spelling in the table. ${c("Classes")} gives one total for each class. In a build with level blocks, a level header marks each change of class.</p>
 <p>Tidy, in the editor's toolbar, rewrites the text in canonical form. It changes the layout, not the choices. Tidy works when the text has no errors. The ${c("/<id>/canon")} address of a saved build gives the same text.</p>

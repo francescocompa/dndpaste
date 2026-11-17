@@ -7,6 +7,7 @@
  */
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
+import { LANE, ghostCounts, ghostHtml, ghostPads } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
 import type { Hints } from "./hints.ts";
 import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml } from "./status.ts";
@@ -66,6 +67,22 @@ function init(): void {
   pane.insertBefore(ed, ta);
   ed.append(hl, ta);
   ta.removeAttribute("rows");
+  // Ghost pick counts (D129–D133) align to a column only while it fits on a row: measure how many characters do.
+  const probe = el("span", "gprobe");
+  probe.setAttribute("aria-hidden", "true");
+  probe.textContent = "0".repeat(40);
+  ed.append(probe);
+  let cols = Infinity;
+  let laneOn = false;
+  const measure = (): boolean => {
+    const t = hl.querySelector<HTMLElement>(".row .t");
+    const cw = probe.getBoundingClientRect().width / 40;
+    if (!t || !cw) return false;
+    const next = Math.max(1, Math.floor((t.clientWidth - parseFloat(getComputedStyle(t).paddingRight || "0")) / cw));
+    if (next === cols) return false;
+    cols = next;
+    return true;
+  };
   const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the text in the editor. Undo brings it back.</small>`);
   dropz.hidden = true;
   pane.append(dropz);
@@ -202,6 +219,16 @@ function init(): void {
     }
     rows = next;
   };
+  /** The highlight rows, with the ghost pick counts after their lines (D130): display only, never in the text. */
+  const drawRows = () => {
+    const gs = ghostCounts(st.paste, ta.value);
+    // The lane is there only while a ghost shows: a paste with none keeps the full width.
+    if (ed.classList.toggle("gl", gs.length > 0) !== laneOn) { laneOn = gs.length > 0; measure(); }
+    const pads = ghostPads(ta.value.split(/\r?\n/), gs, cols, LANE);
+    draw(highlightRows(ta.value, st.diagnostics, new Map(gs.map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1)]))));
+  };
+  // A wider or narrower row changes which ghosts fit their block's column: redraw when it does.
+  new ResizeObserver(() => { if (measure()) drawRows(); }).observe(hl);
   /** Sets innerHTML only when it changed: most keystrokes leave the summary, Problems and hints as they were. */
   const shown = new WeakMap<Element, string>();
   const put = (e: Element, html: string) => {
@@ -214,7 +241,7 @@ function init(): void {
   const refresh = () => {
     if (bulk) return;
     st = status(ta.value, holdLine);
-    draw(highlightRows(ta.value, st.diagnostics));
+    drawRows();
     const n = rows.length;
     ed.classList.toggle("w3", n >= 100 && n < 1000);
     ed.classList.toggle("w4", n >= 1000);

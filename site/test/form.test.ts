@@ -153,7 +153,7 @@ test("status: X- keys warn (W001) and still save; errors and drops; Tidy only wh
   assert.equal(bad.canTidy, false);
   assert.equal(summaryHtml(bad), "<b>1 error</b> · fix it to save");
   assert.match(problemsHtml(bad), /<span class="code">E002<\/span><button type="button" class="at" data-line="18">line 18<\/button><span>Unknown key: Spels<\/span>/);
-  assert.match(dockLineHtml(bad), /data-line="18">.*<b>E002<\/b> line 18<span class="pmsg">Unknown key: Spels<\/span><\/button>$/);
+  assert.match(dockLineHtml(bad), /data-line="18">.*<b>E002<\/b> <span class="pln">line 18<\/span><span class="pmsg">Unknown key: Spels<\/span><\/button>$/);
 });
 
 test("status: an empty paste does not save", () => {

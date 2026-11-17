@@ -247,6 +247,16 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ed .row { display: grid; grid-template-columns: var(--gw) minmax(0, 1fr); min-height: 1.65em; }
 .ed .g { text-align: right; padding-right: 1.4ch; color: var(--src); user-select: none; }
 .ed .t { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 10px; min-width: 0; }
+/* Ghost pick counts (D129–D133): zero width, so a row wraps exactly as the textarea's line does and the caret never
+   moves; the padding spaces align a block's ghosts to one column (ghost.ts). Clipped at the row's edge. */
+.ed .hl { overflow-x: clip; }
+.ed.gl .t, .ed.gl > .src { padding-right: calc(10px + 8ch); } /* the ghost lane, ghost.ts LANE */
+.ed .gh { display: inline-block; width: 0; white-space: pre; user-select: none; }
+/* The tag is a small sans chip in --mute, so it reads as the editor's note, never as text of the paste (T3.9 review). */
+.ed .gc { font: 500 11px/1 var(--sans); letter-spacing: 0.02em; color: var(--mute); font-variant-numeric: tabular-nums;
+  background: var(--chip); border-radius: 4px; padding: 2px 5px; }
+.ed .gc .i { display: inline-block; width: 11px; height: 11px; margin-left: 3px; vertical-align: -1.5px; color: var(--err); }
+.ed .gprobe { position: absolute; visibility: hidden; white-space: pre; pointer-events: none; left: 0; top: 0; }
 .ed b { font-weight: 600; }
 .ed .row.err { background: var(--errbg); } .ed .row.err .g { color: var(--err); font-weight: 600; }
 .ed .row.warn .g { color: var(--warnc); font-weight: 600; }
@@ -375,6 +385,8 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .pdock .prow .perr { display: flex; width: 100%; font-size: 13.5px; }
   .pdock .pmsg { color: var(--fg); margin-left: 4px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pdock .perr b { color: var(--err); } .pdock .perr .more { color: var(--mute); }
+  /* The code, "line N" and "+N" never wrap: the row stays one line high, only the message is cut (T3.9 review). */
+  .pdock .perr b, .pdock .perr .pln, .pdock .perr .more { flex-shrink: 0; white-space: nowrap; }
   /* View dock (D87, frame view-vice-phone): Copy link split + Duplicate and edit, fixed at the bottom */
   .hasjs .view .wrap { padding-bottom: 84px; }
   .hasjs .view .acts { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; flex-wrap: nowrap; padding: 10px 14px calc(10px + env(safe-area-inset-bottom));

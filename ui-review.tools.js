@@ -52,6 +52,11 @@ const starter = (rows, edition = '2024') => {
     }
   })
 }
+// T3.9 (D129–D133): a filled multiclass build with short, met, over, swapped and empty counted lines.
+const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / Wizard 3\n\nSpecies: Elf|XPHB\n\nBackground: Sage|XPHB\n\n' +
+  'L1 Fighter|XPHB\nSkills: Athletics, Perception\nMasteries: Longsword, Shortbow\nFeat (Fighting Style): Defense\n\n' +
+  'L2 Wizard|XPHB\nCantrips: Light, Mage Hand, Prestidigitation, Fire Bolt\nSpells: Shield, Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar\nPrepared: Shield, Sleep\n\n' +
+  'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 uiReview.config({
@@ -72,6 +77,7 @@ uiReview.config({
       { id: 'clear', label: 'Clear the editor', kind: 'action', dodge: false, run: () => typeIn('') },
       { id: 'start-multi', label: 'Start a build: Fighter 1 / Warlock 4', kind: 'action', dodge: false, run: () => starter([['Fighter', 1], ['Warlock', 4]]) },
       { id: 'start-solo', label: 'Start a build: Wizard 20 (2014)', kind: 'action', dodge: false, run: () => starter([['Wizard', 20]], '2014') },
+      { id: 'ghost-multi', label: 'Ghost counts: Fighter 1 / Wizard 3 (2024)', kind: 'action', dodge: false, run: () => typeIn(GHOST_TEXT) },
     ] },
   ],
   presets: [
@@ -161,6 +167,24 @@ uiReview.config({
       if (editor().value) typeIn('')
       await x.waitFor('.sb .sbrow')
       starter([['Fighter', 1], ['Warlock', 4]])
+      document.querySelector('.sb .sbmake')?.click()
+      await x.sleep(300)
+    },
+    // T3.9 (D129–D133): the ghost counts on a filled multiclass build.
+    'ghost-multi': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('ghost-multi')) return }
+      if (editor().value !== GHOST_TEXT) typeIn(GHOST_TEXT)
+      await x.sleep(300)
+    },
+    // T3.9: a laid-out preset, every counted line empty: Bard 6, 2024.
+    'ghost-preset': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce('ghost-preset')) return }
+      if (editor().value.startsWith('Rules: 2024\nScores:\nClasses: Bard|XPHB 6')) return
+      if (editor().value) typeIn('')
+      await x.waitFor('.sb .sbrow')
+      starter([['Bard', 6]])
       document.querySelector('.sb .sbmake')?.click()
       await x.sleep(300)
     },
