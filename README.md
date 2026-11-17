@@ -55,3 +55,7 @@ The UMD file bundles parser, emitter and checker under one global.
   info-level findings, `--json` gives machine output, `--slots <path>` picks a slot table
   (default `data/slots.json`, else `data/srd/slots.json`). `dndpaste emit <file>` and
   `dndpaste normalise <file>` print canonical text; `-` reads stdin; `--help` shows usage.
+
+## Licence
+
+Code: MIT (`LICENSE`). SRD-derived data: CC-BY-4.0 attribution in `NOTICE.md`.

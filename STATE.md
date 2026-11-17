@@ -4,9 +4,9 @@
 - **State:** M3 done and live at `https://dndpaste.fcomfy.workers.dev` (D117, D118), deployed: library 0.8.0
   + site + T3.7 share image, Post to Reddit, Books line (D119, D120) + T3.8 "Start a build" class presets (D121–D128)
   + T3.9 ghost pick counts (D129–D134), deployed f4c67871 on 2026-11-17. 179 library + 197 site tests pass on main.
-  Not pushed to GitHub; `v0.8.0` not tagged.
-- **Single next action:** 🔶 Francesco: rename to 5epaste or keep dndpaste (trademark + 5e-game scope vs 335 mentions,
-  localStorage keys, a new origin); decide before the first push. Then his: tag + push.
+  GitHub (public): `main` pushed at 58bbefe and `v0.6.0`; later commits, `v0.7.0` and `v0.8.0` not pushed; `v0.8.0` not tagged.
+- **Single next action:** ⚑ D136 checks (attribution wording; Basic Rules entities in the SRD subset), then his: tag + push.
+  Name stays dndpaste until a custom domain (D135).
 - **Manual for Francesco:** ① tag `v0.8.0` on 423ac7b (D57; the site commits after it are not library changes), push `main`,
   `v0.7.0`, `v0.8.0`; ② ⚑ read `FORMAT-UPDATES.md` (DRAFT, D113 flag; 4 questions, chiefly: aliases "until 1.0" make 1.0
   breaking); ③ archive the T3.7, T3.8 and T3.9 sessions (done and merged); ④ the Notion "Character Ideas" defects (stress/REPORT.md

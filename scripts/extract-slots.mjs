@@ -333,7 +333,7 @@ try {
   const m = /Parser\.FEAT_CATEGORY_TO_FULL = \{([\s\S]*?)\};/.exec(readFileSync(join(root, "..", "js", "parser.js"), "utf8"));
   for (const [, code, name] of m?.[1].matchAll(/"([^"]+)":\s*"([^"]+)"/g) ?? []) featCategories[code] = name;
 } catch { /* optional */ }
-const meta = { mirror: root, generated: new Date().toISOString().slice(0, 10), counts: {} };
+const meta = { generated: new Date().toISOString().slice(0, 10), counts: {} };
 const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, featCategories, spells, items, magicVariants };
 for (const k of Object.keys(full)) if (k !== "meta" && k !== "families" && k !== "featCategories") meta.counts[k] = Object.keys(full[k]).length;
 
