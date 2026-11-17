@@ -5,9 +5,11 @@
 //   site.js  classic script, every page, loaded in <head> without defer: it sets the theme and the colour switches
 //            before the first paint (no flash), then wires the header, the Display menu and the view page (slice 3).
 //   share.js ESM module, the share image (D119): site.js imports it the first time a reader opens Share.
+// First it writes the build stamp, src/build.gen.ts (scripts/stamp.mjs), which the Worker and site.js import.
 import { build } from "esbuild";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { join } from "node:path";
+import { writeStamp } from "./stamp.mjs";
 
 const site = fileURLToPath(new URL("..", import.meta.url));
 const base = { bundle: true, platform: "browser", target: ["es2020"], minify: true, legalComments: "none", logLevel: "error" };
@@ -21,6 +23,8 @@ const opts = ({ out, ...o }) => o;
 export { opts as esbuildOptions };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const s = writeStamp();
+  console.log(`build-client: src/build.gen.ts, ${s.version} · ${s.commit}`);
   for (const c of CLIENTS) {
     const res = await build({ ...opts(c), outfile: join(site, "public/assets", c.out), metafile: true });
     const out = Object.values(res.metafile.outputs)[0];

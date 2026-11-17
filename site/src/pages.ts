@@ -1,6 +1,8 @@
 /** Server-rendered pages. No inline scripts or styles (CSP); every user value through `esc`. */
 import { emit, isClean, parse } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
+import { BUILD } from "./build.gen.ts";
+import { stampText } from "./client/update.ts";
 import { GUIDE_LINK } from "./example.ts";
 import { esc, icon, renderPaste } from "./render.ts";
 import { citedBooks, redditSubmitUrl } from "./shareimg.ts";
@@ -19,10 +21,13 @@ export function fmtDate(iso: string): string {
 
 interface Layout { title: string; main: string; head?: string; page: string }
 
+/** D137: the version on every page, one muted line under the content (stamp.mjs; the commit is for the update check). */
+const FOOT = `<footer class="foot"><span class="bld"${fmtDate(BUILD.date) ? ` title="${fmtDate(BUILD.date)}"` : ""}>${esc(stampText(BUILD))}</span></footer>`;
+
 /**
- * Every page: the header (wordmark, New paste, Guide, About, the Display button) and /assets/site.js, a classic script in
- * <head> that applies the saved Display settings before the first paint (D82) and wires the chrome. Controls that
- * need JavaScript carry `njs` and stay hidden without it.
+ * Every page: the header (wordmark, New paste, Guide, About, the Display button), the build stamp in the foot (D137)
+ * and /assets/site.js, a classic script in <head> that applies the saved Display settings before the first paint (D82)
+ * and wires the chrome. Controls that need JavaScript carry `njs` and stay hidden without it.
  */
 export function layout(o: Layout): string {
   return `<!doctype html>
@@ -42,6 +47,7 @@ ${o.head ?? ""}</head>
 <main>
 ${o.main}
 </main>
+${FOOT}
 </div>
 </body>
 </html>

@@ -4,6 +4,7 @@
  * The Worker entry is worker.ts: it may only export handlers, so everything else lives here.
  */
 import { parse } from "../../src/dndpaste.ts";
+import { BUILD } from "./build.gen.ts";
 import { codesPage } from "./codes.ts";
 import { guidePage } from "./guide.ts";
 import { aboutPage, formPage, messagePage, notFoundPage, prerender, rendered, viewPage } from "./pages.ts";
@@ -136,6 +137,8 @@ async function route(request: Request, env: Env, deps: Deps, url: URL, method: s
   }
   if (path === "/guide") return method === "GET" ? html(guidePage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
   if (path === "/codes") return method === "GET" ? html(codesPage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
+  // The deployed build (scripts/stamp.mjs): the page's update check compares it with the build it loaded. Never cached.
+  if (path === "/version") return method === "GET" ? json(BUILD) : notAllowed("GET, HEAD");
   if (path === "/about") return method === "GET" ? html(aboutPage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
 
   // `/<id>`, `/<id>/<n>` (revision n, D97), each with /raw, /canon, /json; `/<id>/report` and `/<id>/edit` on the share.

@@ -81,6 +81,17 @@ html:not(.hasjs) .njs { display: none !important; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .offscreen { position: fixed; top: 0; left: -9999px; opacity: 0; }
 
+/* D137: the build stamp, one muted line under every page's content */
+.foot { padding-top: 36px; font: 12px/1.4 var(--mono); color: var(--mute); }
+/* D138: the update toast, over the page so nothing moves under the cursor: bottom centre; on a phone at the top,
+   clear of the docks. Under the scrim and sheets (19, 20). */
+.utoast { position: fixed; z-index: 18; left: 50%; bottom: 20px; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px);
+  display: flex; align-items: center; gap: 10px; padding: 8px 6px 8px 14px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+  border-radius: 10px; box-shadow: 0 10px 28px rgb(0 0 0 / 0.16); font: 13.5px/1.4 var(--sans); }
+.utoast .um { min-width: 0; }
+.utoast .x { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: none;
+  color: var(--fg); cursor: pointer; }
+.utoast .x:hover { background: var(--chip); }
 /* ---- popovers (D89 b): a panel placed by site.js inside the viewport; on a phone a bottom sheet ---- */
 .pop { position: fixed; z-index: 20; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px;
   box-shadow: 0 10px 28px rgb(0 0 0 / 0.16); font: 13px/1.4 var(--sans); overflow-y: auto; overscroll-behavior: contain; }
@@ -359,6 +370,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 /* ---- phone ---- */
 @media (max-width: 600px) {
   body { font-size: 13px; }
+  .utoast { top: calc(10px + env(safe-area-inset-top)); bottom: auto; }
   .wrap { padding: 0 16px 32px; }
   .top { flex-wrap: wrap; gap: 6px 12px; }
   .top .navs { gap: 12px; }

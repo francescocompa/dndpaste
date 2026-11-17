@@ -215,7 +215,9 @@ test("view: title, byline, date, OG tags, folds; untitled and anonymous", async 
   assert.ok(page.includes(`<div class="fold njs"><button type="button" class="b" data-fold="close">Fold all levels</button>`));
   assert.ok(page.includes(`data-act="cancel-report">Cancel</button>`));
   assert.ok(page.includes(`<button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">`));
-  assert.ok(!/class="foot"|Names only, never rules text/.test(page), "no footer disclaimer (D89 c)");
+  assert.ok(!/Names only, never rules text|affiliated/.test(page), "no footer disclaimer (D89 c)");
+  // D137: the foot holds the build stamp and nothing else.
+  assert.match(page, /<footer class="foot"><span class="bld"[^>]*>v\d+\.\d+\.\d+<\/span><\/footer>/);
 
   const flat = FIXTURES.find(([n]) => n === "flat-multiclass.dndpaste")![1];
   const r2 = await call(env, "POST", "/", asJson({ paste: flat }), { now });

@@ -18,6 +18,7 @@ import type { EditReply } from "./keys.ts";
 import { ID_RE, REV_RE } from "../store.ts";
 import { draftBarHtml, draftKeeper, draftSlot, draftStore } from "./drafts.ts";
 import type { Draft, Fields } from "./drafts.ts";
+import { BEFORE_RELOAD, RELOAD_FLAG } from "./update.ts";
 import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
@@ -51,8 +52,9 @@ function init(): void {
   // ---- editing a share (D97): the key from the edit link's fragment, then the one this browser kept ----
   const editId = form.dataset.edit && ID_RE.test(form.dataset.edit) ? form.dataset.edit : null;
   let editKeys: string[] = [];
+  let fromLink: string | null = null;
   if (editId) {
-    const fromLink = keyFromHash(location.hash, "k");
+    fromLink = keyFromHash(location.hash, "k");
     // Out of the address bar and history at once; the fragment never reached the server.
     if (location.hash) window.history.replaceState(null, "", location.pathname + location.search);
     // The link's key stays in memory: sendEdit keeps it only once the server takes it.
@@ -556,21 +558,43 @@ function init(): void {
   dbar.hidden = !draft.offered;
   if (draft.offered) dbar.innerHTML = draftBarHtml(draft.offered, new Date(), openRev);
   tb.after(dbar);
+  const putBack = (d: Draft) => {
+    title.value = d.title;
+    author.value = d.author;
+    fit(title);
+    fit(author);
+    replaceAll(d.paste);
+  };
   dbar.addEventListener("click", (e) => {
     const act = (e.target as Element).closest<HTMLElement>("[data-act]")?.dataset.act;
     if (!draft.offered || (act !== "restore" && act !== "discard")) return;
     dbar.hidden = true;
     if (act === "discard") draft.discard();
-    else {
-      const d = draft.restore() as Draft;
-      title.value = d.title;
-      author.value = d.author;
-      fit(title);
-      fit(author);
-      replaceAll(d.paste);
-    }
+    else putBack(draft.restore() as Draft);
     keepDraft();
     ta.focus({ preventScroll: true });
+  });
+  // D139: a reload from the update notice puts the text back without the bar. site.js fires BEFORE_RELOAD; the flag
+  // names this page, so another page's form never takes it.
+  const here = location.pathname + location.search;
+  const session = (): Storage | null => { try { return window.sessionStorage; } catch { return null; } };
+  try {
+    const flag = session()?.getItem(RELOAD_FLAG);
+    session()?.removeItem(RELOAD_FLAG);
+    if (flag === here && draft.offered) {
+      dbar.hidden = true;
+      putBack(draft.restore() as Draft);
+    }
+  } catch { /* storage blocked: no flag, the bar offers the draft as usual */ }
+  window.addEventListener(BEFORE_RELOAD, () => {
+    clearTimeout(draftTimer);
+    if (draft.handOver(current())) {
+      try { session()?.setItem(RELOAD_FLAG, here); } catch { /* the bar offers it instead */ }
+    }
+    // An edit link's key not yet taken by the server lives only in memory: put it back in the address for the reload.
+    if (editId && fromLink && keys.get(editId) !== fromLink) {
+      window.history.replaceState(null, "", `${here}#k=${fromLink}`);
+    }
   });
   changed = queueDraft;
   for (const f of [title, author]) f.addEventListener("input", queueDraft);

@@ -94,6 +94,12 @@ export interface DraftKeeper {
   discard(): void;
   /** After a successful save or edit: deletes the draft and keeps no more. */
   saved(): void;
+  /**
+   * Before an update reload (D139): keeps `f` now, replacing an offer still standing (the text in the form is newer).
+   * True when the stored draft holds `f`, so the reloaded form can put it back. Text equal to what the form loaded
+   * keeps nothing and leaves an offer for its bar.
+   */
+  handOver(f: Fields): boolean;
 }
 
 export function draftKeeper(store: DraftStore, slot: string, loaded: Fields, rev: number | null, now: () => Date = () => new Date()): DraftKeeper {
@@ -118,6 +124,11 @@ export function draftKeeper(store: DraftStore, slot: string, loaded: Fields, rev
     saved() {
       done = true;
       store.clear(slot);
+    },
+    handOver(f) {
+      if (done || sameFields(f, loaded)) return false;
+      offered = null;
+      return store.set(slot, { title: f.title, author: f.author, paste: f.paste, rev, saved: now().toISOString() });
     },
   };
 }

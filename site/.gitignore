@@ -6,3 +6,6 @@ node_modules/
 public/assets/form.js
 public/assets/site.js
 public/assets/share.js
+
+# The build stamp (scripts/stamp.mjs), written by the client build
+src/build.gen.ts

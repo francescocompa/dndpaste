@@ -1,4 +1,4 @@
-/* global uiReview, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent, sessionStorage, addEventListener, history, Event, PointerEvent */
+/* global uiReview, dispatchEvent, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent, sessionStorage, addEventListener, history, Event, PointerEvent */
 // /ui-review dev tools for the share site (site/). Loaded only under `wrangler dev` with UI_REVIEW in site/.dev.vars
 // (site/src/devreview.ts). The site's own look stays in site/; this file only drives it.
 
@@ -71,6 +71,8 @@ uiReview.config({
       { id: 'kv', label: 'KV writes fail (503)', kind: 'toggle', default: false, get: () => faults().has('kv'), set: (v) => setFault('kv', v) },
       { id: 'cap', label: 'Daily cap reached', kind: 'toggle', default: false, get: () => faults().has('cap'), set: (v) => setFault('cap', v) },
       { id: 'xsite', label: 'POSTs look cross-site (403)', kind: 'toggle', default: false, get: () => faults().has('xsite'), set: (v) => setFault('xsite', v) },
+      { id: 'build', label: 'A newer build is deployed', kind: 'toggle', default: false, get: () => faults().has('build'), set: (v) => setFault('build', v) },
+      { id: 'check', label: 'Check for an update now', kind: 'action', dodge: false, run: () => dispatchEvent(new Event('dndpaste:check-update')) },
     ] },
     { id: 'form', label: 'Paste form', open: false, controls: [
       { id: 'err', label: 'Type a build with an error', kind: 'action', dodge: false, run: () => typeIn(ERROR_TEXT) },
@@ -92,6 +94,12 @@ uiReview.config({
       if (document.querySelector('.shp:not([hidden]) .prev canvas')) return
       await x.waitFor('.caret'); await x.click('.caret'); await x.waitFor('#copym [data-share]'); await x.click('#copym [data-share]')
       await x.waitFor('.shp .prev canvas', 8000)
+    },
+    // D138: the update toast. Turns the `build` fault on (GET /version answers another commit) and checks at once.
+    'update-toast': async (x) => {
+      if (document.querySelector('.utoast')) return
+      setFault('build', true); dispatchEvent(new Event('dndpaste:check-update'))
+      await x.waitFor('.utoast', 4000)
     },
     'open-report': async (x) => { await x.waitFor('details.report summary'); await x.click('details.report summary'); await x.sleep(150) },
     'fold-all': async (x) => { await x.waitFor('[data-fold=close]'); await x.click('[data-fold=close]'); await x.sleep(100) },
