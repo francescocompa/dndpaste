@@ -502,4 +502,32 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* pins "Remove this", "Keep only the current total level", "The copy of this button isn't clear, as well as the icon" → "Nothing fancy, it just needs to start the build from the preset".
   *Rejected:* "Lay out the build" with a list icon; "Write the outline"; "Fill the editor".
 
-- ⚑ **Pick counts as ghost text (Francesco, 2026-11-17; owner: overseer).** "Ghost" text in the editor that reads the build and shows how many picks a line expects (spells to prepare, options), from the class tables. A new editor feature, not part of T3.8: the overseer plans it.
+- ~~⚑ **Pick counts as ghost text (Francesco, 2026-11-17; owner: overseer).** "Ghost" text in the editor that reads the build and shows how many picks a line expects (spells to prepare, options), from the class tables. A new editor feature, not part of T3.8: the overseer plans it.~~ Closed by D129–D133.
+
+## Ghost pick counts (2026-11-17) — mechanism: /interview, AskUserQuestion, 2 rounds (7 questions), T3.9 build session; closes the ⚑ after D128
+
+- **D129 — The paste editor shows a ghost pick count on level-block lines for `Cantrips`, `Spells`, `Skills`, `Expertise`, `Options`, `Masteries` and (2024 only) `Prepared`, from the committed SRD class table; `Feat` and `Subclass` get none. DECIDED (2026-11-17).** The count follows the checker's owed-slot ledger, per class level: each level's class comes from `classSequence` (D49), each class from its own table, so multiclass works without a rule of its own. Gains for `Cantrips`, `Spells`, `Skills` (class or multiclass skills at class level 1), `Expertise`, `Options` (every option family's gain at that level, summed; an option that costs several slots counts as one); the loadout total for `Masteries` and `Prepared` (SPEC: "the default loadout from that level"). A `-` drop on the line lets one more pick in, as the checker's `owed + dropped`. A 2014 `Prepared` count needs the ability modifier, so it gets none. No hint for an "Other class" (D127), a class or edition not in the table, a count the table lacks (2024 Paladin, Ranger and Rogue masteries), a header, Species or Background block, or a line the level doesn't have.
+  *Raw note:* "\"Ghost\" text in the editor that reads the build and shows how many picks a line expects (spells to prepare, options), from the class tables" (⚑ after D128); picked "Cantrips, Spells", "Skills, Expertise", "Options, Masteries" (not "Feat, Subclass too"); Prepared: "Yes, 2024 only (Recommended)".
+  *Rejected:* counts on `Feat` and `Subclass` (always one pick; the warning colour already marks an empty line); no `Prepared` count (leaves out the note's "spells to prepare"); a 2014 `Prepared` count (needs the modifier: checker work, D66).
+  *Enforced by:* `site/test/ghost.test.ts`.
+
+- **D130 — The ghost reads `· 2 of 3` (picks on the line, of the count), in faint mono after the value, aligned per level block: the block's ghosts start one column, two past its longest counted line; a line too long for the pane keeps its ghost right after its value. DECIDED (2026-11-17).** It lives in the editor's highlight layer only: zero width in the layout, so it never wraps a line, moves the caret, or enters the text, a copy or the paste.
+  *Raw note:* picked "After the value (Recommended)" with the aligned preview, then "Aligned per block (Recommended)".
+  *Rejected:* a right-margin column (sits on top of a long line's text); "remaining only" (`· 2 more`: hides the total, silent on a full line); ragged, one space after each value.
+
+- **D131 — The ghost shows on every counted line, short, met or over, in the editor only: never on the share view, the guide or any page outside the editor. DECIDED (2026-11-17).** A line the class owes nothing for at that level shows no ghost while empty, and the over form (`· 1 of 0`) once it has picks.
+  *Raw note:* "Always, but maybe not when sharing/viewing outside of the editor"; zero owed: "No ghost while empty".
+  *Rejected:* hidden once met (a met line and an uncounted line look alike); only on the caret's line (can't scan the build); `· none at this level` on an empty zero-owed line; no ghost at all on zero-owed lines.
+
+- **D132 — Over the count is a quiet ghost note, never a problem: `· 4 of 3` in the same faint tone with a small mark; nothing in Problems, never blocks Save. DECIDED (2026-11-17).** No checker on the site in v1 (D66), and a DM boon is fine.
+  *Raw note:* picked "Quiet ghost note (Recommended)".
+  *Rejected:* an info line in Problems as well (checker work, D66); no mark at all.
+
+- **D133 — The ghost counts are generated with the presets from the same SRD slot table (`site/scripts/presets.mjs` → `site/src/presets.ts`): numbers and key names only. DECIDED (2026-11-17).** Amends D125's "key names only" for the generated file: it now carries the per-class-level counts too (D125 already lists them as what the subset holds). No new data leaves the repo.
+  *Mechanism:* settled by evidence (D125, the subset's contents), stated in the interview's report, not asked.
+  *Rejected:* bundling the checker and the slot table on the site (D66; the table is 466 KB); a second generated file (two copies of one table).
+
+- **D134 — Ghost review: the ghost is a small sans chip that reads `2/3`; over the count, an amber alert icon after the numbers; while any ghost shows, both editor layers keep an 8-character lane on the right. DECIDED (2026-11-17).** Amends D130 (`· 2 of 3` in faint mono) and D132 (`+1` as the over mark). The chip is 11px IBM Plex Sans in `--mute` on `--chip`, so it never reads as text of the paste; the padding that aligns a block stays mono. The lane keeps a long line's ghost from being cut at the edge; a paste with no ghost has the full width.
+  *Raw note:* round 1: "instead of 0 of 3, we can keep it short as 0/3 · for extra picks, no need to add +1, perhaps we add a subtle alert icon or subtle color · the current style and color makes them seem like text that actually prints, just like the headers"; lane: picked A (lane) over B (no lane, clipped); round 2: picked B (chip) over A (plain sans), "Move the alert icon after the numbers."
+  *Rejected:* mono text in the source-code grey (reads as printed text); `· 2 of 3`; `+1`; a plain sans tag without the chip; the icon before the numbers; no lane (ghosts cut at the right edge on long lines).
+  *Enforced by:* `site/test/ghost.test.ts` (markup), `site/test/contrast.test.ts` (`err` on `chip`, 3:1 for the icon).
