@@ -236,7 +236,7 @@ test("view, HEAD: same status and headers, no body", async () => {
 test("form: GET / is the empty form; ?from= pre-fills it; a missing id says so", async () => {
   const env = makeEnv();
   const blank = await (await call(env, "GET", "/")).text();
-  assert.ok(blank.includes(`<form class="pform stack" method="post" action="/" data-example="1">`));
+  assert.ok(blank.includes(`<form class="pform stack" method="post" action="/" data-start="1">`));
   assert.ok(blank.includes(`name="paste"`));
   const id = await saveForm(env, { title: "Vice", author: "ash", paste: VICE });
   const pre = await (await call(env, "GET", `/?from=${id}`)).text();

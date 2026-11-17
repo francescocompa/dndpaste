@@ -1,5 +1,5 @@
 /**
- * `/guide` (D99): how a paste is laid out, one annotated example (the form's "Start from an example"), and the key
+ * `/guide` (D99): how a paste is laid out, one annotated example, and the key
  * table built from the library's profile table (`KEYS`) when the Worker is bundled, so it cannot drift from the
  * parser. SPEC.md stays the authority and the page links it. Copy is dry and plain (D88 c, /humanize). Names only,
  * never rules text (content boundary). No inline scripts or styles (CSP); reads the same without JavaScript.
@@ -44,7 +44,7 @@ export function guidePage(): string {
   const main = `<div class="prose gd"><h1>Format guide</h1>
 <p>A dndpaste is a character build written as plain text. Each line records a choice the player made. This page shows how the lines fit together, with one example build. The ${spec("", "specification")} has the full rules. Where this page and the specification differ, the specification is correct.</p>
 <h2 id="example">The example</h2>
-<p>Vesk is a level 5 character: one level in Fighter, then four in Warlock. To open this build in the editor, start a <a href="/">new paste</a> and choose Start from an example.</p>
+<p>Vesk is a level 5 character: one level in Fighter, then four in Warlock. To start your own, open a <a href="/">new paste</a> and use Start a build. It writes the lines your classes need, ready for you to fill in.</p>
 ${code(EXAMPLE, "The example build", true)}
 <h2 id="header">The header</h2>
 ${code(ex.header, "The header of the example")}
