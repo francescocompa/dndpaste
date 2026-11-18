@@ -27,7 +27,7 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
 - `FORMAT-UPDATES.md`: a DRAFT policy for format changes (⚑ under D113).
 
 ### Migrating from 0.7
-Readers need nothing: 0.7 keys read until 1.0. Writers switch line by line:
+Readers need nothing: 0.7 keys keep reading for as long as `Paste: 1` (D142; was "until 1.0"). Writers switch line by line:
 
 | 0.7 | 0.8 |
 |---|---|
