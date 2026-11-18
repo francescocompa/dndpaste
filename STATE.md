@@ -6,14 +6,13 @@
   and as the favicon, D148): SRD licence check closed (D141), aliases never retire
   within `Paste: 1` and `FORMAT-UPDATES.md` decided (D142–D145), feedback via GitHub Issues + "Send feedback" on
   `/about` and `/guide` (D146, D147). Library 179 + site 214 tests pass. Showcase idea logged as O5.
-  GitHub: `origin/main` at e339b61; later commits, `v0.7.0` and `v0.8.0` not pushed; `v0.8.0` not tagged.
-- **Single next action:** the launch: his tag + push, a GitHub release for v0.8.0 (D145), a soft round with his table, then r/3d6, then r/onednd (check each
+  GitHub: main, `v0.7.0`, `v0.8.0` pushed; release v0.8.0 published (2026-11-18); repo description, homepage, topics set.
+- **Single next action:** the launch: a soft round with his table, then r/3d6, then r/onednd (check each
   sub's self-promotion rule; skip r/dnd).
-- **Manual for Francesco:** ① tag `v0.8.0` on 423ac7b (D57), push `main`, `v0.7.0`, `v0.8.0`;
-  ② create the v0.8.0 GitHub release with the CHANGELOG's Migrating list (D145); ③ archive the feedback-plumbing,
-  logo-deploy, T3.9 and build-stamp sessions (all merged); ④ point the Zen Browser backup outside Google Drive (it refilled the
-  disk via Drive's lost_and_found; memory `mac-disk-worktrees`); ⑤ the Notion "Character Ideas" defects, if you care
-  to; ⑥ ⚑ Spellfire Spark / Fey Sentinel ability pick (homebrew); ⑦ the homebrew merge needs a real homebrew file.
+- **Manual for Francesco:** ① save a real build on the site for the r/3d6 draft (`.claude/drafts/reddit-3d6.md`, `[BUILD LINK]`); check the sub's rules; ② archive the feedback-plumbing,
+  logo-deploy, T3.9 and build-stamp sessions (all merged); ③ point the Zen Browser backup outside Google Drive (it refilled the
+  disk via Drive's lost_and_found; memory `mac-disk-worktrees`); ④ the Notion "Character Ideas" defects, if you care
+  to; ⑤ ⚑ Spellfire Spark / Fey Sentinel ability pick (homebrew); ⑥ the homebrew merge needs a real homebrew file.
 
 Working set: none
 
