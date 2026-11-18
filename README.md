@@ -1,5 +1,11 @@
 # dndpaste
 
+- **Live site:** <https://dndpaste.fcomfy.workers.dev>
+- **Status:** the format is 0.x and can still change. A paste you write today keeps reading:
+  within `Paste: 1`, an old key name stays as an alias and is never removed.
+- **Feedback:** [open an issue](https://github.com/francescocompa/dndpaste/issues/new/choose)
+  for a build you can't write or a paste that reads wrong.
+
 A Pokepaste-style plain-text format for D&D 5e character builds, plus its reference parser
 and canonical emitter. A paste replays a build through its meaningful choice points **by
 reference only** — names and optional 5etools source codes, never rules text. Sparse pastes

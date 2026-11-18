@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Live site
+    url: https://dndpaste.fcomfy.workers.dev
+    about: Write a build and share it with a short link.
+  - name: Format specification
+    url: https://github.com/francescocompa/dndpaste/blob/main/SPEC.md
+    about: The full rules of the format. Read it to check how a line should parse.
