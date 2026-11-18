@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.8 (draft, 2026-11-16) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113.
+**Version:** 0.8 (2026-11-16, released with library 0.8.0) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a

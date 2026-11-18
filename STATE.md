@@ -24,7 +24,7 @@ Spawned: none
 - **Site:** scope D65–D74, D90–D116, look D80–D89, brief `SITE.md`. Free workers.dev with a canonical-origin redirect
   (D70); no checker in v1 (D66). Book codes: `node site/scripts/books.mjs` by hand (D115).
 - **Follow-ups (post-launch):** a real logo to replace the temp one (D148); checker counts 2024 origin languages as extras; some book titles raw from data
-  ("Project_Lamordia"); no sort by Type at phone width; `package-lock.json` still says 0.3.0.
+  ("Project_Lamordia"); no sort by Type at phone width.
 - **Gotchas:** On a turn a child's report started, the app
   refuses `start_session`: propose a card; briefs `cd` into the worktree. Handover notes:
   `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`. Google Drive hung reading
