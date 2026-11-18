@@ -2,7 +2,7 @@
 
 ## TL;DR (2026-11-18 · main d9bf405 + this commit · read 131k)
 - **State:** M3 live at `https://dndpaste.fcomfy.workers.dev` (D117, D118). Launch prep for a
-  community feedback round is done and **deployed** (cac5fdc, version b8b2afa4, 2026-11-18, with the temp logo in the header
+  community feedback round is done and **deployed** (2381df0, version c5b4ebca, 2026-11-18; favicon URL versioned `?v=2`, with the temp logo in the header
   and as the favicon, D148): SRD licence check closed (D141), aliases never retire
   within `Paste: 1` and `FORMAT-UPDATES.md` decided (D142–D145), feedback via GitHub Issues + "Send feedback" on
   `/about` and `/guide` (D146, D147). Library 179 + site 214 tests pass. Showcase idea logged as O5.
