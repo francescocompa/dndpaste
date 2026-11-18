@@ -8,6 +8,7 @@ import { KEYS } from "../../src/dndpaste.ts";
 import { highlightRows } from "./client/highlight.ts";
 import { EXAMPLE } from "./example.ts";
 import { KEY_HOLDS, TYPE_LABEL, whereLabel } from "./keydocs.ts";
+import { FEEDBACK_LINE, RELEASES_URL } from "./links.ts";
 import { layout } from "./pages.ts";
 import { esc } from "./render.ts";
 
@@ -82,6 +83,9 @@ ${code(ex.levels, "The level blocks of the example")}
 <p>Some keys were renamed in version 0.8 of the format. The old keys still work until version 1: ${c("ASI")}, ${c("Ability")}, ${c("Fighting Style")}, ${c("Equipment")} and ${c("Items")}. The editor shows the warning W005, and Tidy writes the new form.</p>
 ${keyTable()}
 <h2 id="problems">Problems</h2>
-<p>The editor checks the text as you type and lists each problem with its line. A code that starts with E is an error: fix it before you save. A code that starts with W is a warning: the build saves as it is. ${spec("#7-diagnostics", "Section 7 of the specification")} lists every code.</p></div>`;
+<p>The editor checks the text as you type and lists each problem with its line. A code that starts with E is an error: fix it before you save. A code that starts with W is a warning: the build saves as it is. ${spec("#7-diagnostics", "Section 7 of the specification")} lists every code.</p>
+<h2 id="changes">Format changes</h2>
+<p>The format can still change. Each <a href="${RELEASES_URL}">release</a> lists what changed and how to update a build.</p>
+${FEEDBACK_LINE}</div>`;
   return layout({ title: "Format guide · dndpaste", main, page: "guide" });
 }

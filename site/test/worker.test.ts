@@ -290,8 +290,9 @@ test("pages: no inline scripts, inline styles or third-party URLs", async () => 
     const scripts = [...page.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[0]);
     const want = [`<script src="/assets/site.js"></script>`, ...(p === "/" ? [`<script type="module" src="/assets/form.js"></script>`] : [])];
     assert.deepEqual(scripts, want, p);
-    // The one outside address is Post to Reddit's link (D119), a link the reader follows, never a resource.
-    assert.ok(!/style=|<style|fonts\.googleapis|https?:\/\/(?!dndpaste\.test|www\.reddit\.com\/submit\?url=https%3A%2F%2Fdndpaste\.test%2F)/i.test(page), p);
+    // Outside addresses are links the reader follows, never resources: Post to Reddit (D119) and, on /about,
+    // the feedback chooser (D147).
+    assert.ok(!/style=|<style|fonts\.googleapis|https?:\/\/(?!dndpaste\.test|www\.reddit\.com\/submit\?url=https%3A%2F%2Fdndpaste\.test%2F|github\.com\/francescocompa\/dndpaste\/issues\/new\/choose")/i.test(page), p);
   }
 });
 

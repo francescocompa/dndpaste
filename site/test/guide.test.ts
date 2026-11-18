@@ -6,6 +6,7 @@ import { esc } from "../src/render.ts";
 import { CSP } from "../src/app.ts";
 import { EXAMPLE, GUIDE_LINK } from "../src/example.ts";
 import { SPEC_URL, exampleParts, keyTable } from "../src/guide.ts";
+import { FEEDBACK_LINE, FEEDBACK_URL, RELEASES_URL } from "../src/links.ts";
 import { KEY_HOLDS, MARKED_FEAT, SCOPE_LABEL, keyDoc, whereLabel } from "../src/keydocs.ts";
 import { BOOKS } from "../src/books.ts";
 import { matches, sortRows, typeLabel } from "../src/client/codes.ts";
@@ -128,7 +129,7 @@ test("/guide: 200 with the site's headers, the example as written, the key table
   const scripts = [...page.matchAll(/<script\b[^>]*>[\s\S]*?<\/script>/gi)].map((m) => m[0]);
   assert.deepEqual(scripts, [`<script src="/assets/site.js"></script>`]);
   assert.ok(!/style=|<style/i.test(page));
-  const hosts = [...page.matchAll(/https?:\/\/[^"'\s<]+/g)].map((m) => m[0]).filter((u) => !u.startsWith(SPEC_URL));
+  const hosts = [...page.matchAll(/https?:\/\/[^"'\s<]+/g)].map((m) => m[0]).filter((u) => !u.startsWith(SPEC_URL) && u !== FEEDBACK_URL && u !== RELEASES_URL);
   assert.deepEqual(hosts, []);
   assert.ok(!/—|–/.test(page.replace(/<title>.*<\/title>/, "")), "no dashes in the guide copy (D88 c)");
   assert.ok(!/;\s/.test(textOf(page.replace(/<code>[\s\S]*?<\/code>|<figure[\s\S]*?<\/figure>/g, ""))), "no semicolons in the prose (humanize)");
@@ -159,4 +160,24 @@ test("Start a build: offered only on a new, empty form (not edit, not Duplicate 
   assert.equal(await has("GET", "/?from=nothing0000"), false, "Duplicate and edit of a missing id");
   assert.equal(await has("GET", `/${id}/edit`), false, "edit (D97)");
   assert.equal(await has("POST", "/", form({ paste: "Classes Warlock" })), false, "a refused save keeps its text");
+});
+
+test("feedback (D147) and format changes (D145): /about and /guide link the issue chooser, /guide links the releases", async () => {
+  const env = makeEnv();
+  assert.equal(FEEDBACK_URL, "https://github.com/francescocompa/dndpaste/issues/new/choose");
+  assert.equal(RELEASES_URL, "https://github.com/francescocompa/dndpaste/releases");
+  const about = await (await call(env, "GET", "/about")).text();
+  const guide = await (await call(env, "GET", "/guide")).text();
+  for (const [name, page] of [["/about", about], ["/guide", guide]]) {
+    assert.equal(page.split(FEEDBACK_LINE).length - 1, 1, `${name}: one feedback line`);
+    assert.ok(page.includes(`<a href="${FEEDBACK_URL}">Send feedback</a>`), name);
+  }
+  assert.ok(guide.includes(`<h2 id="changes">Format changes</h2>`));
+  assert.ok(guide.includes(`<a href="${RELEASES_URL}">release</a>`));
+  assert.ok(!about.includes(RELEASES_URL), "the releases link lives on /guide only");
+  // The foot stays the version line only (D137): no feedback link on any other page.
+  for (const p of ["/", "/codes", "/nope"]) {
+    assert.ok(!(await (await call(env, "GET", p)).text()).includes(FEEDBACK_URL), p);
+  }
+  assert.ok(!/—|–/.test(textOf(FEEDBACK_LINE)) && !/;\s/.test(textOf(FEEDBACK_LINE)), "plain copy (D88 c)");
 });

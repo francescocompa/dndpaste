@@ -1,0 +1,29 @@
+name: Can't write my build
+description: The format has no way to say a choice your character made.
+title: "Can't write: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when a build has a choice that dndpaste can't record. Write names only. Don't paste rules text.
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried to express
+      description: The choice, and where it comes from (class, species, feat, item, homebrew).
+    validations:
+      required: true
+  - type: textarea
+    id: paste
+    attributes:
+      label: The paste you wrote
+      description: Your best try. Leave this empty if you didn't know where to start.
+      render: text
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: How you think the line should look, or what the site should do with it.
+    validations:
+      required: true

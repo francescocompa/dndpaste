@@ -1,0 +1,38 @@
+name: Parse bug
+description: The site or the library reads a paste wrong, or shows the wrong problem.
+title: "Parse bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when dndpaste reads a paste differently from the spec. Write names only. Don't paste rules text.
+  - type: textarea
+    id: paste
+    attributes:
+      label: The paste
+      description: The shortest paste that shows the problem. A share link works too.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: What happened
+      description: The problem codes, the wrong output, or a screenshot.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Site or library version
+      description: The site shows its version at the foot of each page, for example v0.8.0. For the library, give the npm version or the commit.
+      placeholder: v0.8.0
+    validations:
+      required: true

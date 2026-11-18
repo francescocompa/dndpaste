@@ -4,6 +4,7 @@ import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { BUILD } from "./build.gen.ts";
 import { stampText } from "./client/update.ts";
 import { GUIDE_LINK } from "./example.ts";
+import { FEEDBACK_LINE } from "./links.ts";
 import { esc, icon, renderPaste } from "./render.ts";
 import { citedBooks, redditSubmitUrl } from "./shareimg.ts";
 import type { CitedBook } from "./shareimg.ts";
@@ -223,6 +224,8 @@ export function aboutPage(): string {
 <p>These show the latest revision. To keep one revision, put its number in the address: <code>/&lt;id&gt;/2/raw</code>, <code>/&lt;id&gt;/2/canon</code>, <code>/&lt;id&gt;/2/json</code>. A revision never changes.</p>
 <h2>Reports</h2>
 <p>Under each build there is a line: "Something wrong with this build? Report it". Give a reason, and a contact if you want an answer. The report goes to the site&#39;s maintainer and never shows on the page. The maintainer can remove a build that copies rules text or is spam.</p>
+<h2>Feedback</h2>
+${FEEDBACK_LINE}
 <p>dndpaste is not affiliated with Wizards of the Coast.</p></div>`;
   return layout({ title: "About · dndpaste", main, page: "about" });
 }
