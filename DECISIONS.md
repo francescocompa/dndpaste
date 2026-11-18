@@ -426,7 +426,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* pin "Empty lines shouldn't necessarily be an error"; picked "'Not chosen yet', a warning (Recommended)".
   *Rejected:* silently dropping it (Tidy erases the to-do); keeping E006.
 
-- **D113 — 0.8 reads 0.7 keys with a "renamed key" warning and writes the 0.8 form. DECIDED (2026-11-16).** Aliases `ASI`, `Ability`, `Fighting Style`, `Equipment`, `Items` stay until 1.0. An old `Ability` line that the parser can't move into its owner's details without data stays as written, with the warning. character-forge and the 0.7 fixtures keep working.
+- **D113 — 0.8 reads 0.7 keys with a "renamed key" warning and writes the 0.8 form. DECIDED (2026-11-16); AMENDED → D142 (aliases stay for as long as `Paste: 1`, not until 1.0).** Aliases `ASI`, `Ability`, `Fighting Style`, `Equipment`, `Items` stay ~~until 1.0~~ for as long as `Paste: 1`. An old `Ability` line that the parser can't move into its owner's details without data stays as written, with the warning. character-forge and the 0.7 fixtures keep working.
   *Raw note:* "Read old, write new feels better, unless the cost is too high. In general, we need an action plan for dndpaste format updates."
   *Rejected:* a clean break.
   ⚑ **OPEN (owner: overseer → Francesco, 2026-11-16): a format-update policy** ("an action plan for dndpaste format updates"): how a SPEC change is proposed, aliased, released, announced to consumers and retired. Drafted with the 0.8 build for his read.
@@ -542,7 +542,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 - **D136 — SRD-derived data carries the CC-BY-4.0 attribution in `NOTICE.md`; generated data never records local paths. DECIDED (2026-11-17).** Found by the panel: `data/srd/slots.json` was public with no attribution and with the maintainer's local mirror path in `meta.mirror`. The extract script no longer writes `mirror`; the committed file lost the field (no other change); README links `NOTICE.md`.
   *Raw note:* picked "Fix both now (Recommended)".
   *Rejected:* attribution only; queueing both.
-  *Enforced by:* prose only (no test checks `meta`). ⚑ (overseer → Francesco, 2026-11-17): check the two attribution sentences against WotC's SRD pages; `isSrd` in `scripts/extract-slots.mjs` also counts Basic Rules entities (`basicRules`, `basicRules2024`), which are free but not CC-licensed: names and counts only, but decide whether the committed subset keeps them. The public history still holds the old `meta.mirror` value.
+  *Enforced by:* prose only (no test checks `meta`). ⚑ (overseer → Francesco, 2026-11-17): ~~check the two attribution sentences against WotC's SRD pages; `isSrd` in `scripts/extract-slots.mjs` also counts Basic Rules entities (`basicRules`, `basicRules2024`), which are free but not CC-licensed: names and counts only, but decide whether the committed subset keeps them.~~ Closed by D141. The public history still holds the old `meta.mirror` value.
 
 ## Build stamp and update notice (2026-11-17) — mechanism: AskUserQuestion, 2 rounds (6 questions) + /ui-review, 2 rounds, worker session on `claude/build-stamp` · Landed (D137–D140): merged 9d5925e, deployed f80cf721
 
@@ -565,3 +565,44 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* picked "A new version is out (Recommended)"; review round 1: "Remove the second line (your text stays)".
   *Rejected:* a second line "Your text stays." on the form; "dndpaste was updated. Reload to use the new version."; "New version available".
   *Enforced by:* `site/test/update.test.ts` (copy, icons not glyphs).
+
+## Community launch prep (2026-11-17) — mechanism: /start, AskUserQuestion, 3 rounds (8 questions), overseer · Landed: D141–D144 docs 2026-11-18 (handoff commit); D145–D147 merged 4c34e26, not deployed
+
+- **O5 — A community showcase: a public list of builds with likes, filters and search by build element (class, species, feats, spells). OPEN (2026-11-17), revisit after a few hundred shares.** Francesco's idea, "not necessarily now". Constraints found at /start, to carry into its design: (a) only builds their author opts into, never retroactively: `/about` promises "anyone with the link", and listing and search are v1 non-goals in `SITE.md`; (b) the index and likes go in D1 (SQLite), not KV: the free KV tier has about 1k writes a day, which saves already use; (c) likes with no accounts need anti-abuse (per browser and per IP, D91-style), and stay a soft signal; (d) public listing makes the site a curator, so a takedown must also leave the index and reports need a regular read (D71); (e) facets come free from `parse`, which already gives classes, species, feats and spells as data.
+  *Raw note:* "we should consider a community showcase page with all builds created, a way to live likes, filter and search by specific elements of the build etc. not necessarily now though"; picked "Log as OPEN, later (Recommended)".
+  *Rejected:* an opt-in "list publicly" checkbox from launch (commits the site to a showcase before there is volume to fill one); not recording it.
+
+- **D141 — The committed SRD subset keeps its 36 Basic-Rules-only names; `NOTICE.md` says the CC-BY licence doesn't cover them. DECIDED (2026-11-17); closes D136's ⚑.** The two attribution sentences match WotC's published SRD 5.1 and 5.2 wording (dndbeyond.com/srd now lists 5.2.1 as the latest, each version licensed on its own; 5etools flags `srd52`, so the 5.2 sentence stays). The 36 (`basicRules`/`basicRules2024` without `srd`/`srd52`): 13 PHB (subraces such as Wood Elf, Mountain Dwarf, Stout Halfling; backgrounds Criminal, Folk Hero, Noble, Sage, Soldier), 1 DMG, 22 XPHB item categories. Names and counts only.
+  *Raw note:* "Keep, add as a note. Ideally, for the name and counts only, we should parse the full 5etools library, is the name enough to break cc-by?"
+  *Rejected:* dropping the 36 (loses ghost counts on common 2014 picks for no real gain). The full-library question is answered in chat, not decided: CC-BY doesn't apply to non-SRD names at all; the risks are the EU database right on a substantial extraction and a GitHub takedown, and the content boundary in `CLAUDE.md` stands until he says otherwise. D66's "check against data" is the planned route to full coverage.
+  *Enforced by:* prose only (`NOTICE.md`).
+
+- **D142 — Aliases never retire within `Paste: 1`; 1.0 breaks nothing. DECIDED (2026-11-17); amends D113 ("until 1.0").** A paste written today keeps reading in every 1.x library. Retirement can only be opened by a `Paste: 2` major. SPEC §2.6 and §5.6, `FORMAT-UPDATES.md` §3 and §6, the alias comment in `src/dndpaste.ts`. Makes the launch promise simple: "a paste you write today keeps working".
+  *Raw note:* "Ideally never retire, we can open it up at paste: 2."
+  *Rejected:* retiring at 1.0 as D113 said (breaks every share saved on the public site); retiring at `Paste: 2` by default (he wants them kept; `Paste: 2` only opens the question).
+  *Enforced by:* `fixtures/v0.7/` and its conversion test.
+
+- **D143 — An alias lives at least two minor releases and at least six months, whichever is later, before a `Paste: 2` may retire it. DECIDED (2026-11-17).** `FORMAT-UPDATES.md` §6.
+  *Raw note:* picked "2 minors and 6 months (Recommended)".
+  *Rejected:* releases only (a burst of releases could shorten it to weeks); time only.
+  *Enforced by:* prose only.
+
+- **D144 — On the site, a share with old keys reads quietly; the edit form shows `W005` and Tidy rewrites it. DECIDED (2026-11-17).** The view renders the AST, so readers see the new form; the Text view keeps what the author wrote. This is how the site already behaves (diagnostics show only on the form), so nothing is built.
+  *Raw note:* picked "Quiet view, warn on edit (Recommended)".
+  *Rejected:* a note on the view page (noise for readers who can't fix it); no warning anywhere (authors never learn the new keys).
+  *Enforced by:* the form's diagnostics path (`site/src/pages.ts`).
+
+- **D145 — Format changes reach the community through a GitHub release per tag (with the CHANGELOG's Migrating list) and a "Format changes" line on `/guide` that links the releases. DECIDED (2026-11-17); closes D113's ⚑ (the format-update policy, `FORMAT-UPDATES.md`, now decided).** Crossing notes to his own apps stay as they are.
+  *Raw note:* picked "GitHub release + guide line (Recommended)".
+  *Rejected:* a GitHub release only (site users never see it); crossing notes only.
+  *Enforced by:* prose only (`FORMAT-UPDATES.md` §5).
+
+- **D146 — Launch feedback goes to GitHub Issues, with two templates: "Can't write my build" and "Parse bug". DECIDED (2026-11-17).** The README gets a short header: the live site link, "0.x: the format may still change, and a paste you write today keeps reading (D142)", and the feedback route. Reddit threads cover people with no GitHub account.
+  *Raw note:* picked "Issues + templates (Recommended)".
+  *Rejected:* GitHub Discussions as well (one more place to watch); a feedback form on the site (private, read with wrangler, more to build).
+  *Enforced by:* `.github/ISSUE_TEMPLATE/` (d2d9472).
+
+- **D147 — The site's "Send feedback" link sits on `/about` and `/guide`; the page foot stays the version line only. DECIDED (2026-11-17).** D137 and D89 c hold.
+  *Raw note:* picked "/about and /guide (Recommended)".
+  *Rejected:* a link in the foot beside the version (amends D137 for a link most visitors won't need).
+  *Enforced by:* `site/test/guide.test.ts`, `site/test/worker.test.ts` (ca548b0).

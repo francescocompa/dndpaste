@@ -13,5 +13,9 @@ This work includes material from the System Reference Document 5.2 ("SRD 5.2") b
 at https://www.dndbeyond.com/srd. The SRD 5.2 is licensed under the Creative Commons Attribution 4.0 International
 License, available at https://creativecommons.org/licenses/by/4.0/legalcode.
 
+A few names and counts in `data/srd/slots.json` (36 entries: some 2014 subraces and backgrounds, and some 2024 item
+categories) come from the free Basic Rules, not from either SRD, so the licence above does not cover them. They are
+names and numbers only, used to refer to the published entities.
+
 dndpaste is unofficial fan content. It is not approved or endorsed by Wizards of the Coast. Dungeons & Dragons and
 D&D are trademarks of Wizards of the Coast LLC.

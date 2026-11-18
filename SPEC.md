@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.8 (draft, 2026-11-16) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10). 0.7 keys are still read, with a warning, until 1.0 (§2.6) · Decisions: `DECISIONS.md` D1–D113.
+**Version:** 0.8 (draft, 2026-11-16) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -138,8 +138,8 @@ header scope is an **unplaced** choice.
 
 ### 2.6 Renamed keys
 
-A minor version may rename or merge keys. The parser then reads the old key as an **alias** until
-the next major version: it reports `W005` ("renamed key"), puts the line where its new form goes
+A minor version may rename or merge keys. The parser then reads the old key as an **alias** for as
+long as the major version (`Paste`) stays the same, 1.0 included (D142): it reports `W005` ("renamed key"), puts the line where its new form goes
 in the AST, and `emit` writes the new form. A paste written for the older minor version keeps
 working. The aliases of 0.8 are listed in §5.6. How a format change is proposed, released and
 retired: `FORMAT-UPDATES.md`.
@@ -382,7 +382,7 @@ it as an ordinary detail group and the checker, which knows what asks an ability
 Anything that needs data — folding a redundant `Prepared`, dropping a default, moving a
 species skill written in H into the Species block — is **normalise**, in the checker (D30).
 
-### 5.6 0.7 keys (aliases until 1.0)
+### 5.6 0.7 keys (aliases for as long as `Paste: 1`)
 
 Read with `W005` in their 0.7 scopes (`E005` elsewhere), written in their 0.8 form (D113):
 

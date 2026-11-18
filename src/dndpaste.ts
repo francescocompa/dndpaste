@@ -95,7 +95,7 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Gear", type: "items", scopes: ["H", "B", "L"] },
 ];
 
-/** SPEC 0.7 keys, read until 1.0 with a W005 "renamed key" warning and written in their 0.8 form (D113). */
+/** SPEC 0.7 keys, read for as long as `Paste: 1` (D142) with a W005 "renamed key" warning and written in their 0.8 form (D113). */
 export const LEGACY_KEYS: readonly KeyDef[] = [
   { key: "ASI", type: "asi", scopes: ["H", "S", "B", "L"], renamed: "Scores: +2 CHA in a Species or Background block; Feat: Ability Score Improvement [+2 CHA] at a level" },
   { key: "Ability", type: "item", scopes: ["S", "B", "L"], renamed: "the first detail of the Feat, Feature or Options that asks it: Feature: Elven Lineage [WIS; Wood]" },

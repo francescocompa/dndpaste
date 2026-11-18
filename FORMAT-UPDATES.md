@@ -1,8 +1,6 @@
 # Format updates — how the dndpaste format changes
 
-> **DRAFT for Francesco's read (⚑ under D113, 2026-11-16).** Nothing here is decided. It writes
-> down what the 0.8 release did, as a plan for the next format change. The open questions are at
-> the end.
+> **Decided (D142–D145, 2026-11-17).** Written from what the 0.8 release did, as the plan for every later format change.
 
 The format is the contract between apps. A change to it reaches every app that reads or writes
 pastes, and every paste already saved. This page says how a change goes from an idea to a release,
@@ -31,7 +29,8 @@ follows the library's version rules alone.
 
 ## 3. Alias
 
-A renamed or merged key stays readable until the next major version (SPEC §2.6):
+A renamed or merged key stays readable for as long as `Paste: 1`, 1.0 included (SPEC §2.6, D142).
+A paste written today keeps reading:
 
 - The parser reads the old key with `W005` and puts the line where its new form goes.
 - `emit` writes the new form, so a stored paste upgrades the first time it goes through emit.
@@ -54,12 +53,16 @@ Each consumer moves in its own repository, under its own decisions (a D64 crossi
 - **character-forge** and **my-spellbook** copy the tagged build. A reader gets the aliases
   free. A writer switches to the new keys when it is ready: until then its old keys still read.
 - **The share site** bumps `RENDER_VERSION`, so saved shares re-render with the new library.
+- **Everyone else** (D145): each tag gets a GitHub release carrying the CHANGELOG's Migrating list,
+  and `/guide` has a "Format changes" line that links the releases.
 - The CHANGELOG's Migrating list is the one source. A crossing note cites the tag and that list.
   It does not repeat the rules.
 
 ## 6. Retire
 
-Aliases go at the next major version:
+Within `Paste: 1`, aliases never go (D142). 1.0 declares the format stable and breaks nothing.
+Retirement can only be opened by a `Paste: 2`, and then only for an alias that has lived at least two
+minor releases **and** at least six months, whichever is later (D143). If that happens:
 
 - One minor release before the major, each `W005` message names the version that removes it.
 - The major release turns each removed alias into `E002` (unknown key) and lists it in the
@@ -69,10 +72,8 @@ Aliases go at the next major version:
 
 ## Open questions
 
-1. Is the retirement 1.0 (the first stable release) or a `Paste: 2` major? D113 says "until 1.0".
-   That would make 1.0 a breaking release for 0.x writers.
-2. Is the time between alias and retirement counted in releases or in time? An example would be
-   "at least two minors" or "at least six months".
-3. Do consumers need a notice beyond the crossing notes, such as a GitHub release, or a line on
-   the site's guide?
-4. Should the site warn on a saved share that still uses old keys, or quietly show its new form?
+1. ~~Is the retirement 1.0 or a `Paste: 2` major?~~ Neither by default: never within `Paste: 1` → D142.
+2. ~~Releases or time?~~ Both, whichever is later: two minors and six months → D143.
+3. ~~A notice beyond crossing notes?~~ A GitHub release per tag with the Migrating list, and a
+   "Format changes" line on `/guide` → D145.
+4. ~~Warn on old keys on the site?~~ Quiet on the view, `W005` in the edit form, Tidy rewrites → D144.
