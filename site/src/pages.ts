@@ -20,6 +20,14 @@ export function fmtDate(iso: string): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+/** The temp logo (Francesco, 2026-11-18): the paths of public/assets/logo.svg and favicon.svg, inline so it takes
+ * currentColor and follows the theme. A test keeps the three copies on one geometry. */
+export const LOGO_PATHS = [
+  "M355.455,737.749L122.999,737.749L122.999,123L409.999,123L355.455,205L205,205L205,655.749L347.688,655.749L347.688,450.749L313.315,450.749L232,328.504L355.684,328.504L409.999,410.158L464.315,328.504L587.998,328.504L506.685,450.749L471.374,450.749L471.374,655.749L615,655.749L615,205L464.546,205L409.999,123L696.999,123L696.999,737.749L464.546,737.749L409.999,655.749L355.455,737.749Z",
+  "M-0.001,574L-0.001,0.001L409.999,0.001L409.999,82.001L82,82.001L82,574L-0.001,574Z",
+];
+export const LOGO = `<svg class="logo" viewBox="0 0 697 738" fill="currentColor" fill-rule="evenodd" aria-hidden="true" focusable="false">${LOGO_PATHS.map((d) => `<path d="${d}"/>`).join("")}</svg>`;
+
 interface Layout { title: string; main: string; head?: string; page: string }
 
 /** D137: the version on every page, one muted line under the content (stamp.mjs; the commit is for the update check). */
@@ -44,7 +52,7 @@ export function layout(o: Layout): string {
 ${o.head ?? ""}</head>
 <body class="${esc(o.page)}">
 <div class="wrap">
-<header class="top"><a class="wm" href="/">dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New paste</a><a class="nav" href="/guide">Guide</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("contrast")}Display</button></header>
+<header class="top"><a class="wm" href="/">${LOGO}dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New paste</a><a class="nav" href="/guide">Guide</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("contrast")}<span class="dl">Display</span></button></header>
 <main>
 ${o.main}
 </main>

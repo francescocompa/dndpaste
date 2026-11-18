@@ -69,6 +69,7 @@ svg.i { width: 15px; height: 15px; flex: none; display: block; fill: none; strok
 .top { display: flex; align-items: baseline; gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--rule); font-family: var(--sans); }
 .top .wm { font-weight: 600; letter-spacing: -0.02em; font-size: 1.1em; margin-right: auto; text-decoration: none; }
 .top .wm .dot { color: var(--acc); }
+.top .wm .logo { height: 1.35em; width: 1.275em; vertical-align: -0.3em; margin-right: 0.45em; }
 .top .navs { display: flex; gap: 18px; }
 .top .nav { color: var(--mute); text-decoration: none; white-space: nowrap; }
 .top .nav:hover, .top .wm:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -366,6 +367,12 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .sbfoot .sbadd { color: var(--fg); }
 .sbtot { font-size: 12px; font-variant-numeric: tabular-nums; }
 .sbgo { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-top: 2px; }
+
+/* Narrow phones: the header stays on one line; Display keeps its icon, its label stays for screen readers. */
+@media (max-width: 440px) {
+  .top .dbtn { padding: 4px 6px; }
+  .top .dbtn .dl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 
 /* ---- phone ---- */
 @media (max-width: 600px) {
