@@ -606,3 +606,8 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* picked "/about and /guide (Recommended)".
   *Rejected:* a link in the foot beside the version (amends D137 for a link most visitors won't need).
   *Enforced by:* `site/test/guide.test.ts`, `site/test/worker.test.ts` (ca548b0).
+
+- **D148 — Francesco's temp logo (a back sheet and a front card with a clip notch and a sprout, drawn in Affinity) sits in the site header beside the wordmark and is the SVG favicon. DECIDED (2026-11-18).** Mechanism: he asked "show me the logo in site then deploy"; the logo-deploy worker ran /ui-review, 2 rounds, all approved (header size, phone header on one line with Display as an icon up to 440 px, favicon colour). `currentColor` in the header, so it follows both themes. Temporary until a real mark; the source is `site/public/assets/logo.svg`. Landed: cac5fdc, merged d9bf405, deployed b8b2afa4.
+  *Raw note:* "use this" (his SVG); "show me the logo in site then deploy".
+  *Rejected:* the overseer's traced versions v1–v3 (his own drawing replaced them).
+  *Enforced by:* `site/test/logo.test.ts`.
