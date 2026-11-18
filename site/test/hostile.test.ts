@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { asJson, call, form, makeEnv } from "./helpers.ts";
+import { LOGO } from "../src/pages.ts";
 
 const XSS = [
   `<script>alert(1)</script>`,
@@ -18,7 +19,8 @@ const XSS = [
 const OWN_SCRIPTS = [`<script src="/assets/site.js"></script>`, `<script type="module" src="/assets/form.js"></script>`];
 
 function liveMarkup(html: string): string | null {
-  const page = OWN_SCRIPTS.reduce((h, s) => h.replace(s, ""), html);
+  // The header logo (an inline svg, the site's own, in every page) is allowed exactly as written, once.
+  const page = OWN_SCRIPTS.reduce((h, s) => h.replace(s, ""), html).replace(LOGO, "");
   for (const m of page.matchAll(/<\/?([a-z][a-z0-9-]*)\b([^>]*)>/gi)) {
     const [tag, name, attrs] = m;
     if (/^(script|img|iframe|object|embed|style|base|link)$/i.test(name) && !/^<link rel="(icon|stylesheet|canonical|alternate)"/.test(tag)) return tag;
