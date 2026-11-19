@@ -618,3 +618,20 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* "the problems section can be overwhelming, especially right after starting a preset, with multiple empty line problem mentions"; picked "Separate To-do line (Recommended)".
   *Rejected:* one folded "N lines not chosen yet" row inside Problems (the panel still opens with a warning, the toolbar still counts warnings); hiding preset W004s until the first edit (the list jumps to 19 rows on the first keystroke, and the same text shows different problems by how it was made).
   *Enforced by:* pending (the To choose build).
+
+## Pre-launch form notes (2026-11-19) — mechanism: AskUserQuestion, 1 round (3 questions), overseer
+
+- **D150 — The form remembers the author you last saved with, in this browser, and fills a new build's Author field with it as plain editable text. DECIDED (2026-11-19).** Stored in localStorage beside the other `dndpaste.*` keys, never sent; SITE.md's "What this browser keeps" list gains it. An edit of an existing share keeps that share's author. A draft (D102) keeps its own author.
+  *Raw note:* "the author needs to be stored in the browser so that you don't need to type it again"; picked "Filled in directly (Recommended)".
+  *Rejected:* a ghost that Tab or a tap fills (one extra step on every build; Tab normally moves focus, and phones have no Tab).
+  *Enforced by:* pending.
+
+- **D151 — Name autocomplete in the editor, from the committed SRD subset, before launch, on desktop and phone. DECIDED (2026-11-19); amends D83 (the popup was queued for later).** Suggests names for value keys (spells, feats, items, species and the rest) as you type. It never blocks a name it doesn't know: any book works, and the UI must not suggest otherwise. Names from a visitor's own 5etools data come later, with D66's visitor-data step. The names list counts against the bundle check.
+  *Raw note:* "when writing, could we have an autocomplete, at least from the SRD and possibly later if one connects the 5etools repo"; picked "Before launch, SRD only".
+  *Rejected:* after launch (he wants it in the first impression); desktop only (two layouts that behave differently).
+  *Enforced by:* pending.
+
+- **D152 — One copy pass on the site's functional copy before launch: dry, short, minimal. DECIDED (2026-11-19).** Buttons, labels, the toolbar summary, the phone dock, empty states, error and status messages, menus. A before/after table on a review board, then applied. `/guide` and `/about` prose are out of scope. It runs last, after D149–D151, so it covers their new strings.
+  *Raw note:* "we need one more pass on copy especially functional copy ex. buttons to keep the dry and short, minimal"; picked "Functional copy only (Recommended)".
+  *Rejected:* the whole site including `/guide` and `/about` prose (more to review; the guide reads longer by design).
+  *Enforced by:* pending.
