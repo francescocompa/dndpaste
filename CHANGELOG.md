@@ -2,7 +2,7 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
-## Unreleased
+## 0.9.0 — 2026-11-19
 - **SPEC 0.9** (D180–D185, additions only; a minor version per FORMAT-UPDATES §1). Every 0.8 paste reads
   and emits as before, with no new warning: nothing renames, so there is no alias and no `W005`.
   - Option families get their own keys: `Invocations`, `Metamagic`, `Maneuvers`, `Infusions`,
@@ -47,7 +47,7 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
   of the same edition; a bare name only Unearthed Arcana prints is a warning. Extract: `meta.sourceDates`,
   `meta.settingSources`; `isUaSource` exported from `dndpaste/check`.
 - Site (needed by the site tests, outside the editor): key-table rows for the family keys, and the
-  render kind and marker style for marked and capped keys. `RENDER_VERSION` is 5.
+  render kind and marker style for marked and capped keys. `RENDER_VERSION` is 6 (5 for the family keys, 6 for empty lines left out of the view and the Sources line, D216, D217).
 
 ### Migrating from 0.8
 Readers and writers need nothing: 0.8 pastes keep their meaning and their canonical form. A writer may
