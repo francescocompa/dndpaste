@@ -647,3 +647,16 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Why:* names and indexes carry little risk; a live connection to a mirror WotC has taken down points visitors at infringing material, and most D&D subreddits remove posts that promote it.
   *Rejected:* a "connect 5etools" button or a fetch from a mirror; naming 5etools as a supported source.
   *Enforced by:* prose only (README reworded in this commit).
+
+## Wide user test before the 0.9 release (2026-11-19) — mechanism: AskUserQuestion, 1 round (4 questions), overseer
+
+- **D191 — Before releasing 0.9, a wide user test: agents play four personas and write ~15 builds from Francesco's Obsidian character notes on the release candidate; findings land on a triage board he marks. DECIDED (2026-11-19).**
+  - *Personas:* newcomer on phone (guide only, presets, phone-width editor); optimizer and DM (odd multiclass orders, 2014/2024, homebrew, boons, UA); converter (Open file, paste-in, Tidy); developer (library `parse`/`emit`/`check`, CLI, `/json`).
+  - *Method:* mixed. Most agents work headless and in parallel against the local dev server's endpoints and the library, using only what the site shows. Two personas drive the real editor in the browser pane, desktop and phone, on a sample (serial: one pane).
+  - *Input:* each note from `Compendio/Personaggi` with its ```dndpaste block removed; the block is the answer key, compared by parsed tree (not text), since older keys read as aliases.
+  - *Scale:* ~15 notes sampled across 2014/2024, single class and multiclass, low and level 20, homebrew and UA; about 8 agents. Findings deduped and checked, then a private board he marks (fix now / later / no) → decisions and fix sessions before the D152 copy pass.
+  - *Privacy:* vault content and results stay out of the repo (`.claude/`, untracked); fixtures from it only by name, with his OK.
+  - *When:* on `claude/editor-polish-44bc86` after the 0.9 keys are wired, before the copy pass and the release.
+  *Raw note:* "Before release, I want to plan a wide testing session. The goal is to maneuver agents replicating various types of users, manually trying to fill in dndpaste the assorted builds from my obsidian." Picked all four personas, "Mixed (Recommended)", "The note, paste removed (Recommended)", "~15 sampled, triage board (Recommended)".
+  *Rejected:* all in the browser (serial, several times the cost); all headless (misses the editor UX that most changed); a generated summary or the paste itself as input (tests transcription or typing only); all ~50 notes (about 3x the cost, many repeats); a report without a board.
+  *Enforced by:* prose only (PLAN T3.12).
