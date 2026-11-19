@@ -32,14 +32,18 @@ for (const cd of Object.values(slots.classes)) {
   const counts = [];
   const cast = cd.casting;
   const book = sup.spellbook?.[uid];
-  // Keys this class has a count for (D129). A loadout total the table lacks (masteries without a progression) or
+  // The mastery loadout by class level: the table's progression, else the supplement's fixed count (a class whose
+  // table entry has mastery but no progression: 2024 Paladin, Ranger, Rogue).
+  const fixed = sup.masteryCount?.[uid];
+  const masteries = cd.masteries ?? (fixed ? Array.from({ length: 20 }, () => fixed) : null);
+  // Keys this class has a count for (D129). A loadout total neither file has (masteries without a progression) or
   // that needs the ability modifier (a 2014 prepare count) is unknown, so the editor shows no ghost for it.
   const counted = COUNTED.filter((key) =>
-    key === "Masteries" ? Boolean(cd.masteries) : key === "Prepared" ? cd.source === "XPHB" && cast?.preparedChange === "restLong" && Boolean(cast.prepared) : true);
+    key === "Masteries" ? Boolean(masteries) : key === "Prepared" ? cd.source === "XPHB" && cast?.preparedChange === "restLong" && Boolean(cast.prepared) : true);
   for (let k = 1; k <= 20; k++) {
     const keys = new Set();
-    if (k === 1 && ((cd.masteries && cd.masteries[0]) || cd.hasMastery)) keys.add("Masteries");
-    if (k > 1 && delta(cd.masteries, k) > 0) keys.add("Masteries"); // the loadout grows (D122)
+    if (k === 1 && ((masteries && masteries[0]) || cd.hasMastery)) keys.add("Masteries");
+    if (k > 1 && delta(masteries, k) > 0) keys.add("Masteries"); // the loadout grows (D122)
     if (cd.subclassLevel === k) keys.add("Subclass");
     if (cd.asiLevels.includes(k)) keys.add("Feat");
     if (cd.expertiseLevels.includes(k)) keys.add("Expertise");
@@ -65,7 +69,7 @@ for (const cd of Object.values(slots.classes)) {
       Cantrips: Math.max(0, delta(cast?.cantrips, k)),
       Spells: book ? (k === 1 ? book.first : book.perLevel) : Math.max(0, cast?.preparedChange === "level" ? delta(cast.prepared, k) : delta(cast?.known, k)),
       Options: sum(Object.entries(cd.options ?? {}).filter(([fam, p]) => !marker(fam, p.name)).map(([, p]) => Math.max(0, delta(p.progression, k)))),
-      Masteries: cd.masteries?.[k - 1] ?? 0,
+      Masteries: masteries?.[k - 1] ?? 0,
       Prepared: counted.includes("Prepared") ? cast.prepared[k - 1] ?? 0 : 0,
     };
     for (const fp of Object.values(sup.classFeaturePicks?.[uid] ?? {})) if (fp.levels.includes(k) && fp.key in c) c[fp.key] += fp.count;

@@ -59,6 +59,19 @@ const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / 
   'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
+// A preset laid out in the editor, from an empty form (any draft bar cleared first). Skips when it is already there.
+const laidPreset = async (x, name, rows, edition = '2024') => {
+  await x.waitFor('form.pform textarea.src')
+  if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce(name)) return }
+  const head = `Rules: ${edition}\nScores:\nClasses: ${rows.map(([c, l]) => `${c}|${edition === '2024' ? 'XPHB' : 'PHB'} ${l}`).join(' / ')}\n`
+  if (editor().value.startsWith(head)) return
+  if (editor().value) typeIn('')
+  await x.waitFor('.sb .sbrow')
+  starter(rows, edition)
+  document.querySelector('.sb .sbmake')?.click()
+  await x.sleep(300)
+}
+
 uiReview.config({
   schema: 1,
   groups: [
@@ -80,6 +93,7 @@ uiReview.config({
       { id: 'start-multi', label: 'Start a build: Fighter 1 / Warlock 4', kind: 'action', dodge: false, run: () => starter([['Fighter', 1], ['Warlock', 4]]) },
       { id: 'start-solo', label: 'Start a build: Wizard 20 (2014)', kind: 'action', dodge: false, run: () => starter([['Wizard', 20]], '2014') },
       { id: 'ghost-multi', label: 'Ghost counts: Fighter 1 / Wizard 3 (2024)', kind: 'action', dodge: false, run: () => typeIn(GHOST_TEXT) },
+      { id: 'start-bard5', label: 'Start a build: Bard 5 (2024)', kind: 'action', dodge: false, run: () => starter([['Bard', 5]]) },
     ] },
   ],
   presets: [
@@ -196,6 +210,10 @@ uiReview.config({
       document.querySelector('.sb .sbmake')?.click()
       await x.sleep(300)
     },
+    // D149: a laid-out Bard 5 (2024) preset: 19 empty lines, listed under To choose, Problems empty.
+    'tochoose-preset': async (x) => laidPreset(x, 'tochoose-preset', [['Bard', 5]]),
+    // D129 amended: a laid-out Rogue 3 (2024) preset, where Masteries now shows 0/2.
+    'masteries-rogue': async (x) => laidPreset(x, 'masteries-rogue', [['Rogue', 3]]),
     // T3.6: the Keys popover on the Feat (…) chip, as a mouse hover shows it.
     'keys-popover': async (x) => {
       await x.waitFor('form.pform textarea.src')

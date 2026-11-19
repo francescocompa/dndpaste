@@ -252,7 +252,8 @@ test("status, D90: an E001 on the line being typed is held; Save still blocks; l
   assert.ok(!held.diagnostics.some((d) => d.code === "E001"));
   assert.equal(held.canSave, false, "Save still blocks on a held error");
   assert.equal(held.canTidy, false);
-  assert.ok(dockLineHtml(held).includes("No problems"), "the dock reads as the frame form-keys-dark-phone");
+  // The frame form-keys-dark-phone: no error in the dock. (Since D149's review, vice's short Options line reads "1 to choose".)
+  assert.match(dockLineHtml(held), /^<span class="dsum"><span class="okc">No (problems|errors)<\/span>/);
   // Another line's E001 and other codes on the held line are never held.
   const other = status(text, line - 1);
   assert.equal(other.held, 0);

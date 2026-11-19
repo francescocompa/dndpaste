@@ -84,6 +84,7 @@ ${code(ex.levels, "The level blocks of the example")}
 ${keyTable()}
 <h2 id="problems">Problems</h2>
 <p>The editor checks the text as you type and lists each problem with its line. A code that starts with E is an error: fix it before you save. A code that starts with W is a warning: the build saves as it is. ${spec("#7-diagnostics", "Section 7 of the specification")} lists every code.</p>
+<p>Lines with no value yet, such as an empty ${c("Spells:")}, are not problems. The editor lists them under To choose, with a button for each line.</p>
 <h2 id="changes">Format changes</h2>
 <p>The format can still change. Each <a href="${RELEASES_URL}">release</a> lists what changed and how to update a build.</p>
 ${FEEDBACK_LINE}</div>`;

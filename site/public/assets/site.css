@@ -303,6 +303,15 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
 .hc { font: 12px/1 var(--mono); padding: 5px 7px; border: 0; border-radius: 4px; background: var(--chip); color: var(--fg); white-space: nowrap; cursor: pointer; }
 .hc:hover { background: color-mix(in srgb, var(--acc) 12%, var(--chip)); }
+/* D149: To choose, the empty "not chosen yet" lines as line-number chips under Problems. */
+.lns .hc { min-width: 2.6em; text-align: center; color: var(--mute); }
+.lns span.hc { cursor: default; }
+.lns .more { align-self: center; padding: 0 3px; font: 12px/1 var(--mono); color: var(--mute); background: none; border: 0; }
+.lns button.more { cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.lns .hc.cur { color: var(--fg); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acc) 55%, transparent); }
+/* A jump (Problems or To choose) fills its row and fades it out. */
+.row.flash { animation: rowflash 1.2s ease-out; }
+@keyframes rowflash { from { background: color-mix(in srgb, var(--acc) 26%, transparent); } to { background: transparent; } }
 .recent { display: grid; gap: 2px; font: 13px/1.4 var(--sans); }
 .recent .rr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
 .recent .rr a { color: var(--fg); text-decoration: none; overflow-wrap: anywhere; } .recent .rr a:hover { text-decoration: underline; text-underline-offset: 3px; }
