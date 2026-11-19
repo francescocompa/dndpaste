@@ -21,9 +21,11 @@ import type { Draft, Fields } from "./drafts.ts";
 import { BEFORE_RELOAD, RELOAD_FLAG } from "./update.ts";
 import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
+import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
 
 const recent = recentStore(() => window.localStorage);
+const authors = authorStore(() => window.localStorage);
 const keys = keyStore(() => window.localStorage);
 const MAX_FILE = 1024 * 1024;
 
@@ -546,6 +548,10 @@ function init(): void {
   // A file dropped beside the editor must not navigate away from the form.
   for (const ev of ["dragover", "drop"]) window.addEventListener(ev, (e) => { if (hasFiles(e as DragEvent)) e.preventDefault(); });
 
+  // D150: a new build opens with the author you last saved with. Before the draft keeper takes the loaded fields, so
+  // the fill alone is never a draft; an edit keeps its share's author, and a restored draft puts back its own.
+  author.value = openingAuthor(author.value, !!editId, authors.get());
+
   // ---- title and author: one paragraph each, grown to fit (D86: long entries wrap) ----
   const fit = (f: HTMLTextAreaElement | HTMLInputElement) => {
     if (!(f instanceof HTMLTextAreaElement)) return;
@@ -644,6 +650,7 @@ function init(): void {
         const name = title.value.replace(/\s+/g, " ").trim();
         clearTimeout(draftTimer);
         draft.saved();
+        authors.set(fields.author);
         if (editId) {
           // The share's pages cache for 5 minutes (D97): refresh this browser's copies so it shows the edit at once.
           await Promise.all(["", "/raw", "/canon", "/json"].map((s) => fetch(`/${id}${s}`, { cache: "reload" }).catch(() => null)));

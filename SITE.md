@@ -128,7 +128,8 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 - Icons from one self-hosted SVG sprite, never text glyphs (D89). Fonts IBM Plex Sans/Mono self-hosted (D81). WCAG AA checked for every token pair (D88).
 - **My recent shares**: the ids and titles you saved, in localStorage only, listed on the form page; reads and writes wrapped in try/catch so the page works without storage.
 - **What this browser keeps** (localStorage only, never sent): `dndpaste.display` (Display menu), `dndpaste.recent` (My
-  recent shares), `dndpaste.keys` (edit keys, D97), `dndpaste.drafts` (unsaved drafts, D102). In sessionStorage, for this tab:
+  recent shares), `dndpaste.keys` (edit keys, D97), `dndpaste.drafts` (unsaved drafts, D102), `dndpaste.author` (the author you last saved with, filled into a new
+  build's Author field, D150). In sessionStorage, for this tab:
   `dndpaste.update-closed` (the build whose toast was closed) and `dndpaste.reload` (set just before an update reload, D139).
 - OG/meta tags: title, "a D&D build on dndpaste", escaped.
 
