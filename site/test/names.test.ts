@@ -27,3 +27,14 @@ test("D158: the names ship as their own client bundle, loaded on focus, not insi
   assert.ok(!/from "\.\.\/names\.gen\.ts"/.test(form.replace(/import type[^;]+;/g, "")), "form.ts imports the names at run time only");
   assert.match(form, /\/assets\/names\.js/);
 });
+
+test("D165: MASTERY_WEAPONS lists mundane weapons from the 2024 books only", () => {
+  const mundane = new Set(N.ITEMS.filter((i) => i[2]).map((i) => i[0]));
+  assert.ok(N.MASTERY_WEAPONS.length >= 30);
+  for (const [name, books] of N.MASTERY_WEAPONS) {
+    assert.ok(mundane.has(name), `${name} is a mundane item`);
+    assert.equal(books & 5, 0, `${name}: 2014 books have no weapon mastery`);
+  }
+  const names = N.MASTERY_WEAPONS.map((w) => w[0]);
+  assert.ok(names.includes("Longsword") && !names.includes("Shield") && !names.includes("Rope"));
+});

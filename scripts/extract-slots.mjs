@@ -156,7 +156,8 @@ const propsOf = (i) => {
   for (const k of matcherKeys) if (i[k] !== undefined) out[k] = k === "property" ? i[k].map((p) => (typeof p === "string" ? p : p.uid)) : i[k];
   return out;
 };
-for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false, base: true, props: propsOf(i) };
+for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false, base: true, props: propsOf(i),
+  ...(i.weapon && i.mastery?.length ? { mastery: true } : {}) }; // a weapon with a mastery property (not a focus that fights as one): what `Masteries:` can name
 const itemsByKey = itemsIndex(items);
 const magicVariants = {};
 for (const v of variantList) {
@@ -255,7 +256,7 @@ for (const s of load("races.json").subrace ?? []) {
   const sp = additionalSpellsSpec(s.additionalSpells);
   const merge = (a, b) => (a && b ? { fixed: [...a.fixed, ...b.fixed], choose: b.choose ?? a.choose, any: a.any + b.any } : b ?? a);
   species[`${s.raceName} (${s.name})|${s.source}`] = {
-    ...base, name: `${s.raceName} (${s.name})`, source: s.source, edition: edition({ source: s.source }) ?? base.edition, srd: Boolean(base.srd || isSrd(s)),
+    ...base, name: `${s.raceName} (${s.name})`, source: s.source, edition: edition({ source: s.source }) ?? base.edition, srd: isSrd(s), // the subrace's own flag: a non-SRD subrace of an SRD race stays out of the subset
     subraceOf: `${s.raceName}|${s.raceSource ?? s.source}`,
     skills: merge(base.skills, chooseSpec(s.skillProficiencies)), tools: merge(base.tools, chooseSpec(s.toolProficiencies)), languages: merge(base.languages, chooseSpec(s.languageProficiencies)),
     ability: abilitySpec([...(load("races.json").race.find((r) => r.name === s.raceName && r.source === (s.raceSource ?? s.source))?.ability ?? []), ...(s.ability ?? [])]),
