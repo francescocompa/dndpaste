@@ -25,6 +25,21 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
   resolves marked keys (`Options (Invocation)` → `Invocations`, `Spells (3rd)` → `Spells`). `SPEC_VERSION`
   is `"0.9"`.
 - Fixtures: `mc-planned-20-families` (0.9 form of `mc-planned-20`) and its long form in `noncanonical/`.
+- **Wide user test fixes** (D192–D197, D200–D206). SPEC 0.9 adds a `Note` key for free text (D200), a
+  chosen form in brackets on pacts and summons (`Pact of the Chain [Imp]`, `Find Steed [Warhorse]`),
+  highlights of granted features and spells as plain lines (D201), and `[+1 CHA]` as `[CHA]` on a 2024
+  half feat (D206).
+  - Library: every diagnostic has a `hint` and often a `fix`; `applyFix`, `tidy` (makes the safe fixes,
+    never refuses), `foldOptions`, `familyKey`, `abilityOf`. `emit` keeps a line with an error as written
+    (`Paste.kept`, D202). `UA_SOURCES` in `dndpaste/sources` (D205).
+  - Checker: owed picks say "N of M written; add K at Ln Class" with an `at` target; an unresolved
+    Subclass counts as picked; granted spells and bare features are silent; homebrew, Unearthed Arcana and
+    unknown codes are infos; repeated Gear names; finding codes C001–C006 (D204). `normalise` writes `xN`
+    and folds Options lines.
+  - CLI: `check` exits 1 on errors only, `--strict` on warnings too; hints and codes printed; `emit`
+    keeps error lines; `tidy` command. Package exports `dndpaste/check` and the SRD slot table.
+  - Extract: `meta.sources`; 2014 expanded spell lists are not granted; options record granted spells.
+  - README: install, recipe, helpers, checker, CLI, site endpoints. Guide: D192–D198 copy.
 - Site (needed by the site tests, outside the editor): key-table rows for the family keys, and the
   render kind and marker style for marked and capped keys. `RENDER_VERSION` is 5.
 
