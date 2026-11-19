@@ -617,14 +617,15 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 - **D149 — On the edit form, `W004` (an empty "not chosen yet" line) leaves the Problems list for its own "To choose · N" row of line chips under it; the toolbar summary and the phone dock say "N to choose", not "N warnings". DECIDED (2026-11-19).** Display only: the spec and the library keep `W004` as a warning (D112). A fresh Bard 5 preset (2024) listed 19 W004 rows and nothing else, and the editor's ghost counts (D129) already mark those lines. Problems now shows only what is wrong.
   *Raw note:* "the problems section can be overwhelming, especially right after starting a preset, with multiple empty line problem mentions"; picked "Separate To-do line (Recommended)".
   *Rejected:* one folded "N lines not chosen yet" row inside Problems (the panel still opens with a warning, the toolbar still counts warnings); hiding preset W004s until the first edit (the list jumps to 19 rows on the first keystroke, and the same text shows different problems by how it was made).
-  *Enforced by:* pending (the To choose build).
+  *Review (/ui-review, 2 rounds, approved):* counted lines short of their ghost count (D129) also go under To choose; the first 10 chips show, then "+N" opens the rest; a chip jumps to the end of its line and flashes the row; the cursor line's chip is outlined.
+  *Enforced by:* `site/test/tochoose.test.ts` (b63b829, unmerged).
 
 ## Pre-launch form notes (2026-11-19) — mechanism: AskUserQuestion, 1 round (3 questions), overseer
 
 - **D150 — The form remembers the author you last saved with, in this browser, and fills a new build's Author field with it as plain editable text. DECIDED (2026-11-19).** Stored in localStorage beside the other `dndpaste.*` keys, never sent; SITE.md's "What this browser keeps" list gains it. An edit of an existing share keeps that share's author. A draft (D102) keeps its own author.
   *Raw note:* "the author needs to be stored in the browser so that you don't need to type it again"; picked "Filled in directly (Recommended)".
   *Rejected:* a ghost that Tab or a tap fills (one extra step on every build; Tab normally moves focus, and phones have no Tab).
-  *Enforced by:* pending.
+  *Enforced by:* `site/test/author.test.ts` (a9cc543, unmerged). Note: the /about privacy line still omits drafts and the author; fix with D152.
 
 - **D151 — Name autocomplete in the editor, from the committed SRD subset, before launch, on desktop and phone. DECIDED (2026-11-19); amends D83 (the popup was queued for later).** Suggests names for value keys (spells, feats, items, species and the rest) as you type. It never blocks a name it doesn't know: any book works, and the UI must not suggest otherwise. Names from a visitor's own 5etools data come later, with D66's visitor-data step. The names list counts against the bundle check.
   *Raw note:* "when writing, could we have an autocomplete, at least from the SRD and possibly later if one connects the 5etools repo"; picked "Before launch, SRD only".
@@ -635,3 +636,6 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* "we need one more pass on copy especially functional copy ex. buttons to keep the dry and short, minimal"; picked "Functional copy only (Recommended)".
   *Rejected:* the whole site including `/guide` and `/about` prose (more to review; the guide reads longer by design).
   *Enforced by:* pending.
+
+- **D153 — 2024 Paladin, Ranger and Rogue get a Masteries ghost count of 2 from `data/supplement.json` (numbers only), since the SRD slot table has mastery but no progression for them. DECIDED (2026-11-19); amends D129 (those three had no count).** Mechanism: a /ui-review pin in the D149 build session. `presets.mjs` reads the supplement when the table has no progression.
+  *Enforced by:* `site/test/ghost.test.ts` (42c6607, unmerged).
