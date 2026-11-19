@@ -45,7 +45,7 @@ export const PRESETS: readonly ClassPreset[] = [
     counted: ["Skills","Expertise","Cantrips","Spells","Options"], skills: [2,0],
     counts: [{"Cantrips":3},{},{},{"Cantrips":1},{},{},{},{},{},{"Cantrips":1},{},{},{},{},{},{},{},{},{},{}] },
   { name: "Cleric", source: "XPHB", first: ["Skills","Gear"], multi: [],
-    owes: [["Cantrips","Feature"],[],["Subclass"],["Feat","Cantrips"],[],[],[],["Feat"],[],["Cantrips"],[],["Feat"],[],[],[],["Feat"],[],[],["Feat (Epic Boon)"],[]],
+    owes: [["Cantrips","Feature"],[],["Subclass"],["Feat","Cantrips"],[],[],["Feature"],["Feat"],[],["Cantrips"],[],["Feat"],[],[],[],["Feat"],[],[],["Feat (Epic Boon)"],[]],
     counted: ["Skills","Expertise","Cantrips","Spells","Options","Prepared"], skills: [2,0],
     counts: [{"Cantrips":3,"Prepared":4},{"Prepared":5},{"Prepared":6},{"Cantrips":1,"Prepared":7},{"Prepared":9},{"Prepared":10},{"Prepared":11},{"Prepared":12},{"Prepared":14},{"Cantrips":1,"Prepared":15},{"Prepared":16},{"Prepared":16},{"Prepared":17},{"Prepared":17},{"Prepared":18},{"Prepared":18},{"Prepared":19},{"Prepared":20},{"Prepared":21},{"Prepared":22}] },
   { name: "Druid", source: "PHB", first: ["Skills"], multi: [],
