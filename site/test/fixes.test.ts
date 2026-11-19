@@ -34,22 +34,22 @@ test("D213: a pick the written species doesn't give moves above Species; blank l
   assert.equal(at(bg, 6)?.act, "Move above Background", "E005 Masteries");
 });
 
-test("D214: a 0.7 key (W005) renames to its 0.8 key, or rewrites its line; Ability is left to Tidy", () => {
+test("D225: the library's fixes show as one-click fixes; they read the line as written", () => {
   const text = "Paste: 1\nRules: 2024\nClasses: Fighter 1\nFighting Style: Archery\nEquipment: Rope\n\nL1 Fighter\nASI: +2 STR\n";
-  assert.equal(at(text, 4)?.act, "Rename to Feat (Fighting Style)");
-  assert.equal(at(text, 4)?.apply(text)?.split("\n")[3], "Feat (Fighting Style): Archery");
+  const fs = at(text, 4);
+  assert.equal(fs?.kind, "lib");
+  assert.equal(fs?.act, "Use the new key");
+  assert.equal(fs?.why, "Write Feat (Fighting Style): Archery");
+  assert.equal(fs?.apply(text)?.split("\n")[3], "Feat (Fighting Style): Archery");
   assert.equal(at(text, 5)?.apply(text)?.split("\n")[4], "Gear: Rope");
-  assert.equal(at(text, 8)?.act, "Write as Feat: Ability Score Improvement [+2 STR]");
   assert.equal(at(text, 8)?.apply(text)?.split("\n")[7], "Feat: Ability Score Improvement [+2 STR]");
-  const merge = "Paste: 1\nGear: Rope\nItems: Rope, Torch\n";
-  assert.equal(at(merge, 3)?.apply(merge), "Paste: 1\nGear: Rope, Torch\n", "into the scope's Gear line, no repeats");
-});
-
-test("D214: commas between classes (E012) become slashes, only when that reads", () => {
-  const text = "Rules: 2014\nClasses: Sorcerer 5, Warlock 5\n";
-  assert.equal(at(text, 2)?.act, "Use / between classes");
-  assert.equal(at(text, 2)?.apply(text), "Rules: 2014\nClasses: Sorcerer 5 / Warlock 5\n");
-  assert.equal(at(text, 2)?.apply("Rules: 2014\nClasses: Sorcerer 5\n"), null, "the line changed since");
+  const cls = "Rules: 2014\nClasses: Sorcerer 5, Warlock 5\n";
+  assert.equal(at(cls, 2)?.act, "Use / between classes");
+  assert.equal(at(cls, 2)?.apply(cls), "Rules: 2014\nClasses: Sorcerer 5 / Warlock 5\n");
+  assert.equal(at(cls, 2)?.apply("Rules: 2014\nClasses: Sorcerer 5\n"), null, "the line changed since");
+  const up = "Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\nMasteries: Dagger\n";
+  assert.equal(at(up, 5)?.act, "Move above Species", "E005: the library's move");
+  assert.equal(at(up, 5)?.apply(up), "Rules: 2024\nClasses: Wizard 1\nMasteries: Dagger\n\nSpecies: Elf\n");
 });
 
 test("D215 (T10): a level header whose block lacks owed keys offers them, laid out as a preset does", () => {

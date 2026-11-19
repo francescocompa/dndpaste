@@ -7,10 +7,10 @@
  *
  * Kinds, each one fix per line at most (the first wins, in this order):
  * - prepared: a whole-list preparer's `Spells` line → Prepared (D190, 2014 too since D212).
- * - move-up: a line under `Species:` or `Background:` that belongs to the header (E005, or a pick the written species
- *   doesn't give) → above the first of them (D192 T01, D213).
- * - rename: a 0.7 key (W005) → its 0.8 spelling (D214).
- * - classes: `Classes: A 5, B 5` (E012) → ` / ` between classes (D214).
+ * - lib: the library's own fix on a diagnostic (D203, wired by D225): E005 header key moved out of a block, E003 lines
+ *   joined, E012 `/` between classes, E001 space after the colon or a note, E002 did-you-mean, W005 the new key. Its
+ *   label is the action and its hint the reason. Not an E005 `Subclass` line: that one moves to its level (D213).
+ * - move-up: a pick the written species doesn't give → above Species (D213).
  * - level-lines: a level header whose block lacks a key that level owes → those keys as empty lines (D215, T10).
  * - species-lines: a species whose block lacks a line it owes → those lines (D211, T11).
  * - family: needs the names table (/assets/names.js, D158), so `nameFixes` adds it once it has loaded: a plain
@@ -19,10 +19,9 @@
  * - A `Subclass` line under Species or Background moves into the level block where its class gains its subclass, not
  *   to the header (review: a subclass belongs where it arrives).
  *
- * Library fix targets (the sibling 0.9 work, D192): `libraryFixes` is the seam. Once a Diagnostic carries a fix, it
- * maps here and wins over the site's own fix on that line; until then it returns none.
+ * The library's fixes win over the site's own fix on a line (D225).
  */
-import { KEYS, classSequence, familyOf, keyGroup, parse, resolveKey } from "../../src/dndpaste.ts";
+import { KEYS, applyFix, classSequence, familyOf, keyGroup, resolveKey } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste, Ref } from "../../src/dndpaste.ts";
 import { isWholeList, speciesPreset, toPrepared } from "./ghost.ts";
 import type { Ghost } from "./ghost.ts";
@@ -30,7 +29,7 @@ import { PRESETS } from "./presets.ts";
 import type { ClassPreset } from "./presets.ts";
 import type * as N from "./names.gen.ts";
 
-export type FixKind = "prepared" | "move-up" | "move-level" | "rename" | "classes" | "level-lines" | "species-lines" | "family";
+export type FixKind = "lib" | "prepared" | "move-up" | "move-level" | "level-lines" | "species-lines" | "family";
 
 export interface Fix {
   /** 1-based line. */
@@ -208,25 +207,19 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
   const rv = paste.header.get("Rules");
   const rules = rv && rv.type === "enum" ? rv.value : null;
 
-  for (const f of libraryFixes(diagnostics)) add(f);
+  for (const f of libraryFixes(lines, diagnostics)) add(f);
 
   // D190, D212: a whole-list preparer's Spells line.
   for (const g of ghosts) if (g.note) add({ line: g.line, at: "key", kind: "prepared", why: g.note, act: "Switch to Prepared", apply: (x) => toPrepared(x, g.line) });
 
-  // D192 T01: a header line under Species or Background (E005), then a pick the written species doesn't give (D213).
+  // D213: a Subclass under Species or Background (E005) moves to the level where its class gains it, not to the header
+  // (the library's fix skips it); then a pick the written species doesn't give moves above Species.
   const top = opener(lines);
   for (const d of diagnostics) {
     const i = d.line - 1;
-    if (d.code !== "E005" || !w[i] || (w[i].region !== "S" && w[i].region !== "B")) continue;
-    const k = keyOf(lines[i]);
-    const def = k ? resolveKey(k).def : null;
-    if (def?.key === "Subclass") {
-      const to = subclassLevel(lines, paste, rules);
-      if (to) add({ line: d.line, at: "key", kind: "move-level", why: `A subclass goes in the level where its class gains it: ${to}.`, act: `Move to ${to}`, apply: (x) => moveInto(x, d.line, to) });
-      continue;
-    }
-    if (!def?.scopes.includes("H")) continue;
-    add({ line: d.line, at: "key", kind: "move-up", why: `${def.key} goes in the header, above ${top}.`, act: `Move above ${top}`, apply: (x) => moveAbove(x, d.line) });
+    if (d.code !== "E005" || !w[i] || (w[i].region !== "S" && w[i].region !== "B") || !isSubclass(lines[i])) continue;
+    const to = subclassLevel(lines, paste, rules);
+    if (to) add({ line: d.line, at: "key", kind: "move-level", why: `A subclass goes in the level where its class gains it: ${to}.`, act: `Move to ${to}`, apply: (x) => moveInto(x, d.line, to) });
   }
   const sp = paste.entities.find((e) => e.key === "Species");
   const sd = sp?.item ? speciesPreset(sp.item.ref, rules) : undefined;
@@ -241,52 +234,6 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
       if (!(NOT_SPECIES.has(g) || ((g === "Skills" || g === "Feat") && !asks.has(g)))) continue;
       add({ line: i + 1, at: "key", kind: "move-up", why: `${sd.name} gives no ${g} picks. A build-wide ${g} line goes above ${top}.`, act: `Move above ${top}`, apply: (x) => moveAbove(x, i + 1) });
     }
-  }
-
-  // D214: a 0.7 key (W005) → its 0.8 spelling.
-  for (const d of diagnostics) {
-    if (d.code !== "W005") continue;
-    const k = keyOf(lines[d.line - 1] ?? "");
-    const r = k ? resolveKey(k) : null;
-    if (!r?.def?.renamed) continue;
-    const to = /written as (.+?) \(D\d+\)$/.exec(d.message)?.[1];
-    if (!to || /^the /.test(to)) continue;   // Ability moves into another line: Tidy does that one
-    const whole = to.includes(": ");
-    const key = whole ? to.slice(0, to.indexOf(":")) : to;
-    add({
-      line: d.line, at: "key", kind: "rename", why: `${r.def.key} is an older key; it's written ${key} now.`,
-      act: whole ? `Write as ${to}` : `Rename to ${key}`,
-      apply: (x) => {
-        if (!whole) return moveTo(x, d.line, key);
-        const ls = x.split("\n");
-        if (keyOf(ls[d.line - 1] ?? "") !== k) return null;
-        ls[d.line - 1] = `${/^\s*/.exec(ls[d.line - 1])?.[0] ?? ""}${to}`;
-        return ls.join("\n");
-      },
-    });
-  }
-
-  // D214: commas between classes (E012) → ` / `.
-  for (const d of diagnostics) {
-    const i = d.line - 1;
-    const k = keyOf(lines[i] ?? "");
-    if (d.code !== "E012" || !k || resolveKey(k).def?.key !== "Classes") continue;
-    const s = lines[i].trim();
-    const value = s.slice(separator(s) + 1);
-    if (!value.includes(",")) continue;
-    const next = `${k}: ${value.split(",").map((x) => x.trim()).filter(Boolean).join(" / ")}`;
-    const ls = [...lines];
-    ls[i] = next;
-    if (parse(ls.join("\n")).diagnostics.some((x) => x.line === d.line && x.code === "E012")) continue;
-    add({
-      line: d.line, at: "key", kind: "classes", why: "Classes are separated with a slash.", act: "Use / between classes",
-      apply: (x) => {
-        const xs = x.split("\n");
-        if (xs[i]?.trim() !== s) return null;
-        xs[i] = next;
-        return xs.join("\n");
-      },
-    });
   }
 
   // D215 (T10): a level header whose block lacks a key the level owes.
@@ -348,13 +295,35 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
   return [...out.values()].sort((a, b) => a.line - b.line);
 }
 
+const isSubclass = (line: string): boolean => resolveKey(keyOf(line) ?? "").def?.key === "Subclass";
+
 /**
- * The seam for the library's fix targets (D192, the sibling 0.9 branch): a diagnostic that names its own fix becomes
- * a Fix here and wins over the site's fix on that line. None yet: the library's diagnostics carry no fix.
+ * The library's fix on each diagnostic (D203), as a site Fix (D225): its label is the action, its hint (else its
+ * message) the reason. `lines` is the text the diagnostics were read from: a fix applies only while every line it
+ * edits still reads as it did. An E005 `Subclass` line gets none: Francesco rejected moving it above Species (D213).
  */
-export function libraryFixes(diagnostics: readonly Diagnostic[]): Fix[] {
-  void diagnostics;
-  return [];
+export function libraryFixes(lines: readonly string[], diagnostics: readonly Diagnostic[]): Fix[] {
+  const out: Fix[] = [];
+  for (const d of diagnostics) {
+    const fix = d.fix;
+    if (!fix || (d.code === "E005" && isSubclass(lines[d.line - 1] ?? ""))) continue;
+    // A moved line lands above the blank lines before its target, so the gap stays with the block (D213).
+    const edits = fix.edits.map((e) => {
+      let l = e.line;
+      if (e.insert) while (l > 1 && !lines[l - 2]?.trim()) l--;
+      return { ...e, line: l };
+    });
+    const made = { ...fix, edits };
+    const was = edits.map((e) => [e.line, lines[e.line - 1]] as const);
+    out.push({
+      line: d.line, at: "key", kind: "lib", why: d.hint ?? d.message, act: fix.label,
+      apply: (x) => {
+        const xs = x.replace(/\r\n?/g, "\n").split("\n");
+        return xs.length === lines.length && was.every(([l, t]) => xs[l - 1] === t) ? applyFix(xs.join("\n"), made) : null;
+      },
+    });
+  }
+  return out;
 }
 
 const EDITION_BITS: Record<string, number> = { "2014": 1 | 4, "2024": 2 | 8 };
