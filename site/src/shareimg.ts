@@ -8,7 +8,7 @@
  */
 import { ABILITIES, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, Item, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
-import { BOOKS } from "./books.ts";
+import { allCodes } from "./codelist.ts";
 import { KIND_OF_KEY, isEmptyValue, kindOfKey, lineEntries } from "./render.ts";
 import type { Kind } from "./render.ts";
 
@@ -85,7 +85,7 @@ export function shareBlocks(paste: Paste): Block[] {
   return out;
 }
 
-/** A book the build cites (D120): its title from `BOOKS` (D103), or null for a code the list does not hold. */
+/** A book the build cites (D120): its title from the code list (D103, D226), or null for a code the list does not hold. */
 export interface CitedBook { code: string; title: string | null }
 
 /**
@@ -93,7 +93,7 @@ export interface CitedBook { code: string; title: string | null }
  * in the order they first appear, each once (codes compare without case). Names with no code are left out (D120).
  */
 export function citedBooks(paste: Paste): CitedBook[] {
-  const known = new Map(BOOKS.map((b) => [b.code.toUpperCase(), b] as const));
+  const known = new Map(allCodes().map((b) => [b.code.toUpperCase(), b] as const));
   const seen = new Map<string, CitedBook>();
   const cite = (r: Ref) => {
     if (!r.source) return;

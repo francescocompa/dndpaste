@@ -8,7 +8,10 @@ import { EXAMPLE, GUIDE_LINK } from "../src/example.ts";
 import { SPEC_URL, exampleParts, keyTable } from "../src/guide.ts";
 import { FEEDBACK_LINE, FEEDBACK_URL, RELEASES_URL } from "../src/links.ts";
 import { KEY_HOLDS, MARKED_FEAT, SCOPE_LABEL, keyDoc, whereLabel } from "../src/keydocs.ts";
-import { BOOKS } from "../src/books.ts";
+import { allCodes } from "../src/codelist.ts";
+import { UA_SOURCES } from "../../src/sources.ts";
+
+const BOOKS = allCodes();
 import { matches, sortRows, typeLabel } from "../src/client/codes.ts";
 import { status } from "../src/client/status.ts";
 import { asJson, call, form, makeEnv, textOf } from "./helpers.ts";
@@ -59,7 +62,8 @@ test("Keys popover: each chip's description is the key table's text (one source)
 test("/codes (D103): every book code with its title, linked from the guide, never naming where the list comes from", async () => {
   const codes = BOOKS.map((b) => b.code);
   assert.equal(new Set(codes.map((c) => c.toLowerCase())).size, codes.length, "codes are unique");
-  for (const want of ["PHB", "XPHB", "TCE", "XGE", "DMG", "XDMG"]) assert.ok(codes.includes(want), want);
+  for (const want of ["PHB", "XPHB", "TCE", "XGE", "DMG", "XDMG", "HB"]) assert.ok(codes.includes(want), want);
+  assert.ok(UA_SOURCES.every((u) => BOOKS.some((b) => b.code === u.code && b.title === u.title && b.type === "Unearthed Arcana")), "D226: the library's UA codes, once");
   assert.ok(BOOKS.every((b) => b.title && !/\{@|entries/.test(b.title)), "titles only");
   const env = makeEnv();
   const r = await call(env, "GET", "/codes");
