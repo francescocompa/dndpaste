@@ -71,21 +71,21 @@ test("highlight: the frames' marks — identifier bold, level header accent, unk
     .includes(`<span class="p">&quot;</span><span class="r kd-item">Bag of Tricks, Gray</span><span class="p">&quot;</span><span class="p">, </span><span class="r kd-item">Arrows (20)</span> <span class="q">x2</span>`));
 });
 
-test("hints: the frames' key lists (header 22, drop-dark header 15, L5 Warlock 15, half-typed Spe → Spells; SPEC 0.8, Feat (…))", () => {
+test("hints: the frames' key lists (header 23, drop-dark header 21, L5 Warlock 18, half-typed Spe → Spells; SPEC 0.9 family keys by class (D177), Feat (…))", () => {
   const empty = keyHints("", 0);
   assert.equal(empty.label, "the header");
-  assert.equal(empty.keys.length, 22);
+  assert.equal(empty.keys.length, 23);
   assert.deepEqual(empty.keys.slice(0, 5), ["Paste", "Producer", "Rules", "Scores", "Classes"]);
 
   const drop = `Rules: 2024\nClasses: Fighter 3 / Warlock 3\nSubclass: Battle Master, Celestial\nFeat: Resilient [CON]\nFeat (Fighting Style): Archery\nOptions: Riposte\nCantrips: Eldritch Blast\nSpells: Hex`;
   assert.deepEqual(keyHints(drop, 3).keys, ["Paste", "Producer", "Scores", "HP", "Species", "Background", "Skills", "Tools",
-    "Languages", "Expertise", "Feat (…)", "Masteries", "Feature", "Prepared", "Gear"]);
+    "Languages", "Expertise", "Feat (…)", "Masteries", "Invocations", "Maneuvers", "Arcane Shots", "Runes", "Pact Boon", "Feature", "Prepared", "Gear", "Note"]);
 
   const vice = fixture("vice.dndpaste").trimEnd();
   const last = vice.split("\n").length - 1;
   const l5 = keyHints(vice, last);
   assert.equal(l5.label, "L5 Warlock");
-  assert.equal(l5.keys.length, 15);
+  assert.equal(l5.keys.length, 18);
   assert.ok(!l5.keys.includes("Options") && !l5.keys.includes("Species"));
 
   const typing = keyHints(vice + "\nSpe", last + 1);
@@ -93,7 +93,31 @@ test("hints: the frames' key lists (header 22, drop-dark header 15, L5 Warlock 1
   assert.equal(typing.narrowed, true);
   const noMatch = keyHints(vice + "\nZz", last + 1);
   assert.equal(noMatch.narrowed, false);
-  assert.equal(noMatch.keys.length, 15);
+  assert.equal(noMatch.keys.length, 18);
+});
+
+test("D177: a frame lists only its class's option family keys; a half-typed key still finds any of them", () => {
+  const fam = (keys: string[]) => keys.filter((k) => ["Invocations", "Metamagic", "Maneuvers", "Infusions", "Arcane Shots", "Runes", "Disciplines", "Pact Boon"].includes(k));
+  const t = "Mix\nClasses: Warlock 2 / Sorcerer 1\nL1 Warlock\nSpells: Hex\nL2 Sorcerer\n\nL3 Monk\n";
+  assert.deepEqual(fam(keyHints(t, 1).keys), ["Invocations", "Metamagic", "Pact Boon"], "the header: its Classes line's");
+  assert.deepEqual(fam(keyHints(t, 3).keys), ["Invocations", "Pact Boon"], "L1 Warlock");
+  assert.deepEqual(fam(keyHints(t, 5).keys), ["Metamagic"], "L2 Sorcerer");
+  assert.deepEqual(fam(keyHints(t, 6).keys), ["Disciplines"], "L3 Monk");
+  assert.deepEqual(fam(keyHints("Mix\nL1 Barbarian\n", 2).keys), [], "a class with no family");
+  assert.ok(keyHints("Mix\nL1 Barbarian\n", 2).keys.includes("Options"), "plain Options stays");
+  const typing = keyHints("Mix\nL1 Barbarian\nMeta", 2);
+  assert.deepEqual(typing.keys, ["Metamagic"]);
+  assert.equal(typing.narrowed, true);
+});
+
+test("D219 (T28): a subclass's option family follows the written subclass; with none written, all of the class's show", () => {
+  const fam = (keys: string[]) => keys.filter((k) => ["Maneuvers", "Arcane Shots", "Runes", "Disciplines"].includes(k));
+  assert.deepEqual(fam(keyHints("EK\nClasses: Fighter 8\nSubclass: Eldritch Knight\n\nL8 Fighter\n", 5).keys), [], "T28: an Eldritch Knight");
+  assert.deepEqual(fam(keyHints("BM\nClasses: Fighter 8\n\nL3 Fighter\nSubclass: Battle Master|XPHB\n\nL8 Fighter\n", 7).keys), ["Maneuvers"]);
+  assert.deepEqual(fam(keyHints("F\nClasses: Fighter 8\n\nL8 Fighter\n", 4).keys), ["Maneuvers", "Arcane Shots", "Runes"], "no subclass yet");
+  assert.deepEqual(fam(keyHints("Mix\nClasses: Fighter 3 / Monk 3\nSubclass: Champion\n\nL1 Fighter\n", 5).keys), ["Maneuvers", "Arcane Shots", "Runes"],
+    "a header Subclass with two classes names neither");
+  assert.deepEqual(keyHints("EK\nClasses: Fighter 8\nSubclass: Eldritch Knight\n\nL8 Fighter\nRun", 5).keys, ["Runes"], "a half-typed key still finds it");
 });
 
 test("hints (D110): Feat (…) follows Feat, stays offered, and a marked feat line leaves Feat offered", () => {
@@ -254,7 +278,7 @@ test("status, D90: an E001 on the line being typed is held; Save still blocks; l
   assert.equal(held.canTidy, false);
   // The frame form-keys-dark-phone: no error in the dock. (Since D149's review, vice's short Options line reads "1 to choose".)
   assert.match(dockLineHtml(held), /^<span class="dsum"><span class="okc">No (problems|errors)<\/span>/);
-  // Another line's E001 and other codes on the held line are never held.
+  // Another line's errors are never held.
   const other = status(text, line - 1);
   assert.equal(other.held, 0);
   assert.equal(other.errors, free.errors);
@@ -262,6 +286,22 @@ test("status, D90: an E001 on the line being typed is held; Save still blocks; l
   assert.equal(two.held, 1);
   assert.equal(two.diagnostics.filter((d) => d.code === "E001").length, 1);
   assert.equal(status(text, 0).held, 0);
+});
+
+test("status, D176: every error on the line being typed is held, an open comma, bracket or quote too; warnings never", () => {
+  const base = "Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: ";
+  const line = base.split("\n").length;
+  for (const tail of ["Guidance, ", "Guidance, Light [", 'Guidance, "Li', "Guidance, Li|"]) {
+    const free = status(base + tail);
+    assert.ok(free.diagnostics.some((d) => d.code === "E011" && d.line === line), tail);
+    const held = status(base + tail, line);
+    assert.equal(held.errors, 0, tail);
+    assert.ok(held.held > 0, tail);
+    assert.equal(held.canSave, false, "Save still blocks on a held error");
+  }
+  // A warning on the line being typed (an empty value, D149's To choose) is not held.
+  const empty = status("Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips:", 5);
+  assert.ok(empty.diagnostics.some((d) => d.code === "W004" && d.line === 5));
 });
 
 test("status (D95): a name-only paste can't be saved; the toolbar, Problems and dock say why", () => {

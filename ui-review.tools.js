@@ -57,6 +57,26 @@ const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / 
   'L1 Fighter|XPHB\nSkills: Athletics, Perception\nMasteries: Longsword, Shortbow\nFeat (Fighting Style): Defense\n\n' +
   'L2 Wizard|XPHB\nCantrips: Light, Mage Hand, Prestidigitation, Fire Bolt\nSpells: Shield, Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar\nPrepared: Shield, Sleep\n\n' +
   'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
+// D151 (D154–D159): put a build in the editor with the cursor at its end, typed the way a keystroke is, so the name
+// list opens (it loads /assets/names.js on focus, then shows what fits). The list closes when the editor loses focus.
+const acSetup = async (x, name, text) => {
+  await x.waitFor('form.pform textarea.src')
+  if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce(name)) return }
+  typeIn(text, 'insertText')
+  await x.sleep(500)
+}
+// Editor polish (D170–D176): add text at the cursor's end as one keystroke, so the form sees each step.
+const typeMore = (more) => {
+  const ta = editor(); if (!ta) return
+  ta.focus(); ta.value += more; ta.setSelectionRange(ta.value.length, ta.value.length)
+  ta.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+}
+// Two steps: the line reads (`Guidance`), then the open comma, so the chip has a count to keep (D175).
+const commaSetup = async (x, name) => {
+  await acSetup(x, name, 'Vice\nRules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: Guidance')
+  typeMore(', ')
+  await x.sleep(400)
+}
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 // A preset laid out in the editor, from an empty form (any draft bar cleared first). Skips when it is already there.
@@ -75,7 +95,7 @@ const laidPreset = async (x, name, rows, edition = '2024') => {
 uiReview.config({
   schema: 1,
   groups: [
-    { id: 'display', label: 'Display (the site’s own setting)', open: true, controls: [
+    { id: 'display', label: 'Settings (the site’s own menu)', open: true, controls: [
       { id: 'theme', label: 'Theme', kind: 'select', options: ['auto', 'light', 'dark'], default: 'auto', get: () => display().theme, set: (v) => setDisplay('theme', v) },
       { id: 'kind', label: 'Colour by kind', kind: 'toggle', default: true, get: () => display().kind, set: (v) => setDisplay('kind', v) },
       { id: 'abilities', label: 'Colour abilities', kind: 'toggle', default: true, get: () => display().abilities, set: (v) => setDisplay('abilities', v) },
@@ -227,6 +247,113 @@ uiReview.config({
       await x.waitFor('form.pform textarea.src')
       typeIn('Vesk\nRules: 2024\nScores: STR 15/CON 13\nScores: +1 DEX\nClasses: Fighter 1 / Warlock 4\n\nL1 Fighter\nFeat (Fighting Style): Defense\nEquipment: Chain Mail\n\nL5 Warlock\nFeat: Ability Score Improvement [+2 CHA]\nSpells:\n')
       await x.sleep(1800)
+    },
+    // D151: the name list on a Wizard's Spells line, desktop under the cursor, phone in the dock.
+    'ac-spells': (x) => acSetup(x, 'ac-spells', 'Rules: 2024\nClasses: Wizard 5\n\nL5 Wizard\nSpells: Fireball, mi'),
+    // D157: the cursor's line is the editor's last one, so the list opens above it.
+    'ac-bottom': (x) => acSetup(x, 'ac-bottom', GHOST_TEXT.replace(/Spells:\n$/, 'Spells: fireb')),
+    // D155: a 2014-only spell in a 2024 build: the row shows the |PHB the pick writes.
+    'ac-source': (x) => acSetup(x, 'ac-source', 'Rules: 2024\nClasses: Paladin 5\n\nL5 Paladin\nSpells: Bless, bran'),
+    // D156: inside [ ], the slot the table knows: Magic Initiate's cantrips of the class picked before.
+    'ac-subpick': (x) => acSetup(x, 'ac-subpick', 'Rules: 2024\nBackground: Acolyte\nFeat (Origin): Magic Initiate [WIS; Cleric; gu'),
+    // D156: inside [ ] where the table doesn't know the slot: abilities, skills and spells.
+    'ac-general': (x) => acSetup(x, 'ac-general', 'Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nFeature: Divine Order [th'),
+    // D164: 18 skills, so the list opens at 1 letter.
+    'ac-one': (x) => acSetup(x, 'ac-one', 'Rules: 2024\nClasses: Rogue 1\n\nL1 Rogue\nSkills: a'),
+    // D163: `[` typed after Magic Initiate: its `]` and the slot hint (a beforeinput, as a keyboard sends it).
+    'ac-bracket': async (x) => {
+      await acSetup(x, 'ac-bracket', 'Rules: 2024\nBackground: Acolyte\nFeat (Origin): Magic Initiate ')
+      editor().dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: '[' }))
+      await x.sleep(600)
+      // The panel's focus may close the list: an input event (no change) opens it again, as a keystroke would.
+      editor().focus(); editor().dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+    },
+    // D163 round 2: Thaumaturge picked from the list: `; ` and the cleric cantrips follow.
+    'ac-thaum': async (x) => {
+      await acSetup(x, 'ac-thaum', 'Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nFeature: Divine Order ')
+      editor().dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: '[' }))
+      await x.sleep(600)
+      editor().focus(); editor().dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+      await x.sleep(200)
+      ;[...document.querySelectorAll('#ac-names .ao')].find((o) => o.textContent.startsWith('Thaumaturge'))?.click()
+      await x.sleep(300)
+    },
+    // D163: a class feature's choice inside [ ].
+    'ac-feature': async (x) => {
+      await acSetup(x, 'ac-feature', 'Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nFeature: Divine Order ')
+      editor().dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: '[' }))
+      await x.sleep(600)
+      // The panel's focus may close the list: an input event (no change) opens it again, as a keystroke would.
+      editor().focus(); editor().dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+    },
+    // D170: a key typed at a line's start in the header.
+    'ed-key': (x) => acSetup(x, 'ed-key', 'Vice\nRules: 2024\nClasses: Cleric 1\nB'),
+    // D171: the key taken from the list; its value list opens at once.
+    'ed-key-chain': async (x) => {
+      await acSetup(x, 'ed-key-chain', 'Vice\nRules: 2024\nClasses: Cleric 1\nB')
+      document.querySelector('#ac-names .ao')?.click()
+      await x.sleep(400)
+    },
+    // D172 trial: a Spells line before any letter.
+    'ed-every': (x) => acSetup(x, 'ed-every', 'Vice\nRules: 2024\nClasses: Wizard 5\n\nL5 Wizard\nSpells: '),
+    // D174, D175, D176: `Guidance, ` on a Cleric's Cantrips line.
+    'ed-comma': (x) => commaSetup(x, 'ed-comma'),
+    // D173 (review): the header's Settings menu open, Suggestions in it.
+    'settings-open': async (x) => {
+      await x.waitFor('.top .dbtn')
+      const m = document.querySelector('#dmenu')
+      if (!m || m.hidden) document.querySelector('.top .dbtn')?.click()
+      await x.sleep(200)
+    },
+    // Wire 0.9 (D177, D178, D186): a Warlock's family keys, the arcanum's shared count, 2024 pacts, a capped line.
+    'w9-hints': (x) => acSetup(x, 'w9-hints', 'Vice\nRules: 2024\nClasses: Warlock 2\n\nL1 Warlock\nCantrips: Eldritch Blast\n\nL2 Warlock\n'),
+    'w9-arcanum': (x) => acSetup(x, 'w9-arcanum', 'Vice\nRules: 2024\nClasses: Warlock 11\n\nL11 Warlock\nSpells: Counterspell\nSpells (6th): '),
+    'w9-pactboon': (x) => acSetup(x, 'w9-pactboon', 'Vice\nRules: 2024\nClasses: Warlock 3\n\nL3 Warlock\nPact Boon: '),
+    'w9-pactinv': (x) => acSetup(x, 'w9-pactinv', 'Vice\nRules: 2024\nClasses: Warlock 3\n\nL3 Warlock\nInvocations: Pact'),
+    // D190: a 2024 Cleric's preset, and a Spells line in a Cleric block.
+    'w9-preset': (x) => laidPreset(x, 'w9-preset', [['Cleric', 3]]),
+    'w9-clericspells': (x) => acSetup(x, 'w9-clericspells', 'Vice\nRules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: Guidance\nSpells: Bless\nPrepared: Bless\n'),
+    'w9-cap': (x) => acSetup(x, 'w9-cap', 'Vice\nRules: 2024\nClasses: Warlock 11\n\nL11 Warlock\nSpells (3rd): fire'),
+    // Wide user test fixes (D196, D210–D219): the editor's one-click fixes and over-chip reasons.
+    'ut-move': (x) => acSetup(x, 'ut-move', 'Vice\nRules: 2024\nClasses: Wizard 5\n\nSpecies: Elf\nSkills: Insight\nFeature: Elven Lineage [INT; High Elf]\nSpells: Shield\nSubclass: Diviner\n\nL1 Wizard\nSkills: Arcana, History\nGear: A\nCantrips: Light, Mage Hand, Fire Bolt\nSpells: Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar, Alarm\n\nL3 Wizard\nSpells: Blur, Web\n'),
+    'ut-level': (x) => acSetup(x, 'ut-level', 'Vice\nRules: 2024\nClasses: Fighter 8\n\nL1 Fighter\n\nL3 Fighter\n'),
+    'ut-species': (x) => acSetup(x, 'ut-species', 'Vice\nRules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\n\nL1 Warlock\nSkills: Arcana, Deception\nGear: A\nInvocations: Agonizing Blast\nCantrips: Eldritch Blast, Minor Illusion\nSpells: Hex, Charm Person\n'),
+    'ut-rename': (x) => acSetup(x, 'ut-rename', 'Vice\nPaste: 1\nRules: 2014\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\nEquipment: Rope\n'),
+    'ut-names': (x) => acSetup(x, 'ut-names', 'Vice\nRules: 2024\nClasses: Warlock 2\n\nSpecies: Gnome|PHB\nFeature: Gnomish Lineage\n\nL1 Warlock\nSkills: Arcana, Deception\nGear: A\nOptions: Agonizing Blast, Repelling Blast\nCantrips: Eldritch Blast, Minor Illusion\nSpells: Hex|PHB, Sleep|PHB\n'),
+    'ut-over': async (x) => {
+      await acSetup(x, 'ut-over', 'Vice\nRules: 2024\nClasses: Ranger 5\n\nL3 Ranger\nSubclass: Hunter\nPrepared: Hunter\'s Mark, Cure Wounds, Goodberry, Ensnaring Strike\nOptions: Colossus Slayer\n')
+    },
+    'ut-2014': async (x) => {
+      await acSetup(x, 'ut-2014', 'Vice\nRules: 2014\nClasses: Cleric 3 / Paladin 2\n\nL1 Cleric\nSkills: Insight, Medicine\nSubclass: Life Domain\nCantrips: Guidance, Light, Sacred Flame\nSpells: Bless, Cure Wounds, Healing Word\n')
+      if (document.querySelector('.wlpop')?.hidden) document.querySelector('.wlb[data-line="9"]')?.click()
+    },
+    'ut-ac': (x) => acSetup(x, 'ut-ac', 'Vice\nRules: 2024\nClasses: Warlock 1\n\nSpecies: E'),
+    'ut-subclass': (x) => acSetup(x, 'ut-subclass', 'Vice\nRules: 2024\nClasses: Fighter 8\nSubclass: Eldritch Knight\n\nL8 Fighter\n'),
+    // Round 2 for 0.9 (D225–D229).
+    'r2-libfix': async (x) => {
+      await acSetup(x, 'r2-libfix', 'Vice\nPaste: 1\nRules: 2014\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\n\nSpecies: Elf\nMasteries: Dagger\n')
+      if (document.querySelector('.wlpop')?.hidden) document.querySelector('.wlb[data-line="8"]')?.click()
+    },
+    'r2-libfix2': (x) => acSetup(x, 'r2-libfix2', 'Vice\nPaste: 1\nRules: 2024\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\nSpels: Shield\n\nSpecies: Elf\nSpells: Shield\n'),
+    'r2-tidy2': async (x) => {
+      await acSetup(x, 'r2-tidy2', 'Vice\nRules: 2024\nClasses: Warlock 3 / Wizard 2\n\nSpecies: Elf\nMasteries: Dagger\nSubclass: Fiend Patron\n\nL1 Warlock\nOptions: Agonizing Blast\n\nL3 Warlock\n')
+      await x.sleep(400)
+    },
+    'r2-skills-species': (x) => acSetup(x, 'r2-skills-species', 'Vice\nRules: 2024\nClasses: Wizard 5\n\nSpecies: Elf\nSkills: '),
+    'r2-skills-class': (x) => acSetup(x, 'r2-skills-class', 'Vice\nRules: 2024\nClasses: Wizard 4 / Rogue 1\n\nL1 Wizard\nSkills: Arcana, \n\nL5 Rogue\nSkills: '),
+    'r2-bracket': async (x) => {
+      await acSetup(x, 'r2-bracket', 'Vice\nRules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\nFeature: Elven Lineage [ ]')
+      const ta = editor(); if (!ta) return
+      const at = ta.value.lastIndexOf('[') + 1
+      document.querySelector('.ed')?.dispatchEvent(new Event('focusout'))
+      ta.setSelectionRange(at, at)
+      ta.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await x.sleep(400)
+    },
+    'r2-tidy': async (x) => {
+      await acSetup(x, 'r2-tidy', 'Vice\nRules: 2024\nClasses: Warlock 3 / Wizard 2\n\nSpecies: Elf\nMasteries: Dagger\nSubclass: Fiend Patron\n\nL1 Warlock\nOptions: Agonizing Blast\n\nL3 Warlock\n')
+      if (document.querySelector('.tidypop')?.hidden) [...document.querySelectorAll('.bt')].find((b) => /Tidy/.test(b.textContent))?.click()
+      await x.sleep(200)
     },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')

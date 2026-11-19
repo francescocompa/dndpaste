@@ -6,10 +6,10 @@
  * A run's `c` holds the renderer's span classes for that text (k, p, r, s, n, e, q, ab, ab-<str…cha>, x, kd-<kind>,
  * km); `w` is the class of a wrapping span that changes how it looks (`d` a detail, `drop` a dropped item).
  */
-import { ABILITIES, isFeatKey } from "../../src/dndpaste.ts";
+import { ABILITIES, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, Item, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
-import { BOOKS } from "./books.ts";
-import { KIND_OF_KEY, lineEntries } from "./render.ts";
+import { allCodes } from "./codelist.ts";
+import { KIND_OF_KEY, isEmptyValue, kindOfKey, lineEntries } from "./render.ts";
 import type { Kind } from "./render.ts";
 
 export interface Run { t: string; c: string; w?: "d" | "drop" }
@@ -44,7 +44,7 @@ function item(it: Item, kind?: Kind): Run[] {
 
 /** One key's value, as `renderValue` writes it. */
 export function valueRuns(key: string, v: Value): Run[] {
-  const kind = KIND_OF_KEY[key] ?? (isFeatKey(key) ? "feat" : undefined);
+  const kind = kindOfKey(key);
   switch (v.type) {
     case "items": return join(v.items.map((it) => item(it, kind)), [P(", ")]);
     case "enum": return [{ t: v.value, c: "e" }];
@@ -64,27 +64,28 @@ export function valueRuns(key: string, v: Value): Run[] {
   }
 }
 
-/** A key and its colon, the slot marker apart: `Feat (Fighting Style):` (D110). */
+/** A key and its colon, the marker apart: `Feat (Fighting Style):`, `Spells (3rd):` (D110, D181, D184). */
 export function keyRuns(key: string): Run[] {
   const c = key.startsWith("X-") ? "k xk" : "k";
-  const m = isFeatKey(key) ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
+  const m = !key.startsWith("X-") && splitMarker(key).marker !== null ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
   const body: Run[] = m ? [{ t: m[1] + m[2], c }, { t: `(${m[3]})`, c: `${c} km` }] : [{ t: key, c }];
   return [...body, P(":")];
 }
 
-const rows = (scope: Scope, vc?: "grp"): Row[] => lineEntries(scope).map(([k, v]) => ({ k: keyRuns(k), v: valueRuns(k, v), ...(vc ? { vc } : {}) }));
+// D216: the image, like the view, leaves out empty lines.
+const rows = (scope: Scope, vc?: "grp"): Row[] => lineEntries(scope).filter(([, v]) => !isEmptyValue(v)).map(([k, v]) => ({ k: keyRuns(k), v: valueRuns(k, v), ...(vc ? { vc } : {}) }));
 
 /** The whole build, block by block, in the view's order: identifier and header, Species/Background, then levels. */
 export function shareBlocks(paste: Paste): Block[] {
   const head: Row[] = paste.identifier ? [{ k: [], v: [{ t: paste.identifier, c: "" }], vc: "idv" }] : [];
   head.push(...rows(paste.header));
   const out: Block[] = head.length ? [head] : [];
-  for (const e of paste.entities) out.push([{ k: keyRuns(e.key), v: e.item ? item(e.item, KIND_OF_KEY[e.key]) : [], vc: "ehv" }, ...rows(e.lines, "grp")]);
+  for (const e of paste.entities) if (e.item || rows(e.lines).length) out.push([{ k: keyRuns(e.key), v: e.item ? item(e.item, KIND_OF_KEY[e.key]) : [], vc: "ehv" }, ...rows(e.lines, "grp")]);
   for (const l of paste.levels) out.push([{ k: [{ t: `L${l.n}`, c: "" }], v: ref(l.class, "class"), kc: "lvk", vc: "lvv" }, ...rows(l.lines, "grp")]);
   return out;
 }
 
-/** A book the build cites (D120): its title from `BOOKS` (D103), or null for a code the list does not hold. */
+/** A book the build cites (D120): its title from the code list (D103, D226), or null for a code the list does not hold. */
 export interface CitedBook { code: string; title: string | null }
 
 /**
@@ -92,7 +93,7 @@ export interface CitedBook { code: string; title: string | null }
  * in the order they first appear, each once (codes compare without case). Names with no code are left out (D120).
  */
 export function citedBooks(paste: Paste): CitedBook[] {
-  const known = new Map(BOOKS.map((b) => [b.code.toUpperCase(), b] as const));
+  const known = new Map(allCodes().map((b) => [b.code.toUpperCase(), b] as const));
   const seen = new Map<string, CitedBook>();
   const cite = (r: Ref) => {
     if (!r.source) return;

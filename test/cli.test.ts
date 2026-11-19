@@ -71,10 +71,34 @@ test("check: every fixture parses with no grammar errors under the SRD table, an
     for (const line of lines) assert.match(line, LINE_RE, `${f}: malformed line "${line}"`);
     // Fixtures are hand-canonicalised: the grammar itself must always be clean (no "error" lines).
     assert.ok(lines.every((l) => !l.startsWith("error ")), `${f}: unexpected grammar error\n${lines.join("\n")}`);
-    // Exit-code contract: 1 iff something was printed (info is hidden by default and never drives exit 1,
-    // so with info hidden, "printed" and "has an error/warning" coincide).
-    assert.equal(r.status === 1, lines.length > 0, `${f}: exit code disagrees with printed output`);
+    // Exit-code contract (D204): by default 1 iff an error was printed, so a sparse paste passes; with --strict, 1 iff
+    // anything was printed (info is hidden by default and never drives exit 1).
+    assert.equal(r.status === 1, lines.some((l) => l.startsWith("error ")), `${f}: exit code disagrees with printed errors`);
+    const strict = run(["check", path, "--strict"]);
+    assert.equal(strict.status === 1, lines.length > 0, `${f}: --strict exit code disagrees with printed output`);
   }
+});
+
+test("check (D204): a sparse paste exits 0; --strict exits 1 on its warnings; errors exit 1 either way, with their hint", () => {
+  const sparse = spawnSync(process.execPath, [cli, "check", "-"], { encoding: "utf8", input: "Classes: Warlock 1\n" });
+  assert.equal(sparse.status, 0, sparse.stdout);
+  const strict = spawnSync(process.execPath, [cli, "check", "-", "--strict"], { encoding: "utf8", input: "Classes: Warlock 1\n" });
+  assert.equal(strict.status, 1);
+  assert.match(strict.stdout, /^warning C001 Warlock: Warlock: 0 of /m, "a finding prints its code");
+  const bad = spawnSync(process.execPath, [cli, "check", "-"], { encoding: "utf8", input: "Rules: 2024\nClasses: Wizard 5\nSpecies: Goblin\nSubclass: Diviner\n" });
+  assert.equal(bad.status, 1);
+  assert.match(bad.stdout, /^error E005 L4: .* → Move above Species$/m);
+});
+
+test("emit keeps a line with an error as written and exits 1 (D202); tidy makes the safe fixes", () => {
+  const input = "X\nClasses: A 1, B 2\nSpecies: Elf\n";
+  const e = spawnSync(process.execPath, [cli, "emit", "-"], { encoding: "utf8", input });
+  assert.equal(e.status, 1);
+  assert.equal(e.stdout, "X\nClasses: A 1, B 2\n\nSpecies: Elf\n");
+  assert.match(e.stderr, /E012 L2: .* → Use \/ between classes/);
+  const t = spawnSync(process.execPath, [cli, "tidy", "-"], { encoding: "utf8", input });
+  assert.equal(t.status, 0, t.stderr);
+  assert.equal(t.stdout, "X\nClasses: A 1 / B 2\n\nSpecies: Elf\n");
 });
 
 test("check --json: every fixture yields valid JSON with no grammar-error diagnostics", () => {

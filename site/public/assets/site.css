@@ -122,6 +122,9 @@ html:not(.hasjs) .njs { display: none !important; }
 .dmenu .tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); transition: left 0.12s; }
 .dmenu .tog.on { background: var(--acc); } .dmenu .tog.on::after { left: 16px; }
+.dmenu .seg button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.dmenu .seg svg.i { width: 13px; height: 13px; }
+.dmenu hr { border: 0; border-top: 1px solid var(--rule); margin: 0; width: 100%; }
 .dmenu .swatches { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -6px; }
 .dmenu .swatches i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .sw-class { background: var(--kd-class); } .sw-subclass { background: var(--kd-subclass); } .sw-species { background: var(--kd-species); }
@@ -268,11 +271,37 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ed .gc { font: 500 11px/1 var(--sans); letter-spacing: 0.02em; color: var(--mute); font-variant-numeric: tabular-nums;
   background: var(--chip); border-radius: 4px; padding: 2px 5px; }
 .ed .gc .i { display: inline-block; width: 11px; height: 11px; margin-left: 3px; vertical-align: -1.5px; color: var(--err); }
+/* Ghost text (D174): the kind of name a short counted line still wants, at the cursor. Faint sans, out of the flow
+   (over the ghost's padding), so it never wraps or moves a thing. */
+.ed .gt { position: absolute; font: italic 400 12px/inherit var(--sans); color: var(--mute); opacity: 0.75; pointer-events: none; }
 .ed .gprobe { position: absolute; visibility: hidden; white-space: pre; pointer-events: none; left: 0; top: 0; }
 .ed b { font-weight: 600; }
 .ed .row.err { background: var(--errbg); } .ed .row.err .g { color: var(--err); font-weight: 600; }
 .ed .row.warn .g { color: var(--warnc); font-weight: 600; }
 .ed .bad { text-decoration: underline wavy var(--err); text-underline-offset: 3px; color: var(--err); }
+/* Name autocomplete (D151, D157): desktop, a list under the cursor's line, up to 8 rows; the source a pick adds in
+   --src; Tab marks the row it takes until an arrow picks one. */
+.pane:has(.ac:not([hidden])) { overflow: visible; } /* the list may hang past the editor's edge */
+.ed .ac { position: absolute; z-index: 4; min-width: 15em; max-width: min(30em, 100%); max-height: calc(8 * 1.9em + 10px); overflow-y: auto;
+  overscroll-behavior: contain; padding: 4px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 8px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.16); }
+.ac .ao { display: flex; gap: 8px; align-items: center; white-space: nowrap; cursor: pointer; }
+.ed .ac .ao { padding: 3px 8px; border-radius: 5px; min-height: 1.9em; }
+.ed .ac .ao:hover { background: var(--chip); }
+.ac .ao.on { background: color-mix(in srgb, var(--acc) 14%, var(--chip)); }
+.ac .an { overflow: hidden; text-overflow: ellipsis; }
+.ac .as { color: var(--src); }
+.ac kbd { margin-left: auto; font: 11px/1 var(--sans); color: var(--mute); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 5px; }
+/* D162: a spell's level after its name; above the class's level, the row is dimmed (still pickable). */
+.ac .al { margin-left: auto; font: 11px/1 var(--sans); color: var(--mute); }
+.ac .al + kbd { margin-left: 0; }
+.ac .ao.dim .an, .ac .ao.dim .as { color: var(--mute); }
+/* D163: inside [ ], what goes in each ; group, the cursor's group in bold. */
+.ac .ah { font: 12px/1.3 var(--sans); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac .ah b { color: var(--fg); font-weight: 600; }
+.ed .ac .ah { padding: 3px 8px 5px; }
+.ed .ac .ah + .ao { border-top: 1px solid var(--rule); margin-top: 1px; padding-top: 4px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ed .lvh { font-weight: 600; } .ed .lvh .lvn { color: var(--acc); }
 .ed > .src { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 8px 10px 8px var(--gw); font: inherit;
   font-variant-ligatures: none; white-space: pre-wrap; overflow-wrap: anywhere; color: transparent; -webkit-text-fill-color: transparent;
@@ -401,10 +430,22 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .js .new .wrap { padding-bottom: 164px; }
   .js .pdock { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; transform: translateY(calc(-1 * var(--kb, 0px)));
     border-top: 1px solid var(--rule); background: var(--bg); font-family: var(--sans); }
-  .pdock .krow { flex-wrap: nowrap; overflow-x: auto; padding: 8px 14px 0; scrollbar-width: none;
+  .pdock .krow { flex-wrap: nowrap; overflow-x: auto; padding: 8px 14px 10px; scrollbar-width: none;
     -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
   .pdock .krow::-webkit-scrollbar { display: none; }
-  .pdock .srow { display: flex; gap: 8px; align-items: center; padding: 8px 14px 10px; }
+  /* D157 (amended in review): the Keys row and the names are the dock's last row, right on the keyboard; the names take
+     the Keys row's place while they show. A rule between every row: they don't belong together. */
+  .pdock .krow:not([hidden]), .pdock .ac:not([hidden]) { border-top: 1px solid var(--rule); }
+  /* One height for both, so switching between Keys and the names never moves the dock (round 2 note). */
+  .pdock .krow:not([hidden]), .pdock .ac:not([hidden]) { box-sizing: border-box; height: 48px; padding-top: 0; padding-bottom: 0; align-items: center; }
+  .pdock .ac:not([hidden]) { display: flex; gap: 5px; align-items: center; overflow-x: auto; padding: 8px 14px 10px; scrollbar-width: none; font: 13px/1 var(--mono);
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .pdock .ac::-webkit-scrollbar { display: none; }
+  .pdock .ac .ao { padding: 8px 10px; border-radius: 4px; background: var(--chip); color: var(--fg); flex-shrink: 0; }
+  .pdock .ac .al { margin-left: 6px; }
+  .pdock .ac .ah { flex-shrink: 0; padding-right: 9px; margin-right: 4px; border-right: 1px solid var(--rule); align-self: stretch; display: flex; align-items: center; gap: 4px; }
+  .pdock.ac-on .krow { display: none; }
+  .pdock .srow { display: flex; gap: 8px; align-items: center; padding: 8px 14px; }
   .pdock .srow .grow { flex: 1; min-width: 0; display: flex; }
   .pdock .perr { display: inline-flex; gap: 5px; align-items: center; color: var(--err); background: none; border: 0; padding: 0; font: 13px/1.15 var(--sans);
     text-align: left; min-width: 0; cursor: pointer; }
@@ -447,8 +488,8 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .ktab .kk { text-align: left; } .ktab .kw { width: auto; }
   .ktab .kh { grid-column: 1 / -1; }
   .ctab tr { grid-template-columns: 10ch minmax(0, 1fr); }
-  .ctab .ct { grid-column: 2; width: auto; font-size: 12.5px; }
-  .ctab thead .ct { display: none; }
+  .ctab .ct, .ctab .cd { grid-column: 2; width: auto; font-size: 12.5px; }
+  .ctab thead .ct, .ctab thead .cd { display: none; }
   .cfind .in { max-width: none; }
 }
 
@@ -468,8 +509,20 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ctab { max-width: 72ch; }
 .ctab .kk { width: 10ch; }
 .ctab .ct { color: var(--mute); white-space: nowrap; width: 9em; }
-.cfind { display: flex; gap: 12px; align-items: center; max-width: 72ch; margin: 1em 0 0.2em; }
-.cfind .in { max-width: 320px; }
+.cfind { display: flex; gap: 12px; align-items: center; max-width: 72ch; }
+/* D228: search, type chips, the 2014 switch and the A–Z strip stay at the top while the long list scrolls. */
+.cbar { position: sticky; top: 0; z-index: 4; background: var(--bg); max-width: 72ch; margin: 1em 0 0.2em; padding: 8px 0 6px;
+  border-bottom: 1px solid var(--rule); display: grid; gap: 8px; }
+.cchips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cchips button { border: 1px solid var(--rule); background: none; color: var(--mute); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.cchips button:hover { color: var(--fg); }
+.cchips button[aria-pressed=true] { background: var(--chip); border-color: var(--fg); color: var(--fg); font-weight: 600; }
+.cfind .c14 { display: inline-flex; gap: 5px; align-items: center; flex: none; font-size: 13px; color: var(--mute); cursor: pointer; }
+.cfind .in { flex: 1; }
+.caz { display: flex; flex-wrap: wrap; gap: 2px; font: 600 12.5px/1 var(--mono); }
+.caz a { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 4px; color: var(--mute); text-decoration: none; }
+.caz a:hover, .caz a:focus-visible { color: var(--fg); background: var(--chip); }
+.ctab .cd { color: var(--mute); white-space: nowrap; width: 8em; }
 .ctab .srt { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit;
   text-transform: inherit; color: inherit; cursor: pointer; }
 .ctab .srt:hover, .ctab th[aria-sort] .srt { color: var(--fg); }
@@ -477,3 +530,37 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ctab th:not([aria-sort]) .srt .i-chevron-down, .ctab th[aria-sort=ascending] .srt .i-chevron-down, .ctab th[aria-sort=descending] .srt .i-chevron-up { display: none; }
 .ctab th[aria-sort] .srt .i, .ctab .srt:hover .i { visibility: visible; }
 .ctab thead .kk .srt { flex-direction: row-reverse; }
+/* D190 review, D196 T12: a key or level header with a one-click fix gets the hint underline, not an error's wavy red;
+   a transparent button over it opens the fix. An over chip (D210) gets one that opens why. */
+.ed .wl { text-decoration: underline dashed var(--acc); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.ed .lvh.wl .lvn { text-decoration: inherit; }
+.ed .wls { position: absolute; inset: 0; pointer-events: none; }
+.ed .wlb { position: absolute; z-index: 2; pointer-events: auto; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+.ed .wlb:hover { background: color-mix(in srgb, var(--acc) 12%, transparent); }   /* fix-level review: no outline over the underline */
+.ed .wlb:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 1px; }
+.wlpop { padding: 4px; max-width: min(340px, calc(100vw - 16px)); }
+.wlpop .it { white-space: normal; }
+/* D218 review: the Type column's info button on /codes; a plain <details>, its note under the header. */
+.ctab th.ct { position: relative; }
+.ctab .tinfo { display: inline-block; vertical-align: middle; }
+.ctab .tinfo summary { list-style: none; cursor: pointer; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; color: var(--mute); }
+.ctab .tinfo summary::-webkit-details-marker { display: none; }
+.ctab .tinfo summary:hover, .ctab .tinfo[open] summary { color: var(--fg); background: var(--chip); }
+.ctab .tinfo summary .i { width: 14px; height: 14px; }
+.ctab .tinfo .tpop { position: absolute; right: 0; top: 100%; z-index: 5; width: min(300px, calc(100vw - 32px)); padding: 8px 10px;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 10px 28px rgb(0 0 0 / 0.16);
+  font: 400 13px/1.4 var(--sans); text-transform: none; letter-spacing: 0; white-space: normal; text-align: left; }
+/* D229 (review): Tidy's badge counts its changes; a click on it lists them under the button. */
+.tidyw { position: relative; display: inline-flex; }
+.tbadge { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; border: 1.5px solid var(--bg);
+  background: var(--acc); color: var(--accfg); font: 600 11px/15px var(--sans); text-align: center; cursor: pointer; }
+.tbadge:hover { filter: brightness(1.1); }
+.tbadge:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 2px; }
+.tidypop { position: absolute; width: min(340px, calc(100vw - 16px)); padding: 10px 12px; }
+.tidypop .tph { margin: 0 0 4px; font-weight: 600; }
+.tidypop .tpl { margin: 0; padding-left: 18px; max-height: 40vh; overflow: auto; }
+.tidypop .tpl li { margin: 2px 0; }
+.tidypop .tpi { background: none; border: 0; padding: 2px 4px; margin-left: -4px; border-radius: 4px; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.tidypop .tpi:hover { background: var(--chip); }
+.tidypop .tpi[aria-pressed=false] { color: var(--mute); text-decoration: line-through; }
+.tidypop .tpu { margin: 6px 0 0; font-size: 12px; }

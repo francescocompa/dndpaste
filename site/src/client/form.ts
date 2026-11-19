@@ -7,7 +7,10 @@
  */
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
-import { LANE, ghostHtml, ghostPads } from "../ghost.ts";
+import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount } from "../ghost.ts";
+import { markFixes, nameFixes, tidyPlan } from "../fixes.ts";
+import type { Fix } from "../fixes.ts";
+import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
 import type { Hints } from "./hints.ts";
 import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml, toChooseHtml } from "./status.ts";
@@ -23,11 +26,19 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
+import { afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
+import { suggestPref } from "./prefs.ts";
 
 const recent = recentStore(() => window.localStorage);
 const authors = authorStore(() => window.localStorage);
 const keys = keyStore(() => window.localStorage);
+/** D173: the Suggestions switch, set in the header's Settings menu (site.ts); read on every keystroke. */
+const suggestOn = suggestPref(() => window.localStorage);
 const MAX_FILE = 1024 * 1024;
+/** The autocomplete's SRD names (D158), its own bundle: a variable, so esbuild leaves the import to the browser. */
+const NAMES_JS = "/assets/names.js";
+
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = ""): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -108,8 +119,13 @@ function init(): void {
   file.hidden = true;
   const openBtn = el("button", "bt", `${icon("folder")}Open file`);
   const tidyBtn = el("button", "bt", `${icon("tidy")}Tidy`);
-  openBtn.type = tidyBtn.type = "button";
-  tb.prepend(openBtn, tidyBtn, file);
+  // D229 (review): Tidy tidies at once; its badge counts the changes and opens their list.
+  const tidyBadge = el("button", "tbadge");
+  tidyBadge.hidden = true;
+  const tidyW = el("span", "tidyw");
+  tidyW.append(tidyBtn, tidyBadge);
+  openBtn.type = tidyBtn.type = tidyBadge.type = "button";
+  tb.prepend(openBtn, tidyW, file);
   let sum = tb.querySelector<HTMLElement>(".dsum");
   if (!sum) { sum = el("span", "dsum"); tb.querySelector(".bt.pri")?.before(sum); }
   sum.setAttribute("aria-live", "polite");
@@ -150,9 +166,10 @@ function init(): void {
 
   // ---- phone dock (D86): Keys toggle + chip row, problem line, Save ----
   const dock = el("div", "pdock",
-    `<div class="krow chips" hidden></div><div class="prow"></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
+    `<div class="prow"></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
     `${icon("keyboard")}Keys <span class="kn"></span>${icon("chevron-up")}${icon("chevron-down")}</button>` +
-    `<span class="grow"></span><button type="submit" class="bt pri dsave">${editId ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`}</button></div>`);
+    `<span class="grow"></span><button type="submit" class="bt pri dsave">${editId ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`}</button></div>` +
+    `<div class="krow chips" hidden></div>`);
   form.append(dock);
   const krow = dock.querySelector<HTMLElement>(".krow") as HTMLElement;
   const ktog = dock.querySelector<HTMLButtonElement>(".ktog") as HTMLButtonElement;
@@ -163,6 +180,11 @@ function init(): void {
   keepFocus(krow);
   keepFocus(chips);
   ktog.addEventListener("click", () => {
+    // The names stand in for the Keys row while they show (D157): Keys puts the row back and closes them.
+    if (dock.classList.contains("ac-on")) {
+      acClose();
+      if (!krow.hidden) return;
+    }
     const open = krow.hidden;
     krow.hidden = !open;
     dock.classList.toggle("open", open);
@@ -175,6 +197,12 @@ function init(): void {
   let saving = false;
   /** D149: "+N" was pressed; the To choose row shows every line until the form reloads. */
   let allChoose = false;
+  /** D175: the count of the line being typed, kept while that line doesn't read; the line it's frozen on (0: none). */
+  let kept: Ghost | null = null;
+  let frozeLine = 0;
+  /** D196 T12: the names table once loaded (D158), for the fixes that need it; the fixes on show now. */
+  let fixNames: Names | null = null;
+  let fixes: Fix[] = [];
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
   let changed = () => {};
 
@@ -192,11 +220,11 @@ function init(): void {
     if (tipFor && !tipFor.isConnected) hideTip();
   };
   /**
-   * D90: the line being typed (1-based; 0 = none) holds its E001 until the cursor leaves it or typing pauses for
-   * HOLD_MS. Save looks ready meanwhile (as in frame form-keys-dark-phone) but still blocks: pressing it lets go of
+   * D90, D176: the line being typed (1-based; 0 = none) holds its errors until the cursor leaves it or typing pauses
+   * for HOLD_MS. Save looks ready meanwhile (as in frame form-keys-dark-phone) but still blocks: pressing it lets go of
    * the hold and shows the error.
    */
-  const HOLD_MS = 1500;
+  const HOLD_MS = 3000;
   let holdLine = 0;
   let holdTimer = 0;
   const release = () => {
@@ -205,11 +233,23 @@ function init(): void {
     holdLine = 0;
     refresh();
   };
+  let badgeTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Changes struck through in the badge's list (D229 review): Tidy leaves them out until they're clicked again. */
+  const tidySkip = new Set<string>();
   const setSaveState = () => {
     const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving && !(editId && !editKeys.length);
     for (const b of saves) { b.disabled = !on; b.classList.toggle("off", !on); }
     tidyBtn.disabled = !st.canTidy;
     tidyBtn.classList.toggle("off", !st.canTidy);
+    // The badge's count waits for a pause in typing: a plan reads the text several times.
+    clearTimeout(badgeTimer);
+    if (!st.canTidy) { tidyBadge.hidden = true; return; }
+    badgeTimer = setTimeout(() => {
+      const n = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip)?.changes.filter((c) => !c.off).length ?? 0 : 0;
+      tidyBadge.hidden = !n;
+      tidyBadge.textContent = String(n);
+      tidyBadge.setAttribute("aria-label", n === 1 ? "1 change Tidy will make" : `${n} changes Tidy will make`);
+    }, 250);
   };
   /**
    * Redraws only the rows that changed (common head and tail kept): a keystroke in a long paste touches a row or
@@ -230,13 +270,98 @@ function init(): void {
     }
     rows = next;
   };
+  /** The ghost text at the cursor (D174): the kind of name its short counted line still wants. */
+  const wordNow = () => document.activeElement === ta && ta.selectionStart === ta.selectionEnd
+    ? ghostWord(ta.value, ta.selectionStart, new Set(st.ghosts.filter((g) => g.have < g.of).flatMap((g) => [g.line, ...(g.also ?? [])])))
+    : null;
+  let wordShown = "";
   /** The highlight rows, with the ghost pick counts after their lines (D130): display only, never in the text. */
   const drawRows = () => {
     const gs = st.ghosts;
     // The lane is there only while a ghost shows: a paste with none keeps the full width.
     if (ed.classList.toggle("gl", gs.length > 0) !== laneOn) { laneOn = gs.length > 0; measure(); }
     const pads = ghostPads(ta.value.split(/\r?\n/), gs, cols, LANE);
-    draw(highlightRows(ta.value, st.diagnostics, new Map(gs.map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1)]))));
+    const w = wordNow();
+    wordShown = w ? `${w.line}:${w.word}` : "";
+    const after = new Map(gs.filter((g) => !g.note).map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1, g.line === w?.line ? w.word : "")]));
+    // A group's other line (D178) has no chip: its ghost text stands alone.
+    if (w && !after.has(w.line)) after.set(w.line, ghostWordHtml(w.word));
+    fixes = fixNames
+      ? [...st.fixes, ...nameFixes(fixNames, ta.value, st.paste, new Set(st.fixes.map((f) => f.line)))].sort((a, b) => a.line - b.line)
+      : st.fixes;
+    draw(markFixes(highlightRows(ta.value, st.diagnostics, after), fixes));
+    placeNotes();
+  };
+  // ---- D190 review, D196 T12: a key or level header with a one-click fix gets the hint underline and a button over
+  // it that opens one action. The highlight layer sits under the textarea, so it can't take a click: the buttons sit
+  // over it. ----
+  const wls = el("div", "wls");
+  ed.append(wls);
+  const wlPop = el("div", "pop wlpop");
+  wlPop.hidden = true;
+  wlPop.setAttribute("role", "dialog");
+  document.body.append(wlPop);
+  /** The popover's line; 0 when closed. */
+  let wlLine = 0;
+  const wlClose = () => { wlPop.hidden = true; wlLine = 0; };
+  /** Writes only the part of the text that changed, through insert, so Undo brings the old text back. */
+  const writeChange = (next: string) => {
+    const before = ta.value;
+    let a = 0;
+    while (a < before.length && a < next.length && before[a] === next[a]) a++;
+    let b = 0;
+    while (b < before.length - a && b < next.length - a && before[before.length - 1 - b] === next[next.length - 1 - b]) b++;
+    insert(next.slice(a, next.length - b), a, before.length - b);
+  };
+  const fixAt = (line: number) => fixes.find((f) => f.line === line);
+  function placeNotes() {
+    const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line]")];
+    if (!marks.length && !wls.firstChild) return;
+    const box = ed.getBoundingClientRect();
+    wls.innerHTML = marks.map((m) => {
+      const r = m.getBoundingClientRect();
+      const line = Number(m.dataset.line);
+      return `<button type="button" class="wlb" data-line="${line}" aria-label="${esc(fixAt(line)?.why ?? "")}" ` +
+        `style="left:${r.left - box.left}px;top:${r.top - box.top}px;width:${r.width}px;height:${r.height}px"></button>`;
+    }).join("");
+    if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine)) wlClose();
+  }
+  wls.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLElement>(".wlb");
+    if (!b) return;
+    const line = Number(b.dataset.line);
+    if (wlLine === line && !wlPop.hidden) { wlClose(); return; }
+    const f = fixAt(line);
+    if (!f) return;
+    wlPop.setAttribute("aria-label", f.why);
+    wlPop.innerHTML = `<button type="button" class="it" data-go>${esc(f.act)}</button>`;
+    wlLine = line;
+    wlPop.hidden = false;
+    // T35: anchored to its key: the popover's left edge at the key's, kept inside the window.
+    const r = b.getBoundingClientRect();
+    const w = wlPop.offsetWidth;
+    wlPop.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+    const h = wlPop.offsetHeight;
+    wlPop.style.top = `${r.bottom + 6 + h > innerHeight - 8 && r.top - 6 - h > 8 ? r.top - 6 - h : r.bottom + 6}px`;
+    wlPop.querySelector<HTMLElement>("[data-go]")?.focus();
+  });
+  wlPop.addEventListener("click", (e) => {
+    if (!(e.target as Element).closest("[data-go]")) return;
+    const f = fixAt(wlLine);
+    const before = ta.value;
+    const next = f ? f.apply(before) : null;
+    wlClose();
+    if (next === null || next === before) return;
+    writeChange(next);
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb")) wlClose();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !wlPop.hidden) { wlClose(); ta.focus(); } });
+  /** A cursor move: redraw when the ghost text comes, goes or moves. */
+  const redrawWord = () => {
+    const w = wordNow();
+    if ((w ? `${w.line}:${w.word}` : "") !== wordShown) drawRows();
   };
   // A wider or narrower row changes which ghosts fit their block's column: redraw when it does.
   new ResizeObserver(() => { if (measure()) drawRows(); }).observe(hl);
@@ -252,6 +377,13 @@ function init(): void {
   const refresh = () => {
     if (bulk) return;
     st = status(ta.value, holdLine);
+    // D175: the line being typed keeps its count while it doesn't read.
+    const cl = document.activeElement === ta ? cursorLine() + 1 : 0;
+    const broken = cl > 0 && st.paste.diagnostics.some((d) => d.line === cl && d.code.startsWith("E"));
+    const k = keepCount(st.ghosts, cl, broken, kept);
+    kept = k.kept;
+    frozeLine = broken && kept ? cl : 0;
+    st = { ...st, ghosts: k.ghosts };
     drawRows();
     const n = rows.length;
     ed.classList.toggle("w3", n >= 100 && n < 1000);
@@ -357,6 +489,233 @@ function init(): void {
     if (back) { const at = ta.selectionStart - back; ta.setSelectionRange(at, at); refreshHints(); }
   };
 
+  // ---- name autocomplete (D151, D154–D159) ----
+  // Desktop: a listbox under the cursor's line. Phone (the dock's width): the same listbox as a chip row in the dock,
+  // in place of the Keys row (D157). The textarea keeps focus; the list is announced through aria-activedescendant.
+  let names: Names | null = null;
+  let loading = false;
+  const phone = window.matchMedia("(max-width: 600px)");
+  const ac = el("div", "ac");
+  ac.id = "ac-names";
+  ac.setAttribute("role", "listbox");
+  ac.setAttribute("aria-label", "Names");
+  ac.hidden = true;
+  ed.append(ac);
+  keepFocus(ac);
+  const acSays = el("span", "vh");
+  acSays.setAttribute("aria-live", "polite");
+  ed.append(acSays);
+  let acSpot: Spot | null = null;
+  let acRows: Suggestion[] = [];
+  /** D170: a key being typed at the line's start; its rows are keys (`Species:`), not names. */
+  let acKey: KeySpot | null = null;
+  /** The row an arrow picked; -1: none, so Enter keeps its new line (D154). */
+  let acOn = -1;
+  /** What goes in the `[ ]` the cursor is in, one entry per `;` group (D163); null outside one or where unknown. */
+  let acHint: { slots: string[]; at: number } | null = null;
+  const acAria = () => {
+    ta.setAttribute("aria-autocomplete", "list");
+    ta.setAttribute("aria-controls", ac.id);
+    ta.setAttribute("aria-expanded", String(!ac.hidden));
+    if (!ac.hidden && acOn >= 0) ta.setAttribute("aria-activedescendant", `ac-${acOn}`);
+    else ta.removeAttribute("aria-activedescendant");
+  };
+  const acClose = () => {
+    if (ac.hidden && !acSpot) return;
+    ac.hidden = true;
+    acSpot = null;
+    acKey = null;
+    acRows = [];
+    acOn = -1;
+    acSays.textContent = "";
+    acHint = null;
+    dock.classList.remove("ac-on");
+    acAria();
+  };
+  /** The viewport box of the character at `pos`, from the highlight layer (its rows mirror the text, wrapping too). */
+  const caretBox = (pos: number): DOMRect | null => {
+    const before = ta.value.slice(0, pos);
+    const t = hl.children[before.split("\n").length - 1]?.querySelector(".t");
+    if (!t) return null;
+    let left = pos - (before.lastIndexOf("\n") + 1);
+    const walk = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode() as Text | null; n; n = walk.nextNode() as Text | null) {
+      if (left <= n.length) {
+        const r = document.createRange();
+        r.setStart(n, left);
+        r.setEnd(n, Math.min(n.length, left + 1));
+        return r.getBoundingClientRect();
+      }
+      left -= n.length;
+    }
+    return t.getBoundingClientRect();
+  };
+  const acPlace = () => {
+    const from = acSpot?.start ?? acKey?.start;
+    const at = from === undefined ? null : caretBox(from);
+    if (!at) return;
+    const box = ed.getBoundingClientRect();
+    // Below the line when the list fits in the window there (it may hang past the editor's edge), else on the
+    // roomier side, cut to fit.
+    const roomBelow = window.innerHeight - at.bottom - 4;
+    const roomAbove = at.top - 4;
+    ac.style.maxHeight = "";
+    const full = ac.offsetHeight;
+    const below = full <= roomBelow || roomBelow >= roomAbove;
+    if (full > (below ? roomBelow : roomAbove)) ac.style.maxHeight = `${Math.max(0, Math.floor(below ? roomBelow : roomAbove))}px`;
+    const h = ac.offsetHeight;
+    ac.style.top = `${Math.round((below ? at.bottom + 2 : at.top - 2 - h) - box.top)}px`;
+    ac.style.left = `${Math.round(Math.max(0, Math.min(at.left - box.left - 9, ed.clientWidth - ac.offsetWidth)))}px`;
+  };
+  const acDraw = () => {
+    const onPhone = phone.matches;
+    // Desktop: every group, the cursor's in bold. Phone: only the cursor's group and where it is (round 3: the full
+    // line was cut and read as stale once a group was filled).
+    const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+    const hint = !acHint ? "" : onPhone
+      ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
+      : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
+    ac.innerHTML = hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+      `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}` +
+      `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
+      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
+    // Phone: the dock's last row, right on the keyboard (D157 amended).
+    const home = onPhone ? dock : ed;
+    if (ac.parentElement !== home) { if (onPhone) dock.append(ac); else ed.append(ac); }
+    dock.classList.toggle("ac-on", onPhone);
+    if (ac.hidden) {
+      const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
+      const kind = acKey ? "key" : "name";
+      acSays.textContent = acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+    }
+    ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
+    ac.hidden = false;
+    if (!onPhone) acPlace();
+    ac.querySelector(".on")?.scrollIntoView({ block: "nearest" });
+    acAria();
+  };
+  /** `typing`: the text changed by a keystroke. Only typing opens the list; a cursor move updates or closes it (D154). */
+  const complete = (typing: boolean) => {
+    // The editor may have had focus before this ran (a restored draft, the browser's own focus): load on first use too.
+    if (!names) { if (typing) loadNames(); return; }
+    if (!typing && ac.hidden) return;
+    if (!suggestOn.get() || document.activeElement !== ta || ta.selectionStart !== ta.selectionEnd) { acClose(); return; }
+    // A key at the line's start (D170): the hint strip's keys, narrowed by what was typed.
+    const ks = keySpotAt(ta.value, ta.selectionStart);
+    const kk = ks ? suggestKeys(ta.value, ks) : [];
+    if (ks && kk.length) {
+      const rows = kk.slice(0, phone.matches ? 12 : 8).map((k): Suggestion => ({ name: `${k}:`, source: null }));
+      const same = acKey?.start === ks.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
+      if (!same) acOn = -1;
+      acSpot = null;
+      acKey = ks;
+      acRows = rows;
+      acHint = null;
+      acDraw();
+      return;
+    }
+    acKey = null;
+    const sp = spotAt(ta.value, ta.selectionStart);
+    const rows = sp ? suggest(names, sp, phone.matches ? 12 : 8) : [];
+    // An empty `[ ]` group the table knows shows what goes there, even before a name fits (D163).
+    const hint = sp ? slotHint(names, sp) : null;
+    if (!sp || !(rows.length || (hint && !sp.typed.trim()))) { acClose(); return; }
+    const same = acSpot?.start === sp.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
+    if (!same) acOn = -1;
+    acSpot = sp;
+    acRows = rows;
+    acHint = hint;
+    acDraw();
+  };
+  const loadNames = () => {
+    if (names || loading) return;
+    loading = true;
+    // Typed before the names arrived: show what fits now.
+    (import(NAMES_JS) as Promise<Names>).then((m) => { names = m; fixNames = m; drawRows(); complete(true); }, () => { loading = false; });
+  };
+  const acTake = (i: number) => {
+    const sp = acSpot;
+    const r = acRows[i];
+    const ks = acKey;
+    if (ks && r) {
+      // D171: the key, then its value list at once (Feat (…): the cursor in the parentheses, for the slot's name).
+      acClose();
+      const w = writtenKey(r.name.slice(0, -1));
+      insert(w.text, ks.start, ks.end);
+      ta.setSelectionRange(ks.start + w.cursor, ks.start + w.cursor);
+      refreshHints();
+      complete(true);
+      return;
+    }
+    if (!sp || !r) return;
+    acClose();
+    // Inside [ ], the next group or name starts at once (D163 review), unless a separator is already there.
+    const nx = ta.value[sp.end];
+    const sep = names && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
+    // Review (D229): the last pick in `[ ]` leaves no stray spaces inside the brackets: `[ Drow ]` → `[Drow]`.
+    const [a, b] = sep || sp.parent === null ? [sp.start, sp.end] : bracketTrim(ta.value, sp.start, sp.end);
+    insert(written(sp, r) + sep, a, b);
+    if (sep) complete(true);
+  };
+  ed.addEventListener("keydown", (e) => {
+    if (ac.hidden || e.isComposing || !acRows.length) {
+      if (e.key === "Escape" && !ac.hidden) { e.preventDefault(); acClose(); }
+      return;
+    }
+    const plain = !e.altKey && !e.ctrlKey && !e.metaKey;
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && plain && !e.shiftKey) {
+      e.preventDefault();
+      const n = acRows.length;
+      acOn = e.key === "ArrowDown" ? (acOn + 1) % n : acOn <= 0 ? n - 1 : acOn - 1;
+      acDraw();
+    } else if (e.key === "Tab" && plain && !e.shiftKey) {
+      e.preventDefault();
+      acTake(Math.max(0, acOn));
+    } else if (e.key === "Enter" && plain && !e.shiftKey && acOn >= 0) {
+      e.preventDefault();
+      acTake(acOn);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      acClose();
+    }
+  }, true);
+  // Brackets (D163): `[` writes its `]` when nothing follows it on the line but a separator; `]` steps over the one
+  // already there; deleting back between an empty pair takes both. Then the list shows what goes in the first group.
+  // On beforeinput, not keydown: phone keyboards send no usable key.
+  ed.addEventListener("beforeinput", (e) => {
+    const ie = e as InputEvent;
+    if (ie.target !== ta || ie.isComposing || ta.selectionStart !== ta.selectionEnd) return;
+    const pos = ta.selectionStart;
+    const next = ta.value[pos] ?? "\n";
+    if (ie.inputType === "insertText" && ie.data === "[" && /[\s,;\]]/.test(next)) {
+      e.preventDefault();
+      insert("[]", pos, pos);
+      ta.setSelectionRange(pos + 1, pos + 1);
+      complete(true);
+    } else if (ie.inputType === "insertText" && ie.data === "]" && next === "]") {
+      e.preventDefault();
+      ta.setSelectionRange(pos + 1, pos + 1);
+      complete(false);
+    } else if (ie.inputType === "deleteContentBackward" && ta.value[pos - 1] === "[" && next === "]") {
+      e.preventDefault();
+      insert("", pos - 1, pos + 1);
+      complete(false);
+    }
+  });
+  ac.addEventListener("click", (e) => {
+    const o = (e.target as Element).closest<HTMLElement>("[data-i]");
+    if (o) acTake(Number(o.dataset.i));
+  });
+  acAria();
+  ed.addEventListener("focusin", loadNames);
+  if (ed.contains(document.activeElement)) loadNames();
+  ed.addEventListener("focusout", acClose);
+  // D229: a click into an empty `[ ]` opens the list, as typing would; any other click only updates or closes it.
+  ed.addEventListener("keyup", (e) => { if (!ac.contains(e.target as Node)) complete(false); });
+  ed.addEventListener("click", (e) => { if (!ac.contains(e.target as Node)) complete(e.target === ta && ta.selectionStart === ta.selectionEnd && inEmptyBrackets(ta.value, ta.selectionStart)); });
+  phone.addEventListener("change", acClose);
+  window.addEventListener("resize", () => { if (!ac.hidden && !phone.matches) acPlace(); });
+
   // ---- link import (D85) ----
   let importReq = 0;
   let pending: Import | null = null;
@@ -415,6 +774,7 @@ function init(): void {
       holdLine = 0;
     }
     refresh();
+    complete(/^(insertText|insertCompositionText|insertReplacementText|deleteContent)/.test(kind ?? ""));
     showErr(null);
     if (kind === "insertFromPaste" || kind === "insertFromDrop") void checkLink();
     else if (!lbar.hidden && !linkedId(ta.value, location.host)) hideBar();
@@ -422,9 +782,18 @@ function init(): void {
   for (const ev of ["keyup", "click", "focusin", "focusout"]) ed.addEventListener(ev, refreshHints);
   // D90: the cursor left the held line (arrows, a click, a jump), or the editor lost focus.
   document.addEventListener("selectionchange", () => {
-    if (holdLine && document.activeElement === ta && cursorLine() + 1 !== holdLine) release();
+    if (document.activeElement !== ta) return;
+    const here = cursorLine() + 1;
+    if (holdLine && here !== holdLine) release();
+    else if (frozeLine && here !== frozeLine) refresh();   // D175: the count follows the line once the cursor leaves
+    else redrawWord();
   });
-  ed.addEventListener("focusout", release);
+  ed.addEventListener("focusout", () => {
+    release();
+    // After the focus has moved: the frozen count (D175) and the ghost text (D174) belong to the focused editor only.
+    setTimeout(() => { if (document.activeElement === ta) return; if (frozeLine) refresh(); else redrawWord(); });
+  });
+  ed.addEventListener("focusin", redrawWord);
   form.addEventListener("click", (e) => {
     const t = e.target as Element;
     const at = t.closest<HTMLElement>("[data-line]");
@@ -435,6 +804,7 @@ function init(): void {
     if (pressed === chip) { pressed = null; return; }   // a long press showed the description: it does not insert
     hideTip();
     insertKey(chip.dataset.key);
+    complete(true);   // D171: the key's value list opens at once
   });
 
   // ---- Keys popover: a key's description from the guide's key table (keydocs.ts), on hover or keyboard focus of
@@ -508,9 +878,52 @@ function init(): void {
     refreshHints();
     ed.scrollIntoView({ block: "nearest" });
   });
+  // D229 (review): Tidy makes its changes at once (one Undo takes them back); the badge lists them first if you ask.
+  const tidyPop = el("div", "pop tidypop");
+  tidyPop.hidden = true;
+  tidyPop.setAttribute("role", "dialog");
+  tidyPop.setAttribute("aria-label", "What Tidy will change");
+  document.body.append(tidyPop);
+  const tidyClose = (back = false) => { tidyPop.hidden = true; if (back) tidyBadge.focus(); };
   tidyBtn.addEventListener("click", () => {
-    if (st.canTidy && st.canon !== null) replaceAll(st.canon);
+    tidyClose();
+    const next = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip)?.text : undefined;
+    tidySkip.clear();
+    if (next !== undefined && next !== ta.value) writeChange(next);
+    else setSaveState();
   });
+  const drawTidyList = (): boolean => {
+    const plan = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip) : null;
+    if (!plan) return false;
+    tidyPop.innerHTML = `<p class="tph">Tidy will:</p><ul class="tpl">${plan.changes.map((c) =>
+      `<li><button type="button" class="tpi" aria-pressed="${!c.off}" data-label="${esc(c.label)}">${esc(c.label)}</button></li>`).join("")}</ul>` +
+      `<p class="muted tpu">Click a change to leave it out.</p>`;
+    return true;
+  };
+  tidyBadge.addEventListener("click", () => {
+    if (!tidyPop.hidden) { tidyClose(); return; }
+    if (!drawTidyList()) return;
+    tidyPop.hidden = false;
+    tidyW.scrollIntoView({ block: "nearest" });
+    const r = tidyW.getBoundingClientRect();
+    const w = tidyPop.offsetWidth;
+    tidyPop.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+    tidyPop.style.top = `${r.bottom + 6 + scrollY}px`;   // placed in the page (.tidypop is absolute): it scrolls with its button
+  });
+  // Review: a click strikes a change through (Tidy leaves it out); another click brings it back.
+  tidyPop.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>(".tpi");
+    const label = b?.dataset.label;
+    if (!label) return;
+    if (tidySkip.has(label)) tidySkip.delete(label); else tidySkip.add(label);
+    drawTidyList();
+    tidyPop.querySelector<HTMLElement>(`.tpi[data-label="${CSS.escape(label)}"]`)?.focus();
+    setSaveState();
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!tidyPop.hidden && !tidyPop.contains(e.target as Node) && !tidyBadge.contains(e.target as Node)) tidyClose();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !tidyPop.hidden) tidyClose(true); });
 
   // ---- Open file and drop ----
   const openFile = async (f: File) => {

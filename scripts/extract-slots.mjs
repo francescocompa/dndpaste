@@ -18,9 +18,9 @@ const isSrd = (e) => Boolean(e.srd || e.srd52 || e.basicRules || e.basicRules202
 // Edition: the entity's own field when present, else inferred from its source's publication date
 // (books.json / adventures.json; XPHB shipped 2024-09-17). Homebrew and unknown sources stay null.
 const XPHB_DATE = "2024-09-17";
-const sourceEdition = {}, sourceGroup = {};
+const sourceEdition = {}, sourceGroup = {}, sourceDate = {};
 for (const [file, key] of [["books.json", "book"], ["adventures.json", "adventure"]]) {
-  try { for (const b of load(file)[key] ?? []) { if (b.source && b.published) sourceEdition[b.source] = b.published >= XPHB_DATE ? "2024" : "2014"; if (b.source) sourceGroup[b.source] = b.group ?? (key === "adventure" ? "adventure" : null); } } catch { /* optional */ }
+  try { for (const b of load(file)[key] ?? []) { if (b.source && b.published) { sourceEdition[b.source] = b.published >= XPHB_DATE ? "2024" : "2014"; sourceDate[b.source] = b.published; } if (b.source) sourceGroup[b.source] = b.group ?? (key === "adventure" ? "adventure" : null); } } catch { /* optional */ }
 }
 const core = (e) => sourceGroup[e.source] === "core";
 const edition = (e) => (e.edition === "one" ? "2024" : e.edition === "classic" ? "2014" : sourceEdition[e.source] ?? null);
@@ -82,7 +82,7 @@ function additionalSpellsSpec(list) {
         else if (s && typeof s === "object" && s.choose) { if (/level=0/.test(String(s.choose))) cantrip += s.count ?? 1; else choose += s.count ?? 1; }
         else visit(s);
       } return; }
-      if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) { if (k === "ability" || k === "name") continue; visit(v); }
+      if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) { if (k === "ability" || k === "name" || k === "expanded") continue; visit(v); }
     };
     visit(g);
     out.choose = Math.max(out.choose, choose); out.cantripChoose = Math.max(out.cantripChoose, cantrip);
@@ -156,7 +156,8 @@ const propsOf = (i) => {
   for (const k of matcherKeys) if (i[k] !== undefined) out[k] = k === "property" ? i[k].map((p) => (typeof p === "string" ? p : p.uid)) : i[k];
   return out;
 };
-for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false, base: true, props: propsOf(i) };
+for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false, base: true, props: propsOf(i),
+  ...(i.weapon && i.mastery?.length ? { mastery: true } : {}) }; // a weapon with a mastery property (not a focus that fights as one): what `Masteries:` can name
 const itemsByKey = itemsIndex(items);
 const magicVariants = {};
 for (const v of variantList) {
@@ -255,7 +256,7 @@ for (const s of load("races.json").subrace ?? []) {
   const sp = additionalSpellsSpec(s.additionalSpells);
   const merge = (a, b) => (a && b ? { fixed: [...a.fixed, ...b.fixed], choose: b.choose ?? a.choose, any: a.any + b.any } : b ?? a);
   species[`${s.raceName} (${s.name})|${s.source}`] = {
-    ...base, name: `${s.raceName} (${s.name})`, source: s.source, edition: edition({ source: s.source }) ?? base.edition, srd: Boolean(base.srd || isSrd(s)),
+    ...base, name: `${s.raceName} (${s.name})`, source: s.source, edition: edition({ source: s.source }) ?? base.edition, srd: isSrd(s), // the subrace's own flag: a non-SRD subrace of an SRD race stays out of the subset
     subraceOf: `${s.raceName}|${s.raceSource ?? s.source}`,
     skills: merge(base.skills, chooseSpec(s.skillProficiencies)), tools: merge(base.tools, chooseSpec(s.toolProficiencies)), languages: merge(base.languages, chooseSpec(s.languageProficiencies)),
     ability: abilitySpec([...(load("races.json").race.find((r) => r.name === s.raceName && r.source === (s.raceSource ?? s.source))?.ability ?? []), ...(s.ability ?? [])]),
@@ -298,6 +299,9 @@ for (const o of load("optionalfeatures.json").optionalfeature ?? []) {
   // is {"*": n} for "n each time the option is taken"; a per-level map takes its largest value.
   const grants = (o.featProgression ?? []).map((fp) => ({ category: fp.category, count: Array.isArray(fp.progression) ? Math.max(0, ...fp.progression) : fp.progression?.["*"] ?? Math.max(0, ...Object.values(fp.progression ?? {})) })).filter((g) => g.count > 0);
   if (grants.length) optionalFeatures[uid(o)].feats = grants;
+  // Spells the option grants outright (Pact of the Chain → Find Familiar): written, they are highlights (D201).
+  const osp = additionalSpellsSpec(o.additionalSpells);
+  if (osp?.fixed.length) optionalFeatures[uid(o)].grantedSpells = osp.fixed;
 }
 Object.assign(families, { EI: "Eldritch Invocations", MM: "Metamagic", "MV:B": "Maneuvers", "MV:C2-UA": "Maneuvers (UA)", AI: "Artificer Infusions", AS: "Arcane Shots", RN: "Runes", ED: "Elemental Disciplines", PB: "Pact Boons", "FS:F": "Fighting Styles (Fighter)", "FS:R": "Fighting Styles (Ranger)", "FS:P": "Fighting Styles (Paladin)", "FS:B": "Fighting Styles (Bard)", OTH: "Other", "FS:F/FS:P/FS:R": "Fighting Styles" });
 const spells = {};
@@ -336,6 +340,14 @@ try {
 const meta = { generated: new Date().toISOString().slice(0, 10), counts: {} };
 const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, featCategories, spells, items, magicVariants };
 for (const k of Object.keys(full)) if (k !== "meta" && k !== "families" && k !== "featCategories") meta.counts[k] = Object.keys(full[k]).length;
+// Every book code an entity of the full table cites (D205): the checker tells a known book that the table lacks (the
+// SRD subset) from a code no book has. Codes only.
+meta.sources = [...new Set(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].flatMap((k) => Object.values(full[k]).map((e) => e.source)).filter((x) => typeof x === "string"))].sort();
+// Each cited book's release date (D221): a bare name resolves to the newest printing. A code with no date (homebrew, a
+// collection the data lists without one) is left out and ranks oldest.
+meta.sourceDates = Object.fromEntries(meta.sources.filter((c) => sourceDate[c]).map((c) => [c, sourceDate[c]]));
+// Setting books and adventures (D221): their printing of a name loses to a core book's printing in the same edition.
+meta.settingSources = meta.sources.filter((c) => /^(setting|setting-alt|adventure)$/.test(sourceGroup[c] ?? ""));
 
 const srdFilter = (tbl) => Object.fromEntries(Object.entries(tbl).filter(([, v]) => v.srd));
 const srd = { meta: { ...meta, subset: "srd" }, families, featCategories, ...Object.fromEntries(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].map((k) => [k, srdFilter(full[k])])) };

@@ -10,7 +10,7 @@
  * · n number · e enum · q quantity · x drop minus · drop dropped item · d detail · ab ability · ab-<str…cha>
  * · kd-<kind> (colour by kind, D82).
  */
-import { ABILITIES, isFeatKey } from "../../src/dndpaste.ts";
+import { ABILITIES, keyDef, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, EntityBlock, Item, LevelBlock, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
 
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -25,16 +25,23 @@ export type Kind = "class" | "subclass" | "species" | "background" | "feat" | "s
 /** Which kind colours a key's names (D82; the mapping from the jam). Keys not listed take no kind colour. */
 export const KIND_OF_KEY: Readonly<Record<string, Kind>> = {
   Classes: "class", Options: "class", Feature: "class", "Fighting Style": "class",
+  Invocations: "class", Metamagic: "class", Maneuvers: "class", Infusions: "class", "Arcane Shots": "class", Runes: "class",
+  Disciplines: "class", "Pact Boon": "class",
   Subclass: "subclass", Species: "species", Background: "background", Feat: "feat",
   Cantrips: "spell", Spells: "spell", Prepared: "spell", Gear: "item", Equipment: "item", Items: "item",
 };
+
+/** A scope key's kind: a marked or capped line takes its key's (`Feat (Origin)`, `Options (…)`, `Spells (3rd)`; D110, D181, D184). */
+export function kindOfKey(key: string): Kind | undefined {
+  return KIND_OF_KEY[keyDef(key)?.key ?? key];
+}
 
 const P = (t: string): string => `<span class="p">${esc(t)}</span>`;
 const isAbility = (name: string): name is Ability => (ABILITIES as readonly string[]).includes(name);
 const ab = (a: Ability): string => `<span class="ab ab-${a.toLowerCase()}">${a}</span>`;
 
 /** The emitter's quoting rule (SPEC §3.2): names with , ; : [ ] " or a leading - are written in quotes. */
-function needsQuotes(name: string): boolean {
+export function needsQuotes(name: string): boolean {
   return /[,;:[\]"]/.test(name) || name.startsWith("-");
 }
 
@@ -60,7 +67,7 @@ export function renderItem(it: Item, kind?: Kind): string {
 
 /** One key's value as written. Its text content equals the emitter's `emitValue`, except `Classes`, which keeps its runs. */
 export function renderValue(key: string, v: Value): string {
-  const kind = KIND_OF_KEY[key] ?? (isFeatKey(key) ? "feat" : undefined);   // `Feat (Fighting Style)` (D110)
+  const kind = kindOfKey(key);
   switch (v.type) {
     case "items": return v.items.map((it) => renderItem(it, kind)).join(P(", "));
     case "enum": return `<span class="e">${esc(v.value)}</span>`;
@@ -82,10 +89,10 @@ export function renderValue(key: string, v: Value): string {
   }
 }
 
-/** A key, with a slot marker shown apart from the key's name: `Feat (Fighting Style)` (D110). */
+/** A key, with a marker shown apart from the key's name: `Feat (Fighting Style)`, `Spells (3rd)` (D110, D181, D184). */
 export function keyHtml(key: string): string {
   const x = key.startsWith("X-");
-  const m = isFeatKey(key) ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
+  const m = !key.startsWith("X-") && splitMarker(key).marker !== null ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
   const body = m ? `${esc(m[1])}${m[2]}<span class="km">(${esc(m[3])})</span>` : esc(key);
   return `<span class="k${x ? " xk" : ""}">${body}</span>`;
 }
@@ -105,7 +112,20 @@ export function lineEntries(scope: Scope): [string, Value][] {
       ? [[k, { ...v, increase: null }], [k, { type: "scores", values: NONE(), increase: v.increase }]]
       : [[k, v]]);
 }
-const rows = (scope: Scope, vc = ""): string => lineEntries(scope).map(([k, v]) => row(renderKey(k), renderValue(k, v), "", vc)).join("");
+/** D216 (T25): a line with nothing after its key (a preset's "not chosen yet" line). The view leaves it out; Raw and
+ *  Edit keep it. */
+export function isEmptyValue(v: Value): boolean {
+  switch (v.type) {
+    case "empty": return true;
+    case "items": return v.items.length === 0;
+    case "classes": return v.entries.length === 0;
+    case "scores": return !v.increase && v.values.every((x) => x === null);
+    case "text": return v.value === "";
+    default: return false;
+  }
+}
+const filled = (scope: Scope): [string, Value][] => lineEntries(scope).filter(([, v]) => !isEmptyValue(v));
+const rows = (scope: Scope, vc = ""): string => filled(scope).map(([k, v]) => row(renderKey(k), renderValue(k, v), "", vc)).join("");
 
 export interface RenderOptions {
   /** URL of the SVG sprite (D89: icons, never text glyphs). */
@@ -117,13 +137,14 @@ export function icon(name: string, sprite = "/assets/icons.svg"): string {
 }
 
 function renderEntity(b: EntityBlock): string {
+  if (!b.item && !filled(b.lines).length) return "";   // D216: an empty Species or Background block
   return `<div class="bl ent">${row(renderKey(b.key), (b.item ? renderItem(b.item, KIND_OF_KEY[b.key]) : ""), "", "ehv")}${rows(b.lines, "grp")}</div>`;
 }
 
 function renderLevel(b: LevelBlock, o: RenderOptions): string {
   const head = (marker: string) => row(`L${b.n}`, renderRef(b.class, "class") + marker, "lvk", "lvv");
-  if (!b.lines.size) return `<div class="bl lvb">${head("")}</div>`;
-  const n = lineEntries(b.lines).length;
+  const n = filled(b.lines).length;
+  if (!n) return `<div class="bl lvb">${head("")}</div>`;
   const marker = `<span class="mk">${icon("chevron-down", o.sprite)}${icon("chevron-right", o.sprite)}` +
     `<span class="cnt">${n} line${n === 1 ? "" : "s"}</span></span>`;
   // <details> folds without JavaScript; slice 3 adds fold all / expand all on top.
@@ -135,7 +156,7 @@ export function renderPaste(paste: Paste, o: RenderOptions = {}): string {
   let head = paste.identifier ? row("", esc(paste.identifier), "", "idv") : "";
   head += rows(paste.header);
   const parts = head ? [`<div class="bl">${head}</div>`] : [];
-  for (const e of paste.entities) parts.push(renderEntity(e));
+  for (const e of paste.entities) { const h = renderEntity(e); if (h) parts.push(h); }
   for (const l of paste.levels) parts.push(renderLevel(l, o));
   return `<div class="build">${parts.join("")}</div>`;
 }

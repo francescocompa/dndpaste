@@ -63,23 +63,27 @@ test("view: Post to Reddit's link on the action row for the Copy link menu, and 
 // D120: the books a build cites, from its |SOURCE codes; uncited names are left out.
 test("books: cited codes in order of first use, each once, titled from BOOKS; unknown codes as written", () => {
   const p = parse("Classes: Warlock|XPHB 5\nSpells: Hex|xphb, Misty Step\n\nSpecies: Tiefling|XPHB\n\nBackground: Archer Priest|HB\nFeat: Mark of Making|EFA\n\nL1 Warlock|XPHB\nOptions: Agonizing Blast [Eldritch Blast|FRHoF]\nGear: Rapier|ZZZ\n");
-  assert.deepEqual(citedBooks(p).map((b) => [b.code, b.title !== null]), [["XPHB", true], ["HB", false], ["EFA", true], ["FRHoF", true], ["ZZZ", false]]);
+  assert.deepEqual(citedBooks(p).map((b) => [b.code, b.title !== null]), [["XPHB", true], ["HB", true], ["EFA", true], ["FRHoF", true], ["ZZZ", false]], "HB is homebrew on /codes (D218)");
   assert.equal(citedBooks(p)[2].title, "Eberron: Forge of the Artificer");
 });
 
-test("books: none cited means no Books line; the line escapes and marks codes", () => {
+test("books: none cited means no Sources line; the line escapes, marks codes and sets unknown ones apart (D217)", () => {
   assert.deepEqual(citedBooks(parse("Classes: Fighter 3\n\nL1 Fighter\nFeat: Alert\n")), []);
   assert.equal(booksLine([]), "");
   assert.equal(booksLine([{ code: "EFA", title: "Eberron: Forge of the Artificer" }, { code: "<b>", title: null }]),
-    `<div class="bks">Books: Eberron: Forge of the Artificer <span class="bc">(EFA)</span> · <span class="bc">&lt;b&gt;</span></div>`);
+    `<div class="bks">Sources: Eberron: Forge of the Artificer <span class="bc">(EFA)</span> · <span class="bun"><a href="/codes">Unknown code</a>: <span class="bc">&lt;b&gt;</span></span></div>`);
+  // T03: a made-up code and a UA code.
+  const t03 = booksLine(citedBooks(parse("Species: Drider|ZZZNOPE\n\nL1 Fighter\nSubclass: Psi Warper|XUA2025Psion\nFeat: Alert|QQQ\n")));
+  assert.equal(t03, `<div class="bks">Sources: Unearthed Arcana 2025: The Psion <span class="bc">(XUA2025Psion)</span> · ` +
+    `<span class="bun"><a href="/codes">Unknown codes</a>: <span class="bc">ZZZNOPE</span>, <span class="bc">QQQ</span></span></div>`);
 });
 
-test("view: the Books line sits under the byline when the build cites a book", async () => {
+test("view: the Sources line sits under the byline when the build cites a book", async () => {
   const env = makeEnv();
   const shigen = FIXTURES.find(([n]) => n === "shigen.dndpaste")![1];
   const { id } = await (await call(env, "POST", "/", asJson({ title: "Shigen", paste: shigen }))).json() as { id: string };
   const page = await (await call(env, "GET", `/${id}`)).text();
-  assert.match(page, /<\/time><\/div><div class="bks">Books: Strixhaven: A Curriculum of Chaos <span class="bc">\(SCC\)<\/span> · Forgotten Realms: Heroes of Faerûn <span class="bc">\(FRHoF\)<\/span> · <span class="bc">HB<\/span> · Eberron: Forge of the Artificer <span class="bc">\(EFA\)<\/span><\/div><\/div>/);
+  assert.match(page, /<\/time><\/div><div class="bks">Sources: Strixhaven: A Curriculum of Chaos <span class="bc">\(SCC\)<\/span> · Forgotten Realms: Heroes of Faerûn <span class="bc">\(FRHoF\)<\/span> · Homebrew <span class="bc">\(HB\)<\/span> · Eberron: Forge of the Artificer <span class="bc">\(EFA\)<\/span><\/div><\/div>/);
   const { id: id2 } = await (await call(env, "POST", "/", asJson({ paste: "L1 Fighter\n" }))).json() as { id: string };
   assert.ok(!(await (await call(env, "GET", `/${id2}`)).text()).includes(`class="bks"`));
 });

@@ -3,7 +3,7 @@
  * this browser. DOM-free apart from `applyDisplay`'s small root interface, so the tests run it in Node.
  * Every storage access is in try/catch; with storage blocked the settings live in memory for the visit.
  */
-import { esc } from "../render.ts";
+import { esc, icon } from "../render.ts";
 
 export type Theme = "auto" | "light" | "dark";
 export interface Display { theme: Theme; kind: boolean; abilities: boolean }
@@ -70,18 +70,24 @@ export function applyDisplay(root: DisplayRoot, d: Display): void {
 const KINDS = ["class", "subclass", "species", "background", "feat", "spell", "item"] as const;
 const ABS = ["STR", "DEX", "CON", "INT", "WIS", "CHA"] as const;
 const LABEL: Record<Theme, string> = { auto: "Auto", light: "Light", dark: "Dark" };
+/** D173 review round 2: day and night icons on the theme choice. */
+const THEME_ICON: Record<Theme, string> = { auto: "contrast", light: "sun", dark: "moon" };
 
-/** The Display menu's body (frame view-display-desk). `persistent` false: storage is blocked. */
-export function displayMenuHtml(d: Display, persistent = true): string {
+/** The Settings menu's body (frame view-display-desk; "Display" until the D173 review). `persistent` false: storage is
+ *  blocked. `suggest`: the editor's Suggestions switch (D173), stored on its own (prefs.ts). */
+export function displayMenuHtml(d: Display, persistent = true, suggest = true): string {
   const seg = THEMES.map((t) =>
-    `<button type="button" role="radio" aria-checked="${d.theme === t}" data-theme-set="${t}"${d.theme === t ? ` class="on"` : ""}>${LABEL[t]}</button>`).join("");
-  const sw = (key: "kind" | "abilities", label: string, small: string) =>
-    `<button type="button" class="sw" role="switch" aria-checked="${d[key]}" data-switch="${key}"><span class="swl">${esc(label)}</span>` +
-    `<span class="tog${d[key] ? " on" : ""}" aria-hidden="true"></span><small>${small}</small></button>`;
-  return `<div class="h" id="dmenu-h">Display</div>` +
+    `<button type="button" role="radio" aria-checked="${d.theme === t}" data-theme-set="${t}"${d.theme === t ? ` class="on"` : ""}>${icon(THEME_ICON[t])}${LABEL[t]}</button>`).join("");
+  const sw = (key: "kind" | "abilities" | "suggest", label: string, small: string, on = key === "suggest" ? suggest : d[key]) =>
+    `<button type="button" class="sw" role="switch" aria-checked="${on}" data-switch="${key}"><span class="swl">${esc(label)}</span>` +
+    `<span class="tog${on ? " on" : ""}" aria-hidden="true"></span><small>${small}</small></button>`;
+  return `<div class="h" id="dmenu-h">Settings</div>` +
     `<div class="seg" role="radiogroup" aria-label="Theme">${seg}</div>` +
     sw("kind", "Colour by kind", "Class, subclass, species, background, feat, spell, item") +
     `<div class="swatches" aria-hidden="true">${KINDS.map((k) => `<i class="sw-${k}"></i>`).join("")}</div>` +
     sw("abilities", "Colour abilities", ABS.map((a) => `<span class="ab ab-${a.toLowerCase()}">${a}</span>`).join(" ")) +
-    `<small class="saved">${persistent ? "Saved in this browser." : "This browser blocks storage: kept for this visit only."}</small>`;
+    // D173 (review): the editor's name and key lists, beside the display settings.
+    `<hr>` + sw("suggest", "Suggestions", "Name and key lists in the editor") +
+    // Round 2: no "Saved in this browser." line; only blocked storage says something.
+    (persistent ? "" : `<small class="saved">This browser blocks storage: kept for this visit only.</small>`);
 }

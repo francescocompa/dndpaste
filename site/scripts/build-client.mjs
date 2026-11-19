@@ -5,6 +5,7 @@
 //   site.js  classic script, every page, loaded in <head> without defer: it sets the theme and the colour switches
 //            before the first paint (no flash), then wires the header, the Display menu and the view page (slice 3).
 //   share.js ESM module, the share image (D119): site.js imports it the first time a reader opens Share.
+//   names.js ESM module, the autocomplete's SRD names (D158): form.js imports it the first time the editor gets focus.
 // First it writes the build stamp, src/build.gen.ts (scripts/stamp.mjs), which the Worker and site.js import.
 import { build } from "esbuild";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -18,6 +19,7 @@ export const CLIENTS = [
   { ...base, entryPoints: [join(site, "src/client/form.ts")], format: "esm", out: "form.js" },
   { ...base, entryPoints: [join(site, "src/client/site.ts")], format: "iife", out: "site.js" },
   { ...base, entryPoints: [join(site, "src/client/share.ts")], format: "esm", out: "share.js" },
+  { ...base, entryPoints: [join(site, "src/names.gen.ts")], format: "esm", out: "names.js" },
 ];
 const opts = ({ out, ...o }) => o;
 export { opts as esbuildOptions };

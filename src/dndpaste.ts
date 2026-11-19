@@ -1,10 +1,10 @@
 /**
  * dndpaste — reference parser and canonical emitter.
- * Implements SPEC.md 0.8 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113).
+ * Implements SPEC.md 0.9 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113).
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.8";
+export const SPEC_VERSION = "0.9";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────
@@ -44,13 +44,29 @@ export type Scope = Map<string, Value>;
 /** `item` is `null` when the block-opening line has no value yet (`Species:`, D112). */
 export interface EntityBlock { key: string; item: Item | null; lines: Scope }
 export interface LevelBlock { n: number; class: Ref; lines: Scope }
-export interface Diagnostic { code: string; line: number; message: string }
+/**
+ * A problem on one line (§7). `message` says what is wrong; `hint` says how to fix it in a few words ("Move above
+ * Species", "Did you mean Classes?"); `fix`, when the parser can write the fix itself, is the edit to make (D203).
+ */
+export interface Diagnostic { code: string; line: number; message: string; hint?: string; fix?: Fix }
+/**
+ * A one-click fix (D203): text edits on the paste as written, all made at once by `applyFix`. Line numbers are the
+ * original text's, 1-based. `safe`: Tidy may make it without asking (a move, a join, a separator); a guess such as a
+ * did-you-mean is not safe.
+ */
+export interface Fix { label: string; safe: boolean; edits: FixEdit[] }
+/** `text: null` deletes line `line`; `insert` puts `text` before line `line` (one past the last line appends); otherwise `text` replaces the line. */
+export interface FixEdit { line: number; text: string | null; insert?: boolean }
+/** A line that failed to parse, kept as written (D202): `scope` is where it stood: `H`, `S`, `B`, or a level block's n. */
+export interface KeptLine { line: number; text: string; scope: "H" | "S" | "B" | number }
 export interface Paste {
   identifier: string | null;
   header: Scope;
   entities: EntityBlock[];
   levels: LevelBlock[];
   diagnostics: Diagnostic[];
+  /** Lines with an error, kept verbatim so `emit` never drops what the author wrote (D202). Absent or empty: none. */
+  kept?: KeptLine[];
 }
 
 // ─── Profile `dnd5e` (SPEC §5.1) ────────────────────────────────────────────
@@ -68,6 +84,17 @@ export interface KeyDef {
   enumValues?: readonly string[];
   /** A 0.7 key that 0.8 reads as an alias (D113): what it is written as now. Never in `KEYS`. */
   renamed?: string;
+  /**
+   * What the key's parentheses may hold (§2.4): `open`, any text kept as written (`Feat (Origin)`, `Options (Soul
+   * Techniques)`, D110, D181); `level`, a spell level cap `1st`–`9th` (`Spells (3rd)`, D184). Absent: no marker (E002).
+   */
+  marker?: "open" | "level";
+  /**
+   * An `Options` family (D180–D182): the names an `Options (<family>)` marker folds from (the key's own name and its
+   * singular or plural, matched ignoring case), and the 5etools family codes its options carry (`EI`; `MV` covers
+   * `MV:B`). `Masteries` has no codes: its picks are weapons.
+   */
+  family?: { names: readonly string[]; codes: readonly string[] };
 }
 
 /** Table order is canonical order (SPEC §5.5). SPEC 0.8 keys only; the 0.7 aliases are `LEGACY_KEYS`. */
@@ -85,14 +112,23 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Tools", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Languages", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Expertise", type: "items", scopes: ["H", "L"] },
-  { key: "Feat", type: "items", scopes: ["H", "S", "B", "L"] },
-  { key: "Masteries", type: "items", scopes: ["H", "L"] },
-  { key: "Options", type: "items", scopes: ["H", "L"] },
+  { key: "Feat", type: "items", scopes: ["H", "S", "B", "L"], marker: "open" },
+  { key: "Masteries", type: "items", scopes: ["H", "L"], family: { names: ["Masteries", "Mastery"], codes: [] } },
+  { key: "Invocations", type: "items", scopes: ["H", "L"], family: { names: ["Invocations", "Invocation"], codes: ["EI"] } },
+  { key: "Metamagic", type: "items", scopes: ["H", "L"], family: { names: ["Metamagic", "Metamagics"], codes: ["MM"] } },
+  { key: "Maneuvers", type: "items", scopes: ["H", "L"], family: { names: ["Maneuvers", "Maneuver"], codes: ["MV"] } },
+  { key: "Infusions", type: "items", scopes: ["H", "L"], family: { names: ["Infusions", "Infusion"], codes: ["AI"] } },
+  { key: "Arcane Shots", type: "items", scopes: ["H", "L"], family: { names: ["Arcane Shots", "Arcane Shot"], codes: ["AS"] } },
+  { key: "Runes", type: "items", scopes: ["H", "L"], family: { names: ["Runes", "Rune"], codes: ["RN"] } },
+  { key: "Disciplines", type: "items", scopes: ["H", "L"], family: { names: ["Disciplines", "Discipline"], codes: ["ED"] } },
+  { key: "Pact Boon", type: "items", scopes: ["H", "L"], family: { names: ["Pact Boon", "Pact Boons"], codes: ["PB"] } },
+  { key: "Options", type: "items", scopes: ["H", "L"], marker: "open" },
   { key: "Feature", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Cantrips", type: "items", scopes: ["H", "S", "B", "L"] },
-  { key: "Spells", type: "items", scopes: ["H", "S", "B", "L"] },
-  { key: "Prepared", type: "items", scopes: ["H", "L"] },
+  { key: "Spells", type: "items", scopes: ["H", "S", "B", "L"], marker: "level" },
+  { key: "Prepared", type: "items", scopes: ["H", "L"], marker: "level" },
   { key: "Gear", type: "items", scopes: ["H", "B", "L"] },
+  { key: "Note", type: "text", scopes: ["H", "S", "B", "L"] },
 ];
 
 /** SPEC 0.7 keys, read for as long as `Paste: 1` (D142) with a W005 "renamed key" warning and written in their 0.8 form (D113). */
@@ -108,6 +144,10 @@ export const LEGACY_KEYS: readonly KeyDef[] = [
 export const ASI_FEAT = "Ability Score Improvement";
 
 const KEY_BY_LOWER = new Map([...KEYS, ...LEGACY_KEYS].map((k) => [k.key.toLowerCase(), k]));
+/** `Options (<family>)` markers that fold into a family key (D181, D182): each family's names, lower case. */
+const FAMILY_BY_NAME = new Map(KEYS.flatMap((k) => (k.family?.names ?? []).map((n) => [n.toLowerCase(), k] as const)));
+/** The level cap ordinals, index = spell level (D184). */
+const LEVEL_CAPS = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"];
 const LEVEL_MIN = 1;
 const LEVEL_MAX = 20;
 
@@ -116,12 +156,58 @@ export function splitMarker(key: string): { key: string; marker: string | null }
   const m = /^(.*?)\s*\(([^()]*)\)$/.exec(key.trim());
   return m ? { key: m[1].trim(), marker: m[2].trim() } : { key: key.trim(), marker: null };
 }
-/** The key's definition, 0.8 or 0.7 alias; a `Feat (<marker>)` key gives `Feat`'s. */
-export function keyDef(key: string): KeyDef | undefined {
+/**
+ * A key as written, resolved (§2.4): its definition and the scope key its line goes under. `Feat (Origin)` → `Feat`'s,
+ * under `Feat (Origin)`; `Options (Invocation)` → `Invocations` (D181); `Spells (3RD)` → `Spells`'s, under
+ * `Spells (3rd)` (D184). Null for an unknown key or a marker the key doesn't take, with the reason.
+ */
+export function resolveKey(key: string): { def: KeyDef; key: string; marker: string | null } | { def: null; reason: string } {
   const hit = KEY_BY_LOWER.get(key.trim().toLowerCase());
-  if (hit) return hit;
+  if (hit) return { def: hit, key: hit.key, marker: null };
   const { key: base, marker } = splitMarker(key);
-  return marker && base.toLowerCase() === "feat" ? KEY_BY_LOWER.get("feat") : undefined;
+  const def = KEY_BY_LOWER.get(base.toLowerCase());
+  if (!def || marker === null) return { def: null, reason: key.trim() };
+  if (!marker) return { def: null, reason: `${key.trim()}: the parentheses are empty` };
+  if (def.marker === "open") {
+    const fam = def.key === "Options" ? FAMILY_BY_NAME.get(marker.toLowerCase()) : undefined;
+    return fam ? { def: fam, key: fam.key, marker: null } : { def, key: `${def.key} (${marker})`, marker };
+  }
+  if (def.marker === "level") {
+    const n = LEVEL_CAPS.indexOf(marker.toLowerCase());
+    return n > 0 ? { def, key: `${def.key} (${LEVEL_CAPS[n]})`, marker: LEVEL_CAPS[n] }
+      : { def: null, reason: `${key.trim()}: a level cap is 1st to 9th, as in ${def.key} (3rd)` };
+  }
+  return { def: null, reason: `${key.trim()}: only Feat and Options take a marker, and Spells and Prepared a level cap` };
+}
+/** The key's definition, 0.8 or 0.7 alias; a marked key gives its key's (`Feat (Origin)` → `Feat`), a folded family marker the family's. */
+export function keyDef(key: string): KeyDef | undefined {
+  return resolveKey(key).def ?? undefined;
+}
+/**
+ * The key a scope key reads as for slots and lists: `Options` for `Options`, `Options (<marker>)` and the option
+ * family keys (`Invocations`, D180); `Spells` or `Prepared` for a capped line (D184); `Feat` for a marked feat (D110);
+ * any other key itself. `Masteries` stays `Masteries` (its picks are weapons).
+ */
+export function keyGroup(key: string): string {
+  const def = keyDef(key);
+  if (!def) return key;
+  if (def.family?.codes.length) return "Options";
+  return def.key;
+}
+/** A scope key's spell level cap (D184): `Spells (3rd)` → 3; null when it has none. */
+export function levelCap(key: string): number | null {
+  const { key: base, marker } = splitMarker(key);
+  const def = KEY_BY_LOWER.get(base.toLowerCase());
+  if (def?.marker !== "level" || !marker) return null;
+  const n = LEVEL_CAPS.indexOf(marker.toLowerCase());
+  return n > 0 ? n : null;
+}
+/** A scope key's option family (D180, D181): the family key's 5etools codes, or the open marker as written; null for plain `Options` and other keys. */
+export function familyOf(key: string): { codes: readonly string[] } | { marker: string } | null {
+  const r = resolveKey(key);
+  if (!r.def) return null;
+  if (r.def.family?.codes.length) return { codes: r.def.family.codes };
+  return r.def.key === "Options" && r.marker ? { marker: r.marker } : null;
 }
 export function isExtensionKey(key: string): boolean {
   return /^x-[a-z0-9-]+$/i.test(key);
@@ -130,9 +216,18 @@ export function isExtensionKey(key: string): boolean {
 export function isFeatKey(key: string): boolean {
   return key === "Feat" || key.startsWith("Feat (");
 }
-/** True when the detail group is an ability pick: exactly one bare ability (`[INT; High]`'s `INT`, D107). */
+/**
+ * The ability a detail group picks: exactly one bare ability (`[INT; High]`'s `INT`, D107), or `+1` and an ability, the
+ * same pick on a 2024 half feat (`[+1 CHA]`, D206). Null for anything else.
+ */
+export function abilityOf(group: readonly Detail[] | undefined): Ability | null {
+  if (!group || group.length !== 1 || group[0].ref.source) return null;
+  const name = group[0].ref.name.replace(/^\+1\s+/, "").toUpperCase() as Ability;
+  return ABILITIES.includes(name) ? name : null;
+}
+/** True when the detail group is an ability pick (see `abilityOf`). */
 export function isAbilitySlot(group: readonly Detail[] | undefined): boolean {
-  return Boolean(group && group.length === 1 && !group[0].ref.source && ABILITIES.includes(group[0].ref.name.toUpperCase() as Ability));
+  return abilityOf(group) !== null;
 }
 
 // ─── Errors ─────────────────────────────────────────────────────────────────
@@ -160,11 +255,37 @@ const MESSAGES: Record<string, string> = {
   W005: "renamed key (SPEC 0.7)",
 };
 
+/** How to fix each code, in as few words as it takes (D192). A line may get a more precise hint or a fix. */
+const HINTS: Record<string, string> = {
+  E001: "Write Key: value",
+  E002: "Use a key from the key list; free text goes in Note",
+  E003: "Keep one line for this key",
+  E004: "Number levels upward, L1 to L20",
+  E005: "Move it to a block that takes this key",
+  E007: "Give one name",
+  E008: "Drops go in a level block, on a list key",
+  E009: "Quantities go on Gear only",
+  E010: "Remove the line",
+  E011: "Check the brackets and quotes",
+  E013: "Put @n on a detail in brackets",
+  E014: "Species and Background go once each, above the first level",
+  E015: "Write Paste: 1",
+  E016: "Make the header agree with Classes",
+  W001: "Free text goes in Note",
+  W002: "Put details in [brackets]",
+  W005: "Tidy writes the new key",
+};
+
 class Diag {
   list: Diagnostic[] = [];
-  add(code: string, line: number, detail?: string): void {
+  add(code: string, line: number, detail?: string, more: { hint?: string; fix?: Fix } = {}): Diagnostic {
     const base = MESSAGES[code] ?? code;
-    this.list.push({ code, line, message: detail ? `${base}: ${detail}` : base });
+    const d: Diagnostic = { code, line, message: detail ? `${base}: ${detail}` : base };
+    const hint = more.hint ?? HINTS[code];
+    if (hint) d.hint = hint;
+    if (more.fix) d.fix = more.fix;
+    this.list.push(d);
+    return d;
   }
 }
 
@@ -460,7 +581,7 @@ function parseHp(raw: string, scope: ScopeKind, diag: Diag, line: number): Value
   return { type: "hp", method: hit, roll: null };
 }
 
-const HINT_KEYS = ["Feat", "Options", "Feature", "Subclass", "Fighting Style"];
+const HINT_KEYS = ["Feat", "Options", "Feature", "Subclass", "Fighting Style", ...KEYS.filter((k) => k.family?.codes.length).map((k) => k.key)];
 const QTY_KEYS = ["Gear", "Equipment", "Items"];
 
 function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line: number): Value | null {
@@ -522,60 +643,72 @@ const LEVEL_RE = /^L([1-9]\d*)\s+(.+)$/i;
 
 export function parse(text: string): Paste {
   const diag = new Diag();
-  const paste: Paste = { identifier: null, header: new Map(), entities: [], levels: [], diagnostics: diag.list };
+  const kept: KeptLine[] = [];
+  const paste: Paste = { identifier: null, header: new Map(), entities: [], levels: [], diagnostics: diag.list, kept };
   const lines = text.split(/\r?\n/);
 
   let scope: ScopeKind = "H";
   let current: Scope = paste.header;
+  let where: KeptLine["scope"] = "H";
   let seenFirst = false;
   let lastLevel = 0;
   const opened = new Set<string>();
   const headerLine = new Map<number, number>();   // level n → its header's line number
+  // The first block-opening line: where a header key written under a block moves to (D192).
+  let firstBlock: { line: number; label: string } | null = null;
   // One line per key per scope (E003). A line's identity is its key, a Feat's marker included; a 0.7 alias has its own,
   // so `Equipment` and `Items` both merge into `Gear`; `Scores` has one for the base and one for the increase.
-  const seen = new Map<Scope, Set<string>>();
-  const once = (sc: Scope, id: string, no: number, label: string): boolean => {
+  // Each identity remembers its first line, which a duplicate joins (D192).
+  const seen = new Map<Scope, Map<string, number>>();
+  const once = (sc: Scope, id: string, no: number, label: string, join?: (first: number) => Fix | undefined): boolean => {
     let s = seen.get(sc);
-    if (!s) { s = new Set(); seen.set(sc, s); }
-    if (s.has(id.toLowerCase())) { diag.add("E003", no, label); return false; }
-    s.add(id.toLowerCase());
+    if (!s) { s = new Map(); seen.set(sc, s); }
+    const first = s.get(id.toLowerCase());
+    if (first !== undefined) {
+      const fix = join?.(first);
+      diag.add("E003", no, label, fix ? { hint: fix.label, fix } : {});
+      return false;
+    }
+    s.set(id.toLowerCase(), no);
     return true;
   };
   const abilityLines: { scope: Scope; no: number }[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    const no = i + 1;
-    if (!line) continue;
-    const first = !seenFirst;
-    seenFirst = true;
-
-    if (line === "---") { diag.add("E010", no); continue; }
+  /** One line; the caller keeps it verbatim when it adds an error (D202). */
+  const handle = (line: string, no: number, first: boolean): void => {
+    if (line === "---") { diag.add("E010", no); return; }
+    if (line.startsWith("#") && !(first && findSeparator(line) < 0)) {
+      const note = line.replace(/^#+\s*/, "");
+      diag.add("E001", no, "a comment", { hint: "Write it as Note: …", fix: { label: "Make it a note", safe: false, edits: [{ line: no, text: note ? `Note: ${note}` : null }] } });
+      return;
+    }
 
     const lv = LEVEL_RE.exec(line);
     if (lv) {
       const n = Number(lv[1]);
       const ref = parseRef(lv[2]);
-      if (!ref || ref.name.includes("[")) { diag.add("E001", no, "bad level header"); continue; }
-      if (n < LEVEL_MIN || n > LEVEL_MAX || n <= lastLevel) { diag.add("E004", no, `L${n}`); continue; }
+      if (!ref || ref.name.includes("[")) { diag.add("E001", no, "bad level header", { hint: "Write L5 Wizard" }); return; }
+      if (n < LEVEL_MIN || n > LEVEL_MAX || n <= lastLevel) { diag.add("E004", no, `L${n}`); return; }
       lastLevel = n;
       headerLine.set(n, no);
+      firstBlock ??= { line: no, label: "Move to the header" };
       const block: LevelBlock = { n, class: ref, lines: new Map() };
       paste.levels.push(block);
       scope = "L";
       current = block.lines;
-      continue;
+      where = n;
+      return;
     }
 
     const sep = findSeparator(line);
     if (sep < 0) {
-      if (first) { paste.identifier = line; continue; }
-      diag.add("E001", no);
-      continue;
+      if (first) { paste.identifier = line; return; }
+      malformed(line, no);
+      return;
     }
     const rawKey = line.slice(0, sep).trim();
     const rawValue = line.slice(sep + 1).trim();
-    if (!rawKey) { diag.add("E001", no); continue; }
+    if (!rawKey) { diag.add("E001", no); return; }
 
     if (isExtensionKey(rawKey)) {
       diag.add("W001", no, rawKey);
@@ -584,77 +717,121 @@ export function parse(text: string): Paste {
       const key = "X-" + rawKey.slice(2);
       if (!rawValue) diag.add("W004", no, key);
       const items = rawValue ? parseItems(rawValue, diag, no) : [];
-      if (items && once(current, key, no, key)) current.set(key, { type: "items", items });
-      continue;
+      if (items && once(current, key, no, key, (f) => joinFix(lines, f, no, rawValue, (v) => Boolean(parseItems(v, new Diag(), 0))))) current.set(key, { type: "items", items });
+      return;
     }
 
-    const { key: baseKey, marker } = splitMarker(rawKey);
-    const def = KEY_BY_LOWER.get(baseKey.toLowerCase());
-    if (!def) { diag.add("E002", no, rawKey); continue; }
-    if (marker !== null && (def.key !== "Feat" || !marker)) { diag.add("E002", no, `${rawKey}: only Feat takes a slot marker, as in Feat (Fighting Style)`); continue; }
-    const label = marker ? `Feat (${marker})` : def.key;
+    const rk = resolveKey(rawKey);
+    if (!rk.def) {
+      const near = rk.reason === rawKey ? suggestKey(rawKey, rawValue) : null;
+      diag.add("E002", no, rk.reason, near ? { hint: near.hint, fix: { label: near.hint, safe: false, edits: [{ line: no, text: near.line }] } } : {});
+      return;
+    }
+    const { def, marker } = rk;
+    const label = rk.key;
 
     if (def.opensBlock) {
-      if (scope === "L" || opened.has(def.key)) { diag.add("E014", no, def.key); continue; }
+      if (scope === "L" || opened.has(def.key)) { diag.add("E014", no, def.key); return; }
       let item: Item | null = null;
       if (rawValue) {
         const v = parseValue(def, rawValue, "H", diag, no);
-        if (!v || v.type !== "items") continue;
+        if (!v || v.type !== "items") return;
         item = v.items[0];
       } else diag.add("W004", no, def.key);
       opened.add(def.key);
+      firstBlock ??= { line: no, label: `Move above ${def.key}` };
       const block: EntityBlock = { key: def.key, item, lines: new Map() };
       paste.entities.push(block);
       scope = def.opensBlock;
       current = block.lines;
-      continue;
+      where = def.opensBlock;
+      return;
     }
 
-    if (!def.scopes.includes(scope)) { diag.add("E005", no, `${def.key} in ${scopeName(scope)} scope`); continue; }
+    // A header key written under a block moves above the first block (D192): the one-click fix and Tidy's move.
+    const move = (): { hint?: string; fix?: Fix } => (firstBlock && def.scopes.includes("H")
+      ? { hint: firstBlock.label, fix: { label: firstBlock.label, safe: true, edits: [{ line: no, text: null }, { line: firstBlock.line, text: line, insert: true }] } }
+      : {});
+    if (!def.scopes.includes(scope)) { diag.add("E005", no, `${def.key} in ${scopeName(scope)} scope`, move()); return; }
     const v = rawValue ? parseValue(def, rawValue, scope, diag, no) : emptyValue(def);
-    if (!v) continue;
+    if (!v) {
+      // `Classes: Sorcerer 5, Warlock 5`: the 0.4 comma form (D192). Classes are separated with ` / `.
+      const last = diag.list[diag.list.length - 1];
+      const slash = rawValue.split(",").map((x) => x.trim()).join(" / ");
+      if (def.type === "classes" && rawValue.includes(",") && last?.line === no && parseClasses(slash, new Diag(), 0)) {
+        last.hint = "Use / between classes";
+        last.fix = { label: "Use / between classes", safe: true, edits: [{ line: no, text: `${rawKey}: ${slash}` }] };
+      }
+      return;
+    }
     if (!rawValue) diag.add("W004", no, label);
+    const join = (f: number) => joinFix(lines, f, no, rawValue, (x) => Boolean(parseValue(def, x, scope, new Diag(), 0)), def.type === "classes" ? " / " : def.key === "Note" ? "; " : ", ");
 
     // ── 0.7 keys (D113): read, written in their 0.8 form ──
     if (def.renamed) {
-      if (!once(current, def.key, no, def.key)) continue;
+      if (!once(current, def.key, no, def.key, join)) return;
       if (def.key === "ASI" && v.type === "scores") {
+        const inc = emitValue({ ...v, values: NO_SCORES() });
         if (scope === "S" || scope === "B") {
           mergeScores(current, v);
-          diag.add("W005", no, `ASI is written as Scores: ${emitValue({ ...v, values: NO_SCORES() }) || "+2 CHA"} (D108)`);
+          diag.add("W005", no, `ASI is written as Scores: ${inc || "+2 CHA"} (D108)`, inc ? renameFix(no, `Scores: ${inc}`) : {});
         } else {
           appendItems(current, "Feat", [asiFeat(v.increase ?? [])]);
-          diag.add("W005", no, `ASI is written as Feat: ${ASI_FEAT}${v.increase ? ` [${emitValue({ ...v, values: NO_SCORES() })}]` : ""} (D109)`);
+          const feat = `Feat: ${ASI_FEAT}${v.increase ? ` [${inc}]` : ""}`;
+          diag.add("W005", no, `ASI is written as ${feat} (D109)`, renameFix(no, feat));
         }
       } else if (def.key === "Ability") {
         current.set("Ability", v);
         abilityLines.push({ scope: current, no });
       } else if (def.key === "Fighting Style" && v.type === "items") {
-        appendItems(current, featKey(current, "Fighting Style"), v.items);
-        diag.add("W005", no, "Fighting Style is written as Feat (Fighting Style) (D110)");
+        appendItems(current, markedKey(current, "Feat", "Fighting Style"), v.items);
+        diag.add("W005", no, "Fighting Style is written as Feat (Fighting Style) (D110)", renameFix(no, `Feat (Fighting Style): ${rawValue}`));
       } else if (v.type === "items") {
         appendItems(current, "Gear", v.items);
-        diag.add("W005", no, `${def.key} is written as Gear (D111)`);
+        diag.add("W005", no, `${def.key} is written as Gear (D111)`, renameFix(no, `Gear: ${rawValue}`));
       }
-      continue;
+      return;
     }
 
     if (v.type === "scores") {
       const base = v.values.some((x) => x !== null);
-      if (base && scope !== "H") { diag.add("E005", no, "base Scores go in the header; an increase starts with + (+2 CHA)"); continue; }
-      if (!once(current, base ? "Scores" : v.increase ? "Scores+" : "Scores:", no, "Scores")) continue;
+      if (base && scope !== "H") { diag.add("E005", no, "base Scores go in the header; an increase starts with + (+2 CHA)", move()); return; }
+      if (!once(current, base ? "Scores" : v.increase ? "Scores+" : "Scores:", no, "Scores", join)) return;
       mergeScores(current, v);
-      continue;
+      return;
     }
-    if (def.key === "Feat" && v.type === "items") {
-      const key = marker ? featKey(current, marker) : "Feat";
-      if (once(current, key, no, label)) appendItems(current, key, v.items);
-      continue;
+    if (marker !== null && v.type === "items") {
+      const key = markedKey(current, def.key, marker);
+      if (once(current, key, no, label, join)) appendItems(current, key, v.items);
+      return;
     }
-    if (once(current, def.key, no, def.key)) {
+    if (once(current, def.key, no, def.key, join)) {
       if (v.type === "items") appendItems(current, def.key, v.items);
       else current.set(def.key, v);
     }
+  };
+
+  /** A line with no `Key: ` (E001), with the likeliest fix (D192). */
+  const malformed = (line: string, no: number): void => {
+    const lvl = /^(?:level|lvl|lv)\.?\s*(\d+)\s+(.+)$/i.exec(line);
+    if (lvl) { const t = `L${Number(lvl[1])} ${lvl[2].trim()}`; diag.add("E001", no, undefined, { hint: `Write ${t}`, fix: { label: `Write ${t}`, safe: false, edits: [{ line: no, text: t }] } }); return; }
+    const tight = /^([^:]+):(\S.*)$/.exec(line);
+    if (tight && (resolveKey(tight[1]).def || isExtensionKey(tight[1].trim()))) {
+      diag.add("E001", no, undefined, { hint: "Add a space after the colon", fix: { label: "Add a space after the colon", safe: true, edits: [{ line: no, text: `${tight[1].trim()}: ${tight[2].trim()}` }] } });
+      return;
+    }
+    diag.add("E001", no, undefined, { hint: "Write Key: value", fix: { label: "Make it a note", safe: false, edits: [{ line: no, text: `Note: ${line}` }] } });
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const no = i + 1;
+    if (!line) continue;
+    const first = !seenFirst;
+    seenFirst = true;
+    const before = diag.list.length;
+    handle(line, no, first);
+    if (diag.list.slice(before).some((d) => d.code.startsWith("E"))) kept.push({ line: no, text: line, scope: where });
   }
 
   // A 0.7 `Ability` line moves into its owner's details when the scope has exactly one owner, a single `Feature`
@@ -668,7 +845,7 @@ export function parse(text: string): Paste {
       owners[0].details = [[{ ref: ab.ref, at: null }], ...owners[0].details];
       a.scope.delete("Ability");
       diag.add("W005", a.no, `Ability is written as the first detail of Feature: ${owners[0].ref.name} (D107)`);
-    } else diag.add("W005", a.no, "Ability kept as written: write the ability as the first detail of the Feat, Feature or Options that asks it (D107)");
+    } else diag.add("W005", a.no, "Ability kept as written: write the ability as the first detail of the Feat, Feature or Options that asks it (D107)", { hint: "Move the ability into the brackets of what asks it" });
   }
 
   // Whole-document checks.
@@ -676,13 +853,68 @@ export function parse(text: string): Paste {
   if (pv && pv.type === "int" && pv.value !== PASTE_MAJOR) diag.add("E015", lineOf(lines, "paste"), `Paste: ${pv.value}`);
   const cls = paste.header.get("Classes");
   if (cls && cls.type === "classes" && paste.levels.length && cls.entries.some((e) => e.levels === null)) {
-    diag.add("E012", lineOf(lines, "classes"), "a class without a level count is allowed only when the paste has no level blocks");
+    diag.add("E012", lineOf(lines, "classes"), "a class without a level count is allowed only when the paste has no level blocks", { hint: "Give each class its levels: Wizard 5" });
   }
   // Level headers against Classes (§5.4, D49): a header that contradicts the runs is E016; in the totals form, a
   // header whose class has no levels left is W003 (the header still fixes its level's class).
-  for (const pr of sequenceOf(paste).problems) diag.add(pr.code, headerLine.get(pr.n) ?? 0, pr.message);
+  for (const pr of sequenceOf(paste).problems) diag.add(pr.code, headerLine.get(pr.n) ?? 0, pr.message, pr.code === "W003" ? { hint: "Raise its levels in Classes" } : {});
   diag.list.sort((a, b) => a.line - b.line);   // stable: same-line diagnostics keep their order
   return paste;
+}
+
+/** A W005 line's one-click rewrite in its new form (D113). Tidy needs none: `emit` writes the new form. */
+function renameFix(no: number, text: string): { hint: string; fix: Fix } {
+  return { hint: `Write ${text}`, fix: { label: "Use the new key", safe: true, edits: [{ line: no, text }] } };
+}
+
+/**
+ * A duplicate line joined onto the first line of its key (E003, D192): the first line gets this one's value after
+ * `sep`, this one goes. Offered only when the joined value parses (`ok`); an empty duplicate just goes.
+ */
+function joinFix(lines: readonly string[], first: number, no: number, value: string, ok: (joined: string) => boolean, sep = ", "): Fix | undefined {
+  if (!value) return { label: "Remove the empty line", safe: true, edits: [{ line: no, text: null }] };
+  const head = lines[first - 1].trim();
+  const at = findSeparator(head);
+  if (at < 0) return undefined;
+  const prev = head.slice(at + 1).trim();
+  const joined = prev ? `${prev}${sep}${value}` : value;
+  if (!ok(joined)) return undefined;
+  const label = sep === ", " ? "Join with commas" : sep === " / " ? "Join with /" : "Join the lines";
+  return { label, safe: true, edits: [{ line: first, text: `${head.slice(0, at).trim()}: ${joined}` }, { line: no, text: null }] };
+}
+
+/** Common words for keys (D192): sheet habits and other tools' names. Lower case → the key. */
+const KEY_WORDS: Record<string, string> = {
+  race: "Species", subrace: "Species", ancestry: "Species", class: "Classes",
+  feats: "Feat", spell: "Spells", "spells known": "Spells", "prepared spells": "Prepared", "known spells": "Spells",
+  equipment: "Gear", inventory: "Gear", items: "Gear", proficiencies: "Skills", subclasses: "Subclass", archetype: "Subclass",
+  notes: "Note", comment: "Note", comments: "Note", plan: "Note", plans: "Note", stats: "Scores", "ability scores": "Scores",
+  abilities: "Scores", attributes: "Scores", "hit points": "HP", edition: "Rules", "fighting styles": "Feat (Fighting Style)",
+};
+
+/** The key an unknown key most likely means (D192): a common word, an ability (`INT: 17`), or a near spelling. */
+function suggestKey(raw: string, value: string): { hint: string; line: string } | null {
+  const { key: base, marker } = splitMarker(raw);
+  const word = base.toLowerCase();
+  const ab = ABILITIES.find((a) => a.toLowerCase() === word || ABILITY_NAMES[a] === word);
+  if (ab && /^\d+$/.test(value)) return { hint: `Write Scores: ${ab} ${value}`, line: `Scores: ${ab} ${value}` };
+  let key: string | undefined = KEY_WORDS[word];
+  if (!key) {
+    const near = KEYS.map((k) => ({ k: k.key, d: editDistance(word, k.key.toLowerCase()) })).sort((a, b) => a.d - b.d)[0];
+    if (near && near.d <= Math.max(1, Math.min(2, Math.floor(word.length / 3)))) key = near.k;
+  }
+  if (!key) return null;
+  if (marker !== null && !key.includes("(")) key = `${key} (${marker})`;
+  return { hint: `Did you mean ${key}?`, line: value ? `${key}: ${value}` : `${key}:` };
+}
+const ABILITY_NAMES: Record<Ability, string> = { STR: "strength", DEX: "dexterity", CON: "constitution", INT: "intelligence", WIS: "wisdom", CHA: "charisma" };
+function editDistance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]; row[0] = i;
+    for (let j = 1; j <= b.length; j++) { const t = row[j]; row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = t; }
+  }
+  return row[b.length];
 }
 
 /** Adds items to a key's list, creating it: the one way a list grows, so a 0.7 alias merges into its 0.8 key. */
@@ -697,9 +929,9 @@ function mergeScores(scope: Scope, v: Extract<Value, { type: "scores" }>): void 
   const increase = prev.increase || v.increase ? [...(prev.increase ?? []), ...(v.increase ?? [])] : null;
   scope.set("Scores", { type: "scores", values: prev.values.map((x, i) => v.values[i] ?? x), increase });
 }
-/** The scope's key for a marked feat line: an existing spelling of the same marker, else `Feat (<marker>)`. */
-function featKey(scope: Scope, marker: string): string {
-  const want = `Feat (${marker})`;
+/** The scope's key for a marked line: an existing spelling of the same marker, else `<Key> (<marker>)`. */
+function markedKey(scope: Scope, key: string, marker: string): string {
+  const want = `${key} (${marker})`;
   return [...scope.keys()].find((k) => k.toLowerCase() === want.toLowerCase()) ?? want;
 }
 
@@ -761,16 +993,17 @@ const cmpKey = (a: string, b: string) => cmpCode(a.toLowerCase(), b.toLowerCase(
 
 /**
  * A scope's key lines in canonical order (§5.5), one entry per line, each with that line's value: the order of the
- * profile table; `Feat` then its marked lines by marker, ignoring case; a base `Scores` line then its increase; an
+ * profile table; a key that takes a marker then its marked lines by marker, ignoring case (`Feat (Origin)`,
+ * `Options (Soul Techniques)`, `Spells (3rd)` by level); a base `Scores` line then its increase; an
  * `Ability` line that stayed as written (D113); `X-` keys alphabetically ignoring case.
  */
 export function scopeLines(scope: Scope): [string, Value][] {
   const out: [string, Value][] = [];
   for (const def of KEYS) {
-    if (def.key === "Feat") {
-      const v = scope.get("Feat");
-      if (v) out.push(["Feat", v]);
-      for (const k of [...scope.keys()].filter((x) => x.startsWith("Feat (")).sort(cmpKey)) out.push([k, scope.get(k) as Value]);
+    if (def.marker) {
+      const v = scope.get(def.key);
+      if (v) out.push([def.key, v]);
+      for (const k of [...scope.keys()].filter((x) => x.startsWith(`${def.key} (`)).sort(cmpKey)) out.push([k, scope.get(k) as Value]);
       continue;
     }
     const v = scope.get(def.key);
@@ -800,10 +1033,16 @@ function emitScope(scope: Scope, out: string[]): void {
   for (const [k, v] of scopeLines(scope)) out.push(lineOfValue(k, v));
 }
 
+/**
+ * Canonical text (§5.5). A line that failed to parse is never dropped (D202): it is written as authored at the end of
+ * the block it stood in, so `emit` of a paste with errors loses nothing and its errors read again the same way.
+ */
 export function emit(paste: Paste): string {
   const out: string[] = [];
+  const kept = (scope: KeptLine["scope"]) => { for (const k of paste.kept ?? []) if (k.scope === scope) out.push(k.text); };
   if (paste.identifier) out.push(paste.identifier);
   emitScope(paste.header, out);
+  kept("H");
   const order = ["Species", "Background"];
   for (const key of order) {
     const e = paste.entities.find((b) => b.key === key);
@@ -811,13 +1050,98 @@ export function emit(paste: Paste): string {
     if (out.length) out.push("");
     out.push(e.item ? `${key}: ${fmtItem(e.item)}` : `${key}:`);
     emitScope(e.lines, out);
+    kept(key === "Species" ? "S" : "B");
   }
   for (const lv of withSwitchHeaders(paste)) {
     if (out.length) out.push("");
     out.push(`L${lv.n} ${fmtRef(lv.class)}`);
     emitScope(lv.lines, out);
+    kept(lv.n);
   }
   return out.join("\n") + (out.length ? "\n" : "");
+}
+
+// ─── Fixes and Tidy (D203) ──────────────────────────────────────────────────
+
+/** The text with one fix made (D203). Line numbers in the fix are the text's as given. */
+export function applyFix(text: string, fix: Fix): string {
+  return applyFixes(text, [fix]).text;
+}
+/** Makes as many of the fixes as don't touch the same line; the rest wait for the next pass. */
+function applyFixes(text: string, fixes: readonly Fix[]): { text: string; made: number } {
+  const lines = text.split(/\r?\n/);
+  const touched = new Set<number>();
+  const change = new Map<number, string | null>();
+  const inserts = new Map<number, string[]>();
+  let made = 0;
+  for (const f of fixes) {
+    const own = f.edits.filter((e) => !e.insert).map((e) => e.line);
+    if (own.some((l) => touched.has(l) || l < 1 || l > lines.length)) continue;
+    for (const e of f.edits) {
+      if (e.insert) { if (e.text !== null) inserts.set(e.line, [...(inserts.get(e.line) ?? []), e.text]); }
+      else { change.set(e.line, e.text); touched.add(e.line); }
+    }
+    made++;
+  }
+  const out: string[] = [];
+  for (let i = 1; i <= lines.length + 1; i++) {
+    out.push(...(inserts.get(i) ?? []));
+    if (i > lines.length) break;
+    if (!change.has(i)) out.push(lines[i - 1]);
+    else { const t = change.get(i); if (t !== null && t !== undefined) out.push(t); }
+  }
+  return { text: out.join("\n"), made };
+}
+
+/** The family key an option family code or name stands for (D180): `EI` or `Invocation` → `Invocations`; null for none. */
+export function familyKey(codeOrName: string): string | null {
+  const x = codeOrName.trim().toLowerCase();
+  const hit = KEYS.find((k) => k.family && (k.key.toLowerCase() === x || k.family.names.some((n) => n.toLowerCase() === x) || k.family.codes.some((c) => c.toLowerCase() === x || x.startsWith(c.toLowerCase() + ":"))));
+  return hit?.key ?? null;
+}
+
+/**
+ * Folds each plain `Options` line into its family key when every pick on it belongs to that one family (D195 T33):
+ * `Options: Pact of the Chain` → `Invocations: Pact of the Chain`. `family` names a pick's family (a key, a family name
+ * or a code), or null when it doesn't know; the library has no data, so the caller brings it (the checker's
+ * `normalise` uses the slot table). Changes the paste in place; returns how many lines it folded.
+ */
+export function foldOptions(paste: Paste, family: (ref: Ref) => string | null): number {
+  let folded = 0;
+  for (const scope of [paste.header, ...paste.levels.map((l) => l.lines)]) {
+    const v = scope.get("Options");
+    if (!v || v.type !== "items" || !v.items.length) continue;
+    const keys = new Set(v.items.map((it) => { const f = family(it.ref); return f ? familyKey(f) : null; }));
+    const [key] = keys;
+    if (keys.size !== 1 || !key) continue;
+    appendItems(scope, key, v.items);
+    scope.delete("Options");
+    folded++;
+  }
+  return folded;
+}
+
+export interface TidyOptions {
+  /** A pick's option family, for folding a plain `Options` line into its family key (see `foldOptions`). */
+  optionFamily?: (ref: Ref) => string | null;
+}
+/**
+ * The editor's Tidy (D203): makes every safe fix (a header key moved out of a block, duplicate lines joined, `/`
+ * between classes, a space after a colon), folds `Options` lines when it knows their family, then writes the
+ * canonical form. It never refuses: a line it can't fix stays as written (D202).
+ */
+export function tidy(text: string, opts: TidyOptions = {}): string {
+  let t = text.replace(/\r\n?/g, "\n");
+  for (let pass = 0; pass < 20; pass++) {
+    const fixes = parse(t).diagnostics.flatMap((d) => (d.fix?.safe && d.code.startsWith("E") ? [d.fix] : []));
+    if (!fixes.length) break;
+    const r = applyFixes(t, fixes);
+    if (!r.made) break;
+    t = r.text;
+  }
+  const p = parse(t);
+  if (opts.optionFamily) foldOptions(p, opts.optionFamily);
+  return emit(p);
 }
 
 /**

@@ -8,9 +8,13 @@
   "module": "./dist/src/dndpaste.js",
   "types": "./dist/src/dndpaste.d.ts",
   "exports": {
-    ".": { "import": "./dist/src/dndpaste.js", "require": "./dist/dndpaste.umd.cjs", "types": "./dist/src/dndpaste.d.ts" }
+    ".": { "import": "./dist/src/dndpaste.js", "require": "./dist/dndpaste.umd.cjs", "types": "./dist/src/dndpaste.d.ts" },
+    "./check": { "import": "./dist/src/check.js", "types": "./dist/src/check.d.ts" },
+    "./sources": { "import": "./dist/src/sources.js", "types": "./dist/src/sources.d.ts" },
+    "./data/srd/slots.json": "./data/srd/slots.json",
+    "./data/supplement.json": "./data/supplement.json"
   },
-  "files": ["dist", "bin", "SPEC.md"],
+  "files": ["dist", "bin", "SPEC.md", "data/srd/slots.json", "data/supplement.json", "NOTICE.md"],
   "bin": { "dndpaste": "./bin/dndpaste.mjs" },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/umd.mjs",

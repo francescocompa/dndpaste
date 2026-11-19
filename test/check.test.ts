@@ -34,7 +34,7 @@ test("empty and sparse pastes check without crashing", () => {
 
 test("Fighter 1 with nothing: owes skills, fighting style, masteries", () => {
   const f = run("Rules: 2024\nClasses: Fighter 1");
-  assert.ok(has(f, "missing", /2 more Skills/), JSON.stringify(f));
+  assert.ok(has(f, "missing", /Fighter: 0 of 2 Skills written; add 2 to the Skills line/), JSON.stringify(f));
   assert.ok(has(f, "missing", /Fighting Style/));
   assert.ok(has(f, "missing", /Masteries/));
 });
@@ -51,13 +51,13 @@ test("a complete Fighter 3 Champion is quiet", () => {
 test("extras are accepted and flagged as info (D34)", () => {
   const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFeat (Fighting Style): Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL4 Fighter\nFeat: Alert, Savage Attacker");
   assert.equal(kinds(f, "extra").length, 1, JSON.stringify(f));
-  assert.match(kinds(f, "extra")[0].message, /ASI\/Feat/);
+  assert.match(kinds(f, "extra")[0].message, /Fighter: 2 of 1 Feat written, 1 more than the rules grant — accepted/);
   const g = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFeat (Fighting Style): Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL2 Fighter\nFeat (Fighting Style): Defense\n\nL4 Fighter\nFeat: Alert");
   const extra = kinds(g, "extra");
   assert.equal(extra.length, 1, JSON.stringify(g));
   assert.equal(extra[0].severity, "info");
   assert.match(extra[0].message, /Fighting Style/);
-  assert.match(extra[0].message, /DM boon/);
+  assert.doesNotMatch(extra[0].message, /DM boon/);
 });
 
 test("Gear in play is resolved but never owed", () => {
@@ -171,8 +171,8 @@ describe("F4: Classes runs (D49)", () => {
   test("played levels are the sum of the totals (20), not of the runs (24)", () => {
     const f = run(runsPaste);
     // Fighter 6 owes ASIs at class levels 4 and 6, Rogue 14 at 4, 8, 10, 12; one Rogue ASI is written.
-    assert.ok(has(f, "missing", /Fighter owes 2 more ASI\/Feat/), JSON.stringify(f));
-    assert.ok(has(f, "missing", /Rogue owes 3 more ASI\/Feat/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Fighter: 0 of 2 Feat written/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Rogue: 1 of 4 Feat written/), JSON.stringify(f));
     const { scores } = finalScores(parse(`Scores: DEX 15\n${runsPaste.split("\n").slice(1).join("\n")}`), srd, supplement);
     assert.equal(scores?.dex, 17, "the ASI at L10 is a played level");
   });
@@ -215,7 +215,7 @@ describe("F5/F6: feats an option grants (D50, D51), Scholar expertise", () => {
     const f = run(warlock(["Options: Pact of the Blade, Eldritch Mind"], ["Options: Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile], Alert"]), withLessons);
     assert.deepEqual(feats(f), [], JSON.stringify(f));
     const g = run(warlock(["Options: Pact of the Blade, Eldritch Mind"], ["Options: Lessons of the First Ones [Magic Initiate]", "Feat: Magic Initiate [CHA; Wizard; Fire Bolt, Light; Magic Missile]"]), withLessons);
-    assert.ok(has(g, "missing", /Warlock owes 1 more ASI\/Feat/), "the claimed feat does not fill the ASI slot");
+    assert.ok(has(g, "missing", /Warlock: 0 of 1 Feat written/), "the claimed feat does not fill the ASI slot");
   });
 
   test("a bare option with no Feat line owes its feat; a named feat with picks owes a Feat line", () => {
@@ -235,7 +235,7 @@ describe("F5/F6: feats an option grants (D50, D51), Scholar expertise", () => {
     const f = run([...base, "Expertise: Investigation"].join("\n"));
     assert.equal(f.filter((x) => x.key === "Expertise").length, 0, JSON.stringify(f));
     const g = run(base.join("\n"));
-    assert.ok(has(g, "missing", /Wizard owes 1 more Expertise/), JSON.stringify(g));
+    assert.ok(has(g, "missing", /Wizard: 0 of 1 Expertise written; add 1 at L2 Wizard/), JSON.stringify(g));
   });
 });
 
@@ -501,6 +501,6 @@ test("real builds against the full extract (skipped when data/slots.json is abse
     const warnings = f.filter((x) => x.severity === "warning");
     // Allowed: homebrew refs (|HB), skills the sheets never recorded, and two genuine sheet defects the
     // checker caught — Agonizing Blast taken at Warlock 1 (needs 2) and Vice one prepared spell short.
-    for (const w of warnings) assert.match(w.message, /\|HB|Skills|Agonizing Blast|owes 1 more Spells/, `${name}: ${w.message}`);
+    for (const w of warnings) assert.match(w.message, /\|HB|Skills|Agonizing Blast|2 of 3 Spells written/, `${name}: ${w.message}`);
   }
 });

@@ -6,6 +6,8 @@ import { emit, parse } from "../../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../../src/dndpaste.ts";
 import { ghostCounts } from "../ghost.ts";
 import type { Ghost } from "../ghost.ts";
+import { lineFixes, tidyPlan } from "../fixes.ts";
+import type { Fix } from "../fixes.ts";
 import { esc, icon } from "../render.ts";
 import { ID_RE, LIMITS, isBare } from "../store.ts";
 
@@ -29,12 +31,14 @@ export interface Status {
   canSave: boolean;
   /** `emit(parse(text))` when the text has no errors, else null. */
   canon: string | null;
-  /** Tidy changes something: no errors and the text is not already canonical. */
+  /** Tidy changes something (D229): a fix it can make, or a text not yet canonical. Off while a line is held. */
   canTidy: boolean;
-  /** D90: E001s held back on the line being typed. Not in `diagnostics` or `errors`; Save still blocks on them. */
+  /** D90, D176: errors held back on the line being typed. Not in `diagnostics` or `errors`; Save still blocks on them. */
   held: number;
   /** The parsed text, for the editor's ghost pick counts (D129). */
   paste: Paste;
+  /** One-click fixes the site can offer without the names table (D196 T12, fixes.ts). */
+  fixes: Fix[];
 }
 
 const enc = new TextEncoder();
@@ -49,14 +53,14 @@ export function toChooseLines(empties: readonly Diagnostic[], ghosts: readonly G
 }
 
 /**
- * `holdLine` (1-based, D90): the line being typed. Its E001 (a key line without its separator yet, such as a
- * half-typed `Spe`) is held out of the shown diagnostics until the form lets go (the cursor leaves the line or
- * typing pauses); `canSave` stays false while one is held.
+ * `holdLine` (1-based, D90): the line being typed. Its errors (a half-typed key `Spe`, an open comma, bracket or
+ * quote; every error since D176) are held out of the shown diagnostics until the form lets go (the cursor leaves
+ * the line or typing pauses); `canSave` stays false while one is held. Warnings are never held.
  */
 export function status(text: string, holdLine = 0): Status {
   const t = text.replace(/\r\n?/g, "\n");
   const paste = parse(t);
-  const isHeld = (d: Diagnostic) => holdLine > 0 && d.code === "E001" && d.line === holdLine;
+  const isHeld = (d: Diagnostic) => holdLine > 0 && d.code.startsWith("E") && d.line === holdLine;
   const held = paste.diagnostics.filter(isHeld).length;
   const diagnostics = held ? paste.diagnostics.filter((d) => !isHeld(d)) : paste.diagnostics;
   const errors = diagnostics.filter((d) => d.code.startsWith("E")).length;
@@ -72,9 +76,10 @@ export function status(text: string, holdLine = 0): Status {
     diagnostics, errors, warnings: diagnostics.length - errors - empties.length, toChoose, ghosts, bytes, empty, bare, over,
     canSave: !empty && !over && !errors && !held && !bare,
     canon,
-    canTidy: !empty && canon !== null && canon.trimEnd() !== t.trimEnd(),
+    canTidy: !empty && !held && (canon !== null ? canon.trimEnd() !== t.trimEnd() : tidyPlan(t) !== null),
     held,
     paste,
+    fixes: lineFixes(t, paste, diagnostics, ghosts),
   };
 }
 
