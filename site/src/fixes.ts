@@ -7,9 +7,9 @@
  *
  * Kinds, each one fix per line at most (the first wins, in this order):
  * - prepared: a whole-list preparer's `Spells` line → Prepared (D190, 2014 too since D212).
- * - lib: the library's own fix on a diagnostic (D203, wired by D225): E005 header key moved out of a block, E003 lines
- *   joined, E012 `/` between classes, E001 space after the colon or a note, E002 did-you-mean, W005 the new key. Its
- *   label is the action and its hint the reason. Not an E005 `Subclass` line: that one moves to its level (D213).
+ * - lib: the library's own fix on a diagnostic (D203, wired by D225), only those it marks unsafe (a did-you-mean, a
+ *   note, `L5 Wizard`): the safe ones (a header key out of a block, joined lines, `/`, a space, a 0.7 key) are Tidy's
+ *   (review). Its label is the action and its hint the reason.
  * - move-up: a pick the written species doesn't give → above Species (D213).
  * - level-lines: a level header whose block lacks a key that level owes → those keys as empty lines (D215, T10).
  * - species-lines: a species whose block lacks a line it owes → those lines (D211, T11).
@@ -21,7 +21,7 @@
  *
  * The library's fixes win over the site's own fix on a line (D225).
  */
-import { KEYS, applyFix, classSequence, familyOf, keyGroup, resolveKey } from "../../src/dndpaste.ts";
+import { KEYS, applyFix, classSequence, emit, familyOf, keyGroup, parse, resolveKey } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste, Ref } from "../../src/dndpaste.ts";
 import { isWholeList, speciesPreset, toPrepared } from "./ghost.ts";
 import type { Ghost } from "./ghost.ts";
@@ -298,7 +298,7 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
 const isSubclass = (line: string): boolean => resolveKey(keyOf(line) ?? "").def?.key === "Subclass";
 
 /**
- * The library's fix on each diagnostic (D203), as a site Fix (D225): its label is the action, its hint (else its
+ * The library's unsafe fix on each diagnostic (D203), as a site Fix (D225): its label is the action, its hint (else its
  * message) the reason. `lines` is the text the diagnostics were read from: a fix applies only while every line it
  * edits still reads as it did. An E005 `Subclass` line gets none: Francesco rejected moving it above Species (D213).
  */
@@ -306,20 +306,14 @@ export function libraryFixes(lines: readonly string[], diagnostics: readonly Dia
   const out: Fix[] = [];
   for (const d of diagnostics) {
     const fix = d.fix;
-    if (!fix || (d.code === "E005" && isSubclass(lines[d.line - 1] ?? ""))) continue;
-    // A moved line lands above the blank lines before its target, so the gap stays with the block (D213).
-    const edits = fix.edits.map((e) => {
-      let l = e.line;
-      if (e.insert) while (l > 1 && !lines[l - 2]?.trim()) l--;
-      return { ...e, line: l };
-    });
-    const made = { ...fix, edits };
-    const was = edits.map((e) => [e.line, lines[e.line - 1]] as const);
+    // Review (D225): a safe fix is Tidy's job, not an underline; only what Tidy won't do stays one click.
+    if (!fix || fix.safe || (d.code === "E005" && isSubclass(lines[d.line - 1] ?? ""))) continue;
+    const was = fix.edits.map((e) => [e.line, lines[e.line - 1]] as const);
     out.push({
       line: d.line, at: "key", kind: "lib", why: d.hint ?? d.message, act: fix.label,
       apply: (x) => {
         const xs = x.replace(/\r\n?/g, "\n").split("\n");
-        return xs.length === lines.length && was.every(([l, t]) => xs[l - 1] === t) ? applyFix(xs.join("\n"), made) : null;
+        return xs.length === lines.length && was.every(([l, t]) => xs[l - 1] === t) ? applyFix(xs.join("\n"), fix) : null;
       },
     });
   }
@@ -382,4 +376,67 @@ export function nameFixes(n: Names, text: string, paste: Paste, taken: ReadonlyS
     }
   }
   return out;
+}
+
+/** One change Tidy can make (D229): its line in the badge's list, and whether it's left out this time. */
+export interface TidyChange { label: string; off: boolean }
+/** What Tidy will do (D229): the text after, and its changes for the badge's list (left-out ones included). */
+export interface TidyPlan { text: string; changes: TidyChange[] }
+
+/** The canonical-form step's line in the list. */
+export const CANONICAL = "Rewrites the text in canonical form: key order, spelling and spacing";
+
+/**
+ * Tidy's plan (D229): the site's Subclass moves to its level block first (D213; the library would move it above
+ * Species), then each of the library's safe fixes in turn, then each plain `Options` line folded into its family (when
+ * the names table is loaded), then the canonical form (the library's `emit`, D203). A change whose label is in `skip`
+ * is left out (review: a struck-through row in the badge's list). Null when Tidy has nothing it could change.
+ */
+export function tidyPlan(text: string, n: Names | null = null, skip: ReadonlySet<string> = new Set()): TidyPlan | null {
+  const t0 = text.replace(/\r\n?/g, "\n");
+  if (!t0.trim()) return null;
+  const changes: TidyChange[] = [];
+  const note = (label: string, off: boolean) => { if (!changes.some((c) => c.label === label)) changes.push({ label, off }); };
+  let t = t0;
+  const what = (x: string, line: number) => keyOf(x.split("\n")[line - 1] ?? "") ?? `Line ${line}`;
+  for (let pass = 0; pass < 40; pass++) {
+    const p = parse(t);
+    const mv = lineFixes(t, p, p.diagnostics, []).find((f) => f.kind === "move-level");
+    if (mv) {
+      const label = `Subclass: ${mv.act}`;
+      const next = skip.has(label) ? null : mv.apply(t);
+      note(label, next === null);
+      if (next !== null && next !== t) { t = next; continue; }
+    }
+    let made = false;
+    for (const d of p.diagnostics) {
+      if (!d.fix?.safe || !d.code.startsWith("E")) continue;
+      const label = `${what(t, d.line)}: ${d.fix.label}`;
+      note(label, skip.has(label));
+      if (skip.has(label)) continue;
+      const next = applyFix(t, d.fix);
+      if (next === t) continue;
+      t = next;
+      made = true;
+      break;
+    }
+    if (!made) break;
+  }
+  if (n) {
+    for (let pass = 0; pass < 20; pass++) {
+      const fold = nameFixes(n, t, parse(t)).map((f) => ({ f, label: `Options: ${f.act}` }));
+      for (const x of fold) note(x.label, skip.has(x.label));
+      const go = fold.find((x) => !skip.has(x.label));
+      const next = go?.f.apply(t);
+      if (!next || next === t) break;
+      t = next;
+    }
+  }
+  const canon = emit(parse(t));
+  if (canon.trimEnd() !== t.trimEnd()) {
+    note(CANONICAL, skip.has(CANONICAL));
+    if (!skip.has(CANONICAL)) t = canon;
+  }
+  if (!changes.length) return null;
+  return { text: t, changes };
 }

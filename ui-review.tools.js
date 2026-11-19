@@ -329,6 +329,32 @@ uiReview.config({
     },
     'ut-ac': (x) => acSetup(x, 'ut-ac', 'Vice\nRules: 2024\nClasses: Warlock 1\n\nSpecies: E'),
     'ut-subclass': (x) => acSetup(x, 'ut-subclass', 'Vice\nRules: 2024\nClasses: Fighter 8\nSubclass: Eldritch Knight\n\nL8 Fighter\n'),
+    // Round 2 for 0.9 (D225–D229).
+    'r2-libfix': async (x) => {
+      await acSetup(x, 'r2-libfix', 'Vice\nPaste: 1\nRules: 2014\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\n\nSpecies: Elf\nMasteries: Dagger\n')
+      if (document.querySelector('.wlpop')?.hidden) document.querySelector('.wlb[data-line="8"]')?.click()
+    },
+    'r2-libfix2': (x) => acSetup(x, 'r2-libfix2', 'Vice\nPaste: 1\nRules: 2024\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\nSpels: Shield\n\nSpecies: Elf\nSpells: Shield\n'),
+    'r2-tidy2': async (x) => {
+      await acSetup(x, 'r2-tidy2', 'Vice\nRules: 2024\nClasses: Warlock 3 / Wizard 2\n\nSpecies: Elf\nMasteries: Dagger\nSubclass: Fiend Patron\n\nL1 Warlock\nOptions: Agonizing Blast\n\nL3 Warlock\n')
+      await x.sleep(400)
+    },
+    'r2-skills-species': (x) => acSetup(x, 'r2-skills-species', 'Vice\nRules: 2024\nClasses: Wizard 5\n\nSpecies: Elf\nSkills: '),
+    'r2-skills-class': (x) => acSetup(x, 'r2-skills-class', 'Vice\nRules: 2024\nClasses: Wizard 4 / Rogue 1\n\nL1 Wizard\nSkills: Arcana, \n\nL5 Rogue\nSkills: '),
+    'r2-bracket': async (x) => {
+      await acSetup(x, 'r2-bracket', 'Vice\nRules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\nFeature: Elven Lineage [ ]')
+      const ta = editor(); if (!ta) return
+      const at = ta.value.lastIndexOf('[') + 1
+      document.querySelector('.ed')?.dispatchEvent(new Event('focusout'))
+      ta.setSelectionRange(at, at)
+      ta.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await x.sleep(400)
+    },
+    'r2-tidy': async (x) => {
+      await acSetup(x, 'r2-tidy', 'Vice\nRules: 2024\nClasses: Warlock 3 / Wizard 2\n\nSpecies: Elf\nMasteries: Dagger\nSubclass: Fiend Patron\n\nL1 Warlock\nOptions: Agonizing Blast\n\nL3 Warlock\n')
+      if (document.querySelector('.tidypop')?.hidden) [...document.querySelectorAll('.bt')].find((b) => /Tidy/.test(b.textContent))?.click()
+      await x.sleep(200)
+    },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
       const dt = new DataTransfer(); dt.items.add(new File(['Shigen\n'], 'shigen.dndpaste', { type: 'text/plain' }))

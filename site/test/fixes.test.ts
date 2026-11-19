@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parse } from "../../src/dndpaste.ts";
 import { ghostCounts } from "../src/ghost.ts";
-import { lineFixes, markFixes, nameFixes } from "../src/fixes.ts";
+import { CANONICAL, lineFixes, markFixes, nameFixes, tidyPlan } from "../src/fixes.ts";
 import type { Fix } from "../src/fixes.ts";
 import { highlightRows } from "../src/client/highlight.ts";
 import * as N from "../src/names.gen.ts";
@@ -31,25 +31,19 @@ test("D213: a pick the written species doesn't give moves above Species; blank l
   assert.equal(f?.apply(text), "Rules: 2024\nClasses: Wizard 5\nSpells: Shield\n\nSpecies: Elf\nSkills: Insight\n\nL1 Wizard\n");
   assert.equal(at(text, 6, "move-up"), undefined, "an Elf asks for a skill");
   const bg = "Rules: 2024\nClasses: Wizard 1\n\nBackground: Sage\nCantrips: Light\nMasteries: Dagger\n";
-  assert.equal(at(bg, 6)?.act, "Move above Background", "E005 Masteries");
+  assert.equal(at(bg, 6), undefined, "E005 Masteries: Tidy's job (D225 review)");
 });
 
-test("D225: the library's fixes show as one-click fixes; they read the line as written", () => {
-  const text = "Paste: 1\nRules: 2024\nClasses: Fighter 1\nFighting Style: Archery\nEquipment: Rope\n\nL1 Fighter\nASI: +2 STR\n";
-  const fs = at(text, 4);
-  assert.equal(fs?.kind, "lib");
-  assert.equal(fs?.act, "Use the new key");
-  assert.equal(fs?.why, "Write Feat (Fighting Style): Archery");
-  assert.equal(fs?.apply(text)?.split("\n")[3], "Feat (Fighting Style): Archery");
-  assert.equal(at(text, 5)?.apply(text)?.split("\n")[4], "Gear: Rope");
-  assert.equal(at(text, 8)?.apply(text)?.split("\n")[7], "Feat: Ability Score Improvement [+2 STR]");
-  const cls = "Rules: 2014\nClasses: Sorcerer 5, Warlock 5\n";
-  assert.equal(at(cls, 2)?.act, "Use / between classes");
-  assert.equal(at(cls, 2)?.apply(cls), "Rules: 2014\nClasses: Sorcerer 5 / Warlock 5\n");
-  assert.equal(at(cls, 2)?.apply("Rules: 2014\nClasses: Sorcerer 5\n"), null, "the line changed since");
-  const up = "Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\nMasteries: Dagger\n";
-  assert.equal(at(up, 5)?.act, "Move above Species", "E005: the library's move");
-  assert.equal(at(up, 5)?.apply(up), "Rules: 2024\nClasses: Wizard 1\nMasteries: Dagger\n\nSpecies: Elf\n");
+test("D225 (review): the library's unsafe fixes show as one-click fixes; its safe ones are left to Tidy", () => {
+  const text = "Paste: 1\nRules: 2024\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\n\nSpecies: Elf\nMasteries: Dagger\n";
+  for (const l of [3, 4]) assert.equal(at(text, l), undefined, `line ${l}: Tidy's job`);
+  assert.equal(at(text, 7)?.kind, "move-up", "a pick the species doesn't give: the site's, Tidy doesn't move it");
+  const note = "Rules: 2024\nClasses: Fighter 1\n# a comment\n";
+  const f = at(note, 3);
+  assert.equal(f?.kind, "lib");
+  assert.equal(f?.act, "Make it a note");
+  assert.equal(f?.apply(note), "Rules: 2024\nClasses: Fighter 1\nNote: a comment\n");
+  assert.equal(f?.apply("Rules: 2024\nClasses: Fighter 1\n# another\n"), null, "its line changed since");
 });
 
 test("D215 (T10): a level header whose block lacks owed keys offers them, laid out as a preset does", () => {
@@ -101,9 +95,28 @@ test("markFixes: the underline and the line on the key, or on the level header; 
   const fs = lineFixes(text, p, p.diagnostics, ghostCounts(p, text));
   const rows = markFixes(highlightRows(text, p.diagnostics, new Map()), fs);
   assert.ok(rows[3].includes(`<span class="lvh wl" data-line="4">`));
-  const bad = "Rules: 2014\nClasses: Sorcerer 5, Warlock 5\n";
+  const bad = "Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\nSpells: Shield\n";
   const pb = parse(bad);
   const rb = markFixes(highlightRows(bad, pb.diagnostics, new Map()), lineFixes(bad, pb, pb.diagnostics, []));
-  assert.ok(rb[1].includes(`<span class="k wl" data-line="2">Classes</span>`), rb[1]);
+  assert.ok(rb[4].includes(`<span class="k wl" data-line="5">Spells</span>`), rb[4]);
   assert.equal(at("Rules: 2024\nClasses: Warlock 1\n\nL1 Warlock\nSpells: Hex|PHB\n", 5), undefined, "review: no other-edition hint");
+});
+
+test("D229: Tidy's plan lists each change; a Subclass goes to its level; a struck-through change is left out", () => {
+  const text = "Rules: 2024\nClasses: Warlock 3 / Wizard 2\n\nSpecies: Elf\nMasteries: Dagger\nSubclass: Fiend Patron\n\nL1 Warlock\nOptions: Agonizing Blast\n\nL3 Warlock\n";
+  const p = tidyPlan(text, N);
+  assert.ok(p);
+  assert.deepEqual(p.changes.map((c) => c.label), ["Subclass: Move to L3 Warlock", "Masteries: Move above Species", "Options: Change to Invocations", CANONICAL]);
+  assert.ok(p.changes.every((c) => !c.off));
+  assert.match(p.text, /L3 Warlock\nSubclass: Fiend Patron/);
+  assert.match(p.text, /L1 Warlock\nInvocations: Agonizing Blast/);
+  assert.ok(!/Species: Elf\nMasteries/.test(p.text));
+  assert.equal(tidyPlan(p.text, N), null, "a tidy text has nothing to tidy");
+  assert.ok(!tidyPlan(text)?.changes.some((c) => c.label.startsWith("Options")), "no names table: no fold");
+  const left = tidyPlan(text, N, new Set(["Masteries: Move above Species", CANONICAL]));
+  assert.deepEqual(left?.changes.filter((c) => c.off).map((c) => c.label), ["Masteries: Move above Species", CANONICAL], "still listed, struck through");
+  assert.match(left?.text ?? "", /Species: Elf\nMasteries: Dagger\n/, "left where it was");
+  assert.match(left?.text ?? "", /L1 Warlock\nInvocations: Agonizing Blast/, "the rest still made");
+  assert.equal(tidyPlan("   \n"), null);
+  assert.equal(tidyPlan("Rules: 2024\nClasses: Fighter 1\nZzz\n"), null, "an error it can't fix stays; nothing else to do");
 });

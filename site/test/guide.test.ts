@@ -12,7 +12,7 @@ import { allCodes } from "../src/codelist.ts";
 import { UA_SOURCES } from "../../src/sources.ts";
 
 const BOOKS = allCodes();
-import { matches, sortRows, typeLabel } from "../src/client/codes.ts";
+import { dateLabel, letterOf, matches, passes, sortRows, typeLabel } from "../src/client/codes.ts";
 import { status } from "../src/client/status.ts";
 import { asJson, call, form, makeEnv, textOf } from "./helpers.ts";
 
@@ -72,10 +72,10 @@ test("/codes (D103): every book code with its title, linked from the guide, neve
   assert.equal(r.headers.get("Cache-Control"), "public, max-age=3600");
   const page = await r.text();
   assert.ok(page.includes("<title>Book codes · dndpaste</title>"));
-  for (const b of BOOKS) assert.ok(page.includes(`<th scope="row" class="kk">${esc(b.code)}</th><td>${esc(b.title)}</td><td class="ct">${esc(typeLabel(b))}</td>`), b.code);
+  for (const b of BOOKS) assert.ok(page.includes(`<th scope="row" class="kk">${esc(b.code)}</th><td>${esc(b.title)}</td><td class="ct">${esc(typeLabel(b))}</td><td class="cd">${esc(dateLabel(b.date))}</td>`), b.code);
   assert.deepEqual(BOOKS.map((b) => b.code), sortRows(BOOKS, "code", "asc").map((b) => b.code), "served sorted by code");
   assert.ok(BOOKS.some((b) => b.code === "PHB" && b.y2014 && b.type === "Core") && BOOKS.some((b) => b.code === "XPHB" && !b.y2014));
-  assert.ok(page.includes(`<div class="cfind njs">`), "the search field is hidden without JavaScript");
+  assert.ok(page.includes(`<div class="cbar njs">`), "the search field and filters are hidden without JavaScript");
   assert.ok(!/5e\s*tools|usual|standard/i.test(textOf(page)), "no source name, no usual or standard wording");
   assert.ok(!/style=|<style/i.test(page));
   assert.ok((await (await call(env, "GET", "/guide")).text()).includes(`<a href="/codes">all book codes</a>`));
@@ -96,6 +96,24 @@ test("/codes find and sort: every word matches code, title or type; columns sort
   assert.deepEqual(sortRows(rows, "title", "asc").map((r) => r.code), ["CoS", "FRAiF", "PHB", "XPHB", "TCE"]);
   assert.deepEqual(sortRows(rows, "type", "asc").map((r) => r.code), ["XPHB", "PHB", "TCE", "CoS", "FRAiF"]);
   assert.equal(typeLabel(rows[1]), "Core, 2014");
+});
+
+test("D228 /codes: publication dates, type and 2014 filters, the A–Z letters", () => {
+  assert.equal(dateLabel("2014-08-19"), "Aug 2014");
+  assert.equal(dateLabel("2019"), "2019");
+  assert.equal(dateLabel(""), "");
+  const all = allCodes();
+  assert.equal(all.find((b) => b.code === "PHB")?.date, "2014-08-19");
+  assert.ok(all.filter((b) => b.type === "Unearthed Arcana").every((b) => /^\d{4}-\d{2}-\d{2}$/.test(b.date)), "every UA code has its release date");
+  const b = (code: string, date: string, y2014 = false) => ({ code, title: code, type: "Core" as const, y2014, date });
+  const rows = [b("XPHB", "2024-09-17"), b("PHB", "2014-08-19", true), b("EEPC", ""), b("DMG", "2014-12-09", true)];
+  assert.deepEqual(sortRows(rows, "date", "asc").map((r) => r.code), ["PHB", "DMG", "XPHB", "EEPC"]);
+  assert.deepEqual(sortRows(rows, "date", "desc").map((r) => r.code), ["XPHB", "DMG", "PHB", "EEPC"], "no date stays last");
+  assert.ok(matches(rows[1], "2014 aug"), "a year finds its books");
+  assert.ok(passes(rows[0], "Core", false) && !passes(rows[1], "Core", false) && !passes(rows[0], "Adventure", true) && passes(rows[1], null, true));
+  assert.equal(letterOf(b("xphb", ""), "code"), "X");
+  assert.equal(letterOf({ ...b("Q", ""), title: "Égypte" }, "title"), "E", "accents folded");
+  assert.equal(letterOf(b("9xx", ""), "code"), "#");
 });
 
 test("key table: one row per profile key, in the library's order, with its places and a description", () => {

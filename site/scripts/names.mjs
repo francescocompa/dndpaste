@@ -111,6 +111,25 @@ for (const sd of Object.values(slots.species).filter(keep)) {
 }
 lineages.sort(byName);
 
+// Short skill lists (D227): the skills a species or a class lets its player choose from, as bits over SKILLS; "M" is a
+// class's list when it joins as a multiclass. Names only. Only lists that leave some skills out.
+const skillNames = words(skills);
+const skillBits = (from) => from.reduce((a, x) => { const i = skillNames.indexOf(title(x)); return i < 0 ? a : a | 2 ** i; }, 0);
+const ALL_SKILLS = 2 ** skillNames.length - 1;
+const skillLists = [];
+for (const [kind, table, field] of [["S", "species", "skills"], ["C", "classes", "skills"], ["M", "classes", "multiclassSkills"]]) {
+  for (const e of Object.values(slots[table]).filter(keep)) {
+    const from = e[field]?.choose?.from;
+    if (!from?.length) continue;
+    const bits = skillBits(from);
+    if (bits === ALL_SKILLS) continue;
+    const had = skillLists.find((r) => r[0] === kind && r[1] === e.name && r[3] === bits);
+    if (had) had[2] |= BOOK[e.source];
+    else skillLists.push([kind, e.name, BOOK[e.source], bits]);
+  }
+}
+skillLists.sort((a, b) => byName([a[1] + a[0]], [b[1] + b[0]]) || a[2] - b[2]);
+
 const q = (v) => JSON.stringify(v);
 const list = (rs) => rs.map((r) => `  ${q(r)},`).join("\n");
 writeFileSync(out, `/**
@@ -154,7 +173,9 @@ ${list(items)}
 ];
 /** [name, books]: weapons with a mastery property, for \`Masteries:\` (D165) */
 export const MASTERY_WEAPONS: readonly (readonly [string, Books])[] = ${q(masteryWeapons)};
-export const SKILLS: readonly string[] = ${q(words(skills))};
+export const SKILLS: readonly string[] = ${q(skillNames)};
+/** [S species, C class, M class as a multiclass; name, books, bits over SKILLS]: the skills a short list lets a player choose (D227). */
+export const SKILL_LISTS: readonly (readonly ["S" | "C" | "M", string, Books, number])[] = ${q(skillLists)};
 export const LANGUAGES: readonly string[] = ${q(words(languages))};
 export const TOOLS: readonly string[] = ${q(words(tools))};
 /** [class feature name, index in CLASSES, its options, the options that add a cantrip of that class] (D163) */

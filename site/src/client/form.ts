@@ -8,7 +8,7 @@
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
 import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount } from "../ghost.ts";
-import { markFixes, nameFixes } from "../fixes.ts";
+import { markFixes, nameFixes, tidyPlan } from "../fixes.ts";
 import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
@@ -26,7 +26,7 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, ghostWord, keySpotAt, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import { afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
@@ -119,8 +119,13 @@ function init(): void {
   file.hidden = true;
   const openBtn = el("button", "bt", `${icon("folder")}Open file`);
   const tidyBtn = el("button", "bt", `${icon("tidy")}Tidy`);
-  openBtn.type = tidyBtn.type = "button";
-  tb.prepend(openBtn, tidyBtn, file);
+  // D229 (review): Tidy tidies at once; its badge counts the changes and opens their list.
+  const tidyBadge = el("button", "tbadge");
+  tidyBadge.hidden = true;
+  const tidyW = el("span", "tidyw");
+  tidyW.append(tidyBtn, tidyBadge);
+  openBtn.type = tidyBtn.type = tidyBadge.type = "button";
+  tb.prepend(openBtn, tidyW, file);
   let sum = tb.querySelector<HTMLElement>(".dsum");
   if (!sum) { sum = el("span", "dsum"); tb.querySelector(".bt.pri")?.before(sum); }
   sum.setAttribute("aria-live", "polite");
@@ -228,11 +233,23 @@ function init(): void {
     holdLine = 0;
     refresh();
   };
+  let badgeTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Changes struck through in the badge's list (D229 review): Tidy leaves them out until they're clicked again. */
+  const tidySkip = new Set<string>();
   const setSaveState = () => {
     const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving && !(editId && !editKeys.length);
     for (const b of saves) { b.disabled = !on; b.classList.toggle("off", !on); }
     tidyBtn.disabled = !st.canTidy;
     tidyBtn.classList.toggle("off", !st.canTidy);
+    // The badge's count waits for a pause in typing: a plan reads the text several times.
+    clearTimeout(badgeTimer);
+    if (!st.canTidy) { tidyBadge.hidden = true; return; }
+    badgeTimer = setTimeout(() => {
+      const n = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip)?.changes.filter((c) => !c.off).length ?? 0 : 0;
+      tidyBadge.hidden = !n;
+      tidyBadge.textContent = String(n);
+      tidyBadge.setAttribute("aria-label", n === 1 ? "1 change Tidy will make" : `${n} changes Tidy will make`);
+    }, 250);
   };
   /**
    * Redraws only the rows that changed (common head and tail kept): a keystroke in a long paste touches a row or
@@ -287,6 +304,15 @@ function init(): void {
   /** The popover's line; 0 when closed. */
   let wlLine = 0;
   const wlClose = () => { wlPop.hidden = true; wlLine = 0; };
+  /** Writes only the part of the text that changed, through insert, so Undo brings the old text back. */
+  const writeChange = (next: string) => {
+    const before = ta.value;
+    let a = 0;
+    while (a < before.length && a < next.length && before[a] === next[a]) a++;
+    let b = 0;
+    while (b < before.length - a && b < next.length - a && before[before.length - 1 - b] === next[next.length - 1 - b]) b++;
+    insert(next.slice(a, next.length - b), a, before.length - b);
+  };
   const fixAt = (line: number) => fixes.find((f) => f.line === line);
   function placeNotes() {
     const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line]")];
@@ -326,12 +352,7 @@ function init(): void {
     const next = f ? f.apply(before) : null;
     wlClose();
     if (next === null || next === before) return;
-    // Write only the part that changed, through insert, so Undo brings the old text back.
-    let a = 0;
-    while (a < before.length && a < next.length && before[a] === next[a]) a++;
-    let b = 0;
-    while (b < before.length - a && b < next.length - a && before[before.length - 1 - b] === next[next.length - 1 - b]) b++;
-    insert(next.slice(a, next.length - b), a, before.length - b);
+    writeChange(next);
   });
   document.addEventListener("pointerdown", (e) => {
     if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb")) wlClose();
@@ -631,7 +652,9 @@ function init(): void {
     // Inside [ ], the next group or name starts at once (D163 review), unless a separator is already there.
     const nx = ta.value[sp.end];
     const sep = names && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
-    insert(written(sp, r) + sep, sp.start, sp.end);
+    // Review (D229): the last pick in `[ ]` leaves no stray spaces inside the brackets: `[ Drow ]` → `[Drow]`.
+    const [a, b] = sep || sp.parent === null ? [sp.start, sp.end] : bracketTrim(ta.value, sp.start, sp.end);
+    insert(written(sp, r) + sep, a, b);
     if (sep) complete(true);
   };
   ed.addEventListener("keydown", (e) => {
@@ -687,7 +710,9 @@ function init(): void {
   ed.addEventListener("focusin", loadNames);
   if (ed.contains(document.activeElement)) loadNames();
   ed.addEventListener("focusout", acClose);
-  for (const ev of ["keyup", "click"]) ed.addEventListener(ev, (e) => { if (!ac.contains(e.target as Node)) complete(false); });
+  // D229: a click into an empty `[ ]` opens the list, as typing would; any other click only updates or closes it.
+  ed.addEventListener("keyup", (e) => { if (!ac.contains(e.target as Node)) complete(false); });
+  ed.addEventListener("click", (e) => { if (!ac.contains(e.target as Node)) complete(e.target === ta && ta.selectionStart === ta.selectionEnd && inEmptyBrackets(ta.value, ta.selectionStart)); });
   phone.addEventListener("change", acClose);
   window.addEventListener("resize", () => { if (!ac.hidden && !phone.matches) acPlace(); });
 
@@ -853,9 +878,52 @@ function init(): void {
     refreshHints();
     ed.scrollIntoView({ block: "nearest" });
   });
+  // D229 (review): Tidy makes its changes at once (one Undo takes them back); the badge lists them first if you ask.
+  const tidyPop = el("div", "pop tidypop");
+  tidyPop.hidden = true;
+  tidyPop.setAttribute("role", "dialog");
+  tidyPop.setAttribute("aria-label", "What Tidy will change");
+  document.body.append(tidyPop);
+  const tidyClose = (back = false) => { tidyPop.hidden = true; if (back) tidyBadge.focus(); };
   tidyBtn.addEventListener("click", () => {
-    if (st.canTidy && st.canon !== null) replaceAll(st.canon);
+    tidyClose();
+    const next = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip)?.text : undefined;
+    tidySkip.clear();
+    if (next !== undefined && next !== ta.value) writeChange(next);
+    else setSaveState();
   });
+  const drawTidyList = (): boolean => {
+    const plan = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip) : null;
+    if (!plan) return false;
+    tidyPop.innerHTML = `<p class="tph">Tidy will:</p><ul class="tpl">${plan.changes.map((c) =>
+      `<li><button type="button" class="tpi" aria-pressed="${!c.off}" data-label="${esc(c.label)}">${esc(c.label)}</button></li>`).join("")}</ul>` +
+      `<p class="muted tpu">Click a change to leave it out.</p>`;
+    return true;
+  };
+  tidyBadge.addEventListener("click", () => {
+    if (!tidyPop.hidden) { tidyClose(); return; }
+    if (!drawTidyList()) return;
+    tidyPop.hidden = false;
+    tidyW.scrollIntoView({ block: "nearest" });
+    const r = tidyW.getBoundingClientRect();
+    const w = tidyPop.offsetWidth;
+    tidyPop.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+    tidyPop.style.top = `${r.bottom + 6 + scrollY}px`;   // placed in the page (.tidypop is absolute): it scrolls with its button
+  });
+  // Review: a click strikes a change through (Tidy leaves it out); another click brings it back.
+  tidyPop.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>(".tpi");
+    const label = b?.dataset.label;
+    if (!label) return;
+    if (tidySkip.has(label)) tidySkip.delete(label); else tidySkip.add(label);
+    drawTidyList();
+    tidyPop.querySelector<HTMLElement>(`.tpi[data-label="${CSS.escape(label)}"]`)?.focus();
+    setSaveState();
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!tidyPop.hidden && !tidyPop.contains(e.target as Node) && !tidyBadge.contains(e.target as Node)) tidyClose();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !tidyPop.hidden) tidyClose(true); });
 
   // ---- Open file and drop ----
   const openFile = async (f: File) => {

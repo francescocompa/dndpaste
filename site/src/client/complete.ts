@@ -45,6 +45,9 @@ export interface Spot {
   groups: string[][];
   /** Names already on the line, lower case: not offered again (D156). */
   taken: Set<string>;
+  /** The block the line is in (D227): a Species or Background block and its name, or a level block, its class and
+   *  whether the class joins there (`join`: "first" at the build's L1, "multi" at a later class's first level). */
+  block?: { kind: "S" | "B" | "L"; name: string; join?: "first" | "multi" };
 }
 
 export interface Suggestion {
@@ -53,7 +56,8 @@ export interface Suggestion {
   source: string | null;
   /** A spell's level, as the row shows it: `3rd`, `cantrip` (D162). */
   tag?: string;
-  /** Above the highest level the spot's class can pick yet: shown, ranked last, dimmed (D162). */
+  /** Above the highest level the spot's class can pick yet (D162), or outside the short list the spot's species or
+   *  class chooses from (D227): shown, ranked last, dimmed. */
   dim?: boolean;
 }
 
@@ -88,10 +92,11 @@ function split(s: string, sep: string): string[] {
 }
 
 /** The paste's `Rules:` edition, the classes ranking first at line `at` (0-based) and their class levels there. */
-function setting(text: string, lines: string[], at: number): { rules: Edition | null; classes: string[]; levels: Map<string, number> } {
+function setting(text: string, lines: string[], at: number): { rules: Edition | null; classes: string[]; levels: Map<string, number>; block: Spot["block"] } {
   let rules: Edition | null = null;
   let header: [string, number][] = [];
   let block: [string, number] | null = null;
+  let opened: { kind: "S" | "B"; name: string } | null = null;
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i].trim();
     const r = /^rules:\s*(2014|2024)\s*$/i.exec(t);
@@ -100,16 +105,45 @@ function setting(text: string, lines: string[], at: number): { rules: Edition | 
     if (c) header = split(c[1], "/").map((x): [string, number] => [clean(x.replace(/\s+\d+\s*$/, "")), Number(/\s(\d+)\s*$/.exec(x)?.[1] ?? 0)]).filter((x) => x[0]);
     const lv = i <= at ? LEVEL_RE.exec(t) : null;
     if (lv) block = [clean(lv[2]), Number(lv[1])];
+    else if (i <= at && !block) {
+      const sep = findSeparator(t);
+      const ob = sep > 0 ? keyDef(t.slice(0, sep))?.opensBlock : undefined;
+      if (ob === "S" || ob === "B") opened = { kind: ob, name: clean(t.slice(sep + 1)) };
+    }
   }
   const levels = new Map<string, number>();
+  let where: Spot["block"];
   if (block) {
     // The class level at this block: that class's levels so far, by the reading rule (D49), as the ghost counts.
     const [cls, n] = block;
     const seq = classSequence(parse(text)).levels.slice(0, n);
     const k = seq.filter((r) => r && lc(r.name) === lc(cls)).length;
     if (k) levels.set(lc(cls), k);
-  } else for (const [cls, k] of header) if (k) levels.set(lc(cls), k);
-  return { rules, classes: block ? [block[0]] : header.map((h) => h[0]), levels };
+    where = { kind: "L", name: cls, ...(k === 1 ? { join: n === 1 ? "first" as const : "multi" as const } : {}) };
+  } else {
+    for (const [cls, k] of header) if (k) levels.set(lc(cls), k);
+    if (opened) where = opened;
+  }
+  return { rules, classes: block ? [block[0]] : header.map((h) => h[0]), levels, block: where };
+}
+
+/** The cursor at `pos` is inside an empty `[ ]` (only spaces between the brackets): a click there opens the list (D229). */
+export function inEmptyBrackets(text: string, pos: number): boolean {
+  const ls = text.lastIndexOf("\n", pos - 1) + 1;
+  let le = text.indexOf("\n", ls);
+  if (le < 0) le = text.length;
+  return /\[ *$/.test(text.slice(ls, pos)) && /^ *\]/.test(text.slice(pos, le));
+}
+
+/** The range a last pick in `[ ]` replaces (D229 review): `start`–`end` widened over the spaces between it and a `[`
+ *  before or a `]` after, so `[ Drow ]` becomes `[Drow]`. Spaces next to a `,` or `;` stay. */
+export function bracketTrim(text: string, start: number, end: number): [number, number] {
+  let a = start, b = end;
+  while (a > 0 && text[a - 1] === " ") a--;
+  if (text[a - 1] !== "[") a = start;
+  while (text[b] === " ") b++;
+  if (text[b] !== "]") b = end;
+  return [a, b];
 }
 
 /** What the cursor at `pos` is typing, or null where no name goes (a key, a score, a source, a quantity). */
@@ -211,10 +245,11 @@ export function spotAt(text: string, pos: number): Spot | null {
   return {
     key, marker, cap, family, rules: where.rules, classes: where.classes, levels: where.levels,
     start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, slot, groups, taken,
+    ...(where.block ? { block: where.block } : {}),
   };
 }
 
-interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number }
+interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean }
 
 /** The family codes an open `Options (<marker>)` names, matched to the table's family names and codes as the checker
  *  does (D185): `Options (Eldritch Invocation)` → `EI`. Empty when none fits: the line then takes any option. */
@@ -318,11 +353,29 @@ function candidates(n: Names, sp: Spot): Cand[] {
     case "Classes": case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
     case "Gear": return items(false);
     case "Masteries": return n.MASTERY_WEAPONS.map((w) => ({ name: w[0], books: w[1], first: false })); // weapons only (D165)
-    case "Skills": case "Expertise": return plain(n.SKILLS);
+    case "Skills": {
+      // D227: a species' or class's short list leads; the skills it can't take are shown, last and dimmed.
+      const bits = skillList(n, sp);
+      return bits === null ? plain(n.SKILLS) : n.SKILLS.map((name, i) => (bits & 2 ** i ? { name, books: 0, first: true } : { name, books: 0, first: false, out: true }));
+    }
+    case "Expertise": return plain(n.SKILLS);
     case "Languages": return plain(n.LANGUAGES);
     case "Tools": return tools();
     default: return [];
   }
+}
+
+/** The short skill list a Skills line chooses from (D227), as bits over SKILLS: its species' list in a Species block,
+ *  its class's list where the build starts, the class's multiclass list where it joins later. Null: no short list. */
+export function skillList(n: Names, sp: Spot): number | null {
+  const b = sp.block;
+  if (!b || b.kind === "B" || (b.kind === "L" && !b.join)) return null;
+  const kind = b.kind === "S" ? "S" : b.join === "first" ? "C" : "M";
+  const hits = n.SKILL_LISTS.filter((r) => r[0] === kind && lc(r[1]) === lc(b.name));
+  const ed = BOOKS.filter((x) => x[2] === sp.rules).reduce((a, x) => a | x[1], 0);
+  // Under a Rules edition, only that edition's list: a species whose edition has none (a 2014 Elf) has no short list.
+  const row = ed ? hits.find((r) => r[2] & ed) : hits[hits.length - 1];
+  return row ? row[3] : null;
 }
 
 const SMALL = new Set(["a", "an", "and", "of", "the", "to"]);
@@ -376,7 +429,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
     const had = best.get(k);
     if (!had) best.set(k, { c: { ...c }, t });
     else {
-      had.c.books |= c.books; had.c.first ||= c.first; had.t = Math.min(had.t, t);
+      had.c.books |= c.books; had.c.first ||= c.first; had.c.out &&= c.out; had.t = Math.min(had.t, t);
       if (c.level !== undefined) had.c.level = Math.min(had.c.level ?? 9, c.level);
     }
   }
@@ -384,7 +437,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
   const cap = sp.cap ?? spellCap(n, sp);   // a capped line's own cap wins (D184)
   const rows = [...best.values()].map(({ c, t }) => {
     const other0 = Boolean(sp.rules && c.books && !BOOKS.some(([, bit, ed]) => ed === sp.rules && c.books & bit));
-    const dim = other0 || (c.level !== undefined && cap !== null && c.level > cap);
+    const dim = other0 || Boolean(c.out) || (c.level !== undefined && cap !== null && c.level > cap);
     // T29 (review): a name the build's edition lacks ranks after the edition's own and is dimmed, as not available
     // by default; its `|SOURCE` (the book a pick writes, D155) says which.
     const other = other0;

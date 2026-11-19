@@ -5,7 +5,7 @@
  * styles (CSP). Without JavaScript it is a plain table sorted by code; site.js adds the search field and sorting.
  */
 import { allCodes } from "./codelist.ts";
-import { typeLabel } from "./client/codes.ts";
+import { TYPE_FILTERS, dateLabel, typeLabel } from "./client/codes.ts";
 import { layout } from "./pages.ts";
 import { esc, icon } from "./render.ts";
 
@@ -16,16 +16,19 @@ const TYPE_INFO = `<details class="tinfo"><summary aria-label="What the types me
 
 export function codesTable(): string {
   const head = `<thead><tr><th scope="col" class="kk" data-col="code" aria-sort="ascending">Code</th>` +
-    `<th scope="col" data-col="title">Book</th><th scope="col" class="ct" data-col="type"><span class="tl">Type</span>${TYPE_INFO}</th></tr></thead>`;
-  const rows = allCodes().map((b) => `<tr data-code="${esc(b.code)}" data-title="${esc(b.title)}" data-type="${esc(b.type)}"${b.y2014 ? ` data-y2014="1"` : ""}>` +
-    `<th scope="row" class="kk">${esc(b.code)}</th><td>${esc(b.title)}</td><td class="ct">${esc(typeLabel(b))}</td></tr>`).join("");
+    `<th scope="col" data-col="title">Book</th><th scope="col" class="ct" data-col="type"><span class="tl">Type</span>${TYPE_INFO}</th>` +
+    `<th scope="col" class="cd" data-col="date">Published</th></tr></thead>`;
+  const rows = allCodes().map((b) => `<tr data-code="${esc(b.code)}" data-title="${esc(b.title)}" data-type="${esc(b.type)}"${b.y2014 ? ` data-y2014="1"` : ""}${b.date ? ` data-date="${esc(b.date)}"` : ""}>` +
+    `<th scope="row" class="kk">${esc(b.code)}</th><td>${esc(b.title)}</td><td class="ct">${esc(typeLabel(b))}</td><td class="cd">${esc(dateLabel(b.date))}</td></tr>`).join("");
   return `<table class="ktab ctab" aria-label="Book codes">${head}<tbody>${rows}</tbody></table>`;
 }
 
 export function codesPage(): string {
   const main = `<div class="prose gd"><h1>Book codes</h1>
 <p>A name can end with <code>|</code> and the short code of the book it comes from, as in <code>Tiefling|XPHB</code>. The code is optional. This page lists the codes and the book that each one stands for. The <a href="/guide#names">format guide</a> shows where codes go.</p>
-<div class="cfind njs"><input type="search" class="in" id="cq" placeholder="Find a code or a book" aria-label="Find a code or a book" autocomplete="off" spellcheck="false"><span class="muted cn" role="status"></span></div>
+<div class="cbar njs"><div class="cfind"><input type="search" class="in" id="cq" placeholder="Find a code, a book or a year" aria-label="Find a code, a book or a year" autocomplete="off" spellcheck="false"><label class="c14"><input type="checkbox" id="c14" checked> 2014 books</label><span class="muted cn" role="status"></span></div>
+<div class="cchips" role="group" aria-label="Show"><button type="button" aria-pressed="true" data-type="">All</button>${TYPE_FILTERS.map((t) => `<button type="button" aria-pressed="false" data-type="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+<nav class="caz" aria-label="Jump to a letter"></nav></div>
 ${codesTable()}
 <p class="muted cnone" hidden>No code or book matches.</p></div>`;
   return layout({ title: "Book codes · dndpaste", main, page: "codes" });

@@ -6,7 +6,7 @@ import { emit, parse } from "../../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../../src/dndpaste.ts";
 import { ghostCounts } from "../ghost.ts";
 import type { Ghost } from "../ghost.ts";
-import { lineFixes } from "../fixes.ts";
+import { lineFixes, tidyPlan } from "../fixes.ts";
 import type { Fix } from "../fixes.ts";
 import { esc, icon } from "../render.ts";
 import { ID_RE, LIMITS, isBare } from "../store.ts";
@@ -31,7 +31,7 @@ export interface Status {
   canSave: boolean;
   /** `emit(parse(text))` when the text has no errors, else null. */
   canon: string | null;
-  /** Tidy changes something: no errors and the text is not already canonical. */
+  /** Tidy changes something (D229): a fix it can make, or a text not yet canonical. Off while a line is held. */
   canTidy: boolean;
   /** D90, D176: errors held back on the line being typed. Not in `diagnostics` or `errors`; Save still blocks on them. */
   held: number;
@@ -76,7 +76,7 @@ export function status(text: string, holdLine = 0): Status {
     diagnostics, errors, warnings: diagnostics.length - errors - empties.length, toChoose, ghosts, bytes, empty, bare, over,
     canSave: !empty && !over && !errors && !held && !bare,
     canon,
-    canTidy: !empty && canon !== null && canon.trimEnd() !== t.trimEnd(),
+    canTidy: !empty && !held && (canon !== null ? canon.trimEnd() !== t.trimEnd() : tidyPlan(t) !== null),
     held,
     paste,
     fixes: lineFixes(t, paste, diagnostics, ghosts),

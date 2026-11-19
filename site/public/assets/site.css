@@ -488,8 +488,8 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .ktab .kk { text-align: left; } .ktab .kw { width: auto; }
   .ktab .kh { grid-column: 1 / -1; }
   .ctab tr { grid-template-columns: 10ch minmax(0, 1fr); }
-  .ctab .ct { grid-column: 2; width: auto; font-size: 12.5px; }
-  .ctab thead .ct { display: none; }
+  .ctab .ct, .ctab .cd { grid-column: 2; width: auto; font-size: 12.5px; }
+  .ctab thead .ct, .ctab thead .cd { display: none; }
   .cfind .in { max-width: none; }
 }
 
@@ -509,8 +509,20 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ctab { max-width: 72ch; }
 .ctab .kk { width: 10ch; }
 .ctab .ct { color: var(--mute); white-space: nowrap; width: 9em; }
-.cfind { display: flex; gap: 12px; align-items: center; max-width: 72ch; margin: 1em 0 0.2em; }
-.cfind .in { max-width: 320px; }
+.cfind { display: flex; gap: 12px; align-items: center; max-width: 72ch; }
+/* D228: search, type chips, the 2014 switch and the A–Z strip stay at the top while the long list scrolls. */
+.cbar { position: sticky; top: 0; z-index: 4; background: var(--bg); max-width: 72ch; margin: 1em 0 0.2em; padding: 8px 0 6px;
+  border-bottom: 1px solid var(--rule); display: grid; gap: 8px; }
+.cchips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cchips button { border: 1px solid var(--rule); background: none; color: var(--mute); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.cchips button:hover { color: var(--fg); }
+.cchips button[aria-pressed=true] { background: var(--chip); border-color: var(--fg); color: var(--fg); font-weight: 600; }
+.cfind .c14 { display: inline-flex; gap: 5px; align-items: center; flex: none; font-size: 13px; color: var(--mute); cursor: pointer; }
+.cfind .in { flex: 1; }
+.caz { display: flex; flex-wrap: wrap; gap: 2px; font: 600 12.5px/1 var(--mono); }
+.caz a { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 4px; color: var(--mute); text-decoration: none; }
+.caz a:hover, .caz a:focus-visible { color: var(--fg); background: var(--chip); }
+.ctab .cd { color: var(--mute); white-space: nowrap; width: 8em; }
 .ctab .srt { display: inline-flex; align-items: center; gap: 3px; background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit;
   text-transform: inherit; color: inherit; cursor: pointer; }
 .ctab .srt:hover, .ctab th[aria-sort] .srt { color: var(--fg); }
@@ -538,3 +550,17 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ctab .tinfo .tpop { position: absolute; right: 0; top: 100%; z-index: 5; width: min(300px, calc(100vw - 32px)); padding: 8px 10px;
   background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 10px 28px rgb(0 0 0 / 0.16);
   font: 400 13px/1.4 var(--sans); text-transform: none; letter-spacing: 0; white-space: normal; text-align: left; }
+/* D229 (review): Tidy's badge counts its changes; a click on it lists them under the button. */
+.tidyw { position: relative; display: inline-flex; }
+.tbadge { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; border: 1.5px solid var(--bg);
+  background: var(--acc); color: var(--accfg); font: 600 11px/15px var(--sans); text-align: center; cursor: pointer; }
+.tbadge:hover { filter: brightness(1.1); }
+.tbadge:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 2px; }
+.tidypop { position: absolute; width: min(340px, calc(100vw - 16px)); padding: 10px 12px; }
+.tidypop .tph { margin: 0 0 4px; font-weight: 600; }
+.tidypop .tpl { margin: 0; padding-left: 18px; max-height: 40vh; overflow: auto; }
+.tidypop .tpl li { margin: 2px 0; }
+.tidypop .tpi { background: none; border: 0; padding: 2px 4px; margin-left: -4px; border-radius: 4px; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.tidypop .tpi:hover { background: var(--chip); }
+.tidypop .tpi[aria-pressed=false] { color: var(--mute); text-decoration: line-through; }
+.tidypop .tpu { margin: 6px 0 0; font-size: 12px; }

@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, ghostWord, keySpotAt, minTyped, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
+import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 
 /** `¦` marks the cursor. */
@@ -379,4 +379,38 @@ test("D219 (T29, review): under Rules, the edition's own names rank first; the o
     [["Gnome", false], ["Gnome (Rock)", false], ["Goliath", true]]);
   const none = spot("Vice\n\nSpecies: E¦");
   assert.ok((none ? suggest(N, none, 8) : []).every((r) => !r.dim), "no Rules: no edition to go by");
+});
+
+test("D227: a species' or class's short skill list leads; the skills it can't take are dimmed, last, still offered", () => {
+  const rows = (src: string) => { const s = spot(src); return s ? suggest(N, s, 18) : []; };
+  const elf = rows("Rules: 2024\nClasses: Wizard 5\n\nSpecies: Elf\nSkills: ¦");
+  assert.deepEqual(elf.filter((r) => !r.dim).map((r) => r.name), ["Insight", "Perception", "Survival"]);
+  assert.equal(elf.length, 18, "every skill still offered");
+  assert.ok(elf.slice(3).every((r) => r.dim), "the rest last, dimmed");
+  const wiz = rows("Rules: 2024\nClasses: Wizard 5\n\nL1 Wizard\nSkills: ¦");
+  assert.ok(wiz.find((r) => r.name === "Arcana" && !r.dim) && wiz.find((r) => r.name === "Stealth")?.dim, "the class's list at the build's L1");
+  const multi = rows("Rules: 2024\nClasses: Wizard 1 / Rogue 1\n\nL1 Wizard\n\nL2 Rogue\nSkills: ¦");
+  assert.equal(multi.find((r) => r.name === "Arcana")?.dim, true, "a Rogue joining later: its multiclass list");
+  assert.equal(multi.find((r) => r.name === "Stealth")?.dim, undefined);
+  assert.ok(rows("Rules: 2014\nClasses: Wizard 5\n\nSpecies: Elf\nSkills: ¦").every((r) => !r.dim), "a 2014 Elf chooses no skill: no short list");
+  assert.ok(rows("Rules: 2024\nClasses: Wizard 5\nSkills: ¦").every((r) => !r.dim), "a header line: no short list");
+  assert.ok(rows("Rules: 2024\nClasses: Wizard 1 / Bard 1\n\nL1 Wizard\n\nL2 Bard\nSkills: ¦").every((r) => !r.dim), "a list of every skill dims none");
+});
+
+test("D229: a click into an empty [ ] opens the list; a filled or closed one doesn't", () => {
+  const at = (src: string) => inEmptyBrackets(src.replace("¦", ""), src.indexOf("¦"));
+  assert.ok(at("Feature: Elven Lineage [¦]"));
+  assert.ok(at("Feature: Elven Lineage [ ¦ ]\nSkills:"));
+  assert.ok(!at("Feature: Elven Lineage [Drow¦]"));
+  assert.ok(!at("Feature: Elven Lineage [Drow; ¦]"), "a later group: the list opens as you type");
+  assert.ok(!at("Feature: Elven Lineage¦ [ ]"));
+});
+
+test("D229 (review): the last pick in [ ] leaves no stray spaces inside the brackets", () => {
+  const t = "Feature: Elven Lineage [ Dr  ]";
+  const [a, b] = bracketTrim(t, t.indexOf("Dr"), t.indexOf("Dr") + 2);
+  assert.equal(t.slice(0, a) + "Drow" + t.slice(b), "Feature: Elven Lineage [Drow]");
+  const u = "Feature: Elven Lineage [INT; Dr ]";
+  const [c, d] = bracketTrim(u, u.indexOf("Dr"), u.indexOf("Dr") + 2);
+  assert.equal(u.slice(0, c) + "Drow" + u.slice(d), "Feature: Elven Lineage [INT; Drow]", "the space after ; stays");
 });

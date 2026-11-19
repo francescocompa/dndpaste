@@ -15,7 +15,7 @@
  */
 import { esc, icon } from "../render.ts";
 import type { BookType } from "../books.ts";
-import { matches, sortRows } from "./codes.ts";
+import { letterOf, matches, passes, sortRows } from "./codes.ts";
 import type { Col, Dir } from "./codes.ts";
 import { applyDisplay, displayMenuHtml, displayStore } from "./display.ts";
 import type { Display } from "./display.ts";
@@ -508,20 +508,26 @@ function wireEdit(acts: HTMLElement, id: string, link: string): string | null {
   return editUrl;
 }
 
-// ---- /codes (D103): find a code or a book; click a column head to sort, again to reverse ----
+// ---- /codes (D103, D228): find a code, a book or a year; filter by type and 2014 books; click a column head to sort,
+// again to reverse; the A–Z strip jumps to the first row of a letter while the table is sorted by code or book ----
 function wireCodes(): void {
   const table = document.querySelector<HTMLTableElement>("table.ctab");
   const q = document.querySelector<HTMLInputElement>("#cq");
   const count = document.querySelector<HTMLElement>(".cfind .cn");
   const none = document.querySelector<HTMLElement>(".cnone");
+  const chips = document.querySelector<HTMLElement>(".cchips");
+  const old = document.querySelector<HTMLInputElement>("#c14");
+  const az = document.querySelector<HTMLElement>(".caz");
   const tbody = table?.tBodies[0];
   const heads = [...(table?.tHead?.rows[0]?.cells ?? [])];
-  if (!table || !q || !count || !none || !tbody || !heads.length) return;
+  if (!table || !q || !count || !none || !chips || !old || !az || !tbody || !heads.length) return;
   const rows = [...tbody.rows].map((tr) => ({
     tr, code: tr.dataset.code ?? "", title: tr.dataset.title ?? "", type: (tr.dataset.type ?? "Extra") as BookType, y2014: tr.dataset.y2014 === "1",
+    date: tr.dataset.date ?? "",
   }));
   let col: Col = "code";
   let dir: Dir = "asc";
+  let type: BookType | null = null;
   for (const th of heads) {
     const info = th.querySelector(".tinfo");   // D218 review: the Type column's info button stays beside its sort button
     const label = th.querySelector(".tl")?.textContent ?? th.textContent ?? "";
@@ -529,14 +535,28 @@ function wireCodes(): void {
     if (info) th.append(info);
   }
   const draw = () => {
-    const shown = sortRows(rows, col, dir).filter((r) => matches(r, q.value));
+    const shown = sortRows(rows, col, dir).filter((r) => passes(r, type, old.checked) && matches(r, q.value));
     tbody.replaceChildren(...shown.map((r) => r.tr));
     for (const th of heads) {
       if (th.dataset.col === col) th.setAttribute("aria-sort", dir === "asc" ? "ascending" : "descending");
       else th.removeAttribute("aria-sort");
     }
-    count.textContent = q.value.trim() ? `${shown.length} of ${rows.length}` : "";
+    const all = rows.length;
+    count.textContent = shown.length < all ? `${shown.length} of ${all}` : "";
     none.hidden = shown.length > 0;
+    // The A–Z strip: one link per letter the shown rows start with, in the sorted column (code or book only).
+    for (const r of rows) r.tr.removeAttribute("id");
+    const letters: string[] = [];
+    if (col === "code" || col === "title") {
+      for (const r of shown) {
+        const l = letterOf(r, col);
+        if (letters.includes(l)) continue;
+        letters.push(l);
+        r.tr.id = `c-${l}`;
+      }
+    }
+    az.hidden = letters.length < 2;
+    az.innerHTML = letters.map((l) => `<a href="#c-${l}">${l}</a>`).join("");
   };
   table.tHead?.addEventListener("click", (e) => {
     const th = (e.target as Element).closest<HTMLElement>("th[data-col]");
@@ -545,6 +565,24 @@ function wireCodes(): void {
     dir = c === col && dir === "asc" ? "desc" : "asc";
     col = c;
     draw();
+  });
+  chips.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>("button[data-type]");
+    if (!b) return;
+    type = (b.dataset.type || null) as BookType | null;
+    for (const x of chips.querySelectorAll<HTMLButtonElement>("button[data-type]")) x.setAttribute("aria-pressed", String(x === b));
+    draw();
+  });
+  old.addEventListener("change", draw);
+  // A letter scrolls its row under the sticky bar, not behind it.
+  az.addEventListener("click", (e) => {
+    const a = (e.target as Element).closest<HTMLAnchorElement>("a[href^='#c-']");
+    const row = a ? document.getElementById(a.hash.slice(1)) : null;
+    if (!row) return;
+    e.preventDefault();
+    const bar = document.querySelector<HTMLElement>(".cbar")?.getBoundingClientRect().height ?? 0;
+    row.style.scrollMarginTop = `${bar + 8}px`;
+    row.scrollIntoView({ block: "start" });
   });
   q.addEventListener("input", draw);
   draw();
