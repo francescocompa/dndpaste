@@ -34,7 +34,7 @@ const isAbility = (name: string): name is Ability => (ABILITIES as readonly stri
 const ab = (a: Ability): string => `<span class="ab ab-${a.toLowerCase()}">${a}</span>`;
 
 /** The emitter's quoting rule (SPEC §3.2): names with , ; : [ ] " or a leading - are written in quotes. */
-function needsQuotes(name: string): boolean {
+export function needsQuotes(name: string): boolean {
   return /[,;:[\]"]/.test(name) || name.startsWith("-");
 }
 

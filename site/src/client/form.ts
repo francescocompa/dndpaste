@@ -23,11 +23,15 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
+import { afterPick, slotHint, spotAt, suggest, written } from "./complete.ts";
+import type { Names, Spot, Suggestion } from "./complete.ts";
 
 const recent = recentStore(() => window.localStorage);
 const authors = authorStore(() => window.localStorage);
 const keys = keyStore(() => window.localStorage);
 const MAX_FILE = 1024 * 1024;
+/** The autocomplete's SRD names (D158), its own bundle: a variable, so esbuild leaves the import to the browser. */
+const NAMES_JS = "/assets/names.js";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = ""): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -150,9 +154,10 @@ function init(): void {
 
   // ---- phone dock (D86): Keys toggle + chip row, problem line, Save ----
   const dock = el("div", "pdock",
-    `<div class="krow chips" hidden></div><div class="prow"></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
+    `<div class="prow"></div><div class="srow"><button type="button" class="bt ktog" aria-expanded="false">` +
     `${icon("keyboard")}Keys <span class="kn"></span>${icon("chevron-up")}${icon("chevron-down")}</button>` +
-    `<span class="grow"></span><button type="submit" class="bt pri dsave">${editId ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`}</button></div>`);
+    `<span class="grow"></span><button type="submit" class="bt pri dsave">${editId ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`}</button></div>` +
+    `<div class="krow chips" hidden></div>`);
   form.append(dock);
   const krow = dock.querySelector<HTMLElement>(".krow") as HTMLElement;
   const ktog = dock.querySelector<HTMLButtonElement>(".ktog") as HTMLButtonElement;
@@ -163,6 +168,11 @@ function init(): void {
   keepFocus(krow);
   keepFocus(chips);
   ktog.addEventListener("click", () => {
+    // The names stand in for the Keys row while they show (D157): Keys puts the row back and closes them.
+    if (dock.classList.contains("ac-on")) {
+      acClose();
+      if (!krow.hidden) return;
+    }
     const open = krow.hidden;
     krow.hidden = !open;
     dock.classList.toggle("open", open);
@@ -357,6 +367,197 @@ function init(): void {
     if (back) { const at = ta.selectionStart - back; ta.setSelectionRange(at, at); refreshHints(); }
   };
 
+  // ---- name autocomplete (D151, D154–D159) ----
+  // Desktop: a listbox under the cursor's line. Phone (the dock's width): the same listbox as a chip row in the dock,
+  // in place of the Keys row (D157). The textarea keeps focus; the list is announced through aria-activedescendant.
+  let names: Names | null = null;
+  let loading = false;
+  const phone = window.matchMedia("(max-width: 600px)");
+  const ac = el("div", "ac");
+  ac.id = "ac-names";
+  ac.setAttribute("role", "listbox");
+  ac.setAttribute("aria-label", "Names");
+  ac.hidden = true;
+  ed.append(ac);
+  keepFocus(ac);
+  const acSays = el("span", "vh");
+  acSays.setAttribute("aria-live", "polite");
+  ed.append(acSays);
+  let acSpot: Spot | null = null;
+  let acRows: Suggestion[] = [];
+  /** The row an arrow picked; -1: none, so Enter keeps its new line (D154). */
+  let acOn = -1;
+  /** What goes in the `[ ]` the cursor is in, one entry per `;` group (D163); null outside one or where unknown. */
+  let acHint: { slots: string[]; at: number } | null = null;
+  const acAria = () => {
+    ta.setAttribute("aria-autocomplete", "list");
+    ta.setAttribute("aria-controls", ac.id);
+    ta.setAttribute("aria-expanded", String(!ac.hidden));
+    if (!ac.hidden && acOn >= 0) ta.setAttribute("aria-activedescendant", `ac-${acOn}`);
+    else ta.removeAttribute("aria-activedescendant");
+  };
+  const acClose = () => {
+    if (ac.hidden && !acSpot) return;
+    ac.hidden = true;
+    acSpot = null;
+    acRows = [];
+    acOn = -1;
+    acSays.textContent = "";
+    acHint = null;
+    dock.classList.remove("ac-on");
+    acAria();
+  };
+  /** The viewport box of the character at `pos`, from the highlight layer (its rows mirror the text, wrapping too). */
+  const caretBox = (pos: number): DOMRect | null => {
+    const before = ta.value.slice(0, pos);
+    const t = hl.children[before.split("\n").length - 1]?.querySelector(".t");
+    if (!t) return null;
+    let left = pos - (before.lastIndexOf("\n") + 1);
+    const walk = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode() as Text | null; n; n = walk.nextNode() as Text | null) {
+      if (left <= n.length) {
+        const r = document.createRange();
+        r.setStart(n, left);
+        r.setEnd(n, Math.min(n.length, left + 1));
+        return r.getBoundingClientRect();
+      }
+      left -= n.length;
+    }
+    return t.getBoundingClientRect();
+  };
+  const acPlace = () => {
+    const at = acSpot ? caretBox(acSpot.start) : null;
+    if (!at) return;
+    const box = ed.getBoundingClientRect();
+    // Below the line when the list fits in the window there (it may hang past the editor's edge), else on the
+    // roomier side, cut to fit.
+    const roomBelow = window.innerHeight - at.bottom - 4;
+    const roomAbove = at.top - 4;
+    ac.style.maxHeight = "";
+    const full = ac.offsetHeight;
+    const below = full <= roomBelow || roomBelow >= roomAbove;
+    if (full > (below ? roomBelow : roomAbove)) ac.style.maxHeight = `${Math.max(0, Math.floor(below ? roomBelow : roomAbove))}px`;
+    const h = ac.offsetHeight;
+    ac.style.top = `${Math.round((below ? at.bottom + 2 : at.top - 2 - h) - box.top)}px`;
+    ac.style.left = `${Math.round(Math.max(0, Math.min(at.left - box.left - 9, ed.clientWidth - ac.offsetWidth)))}px`;
+  };
+  const acDraw = () => {
+    const onPhone = phone.matches;
+    // Desktop: every group, the cursor's in bold. Phone: only the cursor's group and where it is (round 3: the full
+    // line was cut and read as stale once a group was filled).
+    const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+    const hint = !acHint ? "" : onPhone
+      ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
+      : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
+    ac.innerHTML = hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+      `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}` +
+      `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
+      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
+    // Phone: the dock's last row, right on the keyboard (D157 amended).
+    const home = onPhone ? dock : ed;
+    if (ac.parentElement !== home) { if (onPhone) dock.append(ac); else ed.append(ac); }
+    dock.classList.toggle("ac-on", onPhone);
+    if (ac.hidden) {
+      const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
+      acSays.textContent = acRows.length ? `${what}${acRows.length === 1 ? "1 name" : `${acRows.length} names`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+    }
+    ac.hidden = false;
+    if (!onPhone) acPlace();
+    ac.querySelector(".on")?.scrollIntoView({ block: "nearest" });
+    acAria();
+  };
+  /** `typing`: the text changed by a keystroke. Only typing opens the list; a cursor move updates or closes it (D154). */
+  const complete = (typing: boolean) => {
+    // The editor may have had focus before this ran (a restored draft, the browser's own focus): load on first use too.
+    if (!names) { if (typing) loadNames(); return; }
+    if (!typing && ac.hidden) return;
+    if (document.activeElement !== ta || ta.selectionStart !== ta.selectionEnd) { acClose(); return; }
+    const sp = spotAt(ta.value, ta.selectionStart);
+    const rows = sp ? suggest(names, sp, phone.matches ? 12 : 8) : [];
+    // An empty `[ ]` group the table knows shows what goes there, even before a name fits (D163).
+    const hint = sp ? slotHint(names, sp) : null;
+    if (!sp || !(rows.length || (hint && !sp.typed.trim()))) { acClose(); return; }
+    const same = acSpot?.start === sp.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
+    if (!same) acOn = -1;
+    acSpot = sp;
+    acRows = rows;
+    acHint = hint;
+    acDraw();
+  };
+  const loadNames = () => {
+    if (names || loading) return;
+    loading = true;
+    // Typed before the names arrived: show what fits now.
+    (import(NAMES_JS) as Promise<Names>).then((m) => { names = m; complete(true); }, () => { loading = false; });
+  };
+  const acTake = (i: number) => {
+    const sp = acSpot;
+    const r = acRows[i];
+    if (!sp || !r) return;
+    acClose();
+    // Inside [ ], the next group or name starts at once (D163 review), unless a separator is already there.
+    const nx = ta.value[sp.end];
+    const sep = names && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
+    insert(written(sp, r) + sep, sp.start, sp.end);
+    if (sep) complete(true);
+  };
+  ed.addEventListener("keydown", (e) => {
+    if (ac.hidden || e.isComposing || !acRows.length) {
+      if (e.key === "Escape" && !ac.hidden) { e.preventDefault(); acClose(); }
+      return;
+    }
+    const plain = !e.altKey && !e.ctrlKey && !e.metaKey;
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && plain && !e.shiftKey) {
+      e.preventDefault();
+      const n = acRows.length;
+      acOn = e.key === "ArrowDown" ? (acOn + 1) % n : acOn <= 0 ? n - 1 : acOn - 1;
+      acDraw();
+    } else if (e.key === "Tab" && plain && !e.shiftKey) {
+      e.preventDefault();
+      acTake(Math.max(0, acOn));
+    } else if (e.key === "Enter" && plain && !e.shiftKey && acOn >= 0) {
+      e.preventDefault();
+      acTake(acOn);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      acClose();
+    }
+  }, true);
+  // Brackets (D163): `[` writes its `]` when nothing follows it on the line but a separator; `]` steps over the one
+  // already there; deleting back between an empty pair takes both. Then the list shows what goes in the first group.
+  // On beforeinput, not keydown: phone keyboards send no usable key.
+  ed.addEventListener("beforeinput", (e) => {
+    const ie = e as InputEvent;
+    if (ie.target !== ta || ie.isComposing || ta.selectionStart !== ta.selectionEnd) return;
+    const pos = ta.selectionStart;
+    const next = ta.value[pos] ?? "\n";
+    if (ie.inputType === "insertText" && ie.data === "[" && /[\s,;\]]/.test(next)) {
+      e.preventDefault();
+      insert("[]", pos, pos);
+      ta.setSelectionRange(pos + 1, pos + 1);
+      complete(true);
+    } else if (ie.inputType === "insertText" && ie.data === "]" && next === "]") {
+      e.preventDefault();
+      ta.setSelectionRange(pos + 1, pos + 1);
+      complete(false);
+    } else if (ie.inputType === "deleteContentBackward" && ta.value[pos - 1] === "[" && next === "]") {
+      e.preventDefault();
+      insert("", pos - 1, pos + 1);
+      complete(false);
+    }
+  });
+  ac.addEventListener("click", (e) => {
+    const o = (e.target as Element).closest<HTMLElement>("[data-i]");
+    if (o) acTake(Number(o.dataset.i));
+  });
+  acAria();
+  ed.addEventListener("focusin", loadNames);
+  if (ed.contains(document.activeElement)) loadNames();
+  ed.addEventListener("focusout", acClose);
+  for (const ev of ["keyup", "click"]) ed.addEventListener(ev, (e) => { if (!ac.contains(e.target as Node)) complete(false); });
+  phone.addEventListener("change", acClose);
+  window.addEventListener("resize", () => { if (!ac.hidden && !phone.matches) acPlace(); });
+
   // ---- link import (D85) ----
   let importReq = 0;
   let pending: Import | null = null;
@@ -415,6 +616,7 @@ function init(): void {
       holdLine = 0;
     }
     refresh();
+    complete(/^(insertText|insertCompositionText|insertReplacementText|deleteContent)/.test(kind ?? ""));
     showErr(null);
     if (kind === "insertFromPaste" || kind === "insertFromDrop") void checkLink();
     else if (!lbar.hidden && !linkedId(ta.value, location.host)) hideBar();

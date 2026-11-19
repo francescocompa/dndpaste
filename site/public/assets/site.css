@@ -273,6 +273,29 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ed .row.err { background: var(--errbg); } .ed .row.err .g { color: var(--err); font-weight: 600; }
 .ed .row.warn .g { color: var(--warnc); font-weight: 600; }
 .ed .bad { text-decoration: underline wavy var(--err); text-underline-offset: 3px; color: var(--err); }
+/* Name autocomplete (D151, D157): desktop, a list under the cursor's line, up to 8 rows; the source a pick adds in
+   --src; Tab marks the row it takes until an arrow picks one. */
+.pane:has(.ac:not([hidden])) { overflow: visible; } /* the list may hang past the editor's edge */
+.ed .ac { position: absolute; z-index: 4; min-width: 15em; max-width: min(30em, 100%); max-height: calc(8 * 1.9em + 10px); overflow-y: auto;
+  overscroll-behavior: contain; padding: 4px; background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 8px;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.16); }
+.ac .ao { display: flex; gap: 8px; align-items: center; white-space: nowrap; cursor: pointer; }
+.ed .ac .ao { padding: 3px 8px; border-radius: 5px; min-height: 1.9em; }
+.ed .ac .ao:hover { background: var(--chip); }
+.ac .ao.on { background: color-mix(in srgb, var(--acc) 14%, var(--chip)); }
+.ac .an { overflow: hidden; text-overflow: ellipsis; }
+.ac .as { color: var(--src); }
+.ac kbd { margin-left: auto; font: 11px/1 var(--sans); color: var(--mute); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 5px; }
+/* D162: a spell's level after its name; above the class's level, the row is dimmed (still pickable). */
+.ac .al { margin-left: auto; font: 11px/1 var(--sans); color: var(--mute); }
+.ac .al + kbd { margin-left: 0; }
+.ac .ao.dim .an, .ac .ao.dim .as { color: var(--mute); }
+/* D163: inside [ ], what goes in each ; group, the cursor's group in bold. */
+.ac .ah { font: 12px/1.3 var(--sans); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac .ah b { color: var(--fg); font-weight: 600; }
+.ed .ac .ah { padding: 3px 8px 5px; }
+.ed .ac .ah + .ao { border-top: 1px solid var(--rule); margin-top: 1px; padding-top: 4px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ed .lvh { font-weight: 600; } .ed .lvh .lvn { color: var(--acc); }
 .ed > .src { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 8px 10px 8px var(--gw); font: inherit;
   font-variant-ligatures: none; white-space: pre-wrap; overflow-wrap: anywhere; color: transparent; -webkit-text-fill-color: transparent;
@@ -401,10 +424,22 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .js .new .wrap { padding-bottom: 164px; }
   .js .pdock { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; transform: translateY(calc(-1 * var(--kb, 0px)));
     border-top: 1px solid var(--rule); background: var(--bg); font-family: var(--sans); }
-  .pdock .krow { flex-wrap: nowrap; overflow-x: auto; padding: 8px 14px 0; scrollbar-width: none;
+  .pdock .krow { flex-wrap: nowrap; overflow-x: auto; padding: 8px 14px 10px; scrollbar-width: none;
     -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
   .pdock .krow::-webkit-scrollbar { display: none; }
-  .pdock .srow { display: flex; gap: 8px; align-items: center; padding: 8px 14px 10px; }
+  /* D157 (amended in review): the Keys row and the names are the dock's last row, right on the keyboard; the names take
+     the Keys row's place while they show. A rule between every row: they don't belong together. */
+  .pdock .krow:not([hidden]), .pdock .ac:not([hidden]) { border-top: 1px solid var(--rule); }
+  /* One height for both, so switching between Keys and the names never moves the dock (round 2 note). */
+  .pdock .krow:not([hidden]), .pdock .ac:not([hidden]) { box-sizing: border-box; height: 48px; padding-top: 0; padding-bottom: 0; align-items: center; }
+  .pdock .ac:not([hidden]) { display: flex; gap: 5px; align-items: center; overflow-x: auto; padding: 8px 14px 10px; scrollbar-width: none; font: 13px/1 var(--mono);
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .pdock .ac::-webkit-scrollbar { display: none; }
+  .pdock .ac .ao { padding: 8px 10px; border-radius: 4px; background: var(--chip); color: var(--fg); flex-shrink: 0; }
+  .pdock .ac .al { margin-left: 6px; }
+  .pdock .ac .ah { flex-shrink: 0; padding-right: 9px; margin-right: 4px; border-right: 1px solid var(--rule); align-self: stretch; display: flex; align-items: center; gap: 4px; }
+  .pdock.ac-on .krow { display: none; }
+  .pdock .srow { display: flex; gap: 8px; align-items: center; padding: 8px 14px; }
   .pdock .srow .grow { flex: 1; min-width: 0; display: flex; }
   .pdock .perr { display: inline-flex; gap: 5px; align-items: center; color: var(--err); background: none; border: 0; padding: 0; font: 13px/1.15 var(--sans);
     text-align: left; min-width: 0; cursor: pointer; }

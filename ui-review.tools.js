@@ -57,6 +57,14 @@ const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / 
   'L1 Fighter|XPHB\nSkills: Athletics, Perception\nMasteries: Longsword, Shortbow\nFeat (Fighting Style): Defense\n\n' +
   'L2 Wizard|XPHB\nCantrips: Light, Mage Hand, Prestidigitation, Fire Bolt\nSpells: Shield, Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar\nPrepared: Shield, Sleep\n\n' +
   'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
+// D151 (D154–D159): put a build in the editor with the cursor at its end, typed the way a keystroke is, so the name
+// list opens (it loads /assets/names.js on focus, then shows what fits). The list closes when the editor loses focus.
+const acSetup = async (x, name, text) => {
+  await x.waitFor('form.pform textarea.src')
+  if (document.querySelector('.dbar:not([hidden])')) { putDraft('new', null); if (reloadOnce(name)) return }
+  typeIn(text, 'insertText')
+  await x.sleep(500)
+}
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 // A preset laid out in the editor, from an empty form (any draft bar cleared first). Skips when it is already there.
@@ -227,6 +235,44 @@ uiReview.config({
       await x.waitFor('form.pform textarea.src')
       typeIn('Vesk\nRules: 2024\nScores: STR 15/CON 13\nScores: +1 DEX\nClasses: Fighter 1 / Warlock 4\n\nL1 Fighter\nFeat (Fighting Style): Defense\nEquipment: Chain Mail\n\nL5 Warlock\nFeat: Ability Score Improvement [+2 CHA]\nSpells:\n')
       await x.sleep(1800)
+    },
+    // D151: the name list on a Wizard's Spells line, desktop under the cursor, phone in the dock.
+    'ac-spells': (x) => acSetup(x, 'ac-spells', 'Rules: 2024\nClasses: Wizard 5\n\nL5 Wizard\nSpells: Fireball, mi'),
+    // D157: the cursor's line is the editor's last one, so the list opens above it.
+    'ac-bottom': (x) => acSetup(x, 'ac-bottom', GHOST_TEXT.replace(/Spells:\n$/, 'Spells: fireb')),
+    // D155: a 2014-only spell in a 2024 build: the row shows the |PHB the pick writes.
+    'ac-source': (x) => acSetup(x, 'ac-source', 'Rules: 2024\nClasses: Paladin 5\n\nL5 Paladin\nSpells: Bless, bran'),
+    // D156: inside [ ], the slot the table knows: Magic Initiate's cantrips of the class picked before.
+    'ac-subpick': (x) => acSetup(x, 'ac-subpick', 'Rules: 2024\nBackground: Acolyte\nFeat (Origin): Magic Initiate [WIS; Cleric; gu'),
+    // D156: inside [ ] where the table doesn't know the slot: abilities, skills and spells.
+    'ac-general': (x) => acSetup(x, 'ac-general', 'Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nFeature: Divine Order [th'),
+    // D164: 18 skills, so the list opens at 1 letter.
+    'ac-one': (x) => acSetup(x, 'ac-one', 'Rules: 2024\nClasses: Rogue 1\n\nL1 Rogue\nSkills: a'),
+    // D163: `[` typed after Magic Initiate: its `]` and the slot hint (a beforeinput, as a keyboard sends it).
+    'ac-bracket': async (x) => {
+      await acSetup(x, 'ac-bracket', 'Rules: 2024\nBackground: Acolyte\nFeat (Origin): Magic Initiate ')
+      editor().dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: '[' }))
+      await x.sleep(600)
+      // The panel's focus may close the list: an input event (no change) opens it again, as a keystroke would.
+      editor().focus(); editor().dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+    },
+    // D163 round 2: Thaumaturge picked from the list: `; ` and the cleric cantrips follow.
+    'ac-thaum': async (x) => {
+      await acSetup(x, 'ac-thaum', 'Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nFeature: Divine Order ')
+      editor().dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: '[' }))
+      await x.sleep(600)
+      editor().focus(); editor().dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+      await x.sleep(200)
+      ;[...document.querySelectorAll('#ac-names .ao')].find((o) => o.textContent.startsWith('Thaumaturge'))?.click()
+      await x.sleep(300)
+    },
+    // D163: a class feature's choice inside [ ].
+    'ac-feature': async (x) => {
+      await acSetup(x, 'ac-feature', 'Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nFeature: Divine Order ')
+      editor().dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'insertText', data: '[' }))
+      await x.sleep(600)
+      // The panel's focus may close the list: an input event (no change) opens it again, as a keystroke would.
+      editor().focus(); editor().dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
     },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')

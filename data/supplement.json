@@ -31,5 +31,6 @@
     "Wizard|XPHB": { "Scholar": { "levels": [2], "key": "Expertise", "count": 1 } },
     "Warlock|XPHB": { "Mystic Arcanum": { "levels": [11, 13, 15, 17], "key": "Spells", "count": 1 } },
     "Warlock|PHB": { "Mystic Arcanum": { "levels": [11, 13, 15, 17], "key": "Spells", "count": 1 } }
-  }
+  },
+  "featureOptionCantrips": {"Divine Order|XPHB": ["Thaumaturge"], "Primal Order|XPHB": ["Magician"]}
 }
