@@ -256,7 +256,7 @@ test("routes: about, 404, 405, and fixed pages cannot collide with an id", async
   assert.equal(about.status, 200);
   const aboutText = await about.text();
   assert.equal((aboutText.match(/not affiliated with Wizards of the Coast/g) ?? []).length, 1);
-  for (const w of ["never rules text", "Report it", "/&lt;id&gt;/raw", "/&lt;id&gt;/canon", "/&lt;id&gt;/json", "Duplicate and edit"]) assert.ok(aboutText.includes(w), w);
+  for (const w of ["never rules text", "Report a problem", "/&lt;id&gt;/raw", "/&lt;id&gt;/canon", "/&lt;id&gt;/json", "Duplicate and edit"]) assert.ok(aboutText.includes(w), w);
   assert.ok(!/—|–/.test(aboutText.replace(/<title>.*<\/title>/, "")), "no dashes in the about copy (D88 c)");
   for (const p of ["/nope", "/ABCDEFGHIJ", "/ABCDEFGHIJK", "/ABCDEFGHI", "/ABCDEFGHIJ/", "/ABCDEFGHIJ/other", "/about/x", "/ABCDE-GHIJ"]) {
     const r = await call(env, "GET", p);
@@ -354,4 +354,20 @@ test("save (D95): a name-only paste is refused with 422, JSON and form alike", a
   assert.equal(j.status, 422);
   assert.match(((await j.json()) as { error: string }).error, /at least one key besides its name/);
   assert.equal((await call(env, "POST", "/", asJson({ paste: "Vice\nSpecies: Human\n" }))).status, 201);
+});
+
+test("D152 round 2: the view offers the tidied text only when Tidy would change it", async () => {
+  const env = makeEnv();
+  const save = async (paste: string) => {
+    const { id } = await (await call(env, "POST", "/", asJson({ title: "T", paste }))).json() as { id: string };
+    return (await call(env, "GET", `/${id}`)).text();
+  };
+  const untidy = VICE.replace(": ", ":   ");
+  assert.notEqual(emit(parse(untidy)), untidy, "the text is not already tidy");
+  const messy = await save(untidy);
+  assert.ok(!messy.includes(`data-tidy="same"`));
+  assert.ok(messy.includes(`/canon">Tidied text</a>`));
+  const tidy = await save(emit(parse(VICE)));
+  assert.ok(tidy.includes(`data-tidy="same"`));
+  assert.ok(!tidy.includes(`/canon">Tidied text</a>`));
 });

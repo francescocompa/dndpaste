@@ -161,10 +161,12 @@ ${s.reportError ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.reportEr
   // D119: data-reddit is Post to Reddit's link for the Copy link menu (site.js), which also opens Share image; without
   // JS the Reddit link is in the <noscript> line.
   // data-rev marks a pinned page: site.js copies its texts and offers no Edit there (an edit applies to the latest).
+  // D152 round 2: data-tidy="same" when Tidy would change nothing; then neither the menu nor the no-JS line offers the tidied text.
+  const tidySame = r.canon === rec.paste;
   const main = `<div class="meta"><h1 class="ttl${rec.title ? "" : " none"}">${esc(title)}</h1><div class="by">${byline}</div>${r.books}</div>
-<div class="actrow acts" data-id="${id}"${s.pinned ? ` data-rev="${n}"` : ""} data-reddit="${esc(reddit)}"><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
+<div class="actrow acts" data-id="${id}"${s.pinned ? ` data-rev="${n}"` : ""} data-reddit="${esc(reddit)}"${tidySame ? ` data-tidy="same"` : ""}><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
     `<button type="button" class="bt pri caret icon" aria-label="More ways to copy and share" aria-haspopup="menu" aria-expanded="false">${icon("chevron-down")}</button></span>` +
-    `<span class="grow"></span><a class="bt dup" href="/?from=${path}">${icon("duplicate")}<span>Duplicate<span class="dl"> and edit</span></span></a><noscript><span class="alt"><a href="/${path}/raw">Text as written</a> · <a href="/${path}/canon">Tidied text</a> · <a href="${esc(reddit)}" target="_blank" rel="noopener noreferrer">Post to Reddit</a></span></noscript></div>
+    `<span class="grow"></span><a class="bt dup" href="/?from=${path}">${icon("duplicate")}<span>Duplicate<span class="dl"> and edit</span></span></a><noscript><span class="alt"><a href="/${path}/raw">Text as written</a>${tidySame ? "" : ` · <a href="/${path}/canon">Tidied text</a>`} · <a href="${esc(reddit)}" target="_blank" rel="noopener noreferrer">Post to Reddit</a></span></noscript></div>
 ${pinnedNote}${folds}${unclean}${r.body}
 ${report}`;
   return layout({ title: `${title} · dndpaste`, main, head, page: "view" });
@@ -240,13 +242,13 @@ export function aboutPage(): string {
 <h2>Saved builds</h2>
 <p>The browser that saved a build can edit it: open the build and choose Edit. After you save a build, the site also shows a private edit link. Keep it to edit the build from another device. The browser that saved the build can copy the link again from the Copy link menu. Anyone who has the link can edit the build.</p>
 <p>Each edit adds a revision. The link shows the latest revision a few minutes after the edit. The address <code>/&lt;id&gt;/2</code> always shows revision 2 as it was saved. If you lose the edit key, choose Duplicate and edit and save a copy. The copy gets a new link. You cannot delete a saved build.</p>
-<p>There are no accounts. The site stores the title, the author, the text that you save, and a scrambled form of the edit key that cannot be turned back into the key. My recent shares, your edit keys and your settings stay in your browser.</p>
+<p>There are no accounts. The site stores the title, the author and the text that you save. It never stores your private edit link, only a scrambled check for it. Saved builds, your private edit links, your unsaved drafts, the author name you last saved with and your settings stay in your browser.</p>
 <h2>For apps</h2>
 <p>Each build has three plain-text addresses. Any site can fetch them.</p>
 <ul><li><code>/&lt;id&gt;/raw</code>: the text as written</li><li><code>/&lt;id&gt;/canon</code>: the text in canonical form, as Tidy writes it</li><li><code>/&lt;id&gt;/json</code>: the title, the author, the text, the date, the date of the last edit and the revision number</li></ul>
 <p>These show the latest revision. To keep one revision, put its number in the address: <code>/&lt;id&gt;/2/raw</code>, <code>/&lt;id&gt;/2/canon</code>, <code>/&lt;id&gt;/2/json</code>. A revision never changes.</p>
 <h2>Reports</h2>
-<p>Under each build there is a line: "Something wrong with this build? Report it". Give a reason, and a contact if you want an answer. The report goes to the site&#39;s maintainer and never shows on the page. The maintainer can remove a build that copies rules text or is spam.</p>
+<p>Under each build there is a Report a problem link. Give a reason, and a contact if you want an answer. The report goes to the site&#39;s maintainer and never shows on the page. The maintainer can remove a build that copies rules text or is spam.</p>
 <h2>Feedback</h2>
 ${FEEDBACK_LINE}
 <p>dndpaste is not affiliated with Wizards of the Coast.</p></div>`;

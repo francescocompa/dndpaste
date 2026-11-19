@@ -50,7 +50,7 @@ test("view: Post to Reddit's link on the action row for the Copy link menu, and 
   const { id } = await res.json() as { id: string };
   const page = await (await call(env, "GET", `/${id}`)).text();
   const reddit = `https://www.reddit.com/submit?url=${encodeURIComponent(`${ORIGIN}/${id}`)}&amp;title=Vice%20%22%26%22%20%3Cb%3E`;
-  assert.ok(page.includes(`<div class="actrow acts" data-id="${id}" data-reddit="${reddit}">`));
+  assert.ok(page.includes(`<div class="actrow acts" data-id="${id}" data-reddit="${reddit}" data-tidy="same">`)); // "L1 Fighter" is already tidy (D152 round 2)
   assert.ok(page.includes(`<a href="${reddit}" target="_blank" rel="noopener noreferrer">Post to Reddit</a></span></noscript>`));
   // Round 2 of the review: no Share button in the row; the Copy link menu (site.js) holds Share image and Post to Reddit.
   assert.ok(!page.includes(`class="bt shr`));

@@ -30,6 +30,9 @@ import { afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, slotHint
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
+/** D152 round 2: the drop zone names the undo shortcut of the visitor's system (it only shows on desktop). */
+const UNDO_KEY = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘Z" : "Ctrl+Z";
+
 const recent = recentStore(() => window.localStorage);
 const authors = authorStore(() => window.localStorage);
 const keys = keyStore(() => window.localStorage);
@@ -98,7 +101,7 @@ function init(): void {
     cols = next;
     return true;
   };
-  const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the editor text. Undo brings it back.</small>`);
+  const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the editor text. ${UNDO_KEY} brings it back.</small>`);
   dropz.hidden = true;
   pane.append(dropz);
   // D121: a new, empty form offers "Start a build". Only while the editor is empty, never on an edit or on Duplicate

@@ -219,6 +219,7 @@ function wireView(): void {
   const main = acts.querySelector<HTMLButtonElement>(".cpy");
   const caret = acts.querySelector<HTMLButtonElement>(".caret");
   const reddit = acts.dataset.reddit ?? "";
+  const tidySame = acts.dataset.tidy === "same";
   const label = main?.querySelector<HTMLElement>(".cl");
   if (!main || !caret || !label) return;
   const link = document.querySelector<HTMLLinkElement>("link[rel=canonical]")?.href || `${location.origin}/${id}`;
@@ -228,7 +229,7 @@ function wireView(): void {
   const pending: Partial<Record<"raw" | "canon", Promise<string | null>>> = {};
   const fetchText = (k: "raw" | "canon") => (pending[k] ??= fetch(`/${path}/${k}`)
     .then((r) => (r.ok ? r.text() : null)).then((t) => { if (t !== null) texts[k] = t; return t; }).catch(() => null));
-  const warm = () => { void fetchText("raw"); void fetchText("canon"); };
+  const warm = () => { void fetchText("raw"); if (!tidySame) void fetchText("canon"); };
   if ("requestIdleCallback" in window) window.requestIdleCallback(warm, { timeout: 2000 });
   else setTimeout(warm, 300);
 
@@ -274,7 +275,7 @@ function wireView(): void {
 
   const menu = panel("ovf copym",
     `<button type="button" role="menuitem" class="it" data-copy="raw"><span class="il">${icon("copy")}Copy text</span><small>as written</small></button>` +
-    `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy tidied text</span><small>for apps</small></button>` +
+    (tidySame ? "" : `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy tidied text</span><small>for apps</small></button>`) +
     (editUrl ? `<button type="button" role="menuitem" class="it" data-copy="edit"><span class="il">${icon("pencil")}Copy edit link</span><small>private, to edit elsewhere</small></button>` : "") +
     // D119 round 2: the share image and Post to Reddit live in this menu, not in the row.
     `<button type="button" role="menuitem" class="it" data-share="image"><span class="il">${icon("image")}Share image</span><small>a picture of the whole build</small></button>` +
