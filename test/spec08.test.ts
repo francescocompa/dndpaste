@@ -134,8 +134,8 @@ describe("D110: Feat takes an optional slot marker; the Fighting Style key goes"
     assert.equal(emit(p), "L1 Fighter\nFeat: Alert\nFeat (fighting style): Archery\nFeat (Origin): Skilled [Arcana, History, Insight]\n");
     assert.equal(keyDef("Feat (Epic Boon)")?.key, "Feat");
   });
-  test("only Feat takes a marker; the same marker twice in a scope is E003", () => {
-    assert.deepEqual(codes(parse("Options (Invocation): Agonizing Blast")), ["E002"]);
+  test("a marker only where the key takes one (0.9 adds Options, D181); the same marker twice in a scope is E003", () => {
+    assert.deepEqual(codes(parse("Feature (Divine Order): Thaumaturge")), ["E002"]);
     assert.deepEqual(codes(parse("Feat (Origin): Alert\nFeat (ORIGIN): Skilled")), ["E003"]);
     assert.deepEqual(codes(parse("Feat: Alert\nFeat (Origin): Skilled")), [], "a marked and an unmarked line coexist");
   });

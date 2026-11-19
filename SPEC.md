@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.8 (2026-11-16, released with library 0.8.0) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113.
+**Version:** 0.9 (unreleased; the release commit dates it, D57) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10); 0.9 adds option family keys (`Invocations`, …), a family marker on `Options` and a level cap on `Spells` and `Prepared` (§11). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113, D180–D185.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -109,8 +109,11 @@ In `dnd5e` the block-opening keys are `Species` and `Background` (§5.1).
 ```
 
 - `Key` is one of the profile's keys, or an extension key beginning with `X-` (§2.5). Anything
-  else is `E002`. A profile may let a key take a **slot marker** in parentheses (`dnd5e`: `Feat`
-  only, §5.1); a marker on any other key, or an empty one, is `E002`.
+  else is `E002`. A profile may let a key take a **marker** in parentheses, of one of two kinds:
+  an **open** marker, any text kept as written (`dnd5e`: `Feat (Origin)`, `Options (Soul
+  Techniques)`), or a **level cap** from a fixed set (`dnd5e`: `Spells (3rd)`), §5.1, §5.7. A marker
+  on a key that takes none, a level cap outside its set, or an empty marker is `E002`. A profile
+  may fold a marker into another key (`Options (Invocation)` is `Invocations`, §5.7).
 - The separator is the first `:` followed by a space or end of line. Keys never contain `:`;
   a value containing `:` must quote it (§3.1).
 - An **empty value** means "not chosen yet" (D112): `W004`. The line parses as the empty form of
@@ -119,7 +122,8 @@ In `dnd5e` the block-opening keys are `Species` and `Background` (§5.1).
   to-do: `Spells:`.
 - The same key may not appear twice in one **scope** (`E003`). A marked key is its own key
   (`Feat` and `Feat (Origin)` may share a scope; `Feat (Origin)` twice may not, markers matched
-  case-insensitively). `Scores` may appear once as a base and once as an increase (§5.2).
+  case-insensitively). Two spellings that fold into one key are that key twice (`Invocations` and
+  `Options (Invocation)`, `E003`). `Scores` may appear once as a base and once as an increase (§5.2).
 - Each key declares in which scopes it may appear (§5.1). A key in a scope it is not allowed in
   is `E005`.
 
@@ -198,7 +202,8 @@ interface Paste {
   levels: LevelBlock[];           // ascending n
   diagnostics: Diagnostic[];      // never thrown
 }
-type Scope = Map<string, Value>;  // canonical key → value; a marked key as written: "Feat (Origin)"
+type Scope = Map<string, Value>;  // canonical key → value; an open marker as written: "Feat (Origin)";
+                                  // a folded family marker as its key: "Invocations"; a cap in lower case: "Spells (3rd)"
 interface EntityBlock { key: string; item: Item | null; lines: Scope; }   // null: no value yet
 interface LevelBlock  { n: number; class: Ref; lines: Scope; }
 type Value =
@@ -255,12 +260,13 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `Languages` | items | H, S, B, L | languages chosen |
 | `Expertise` | items | H, L | |
 | `Feat` | items | H, S, B, L | any feat: origin feat asked by a species or custom background, ASI-slot feat at a level. A level's ASI is the feat line in both editions: `Feat: Ability Score Improvement [+2 CHA]` (D109). The key takes an optional **slot marker** naming the limited slot the feat fills: `Feat (Fighting Style): Archery`, `Feat (Origin): Alert`, `Feat (Epic Boon): Boon of Fate [CHA]` (D110). Open list: any text, kept by emit; the checker matches it to the 5etools feat categories. A fighting style is `Feat (Fighting Style)` in both editions, 2014 optional feature or 2024 feat. Details per §5.3 |
-| `Masteries` | items | H, L | weapon-mastery loadout from that level on (a snapshot: masteries swap on long rests) |
-| `Options` | items | H, L | **every optional feature** regardless of family: invocations, metamagic, manoeuvres, infusions, arcane shots, runes, elemental disciplines, 2014 pact boons, … 5etools tags each one's family, so the format never needs a new key for a new family (D27). Details = the option's own picks |
+| `Masteries` | items | H, L | weapon-mastery loadout from that level on (a snapshot: masteries swap on long rests). An `Options` family (D182): `Options (Masteries)` reads as `Masteries` (§5.7) |
+| `Invocations` `Metamagic` `Maneuvers` `Infusions` `Arcane Shots` `Runes` `Disciplines` `Pact Boon` | items | H, L | **option family keys** (D180): an `Options` line that also names its family, one key per family, in this order. Same details and rules as `Options` (§5.3). §5.7 |
+| `Options` | items | H, L | **any optional feature**, of any family: a family key's options, or one whose family has no key. Takes an optional **family marker**, an open list (D181): `Options (Soul Techniques): …`; a marker that names a family key folds into it (§5.7). 5etools tags each option's family, so a new family needs no new key (D27). Details = the option's own picks |
 | `Feature` | items | H, S, B, L | a **named feature with a pick and no dedicated key**: `Feature: Divine Order [Warden]`, `Feature: Elven Lineage [INT; High]`, `Feature: Spellcasting [INT]`, `Feature: Draconic Ancestry [Red]`, `Feature: Size [Small]`; also an **optional class feature adopted** with no pick (`Feature: Favored Foe|TCE`). Details = the picks (§5.3). Placed in S/B/L it belongs to that entity; unplaced in H the consumer finds the owner (D28) |
 | `Cantrips` | items | H, S, B, L | cantrips chosen |
-| `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster. A caster that prepares from its whole list (2024 Cleric, Druid, Paladin) adds nothing, so it has no `Spells` lines — its default loadout is `Prepared` |
-| `Prepared` | items | H, L | default prepared loadout, **only** for casters whose repertoire exceeds the prepare count (a full-list preparer, a wizard's spellbook). The checker's normalise step removes it where `Spells` already says it (D23) |
+| `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster. A caster that prepares from its whole list (2024 Cleric, Druid, Paladin) adds nothing, so it has no `Spells` lines — its default loadout is `Prepared`. Takes an optional **level cap** (D184): `Spells (6th): Mass Suggestion` (§5.7) |
+| `Prepared` | items | H, L | default prepared loadout, **only** for casters whose repertoire exceeds the prepare count (a full-list preparer, a wizard's spellbook). The checker's normalise step removes it where `Spells` already says it (D23). Takes an optional level cap, as `Spells` |
 | `Gear` | items | H, B, L | **Placement decides** (D111). In B or the **L1 block**: the **starting pick**, the background's (`A`/`B`) or the class's (`A`/`B`/`C`) option letter, or items; letters exist only there and only under 2024 rules (2014 builds list items). Anywhere else in a level block: **gear gained in play**, placed at the level gained (`Gear: Cloak of Protection, +1 Longsword`). In H: gear carried, unplaced. Gear in play and in H is never a choice the rules owe, so the checker never reports it missing (D33). Details = the item's own picks when 5etools models them as such (most variants are baked into the name: `"Instrument of the Bards, Doss Lute"`). Generic magic variants are not one entity per base item: the checker resolves them from 5etools' magic-variant data plus the base item, by the variant's own name (`Vicious Weapon`, `+2 Armor`) or its naming affix around a base item it applies to (`Flame Tongue Warhammer`, `+1 Longsword`); failing that, a `+N ` prefix is stripped and the base item resolved (D40, D55) |
 
 Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
@@ -309,7 +315,7 @@ it as an ordinary detail group and the checker, which knows what asks an ability
   then the feat's own printed order. A later upgrade of the feat is stamped `@n` on its detail.
   `Ability Score Improvement` (short name `ASI`) holds its increases as one group:
   `[+2 CHA]`, `[+1 INT, +1 CON]` (D109).
-- **`Options`**: the option's picks in printed order (`Agonizing Blast [True Strike]`). An
+- **`Options`** and the **family keys** (§5.7): the option's picks in printed order (`Agonizing Blast [True Strike]`). An
   option that grants a feat names the feat as its pick (`Lessons of the First Ones [Alert]`).
   When that feat has picks of its own, a `Feat` line for it in the **same level block**
   carries them, because details do not nest (`E011`, D50):
@@ -374,8 +380,11 @@ it as an ordinary detail group and the checker, which knows what asks an ability
    level, and a flat paste stays flat (D49).
 5. Keys in canonical case; one space after `:`; items `, `-separated as authored; groups
    `; `-separated; names quoted only when §3.1 requires it; trailing empty groups dropped.
-6. In every scope, `Feat` comes first, then its marked lines by marker, ignoring case; a marker
-   is written as authored (`Feat (fighting style)` stays). An empty value is written `Key:` with
+6. In every scope, a key that takes a marker comes first, then its marked lines by marker,
+   ignoring case: `Feat`, `Feat (Origin)`; `Options`, `Options (Soul Techniques)`; `Spells`,
+   `Spells (2nd)`, `Spells (3rd)`. An open marker is written as authored (`Feat (fighting style)`
+   stays); a level cap in lower case; a folded family marker as its key (`Options (invocation)` →
+   `Invocations`). An empty value is written `Key:` with
    no trailing space (D112). A 0.7 `Ability` line that stayed (§5.6) is written last, before the
    `X-` keys.
 
@@ -393,6 +402,47 @@ Read with `W005` in their 0.7 scopes (`E005` elsewhere), written in their 0.8 fo
 | `Ability: WIS` | the first detail of the scope's one `Feature` item (`Size` aside): `Feature: Elven Lineage [WIS; Wood]`. With no single owner the parser has no data to choose one, so the line **stays as written** and is emitted as `Ability: WIS` |
 | `Fighting Style: Archery` | `Feat (Fighting Style): Archery` |
 | `Equipment: …`, `Items: …` | `Gear: …` (both merge into one `Gear` line) |
+
+### 5.7 Option families and level caps (0.9)
+
+**Family keys** (D180). An optional feature may go on its family's key or on `Options`; both mean
+the same. The family names the 5etools family the line's options belong to:
+
+| Key | Folds from `Options (…)` | 5etools family |
+|---|---|---|
+| `Masteries` | `Masteries`, `Mastery` | weapon masteries (weapons, not optional features, D182) |
+| `Invocations` | `Invocations`, `Invocation` | `EI` Eldritch Invocations |
+| `Metamagic` | `Metamagic`, `Metamagics` | `MM` Metamagic |
+| `Maneuvers` | `Maneuvers`, `Maneuver` | `MV` Maneuvers |
+| `Infusions` | `Infusions`, `Infusion` | `AI` Artificer Infusions |
+| `Arcane Shots` | `Arcane Shots`, `Arcane Shot` | `AS` Arcane Shots |
+| `Runes` | `Runes`, `Rune` | `RN` Runes |
+| `Disciplines` | `Disciplines`, `Discipline` | `ED` Elemental Disciplines |
+| `Pact Boon` | `Pact Boon`, `Pact Boons` | `PB` Pact Boons (2014; a 2024 pact is an invocation) |
+
+**Family marker** (D181). `Options` takes an open marker naming a family. A marker in the table's
+middle column, in any case, **folds**: the line is that family key's line, and `emit` writes the
+key (`Options (invocation): Agonizing Blast` → `Invocations: Agonizing Blast`). Any other marker
+stays as written (`Options (Soul Techniques): …`), so a family from a new book needs no format
+change. The fold needs no game data. Class features with a pick stay `Feature` lines
+(`Feature: Divine Order [Thaumaturge]`); `Feature` takes no marker (D183).
+
+**Level cap** (D184). `Spells` and `Prepared` take an optional cap: an ordinal `1st` to `9th`,
+matched case-insensitively and written in lower case. It names the highest spell level the line
+picks from. A capped line is its own key, so it shares a scope with the uncapped one:
+
+```
+L11 Warlock
+Spells: Counterspell
+Spells (6th): Mass Suggestion
+```
+
+Anything else in the parentheses (`(3)`, `(cantrip)`, `(10th)`, `(3th)`) or a cap on another key
+(`Cantrips (1st)`) is `E002`.
+
+**Reading them.** A consumer that reads options reads `Options`, its marked lines and the family
+keys (the library's `keyGroup` gives `Options` for each); one that reads spells reads the capped
+lines too (`keyGroup` gives `Spells`, `levelCap` the cap).
 
 ---
 
@@ -457,6 +507,14 @@ species that asks a casting ability with no ability slot written is `missing`/in
 category names come from the 5etools mirror's `js/parser.js` through the extract; a table
 without them falls back to the same list built into the checker.
 
+**0.9 additions** (D185). Family lines, marked `Options` lines and capped spell lines count into the
+same slots as `Options` and `Spells`. Each line is also checked against itself. An option on a
+family line that resolves to another family is `misplaced`/warning. An open marker is matched to
+the table's family names and codes (`Options (Eldritch Invocations)`, `Options (EI)`): a near
+miss is `unresolved`/warning with the nearest name ("did you mean"), no match at all is
+`unresolved`/info and accepted. A spell above its line's cap is `misplaced`/warning. The cap is
+never judged against what the class can cast.
+
 ---
 
 ## 7. Diagnostics
@@ -464,7 +522,7 @@ without them falls back to the same list built into the checker.
 | Code | Meaning |
 |---|---|
 | E001 | malformed line; identifier not first |
-| E002 | unknown key |
+| E002 | unknown key; a marker on a key that takes none, an empty marker, or a level cap outside `1st`–`9th` (§2.4, §5.7) |
 | E003 | duplicate key in one scope |
 | E004 | level header not strictly increasing, or out of profile range |
 | E005 | key not allowed in this scope |
@@ -480,7 +538,7 @@ without them falls back to the same list built into the checker.
 | E015 | unsupported `Paste` version |
 | E016 | a level header contradicts the `Classes` runs at a played level (§5.4) |
 | W001 | extension key (`X-`) kept but not understood |
-| W002 | hint: a bare name on `Feat`/`Options`/`Feature`/`Subclass` ends in a parenthesised group — details go in `[brackets]` (`Resilient (CON)` → `Resilient [CON]`) |
+| W002 | hint: a bare name on `Feat`/`Options`/a family key/`Feature`/`Subclass` ends in a parenthesised group — details go in `[brackets]` (`Resilient (CON)` → `Resilient [CON]`) |
 | W003 | a level header's class has no levels left in `Classes` at a played level (totals form, §5.4); the header still fixes its level |
 | W004 | no value yet: the key is "not chosen yet", parsed as empty, kept by emit (D112) |
 | W005 | renamed key: a 0.7 key read as its 0.8 form (§2.6, §5.6) |
@@ -620,6 +678,26 @@ Feat: Ability Score Improvement [+2 STR]
 
 ---
 
+### 8.8 Family keys and a level cap (0.9)
+
+```
+Rules: 2024
+Classes: Warlock 11
+
+L2 Warlock
+Invocations: Agonizing Blast [Eldritch Blast], Pact of the Tome [Guidance, Light, Thaumaturgy; Bless, Detect Magic]
+
+L11 Warlock
+Spells: Counterspell
+Spells (6th): Mass Suggestion
+```
+
+`Options (Invocation): Agonizing Blast [Eldritch Blast]` reads as the same `Invocations` line.
+`fixtures/mc-planned-20-families.dndpaste` is `mc-planned-20` in 0.9 form, and
+`fixtures/noncanonical/` keeps its long form.
+
+---
+
 ## 9. Reserved for later versions
 
 - `---` multi-build separator (variants, parties) — D6, D18.
@@ -647,3 +725,21 @@ Feat: Ability Score Improvement [+2 STR]
 - **An empty value is a to-do** (D112): `W004`, kept by emit. `E006` is retired.
 - AST: `scores` values carry `increase`; the `asi` value type is gone; `empty` is new;
   `EntityBlock.item` may be `null`; a marked feat line is the scope key `Feat (<marker>)`.
+
+---
+
+## 11. Changes from 0.8
+
+0.9 (D180–D185) adds keys and markers and renames nothing: every 0.8 paste reads and emits as
+before, with no new warning (§2.6). The additions are minor-version.
+
+- **Option family keys** (D180): `Invocations`, `Metamagic`, `Maneuvers`, `Infusions`,
+  `Arcane Shots`, `Runes`, `Disciplines`, `Pact Boon`, between `Masteries` and `Options` in the
+  canonical order. `Options` stays valid for any family (amends D27).
+- **`Options` takes a family marker** (D181): `Options (Soul Techniques)`, an open list. A family
+  key's name, singular or plural, folds into the key. `Masteries` is a family too (D182).
+- **`Spells` and `Prepared` take a level cap** (D184): `Spells (3rd)`, `1st` to `9th`.
+- Class-feature picks stay `Feature` lines (D183).
+- Checker: each line against its own family and cap (D185).
+- AST: new scope keys (`Invocations`, `Options (<marker>)`, `Spells (3rd)`). The library adds
+  `resolveKey`, `keyGroup`, `levelCap`, `familyOf`, and `KeyDef.marker` and `KeyDef.family`.

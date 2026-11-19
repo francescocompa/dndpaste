@@ -1,10 +1,10 @@
 /**
  * dndpaste — reference parser and canonical emitter.
- * Implements SPEC.md 0.8 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113).
+ * Implements SPEC.md 0.9 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113).
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.8";
+export const SPEC_VERSION = "0.9";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────
@@ -68,6 +68,17 @@ export interface KeyDef {
   enumValues?: readonly string[];
   /** A 0.7 key that 0.8 reads as an alias (D113): what it is written as now. Never in `KEYS`. */
   renamed?: string;
+  /**
+   * What the key's parentheses may hold (§2.4): `open`, any text kept as written (`Feat (Origin)`, `Options (Soul
+   * Techniques)`, D110, D181); `level`, a spell level cap `1st`–`9th` (`Spells (3rd)`, D184). Absent: no marker (E002).
+   */
+  marker?: "open" | "level";
+  /**
+   * An `Options` family (D180–D182): the names an `Options (<family>)` marker folds from (the key's own name and its
+   * singular or plural, matched ignoring case), and the 5etools family codes its options carry (`EI`; `MV` covers
+   * `MV:B`). `Masteries` has no codes: its picks are weapons.
+   */
+  family?: { names: readonly string[]; codes: readonly string[] };
 }
 
 /** Table order is canonical order (SPEC §5.5). SPEC 0.8 keys only; the 0.7 aliases are `LEGACY_KEYS`. */
@@ -85,13 +96,21 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Tools", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Languages", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Expertise", type: "items", scopes: ["H", "L"] },
-  { key: "Feat", type: "items", scopes: ["H", "S", "B", "L"] },
-  { key: "Masteries", type: "items", scopes: ["H", "L"] },
-  { key: "Options", type: "items", scopes: ["H", "L"] },
+  { key: "Feat", type: "items", scopes: ["H", "S", "B", "L"], marker: "open" },
+  { key: "Masteries", type: "items", scopes: ["H", "L"], family: { names: ["Masteries", "Mastery"], codes: [] } },
+  { key: "Invocations", type: "items", scopes: ["H", "L"], family: { names: ["Invocations", "Invocation"], codes: ["EI"] } },
+  { key: "Metamagic", type: "items", scopes: ["H", "L"], family: { names: ["Metamagic", "Metamagics"], codes: ["MM"] } },
+  { key: "Maneuvers", type: "items", scopes: ["H", "L"], family: { names: ["Maneuvers", "Maneuver"], codes: ["MV"] } },
+  { key: "Infusions", type: "items", scopes: ["H", "L"], family: { names: ["Infusions", "Infusion"], codes: ["AI"] } },
+  { key: "Arcane Shots", type: "items", scopes: ["H", "L"], family: { names: ["Arcane Shots", "Arcane Shot"], codes: ["AS"] } },
+  { key: "Runes", type: "items", scopes: ["H", "L"], family: { names: ["Runes", "Rune"], codes: ["RN"] } },
+  { key: "Disciplines", type: "items", scopes: ["H", "L"], family: { names: ["Disciplines", "Discipline"], codes: ["ED"] } },
+  { key: "Pact Boon", type: "items", scopes: ["H", "L"], family: { names: ["Pact Boon", "Pact Boons"], codes: ["PB"] } },
+  { key: "Options", type: "items", scopes: ["H", "L"], marker: "open" },
   { key: "Feature", type: "items", scopes: ["H", "S", "B", "L"] },
   { key: "Cantrips", type: "items", scopes: ["H", "S", "B", "L"] },
-  { key: "Spells", type: "items", scopes: ["H", "S", "B", "L"] },
-  { key: "Prepared", type: "items", scopes: ["H", "L"] },
+  { key: "Spells", type: "items", scopes: ["H", "S", "B", "L"], marker: "level" },
+  { key: "Prepared", type: "items", scopes: ["H", "L"], marker: "level" },
   { key: "Gear", type: "items", scopes: ["H", "B", "L"] },
 ];
 
@@ -108,6 +127,10 @@ export const LEGACY_KEYS: readonly KeyDef[] = [
 export const ASI_FEAT = "Ability Score Improvement";
 
 const KEY_BY_LOWER = new Map([...KEYS, ...LEGACY_KEYS].map((k) => [k.key.toLowerCase(), k]));
+/** `Options (<family>)` markers that fold into a family key (D181, D182): each family's names, lower case. */
+const FAMILY_BY_NAME = new Map(KEYS.flatMap((k) => (k.family?.names ?? []).map((n) => [n.toLowerCase(), k] as const)));
+/** The level cap ordinals, index = spell level (D184). */
+const LEVEL_CAPS = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"];
 const LEVEL_MIN = 1;
 const LEVEL_MAX = 20;
 
@@ -116,12 +139,58 @@ export function splitMarker(key: string): { key: string; marker: string | null }
   const m = /^(.*?)\s*\(([^()]*)\)$/.exec(key.trim());
   return m ? { key: m[1].trim(), marker: m[2].trim() } : { key: key.trim(), marker: null };
 }
-/** The key's definition, 0.8 or 0.7 alias; a `Feat (<marker>)` key gives `Feat`'s. */
-export function keyDef(key: string): KeyDef | undefined {
+/**
+ * A key as written, resolved (§2.4): its definition and the scope key its line goes under. `Feat (Origin)` → `Feat`'s,
+ * under `Feat (Origin)`; `Options (Invocation)` → `Invocations` (D181); `Spells (3RD)` → `Spells`'s, under
+ * `Spells (3rd)` (D184). Null for an unknown key or a marker the key doesn't take, with the reason.
+ */
+export function resolveKey(key: string): { def: KeyDef; key: string; marker: string | null } | { def: null; reason: string } {
   const hit = KEY_BY_LOWER.get(key.trim().toLowerCase());
-  if (hit) return hit;
+  if (hit) return { def: hit, key: hit.key, marker: null };
   const { key: base, marker } = splitMarker(key);
-  return marker && base.toLowerCase() === "feat" ? KEY_BY_LOWER.get("feat") : undefined;
+  const def = KEY_BY_LOWER.get(base.toLowerCase());
+  if (!def || marker === null) return { def: null, reason: key.trim() };
+  if (!marker) return { def: null, reason: `${key.trim()}: the parentheses are empty` };
+  if (def.marker === "open") {
+    const fam = def.key === "Options" ? FAMILY_BY_NAME.get(marker.toLowerCase()) : undefined;
+    return fam ? { def: fam, key: fam.key, marker: null } : { def, key: `${def.key} (${marker})`, marker };
+  }
+  if (def.marker === "level") {
+    const n = LEVEL_CAPS.indexOf(marker.toLowerCase());
+    return n > 0 ? { def, key: `${def.key} (${LEVEL_CAPS[n]})`, marker: LEVEL_CAPS[n] }
+      : { def: null, reason: `${key.trim()}: a level cap is 1st to 9th, as in ${def.key} (3rd)` };
+  }
+  return { def: null, reason: `${key.trim()}: only Feat and Options take a marker, and Spells and Prepared a level cap` };
+}
+/** The key's definition, 0.8 or 0.7 alias; a marked key gives its key's (`Feat (Origin)` → `Feat`), a folded family marker the family's. */
+export function keyDef(key: string): KeyDef | undefined {
+  return resolveKey(key).def ?? undefined;
+}
+/**
+ * The key a scope key reads as for slots and lists: `Options` for `Options`, `Options (<marker>)` and the option
+ * family keys (`Invocations`, D180); `Spells` or `Prepared` for a capped line (D184); `Feat` for a marked feat (D110);
+ * any other key itself. `Masteries` stays `Masteries` (its picks are weapons).
+ */
+export function keyGroup(key: string): string {
+  const def = keyDef(key);
+  if (!def) return key;
+  if (def.family?.codes.length) return "Options";
+  return def.key;
+}
+/** A scope key's spell level cap (D184): `Spells (3rd)` → 3; null when it has none. */
+export function levelCap(key: string): number | null {
+  const { key: base, marker } = splitMarker(key);
+  const def = KEY_BY_LOWER.get(base.toLowerCase());
+  if (def?.marker !== "level" || !marker) return null;
+  const n = LEVEL_CAPS.indexOf(marker.toLowerCase());
+  return n > 0 ? n : null;
+}
+/** A scope key's option family (D180, D181): the family key's 5etools codes, or the open marker as written; null for plain `Options` and other keys. */
+export function familyOf(key: string): { codes: readonly string[] } | { marker: string } | null {
+  const r = resolveKey(key);
+  if (!r.def) return null;
+  if (r.def.family?.codes.length) return { codes: r.def.family.codes };
+  return r.def.key === "Options" && r.marker ? { marker: r.marker } : null;
 }
 export function isExtensionKey(key: string): boolean {
   return /^x-[a-z0-9-]+$/i.test(key);
@@ -460,7 +529,7 @@ function parseHp(raw: string, scope: ScopeKind, diag: Diag, line: number): Value
   return { type: "hp", method: hit, roll: null };
 }
 
-const HINT_KEYS = ["Feat", "Options", "Feature", "Subclass", "Fighting Style"];
+const HINT_KEYS = ["Feat", "Options", "Feature", "Subclass", "Fighting Style", ...KEYS.filter((k) => k.family?.codes.length).map((k) => k.key)];
 const QTY_KEYS = ["Gear", "Equipment", "Items"];
 
 function parseValue(def: KeyDef, raw: string, scope: ScopeKind, diag: Diag, line: number): Value | null {
@@ -588,11 +657,10 @@ export function parse(text: string): Paste {
       continue;
     }
 
-    const { key: baseKey, marker } = splitMarker(rawKey);
-    const def = KEY_BY_LOWER.get(baseKey.toLowerCase());
-    if (!def) { diag.add("E002", no, rawKey); continue; }
-    if (marker !== null && (def.key !== "Feat" || !marker)) { diag.add("E002", no, `${rawKey}: only Feat takes a slot marker, as in Feat (Fighting Style)`); continue; }
-    const label = marker ? `Feat (${marker})` : def.key;
+    const rk = resolveKey(rawKey);
+    if (!rk.def) { diag.add("E002", no, rk.reason); continue; }
+    const { def, marker } = rk;
+    const label = rk.key;
 
     if (def.opensBlock) {
       if (scope === "L" || opened.has(def.key)) { diag.add("E014", no, def.key); continue; }
@@ -630,7 +698,7 @@ export function parse(text: string): Paste {
         current.set("Ability", v);
         abilityLines.push({ scope: current, no });
       } else if (def.key === "Fighting Style" && v.type === "items") {
-        appendItems(current, featKey(current, "Fighting Style"), v.items);
+        appendItems(current, markedKey(current, "Feat", "Fighting Style"), v.items);
         diag.add("W005", no, "Fighting Style is written as Feat (Fighting Style) (D110)");
       } else if (v.type === "items") {
         appendItems(current, "Gear", v.items);
@@ -646,8 +714,8 @@ export function parse(text: string): Paste {
       mergeScores(current, v);
       continue;
     }
-    if (def.key === "Feat" && v.type === "items") {
-      const key = marker ? featKey(current, marker) : "Feat";
+    if (marker !== null && v.type === "items") {
+      const key = markedKey(current, def.key, marker);
       if (once(current, key, no, label)) appendItems(current, key, v.items);
       continue;
     }
@@ -697,9 +765,9 @@ function mergeScores(scope: Scope, v: Extract<Value, { type: "scores" }>): void 
   const increase = prev.increase || v.increase ? [...(prev.increase ?? []), ...(v.increase ?? [])] : null;
   scope.set("Scores", { type: "scores", values: prev.values.map((x, i) => v.values[i] ?? x), increase });
 }
-/** The scope's key for a marked feat line: an existing spelling of the same marker, else `Feat (<marker>)`. */
-function featKey(scope: Scope, marker: string): string {
-  const want = `Feat (${marker})`;
+/** The scope's key for a marked line: an existing spelling of the same marker, else `<Key> (<marker>)`. */
+function markedKey(scope: Scope, key: string, marker: string): string {
+  const want = `${key} (${marker})`;
   return [...scope.keys()].find((k) => k.toLowerCase() === want.toLowerCase()) ?? want;
 }
 
@@ -761,16 +829,17 @@ const cmpKey = (a: string, b: string) => cmpCode(a.toLowerCase(), b.toLowerCase(
 
 /**
  * A scope's key lines in canonical order (§5.5), one entry per line, each with that line's value: the order of the
- * profile table; `Feat` then its marked lines by marker, ignoring case; a base `Scores` line then its increase; an
+ * profile table; a key that takes a marker then its marked lines by marker, ignoring case (`Feat (Origin)`,
+ * `Options (Soul Techniques)`, `Spells (3rd)` by level); a base `Scores` line then its increase; an
  * `Ability` line that stayed as written (D113); `X-` keys alphabetically ignoring case.
  */
 export function scopeLines(scope: Scope): [string, Value][] {
   const out: [string, Value][] = [];
   for (const def of KEYS) {
-    if (def.key === "Feat") {
-      const v = scope.get("Feat");
-      if (v) out.push(["Feat", v]);
-      for (const k of [...scope.keys()].filter((x) => x.startsWith("Feat (")).sort(cmpKey)) out.push([k, scope.get(k) as Value]);
+    if (def.marker) {
+      const v = scope.get(def.key);
+      if (v) out.push([def.key, v]);
+      for (const k of [...scope.keys()].filter((x) => x.startsWith(`${def.key} (`)).sort(cmpKey)) out.push([k, scope.get(k) as Value]);
       continue;
     }
     const v = scope.get(def.key);
