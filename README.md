@@ -49,7 +49,7 @@ Cantrips: Blade Ward, True Strike
   to several classes (**unplaced**) and picks the rules never granted (**extra** — accepted, a DM
   boon is a build fact). Findings are warnings or infos, never errors. `normalise` returns a new
   paste with the redundant lines folded away.
-- **Slot table:** `node scripts/extract-slots.mjs [data-folder]` reads a local game-data folder
+- **Slot table:** `node scripts/extract-slots.mjs <data-folder>` reads a local game-data folder
   (JSON) and writes `data/slots.json` (full, gitignored) and `data/srd/slots.json` (SRD-flagged entities,
   committed). Names, counts, levels and option lists only — no rules text. `data/supplement.json`
   is the hand-kept list of choice slots the data encodes only as prose.

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// Build the checker's slot table from a 5etools data mirror.
-//   node scripts/extract-slots.mjs [mirror/data dir]  → data/slots.json (full, gitignored)
-//                                                     → data/srd/slots.json (SRD-flagged entities only, committed)
+// Build the checker's slot table from a local game-data folder (JSON).
+//   node scripts/extract-slots.mjs <data-folder>  (or DNDPASTE_DATA=<data-folder>)
+//   → data/slots.json (full, gitignored)
+//   → data/srd/slots.json (SRD-flagged entities only, committed)
 // The output holds names, counts, levels and option lists — no rules text (CLAUDE.md content boundary).
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
 
-const DEFAULT = join(homedir(), "Documents/D&D/5etool_mirror/5etools-src-main/data");
-const root = process.argv[2] ?? DEFAULT;
-if (!existsSync(root)) { console.error(`mirror not found: ${root}`); process.exit(1); }
+const root = process.argv[2] ?? process.env.DNDPASTE_DATA;
+if (!root) { console.error("usage: node scripts/extract-slots.mjs <data-folder>  (or set DNDPASTE_DATA)"); process.exit(1); }
+if (!existsSync(root)) { console.error(`data folder not found: ${root}`); process.exit(1); }
 
 const load = (rel) => JSON.parse(readFileSync(join(root, rel), "utf8"));
 const listDir = (rel, prefix) => readdirSync(join(root, rel)).filter((f) => f.startsWith(prefix) && f.endsWith(".json") && !f.includes("fluff"));
@@ -25,7 +25,7 @@ for (const [file, key] of [["books.json", "book"], ["adventures.json", "adventur
 const core = (e) => sourceGroup[e.source] === "core";
 const edition = (e) => (e.edition === "one" ? "2024" : e.edition === "classic" ? "2014" : sourceEdition[e.source] ?? null);
 
-// ── helpers over 5etools choice encodings ────────────────────────────────────
+// ── helpers over the data's choice encodings ────────────────────────────────────
 function chooseSpec(list) {
   // skillProficiencies / toolProficiencies / languageProficiencies entries → { fixed:[], choose:{count,from}|null, any:n }
   const out = { fixed: [], choose: null, any: 0 };
@@ -100,11 +100,11 @@ function progressionMap(p) {
 }
 
 // ── T2.2: 2014 starting-equipment choice groups ──────────────────────────────
-// 5etools' `startingEquipment.defaultData` (classes) / `startingEquipment` (backgrounds) is a list
+// The data's `startingEquipment.defaultData` (classes) / `startingEquipment` (backgrounds) is a list
 // of groups; a group keyed "_" is granted outright (not a choice) and is skipped. A group keyed by
 // single letters (a/b/c…) is a choice: each option is a list of entries, either a bare "name|SRC"
 // string or `{item:"name|SRC", quantity}`. Generic entries (`{equipmentType}`, `{special}`) are
-// prose/category placeholders with no 5etools entity name, so they carry no names — no rules text,
+// prose/category placeholders with no entity name, so they carry no names — no rules text,
 // no invented item lists (CLAUDE.md content boundary).
 function itemsIndex(itemsTable) {
   const byKey = new Map();
@@ -247,7 +247,7 @@ for (const r of load("races.json").race ?? []) {
   };
 }
 
-// 2014-style subraces become their own species entries, named the 5etools way: "Elf (Wood)|PHB".
+// 2014-style subraces become their own species entries, named this way: "Elf (Wood)|PHB".
 for (const s of load("races.json").subrace ?? []) {
   if (!s.name || !s.raceName) continue;
   const base = species[`${s.raceName}|${s.raceSource ?? s.source}`];
@@ -326,8 +326,8 @@ for (const f of listDir("spells", "spells-")) for (const s of load(join("spells"
   spells[uid(s)] = { name: s.name, source: s.source, edition: edition(s), srd: isSrd(s), level: s.level, classes, ...(subclasses.length ? { subclasses } : {}) };
 }
 for (const tbl of [classes, subclasses, species, backgrounds, feats, optionalFeatures, spells, items, magicVariants]) for (const e of Object.values(tbl)) e.core = core(e);
-// Feat category names for `Feat (<marker>)` (D110). 5etools keeps them in js/parser.js, not in its data files: read them
-// from the mirror next to `data/` (names only); a mirror without that file leaves the checker on its own fallback list.
+// Feat category names for `Feat (<marker>)` (D110). The data keeps them in js/parser.js, not in its data files: read them
+// from beside the data folder (names only); a folder without that file leaves the checker on its own fallback list.
 const featCategories = {};
 try {
   const m = /Parser\.FEAT_CATEGORY_TO_FULL = \{([\s\S]*?)\};/.exec(readFileSync(join(root, "..", "js", "parser.js"), "utf8"));
