@@ -16,7 +16,7 @@
 
 Working set: none
 
-Spawned: SRD name autocomplete (D151) · local_b7617c81-338a-4788-bb3b-15c7f51b1bbe · worktree `srd-autocomplete` · running (interview, then build + /ui-review) · owed: merge → then D152 copy pass worker (last; also fix the /about privacy line) → deploy → post. To choose + author merged b378f20 (not deployed).
+Spawned: none running. Main at 6abf05f has every 0.9 fix (merge 1b54399 + T34 defect fixes 1725d99, 6abf05f; root 243 with the full local table, site 287). Branch `claude/editor-polish-44bc86` is merged; its worktree can go when the editor-polish session is archived · next: D152 copy pass card (also the /about privacy line: drafts and the author, D150) → 0.9 release (Francesco, D57) → deploy → post · archive: editor-polish, wire, finish-srd, editor-fixes, lib-fixes, editor-round-2, lib-round-2, wide-user-test
 
 - **Library:** 0.8.0 on main (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
   The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
