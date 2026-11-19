@@ -18,9 +18,9 @@ const isSrd = (e) => Boolean(e.srd || e.srd52 || e.basicRules || e.basicRules202
 // Edition: the entity's own field when present, else inferred from its source's publication date
 // (books.json / adventures.json; XPHB shipped 2024-09-17). Homebrew and unknown sources stay null.
 const XPHB_DATE = "2024-09-17";
-const sourceEdition = {}, sourceGroup = {};
+const sourceEdition = {}, sourceGroup = {}, sourceDate = {};
 for (const [file, key] of [["books.json", "book"], ["adventures.json", "adventure"]]) {
-  try { for (const b of load(file)[key] ?? []) { if (b.source && b.published) sourceEdition[b.source] = b.published >= XPHB_DATE ? "2024" : "2014"; if (b.source) sourceGroup[b.source] = b.group ?? (key === "adventure" ? "adventure" : null); } } catch { /* optional */ }
+  try { for (const b of load(file)[key] ?? []) { if (b.source && b.published) { sourceEdition[b.source] = b.published >= XPHB_DATE ? "2024" : "2014"; sourceDate[b.source] = b.published; } if (b.source) sourceGroup[b.source] = b.group ?? (key === "adventure" ? "adventure" : null); } } catch { /* optional */ }
 }
 const core = (e) => sourceGroup[e.source] === "core";
 const edition = (e) => (e.edition === "one" ? "2024" : e.edition === "classic" ? "2014" : sourceEdition[e.source] ?? null);
@@ -343,6 +343,11 @@ for (const k of Object.keys(full)) if (k !== "meta" && k !== "families" && k !==
 // Every book code an entity of the full table cites (D205): the checker tells a known book that the table lacks (the
 // SRD subset) from a code no book has. Codes only.
 meta.sources = [...new Set(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].flatMap((k) => Object.values(full[k]).map((e) => e.source)).filter((x) => typeof x === "string"))].sort();
+// Each cited book's release date (D221): a bare name resolves to the newest printing. A code with no date (homebrew, a
+// collection the data lists without one) is left out and ranks oldest.
+meta.sourceDates = Object.fromEntries(meta.sources.filter((c) => sourceDate[c]).map((c) => [c, sourceDate[c]]));
+// Setting books and adventures (D221): their printing of a name loses to a core book's printing in the same edition.
+meta.settingSources = meta.sources.filter((c) => /^(setting|setting-alt|adventure)$/.test(sourceGroup[c] ?? ""));
 
 const srdFilter = (tbl) => Object.fromEntries(Object.entries(tbl).filter(([, v]) => v.srd));
 const srd = { meta: { ...meta, subset: "srd" }, families, featCategories, ...Object.fromEntries(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].map((k) => [k, srdFilter(full[k])])) };
