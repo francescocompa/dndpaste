@@ -702,3 +702,43 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Rejected:* 1 letter everywhere (hundreds of spells on every first letter); 1 letter on phone only; keeping 2 everywhere; 40-and-under at 1 letter with no empty-spot opening.
   *Enforced by:* `site/test/complete.test.ts` ("D164: …") (2e5323b, unmerged).
   ⚑ (worker → overseer, 2026-11-19, from /ui-review rounds 2–4, not in this branch): (1) "We should set autocomplete also for main headers (ex. species etc.)": Francesco means both the values on the empty spot (`Species: ` opens before a letter) and the key names themselves (`Spe` → `Species:`). (2) After a pick in a group that wants more names (`Guidance, `) nothing says another is expected: "I think we should consider having a ghost text before typing directly in the text box." (3) "The count chip shouldn't reset to 0/4 immediately after typing a comma. Also, the too-quick-to-signal error note hasn't be tackled yet." (ghost counts D130, error hold D90).
+
+## Editor polish (2026-11-19) — mechanism: /interview, AskUserQuestion, 3 rounds (9 questions), editor-polish worker, on D164's ⚑
+
+- **D170 — Key names autocomplete too: a line that starts with a letter suggests the keys its block allows (`Spe` → `Species:`), from the hint strip's list (D83). DECIDED (2026-11-19).** Opens at 1 letter, never on an empty line (Enter for a new line opens nothing). Same keys and behaviour as the name list (D154): Tab takes the top key, arrows then Enter or Tab, Esc closes; a tap on phone.
+  *Raw note:* picked "At 1 letter (Recommended)".
+  *Rejected:* D164's size rule (a block with 12 or fewer keys left would open a list on every new line); 2 letters (`S` alone is often the whole job).
+  *Enforced by:* `site/test/complete.test.ts` ("D170: …"); the list itself checked in /ui-review 2026-11-19 (3 rounds). (09af58c, unmerged)
+
+- **D171 — Taking a key writes `Key: ` and opens that key's value list at once; a tap on a hint-strip chip does the same. DECIDED (2026-11-19).** The same chain as a pick inside `[ ]` (D163).
+  *Raw note:* picked "Value list opens (Recommended)".
+  *Rejected:* writing the key and stopping (the value list then waits for a letter).
+  *Enforced by:* `site/test/complete.test.ts` ("D171: …"); the chip tap and the chain checked in /ui-review. (09af58c, unmerged)
+
+- **D172 — Trial: every empty name spot opens its list before a letter is typed, after `: `, after `, ` and inside `[ ]`, whatever the list's size. DECIDED (2026-11-19) for the /ui-review; amends D164 (letters by list size).** Only typing opens it (D154): a pick, a comma or a key; reaching a spot with the arrows doesn't. Class first, as D156. The D164 thresholds stay in the code as one switch, so going back is a one-line change.
+  *Raw note:* "Let's test it every spot and add a setting to disable autocomplete."
+  *Challenged:* D164 kept spell and item lists shut until a letter; opening them on every spot reverses that. Accepted as a test, to judge in review.
+  *Rejected:* only one-pick keys (Species, Background, Subclass, Feat, a header's class) at once; every key after `: ` but not after commas.
+  *Enforced by:* `site/test/complete.test.ts` ("D172 (trial): …"; the D164 test runs with `OPEN_EVERY_SPOT` off); approved in /ui-review round 1. (09af58c, unmerged)
+
+- **D173 — A "Suggestions" switch turns the name and key lists off; ~~it sits at the end of the key hint strip's label row on desktop and in the dock's Keys row on phone~~, and this browser remembers it. DECIDED (2026-11-19). AMENDED (2026-11-19, /ui-review round 1): it lives in the header menu, renamed Display → Settings (settings icon), after the display settings and a rule: "Suggestions · Name and key lists in the editor"; the same menu on every page and on phone.** Ghost text, counts and the auto `]` stay on. Stored like the author name (D150), never sent.
+  *Raw note:* "add a setting to disable autocomplete"; picked "Hint strip toggle (Recommended)", "Lists only, remembered (Recommended)".
+  Review: "Let's move suggestions inside Settings (change Display to settings, make display options part of settings)"; phone: "Change as mentioned on desktop".
+  Round 2: "The save on this browser box in settings doesn't seem useful." (the "Saved in this browser." line goes; blocked storage still says so); "Add day and night icons to the toggle inside settings." (Auto contrast, Light sun, Dark moon).
+  *Rejected:* a "Turn off suggestions" row at the list's foot (two places to learn); a switch by the title and author (far from the editor); all editor help off; off for this visit only; in review, the switch in the hint strip's label row and the dock's Keys row.
+  *Enforced by:* `site/test/prefs.test.ts` ("D173: …"), `site/test/display.test.ts` ("D173 (review): …"), `site/test/logo.test.ts` (Settings label). (09af58c, unmerged)
+
+- **D174 — Ghost text names the kind of name still wanted: `Cantrips: Guidance, cantrip`, faint, at the cursor. DECIDED (2026-11-19).** Only on the cursor's line, at an empty name spot, when that line's count chip is short (D130); gone at the first letter. Display only, in the highlight layer like the count chip: never in the text, a copy or the paste. Not inside `[ ]` (the list's slot hint guides there, D163).
+  *Raw note:* picked "The kind of name (Recommended)", "Counted lines, short (Recommended)".
+  *Rejected:* how many more (`2 more`: the chip says it); the top match inline with Tab (a name you didn't choose, and the open list already shows it); any list line, Gear and Languages too; every short line, cursor or not (faint words all over the editor).
+  *Enforced by:* `site/test/complete.test.ts` ("D174: …"), `site/test/ghost.test.ts` ("D174: …"). (09af58c, unmerged)
+
+- **D175 — The count chip on the line being typed keeps its last value while the line doesn't read (an open comma, bracket or quote): `Guidance, ` stays 1/3. DECIDED (2026-11-19).** It follows the line again once the line reads, or once the cursor leaves it.
+  *Raw note:* picked "Freeze while typing".
+  *Rejected:* counting the names written, ignoring the unfinished tail (recommended: always matches the line, but needs a second reading of the line beside the parser's); hiding the chip while typing (a gap in the aligned column).
+  *Enforced by:* `site/test/ghost.test.ts` ("D175: …"); the form wiring checked in /ui-review. (09af58c, unmerged)
+
+- **D176 — Every error on the line being typed waits until the cursor leaves the line or typing pauses for 3 s. DECIDED (2026-11-19); amends D90 (E001 only, 1.5 s).** Save still blocks on a held error; pressing Save shows it at once.
+  *Raw note:* picked "Leave line or 3 s (Recommended)".
+  *Rejected:* every error at 1.5 s (a pause to think after `Guidance, ` shows it); no timer, only leaving the line (a mistake can sit unmarked).
+  *Enforced by:* `site/test/form.test.ts` ("status, D176: …", and the D90 test). (09af58c, unmerged)
