@@ -16,7 +16,7 @@
 
 Working set: none
 
-Spawned: none running. Main at 6abf05f has every 0.9 fix (merge 1b54399 + T34 defect fixes 1725d99, 6abf05f; root 243 with the full local table, site 287). Branch `claude/editor-polish-44bc86` is merged; its worktree can go when the editor-polish session is archived · next: D152 copy pass card (also the /about privacy line: drafts and the author, D150) → 0.9 release (Francesco, D57) → deploy → post · archive: editor-polish, wire, finish-srd, editor-fixes, lib-fixes, editor-round-2, lib-round-2, wide-user-test
+Spawned: none running. Main at 5395969 = chore(release): 0.9.0 (copy pass D230–D234 merged 3b7e117; root 243 with the full local table, site 288; site build stamped 0.9.0) · next (Francesco, D57): annotated tag v0.9.0 → push main + tag → GitHub release from the CHANGELOG's Migrating list (FORMAT-UPDATES §5) → deploy the site → post · archive: copy-pass session
 
 - **Library:** 0.8.0 on main (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
   The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
