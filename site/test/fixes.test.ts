@@ -81,6 +81,10 @@ test("D214: a plain Options line of one family moves to that family's key", () =
   assert.equal(at(two, 6)?.apply(two), "Rules: 2024\nClasses: Warlock 2\n\nL1 Warlock\nInvocations: Pact of the Tome, Agonizing Blast\n");
   assert.equal(at(text, 5)?.apply(text), "Rules: 2024\nClasses: Warlock 2\n\nL1 Warlock\nInvocations: Agonizing Blast, Repelling Blast\n");
   assert.equal(at("Rules: 2024\nClasses: Fighter 3\n\nL3 Fighter\nOptions: Archery, Agonizing Blast\n", 5, "family"), undefined, "two families");
+  for (const d of ["[Guidance; Identify]", "[Guidance, Identify]"]) {
+    const tome = `Rules: 2024\nClasses: Warlock 3\n\nL3 Warlock\nOptions: Pact of the Tome ${d}, Agonizing Blast\n`;
+    assert.equal(at(tome, 5)?.act, "Change to Invocations", `T34: bracket details ${d} don't stop the fold`);
+  }
 });
 
 test("D212 (T09): a 2014 Cleric's Spells line offers Switch to Prepared, as in 2024", () => {

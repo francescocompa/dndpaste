@@ -356,7 +356,8 @@ export function nameFixes(n: Names, text: string, paste: Paste, taken: ReadonlyS
     const value = s.slice(separator(s) + 1);
     // A plain Options line whose picks are all one family's.
     if (lc(k) === "options") {
-      const picks = value.split(",").map((x) => x.trim().replace(/\s*\[.*$/, "").replace(/\|.*$/, "").replace(/^-/, "").trim()).filter(Boolean);
+      // Brackets first: their details may hold commas or `;` groups (T34, `Pact of the Tome [Guidance; Identify]`).
+      const picks = value.replace(/\[[^\]]*\]/g, "").split(",").map((x) => x.trim().replace(/^"|"$/g, "").replace(/\|.*$/, "").replace(/^-/, "").trim()).filter(Boolean);
       const keys = new Set<string>();
       let all = picks.length > 0;
       for (const p of picks) {
