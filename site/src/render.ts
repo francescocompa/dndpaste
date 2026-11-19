@@ -10,7 +10,7 @@
  * · n number · e enum · q quantity · x drop minus · drop dropped item · d detail · ab ability · ab-<str…cha>
  * · kd-<kind> (colour by kind, D82).
  */
-import { ABILITIES, isFeatKey } from "../../src/dndpaste.ts";
+import { ABILITIES, keyDef, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, EntityBlock, Item, LevelBlock, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
 
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -25,9 +25,16 @@ export type Kind = "class" | "subclass" | "species" | "background" | "feat" | "s
 /** Which kind colours a key's names (D82; the mapping from the jam). Keys not listed take no kind colour. */
 export const KIND_OF_KEY: Readonly<Record<string, Kind>> = {
   Classes: "class", Options: "class", Feature: "class", "Fighting Style": "class",
+  Invocations: "class", Metamagic: "class", Maneuvers: "class", Infusions: "class", "Arcane Shots": "class", Runes: "class",
+  Disciplines: "class", "Pact Boon": "class",
   Subclass: "subclass", Species: "species", Background: "background", Feat: "feat",
   Cantrips: "spell", Spells: "spell", Prepared: "spell", Gear: "item", Equipment: "item", Items: "item",
 };
+
+/** A scope key's kind: a marked or capped line takes its key's (`Feat (Origin)`, `Options (…)`, `Spells (3rd)`; D110, D181, D184). */
+export function kindOfKey(key: string): Kind | undefined {
+  return KIND_OF_KEY[keyDef(key)?.key ?? key];
+}
 
 const P = (t: string): string => `<span class="p">${esc(t)}</span>`;
 const isAbility = (name: string): name is Ability => (ABILITIES as readonly string[]).includes(name);
@@ -60,7 +67,7 @@ export function renderItem(it: Item, kind?: Kind): string {
 
 /** One key's value as written. Its text content equals the emitter's `emitValue`, except `Classes`, which keeps its runs. */
 export function renderValue(key: string, v: Value): string {
-  const kind = KIND_OF_KEY[key] ?? (isFeatKey(key) ? "feat" : undefined);   // `Feat (Fighting Style)` (D110)
+  const kind = kindOfKey(key);
   switch (v.type) {
     case "items": return v.items.map((it) => renderItem(it, kind)).join(P(", "));
     case "enum": return `<span class="e">${esc(v.value)}</span>`;
@@ -82,10 +89,10 @@ export function renderValue(key: string, v: Value): string {
   }
 }
 
-/** A key, with a slot marker shown apart from the key's name: `Feat (Fighting Style)` (D110). */
+/** A key, with a marker shown apart from the key's name: `Feat (Fighting Style)`, `Spells (3rd)` (D110, D181, D184). */
 export function keyHtml(key: string): string {
   const x = key.startsWith("X-");
-  const m = isFeatKey(key) ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
+  const m = !key.startsWith("X-") && splitMarker(key).marker !== null ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
   const body = m ? `${esc(m[1])}${m[2]}<span class="km">(${esc(m[3])})</span>` : esc(key);
   return `<span class="k${x ? " xk" : ""}">${body}</span>`;
 }

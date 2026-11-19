@@ -48,10 +48,20 @@ export const KEY_HOLDS: Readonly<Record<string, string>> = {
   Feat: "Feats, with their choices in brackets. An ability score improvement is the feat Ability Score Improvement. " +
     "To name the slot that a feat fills, put it in parentheses after the key: Feat (Fighting Style), Feat (Origin).",
   Masteries: "Weapon masteries.",
-  Options: "Optional features, such as invocations, metamagic and maneuvers.",
+  Invocations: "Eldritch invocations.",
+  Metamagic: "Metamagic options.",
+  Maneuvers: "Battle Master maneuvers.",
+  Infusions: "Artificer infusions.",
+  "Arcane Shots": "Arcane Archer shots.",
+  Runes: "Rune Knight runes.",
+  Disciplines: "Elemental disciplines.",
+  "Pact Boon": "The pact boon, under 2014 rules. Under 2024 rules a pact is an invocation.",
+  Options: "Optional features of any family. A family with no key of its own goes in parentheses after the key: " +
+    "Options (Soul Techniques).",
   Feature: "A named feature and its choices, or an optional class feature taken.",
   Cantrips: "Cantrips chosen.",
-  Spells: "Spells added to the build at that level.",
+  Spells: "Spells added to the build at that level. To cap the spell level the line picks from, put it in " +
+    "parentheses after the key: Spells (3rd).",
   Prepared: "The spells prepared by default, for a caster who knows more spells than it prepares.",
   Gear: "In the background block or at level 1, the starting gear or its option letter. At a later level, gear gained " +
     "in play. In the header, gear carried.",
