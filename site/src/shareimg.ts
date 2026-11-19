@@ -6,10 +6,10 @@
  * A run's `c` holds the renderer's span classes for that text (k, p, r, s, n, e, q, ab, ab-<str…cha>, x, kd-<kind>,
  * km); `w` is the class of a wrapping span that changes how it looks (`d` a detail, `drop` a dropped item).
  */
-import { ABILITIES, isFeatKey } from "../../src/dndpaste.ts";
+import { ABILITIES, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, Item, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
 import { BOOKS } from "./books.ts";
-import { KIND_OF_KEY, lineEntries } from "./render.ts";
+import { KIND_OF_KEY, kindOfKey, lineEntries } from "./render.ts";
 import type { Kind } from "./render.ts";
 
 export interface Run { t: string; c: string; w?: "d" | "drop" }
@@ -44,7 +44,7 @@ function item(it: Item, kind?: Kind): Run[] {
 
 /** One key's value, as `renderValue` writes it. */
 export function valueRuns(key: string, v: Value): Run[] {
-  const kind = KIND_OF_KEY[key] ?? (isFeatKey(key) ? "feat" : undefined);
+  const kind = kindOfKey(key);
   switch (v.type) {
     case "items": return join(v.items.map((it) => item(it, kind)), [P(", ")]);
     case "enum": return [{ t: v.value, c: "e" }];
@@ -64,10 +64,10 @@ export function valueRuns(key: string, v: Value): Run[] {
   }
 }
 
-/** A key and its colon, the slot marker apart: `Feat (Fighting Style):` (D110). */
+/** A key and its colon, the marker apart: `Feat (Fighting Style):`, `Spells (3rd):` (D110, D181, D184). */
 export function keyRuns(key: string): Run[] {
   const c = key.startsWith("X-") ? "k xk" : "k";
-  const m = isFeatKey(key) ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
+  const m = !key.startsWith("X-") && splitMarker(key).marker !== null ? /^(.*?)(\s*)\((.*)\)$/.exec(key) : null;
   const body: Run[] = m ? [{ t: m[1] + m[2], c }, { t: `(${m[3]})`, c: `${c} km` }] : [{ t: key, c }];
   return [...body, P(":")];
 }

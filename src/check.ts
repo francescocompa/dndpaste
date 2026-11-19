@@ -7,7 +7,7 @@
 import type { Paste, Item, Ref, Scope, Value, LevelBlock, Bonus, Detail } from "./dndpaste.js";
 // The one runtime import: the reading rule and the key helpers live in the data-free library (the UMD build inlines
 // both modules).
-import { classSequence, classTotals, isFeatKey, isAbilitySlot, splitMarker, ASI_FEAT } from "./dndpaste.js";
+import { classSequence, classTotals, isFeatKey, isAbilitySlot, splitMarker, keyGroup, levelCap, familyOf, ASI_FEAT, KEYS } from "./dndpaste.js";
 
 // ─── Slot table types (loose on purpose: the extract may grow fields) ────────
 
@@ -188,7 +188,25 @@ function delta(p: number[] | null | undefined, k: number): number {
   return p[k - 1] - (k >= 2 ? p[k - 2] : 0);
 }
 
-export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): Finding[] {
+/**
+ * The paste as the slot ledger reads it (D180–D185): every option line (`Invocations`, `Options (<marker>)`) as
+ * `Options`, every capped spell line (`Spells (3rd)`) as its key. The same Item objects, so identity checks hold.
+ */
+function slotView(paste: Paste): Paste {
+  const fold = (scope: Scope): Scope => {
+    const out: Scope = new Map();
+    for (const [k, v] of scope) {
+      if (v.type !== "items") { out.set(k, v); continue; }
+      const g = isFeatKey(k) ? k : keyGroup(k);
+      out.set(g, { type: "items", items: [...items(out, g), ...v.items] });
+    }
+    return out;
+  };
+  return { ...paste, header: fold(paste.header), entities: paste.entities.map((e) => ({ ...e, lines: fold(e.lines) })), levels: paste.levels.map((l) => ({ ...l, lines: fold(l.lines) })) };
+}
+
+export function check(input: Paste, slots: Slots, supplement: Supplement = {}): Finding[] {
+  const paste = slotView(input);
   const F: Finding[] = [];
   const add = (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string) => F.push({ kind, severity, where, key, ref, message });
   const rulesV = paste.header.get("Rules");
@@ -568,8 +586,52 @@ export function check(paste: Paste, slots: Slots, supplement: Supplement = {}): 
   // T2.4 — ability-score arithmetic findings (cap-20, illegal ability picks).
   F.push(...finalScoresWith(paste, ix, supplement).findings);
 
+  checkLines();
+
   const seen = new Set<string>();
   return F.filter((f) => { const k = `${f.kind}|${f.where}|${f.message}`; if (seen.has(k)) return false; seen.add(k); return true; });
+
+  // ── D185: each line against its own family and level cap ──────────────────
+  // An option on a family line (`Invocations`, `Options (<marker>)`) must be of that family; an open marker is
+  // matched to the table's family names and codes like a D110 feat category. A spell on a capped line must be at or
+  // below the cap. The cap is never judged against the class (D162 is the editor's hint).
+  function checkLines() {
+    const families: Record<string, string> = { ...slots.families };
+    const scopes: [string, Scope][] = [["header", input.header], ...input.entities.map((e) => [e.key, e.lines] as [string, Scope]), ...input.levels.map((l) => [`L${l.n}`, l.lines] as [string, Scope])];
+    const famCodes = (marker: string): string[] => {
+      const m = lc(marker);
+      return Object.entries(families).filter(([code, name]) => lc(code) === m || lc(name) === m || lc(name) === m + "s" || lc(name).startsWith(m + " ") || lc(name).endsWith(" " + m) || lc(name).endsWith(" " + m + "s")).map(([code]) => code);
+    };
+    for (const [where, scope] of scopes) for (const [key, v] of scope) {
+      if (v.type !== "items") continue;
+      const fam = familyOf(key);
+      if (fam) {
+        let codes: readonly string[];
+        if ("codes" in fam) codes = fam.codes;
+        else {
+          codes = famCodes(fam.marker);
+          if (!codes.length) {
+            const near = [...new Set([...Object.values(families), ...KEYS.filter((k) => k.family).map((k) => k.key)])].map((n) => ({ n, d: levenshtein(lc(fam.marker), lc(n)) })).sort((a, b) => a.d - b.d)[0];
+            if (near && near.d <= Math.max(2, Math.floor(fam.marker.length / 4))) add("unresolved", "warning", where, `${key}: no option family has that name; did you mean "${near.n}"?`, key, fam.marker);
+            else add("unresolved", "info", where, `${key}: not an option family in the loaded data — accepted`, key, fam.marker);
+            continue;
+          }
+        }
+        const fit = (t: string) => codes.some((c) => t === c || t.startsWith(c + ":") || c.split("/").includes(t));
+        for (const it of v.items) {
+          if (it.drop) continue;
+          const of = ix.options.resolve(it.ref, rules).hit;
+          if (of && of.types.length && !of.types.some(fit)) add("misplaced", "warning", where, `"${of.name}" is ${of.types.map((t) => families[t] ?? t).join("/")}, not ${key}`, key, of.name);
+        }
+      }
+      const cap = levelCap(key);
+      if (cap !== null) for (const it of v.items) {
+        if (it.drop) continue;
+        const sd = ix.spells.resolve(it.ref, rules).hit;
+        if (sd && sd.level > cap) add("misplaced", "warning", where, `"${sd.name}" is level ${sd.level}, above this line's cap (${key})`, key, sd.name);
+      }
+    }
+  }
 
   // ── D42: dangling `Class 0` ────────────────────────────────────────────────
   // A `Classes` entry with level 0 and no level block for that class declares nothing yet — it
@@ -707,11 +769,15 @@ export function normalise(paste: Paste, slots: Slots, supplement: Supplement = {
   };
   for (const f of redundant) {
     const scope = scopeFor(f.where); if (!scope || !f.key) continue;
-    if ((f.key === "Prepared" || f.key === "HP") && !f.ref) { scope.delete(f.key); continue; }
-    const v = scope.get(f.key);
-    if (!v || v.type !== "items" || !f.ref) continue;
-    const kept = v.items.filter((i) => lc(i.ref.name) !== lc(f.ref as string));
-    if (kept.length) scope.set(f.key, { type: "items", items: kept } as Value); else scope.delete(f.key);
+    // A finding names its key group (D180, D184): `Options` covers the family lines, `Spells` its capped lines.
+    const keys = [...scope.keys()].filter((k) => k === f.key || (!isFeatKey(k) && keyGroup(k) === f.key));
+    if ((f.key === "Prepared" || f.key === "HP") && !f.ref) { for (const k of keys) scope.delete(k); continue; }
+    for (const k of keys) {
+      const v = scope.get(k);
+      if (!v || v.type !== "items" || !f.ref) continue;
+      const kept = v.items.filter((i) => lc(i.ref.name) !== lc(f.ref as string));
+      if (kept.length) scope.set(k, { type: "items", items: kept } as Value); else scope.delete(k);
+    }
   }
   return out;
 }

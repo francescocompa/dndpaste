@@ -7,6 +7,10 @@ details, `Options`). Every file in `fixtures/` is in SPEC 0.8 form (migrated 202
 0.8 parser and emitter). `fixtures/v0.7/` keeps the 0.7 text of `druid-custom-background` (an
 `Ability` line, background and level `ASI`): the test asserts it reads with `W005` only and emits
 its 0.8 sibling. `noncanonical/st-extension` and `noncanonical/st-quoting` are 0.7 text too.
+`mc-planned-20-families` is `mc-planned-20` in SPEC 0.9 form (family keys, `Spells (6th)` for
+Mystic Arcanum, D180–D184); `noncanonical/mc-planned-20-families` is its long form (`Options (invocation)`,
+`Options (Mastery)`, `Spells (6TH)`), which emits as the canonical file. A test checks both fixtures get the
+same checker findings as `mc-planned-20`.
 
 Fidelity notes:
 - `vice`: the paper sheet lists three invocations at level 1; a 2024 Warlock has one at level 1 and

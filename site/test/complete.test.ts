@@ -265,7 +265,7 @@ function keysAt(src: string): string[] | null {
 test("D170: a letter at a line's start suggests the keys its block allows, from the hint strip; never on an empty line or the name line", () => {
   assert.deepEqual(keysAt("Vice\nRules: 2024\nSpe¦"), ["Species", "Spells"]);
   assert.deepEqual(keysAt("Vice\nRules: 2024\nspec¦"), ["Species"], "any case");
-  assert.deepEqual(keysAt("Vice\nRules: 2024\nr¦"), [], "Rules is already there");
+  assert.deepEqual(keysAt("Vice\nRules: 2024\nrul¦"), [], "Rules is already there");
   assert.ok(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nC¦")?.includes("Cantrips"), "a level block's keys");
   assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nSpe¦"), ["Spells"], "a level block opens no Species block");
   assert.deepEqual(keysAt("Vice\nZz¦"), [], "nothing fits");

@@ -2,6 +2,49 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- **SPEC 0.9** (D180–D185, additions only; a minor version per FORMAT-UPDATES §1). Every 0.8 paste reads
+  and emits as before, with no new warning: nothing renames, so there is no alias and no `W005`.
+  - Option families get their own keys: `Invocations`, `Metamagic`, `Maneuvers`, `Infusions`,
+    `Arcane Shots`, `Runes`, `Disciplines`, `Pact Boon`. They sit between `Masteries` and `Options` in
+    the canonical order. `Options` stays valid for any family (D180, amends D27).
+  - `Options` takes a family marker, an open list as `Feat`'s: `Options (Soul Techniques): …`. A family
+    key's name, singular or plural, in any case, folds into that key, and `emit` writes the key:
+    `Options (invocation): …` → `Invocations: …`. `Masteries` is a family too: `Options (Mastery)` reads as
+    `Masteries` (D181, D182). Both spellings in one scope are `E003`.
+  - `Spells` and `Prepared` take a level cap, `1st` to `9th`: `Spells (6th): Mass Suggestion`, the highest
+    level the line picks from. It is its own line beside the uncapped one (D184).
+  - Class-feature picks stay `Feature` lines: `Feature: Divine Order [Thaumaturge]` (D183).
+  - `E002` also covers a marker on a key that takes none, and a cap outside `1st`–`9th`.
+- Checker (D185): family, marked and capped lines count into the same slots as `Options` and `Spells`. An
+  option of another family on a family line is `misplaced`/warning. An open marker is matched to the
+  table's family names and codes: a near miss is `unresolved`/warning ("did you mean"), an unknown one
+  `unresolved`/info. A spell above its line's cap is `misplaced`/warning. `normalise` also reaches into
+  family and capped lines.
+- Library: `resolveKey`, `keyGroup`, `levelCap`, `familyOf`; `KeyDef.marker` and `KeyDef.family`; `keyDef`
+  resolves marked keys (`Options (Invocation)` → `Invocations`, `Spells (3rd)` → `Spells`). `SPEC_VERSION`
+  is `"0.9"`.
+- Fixtures: `mc-planned-20-families` (0.9 form of `mc-planned-20`) and its long form in `noncanonical/`.
+- Site (needed by the site tests, outside the editor): key-table rows for the family keys, and the
+  render kind and marker style for marked and capped keys. `RENDER_VERSION` is 5.
+
+### Migrating from 0.8
+Readers and writers need nothing: 0.8 pastes keep their meaning and their canonical form. A writer may
+switch to the new forms line by line:
+
+| 0.8 | 0.9 |
+|---|---|
+| `Options: Agonizing Blast [Eldritch Blast], Repelling Blast [Eldritch Blast]` | `Invocations: Agonizing Blast [Eldritch Blast], Repelling Blast [Eldritch Blast]` |
+| `Options: Riposte, Trip Attack` | `Maneuvers: Riposte, Trip Attack` |
+| `Options: Quickened Spell` | `Metamagic: Quickened Spell` |
+| `Options: Pact of the Chain` (2014) | `Pact Boon: Pact of the Chain` |
+| `Spells: Counterspell, Mass Suggestion` (Warlock 11) | `Spells: Counterspell` and `Spells (6th): Mass Suggestion` |
+
+Code reading the AST: read options from every key whose `keyGroup` is `Options` (`Options`,
+`Options (<marker>)`, the family keys), and spells from every key whose `keyGroup` is `Spells` or
+`Prepared` (`levelCap` gives the cap). A reader that only looks at the `Options` or `Spells` key misses
+the new lines.
+
 ## 0.8.0 — 2026-11-16
 - **SPEC 0.8** (D106–D113, decided in the pre-deploy review): fewer keys, one canonical place for each pick.
   A 0.7 paste still parses, with a `W005` "renamed key" warning per old line, and emits in 0.8 form (D113).

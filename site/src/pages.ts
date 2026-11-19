@@ -82,7 +82,7 @@ export interface ViewState {
  * Bump when the view body or the canonical text a record caches would change (renderer, library parse or emit).
  * test/cache.test.ts holds a hash of every fixture's output and fails until this moves with it.
  */
-export const RENDER_VERSION = 4;
+export const RENDER_VERSION = 5;
 
 /** Everything the view and /canon derive from the paste, computed once at save (free-plan CPU, T3.3). */
 export function prerender(paste: Paste): Rendered {
