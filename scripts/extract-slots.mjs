@@ -255,7 +255,7 @@ for (const s of load("races.json").subrace ?? []) {
   const sp = additionalSpellsSpec(s.additionalSpells);
   const merge = (a, b) => (a && b ? { fixed: [...a.fixed, ...b.fixed], choose: b.choose ?? a.choose, any: a.any + b.any } : b ?? a);
   species[`${s.raceName} (${s.name})|${s.source}`] = {
-    ...base, name: `${s.raceName} (${s.name})`, source: s.source, edition: edition({ source: s.source }) ?? base.edition, srd: Boolean(base.srd || isSrd(s)),
+    ...base, name: `${s.raceName} (${s.name})`, source: s.source, edition: edition({ source: s.source }) ?? base.edition, srd: isSrd(s), // the subrace's own flag: a non-SRD subrace of an SRD race stays out of the subset
     subraceOf: `${s.raceName}|${s.raceSource ?? s.source}`,
     skills: merge(base.skills, chooseSpec(s.skillProficiencies)), tools: merge(base.tools, chooseSpec(s.toolProficiencies)), languages: merge(base.languages, chooseSpec(s.languageProficiencies)),
     ability: abilitySpec([...(load("races.json").race.find((r) => r.name === s.raceName && r.source === (s.raceSource ?? s.source))?.ability ?? []), ...(s.ability ?? [])]),
