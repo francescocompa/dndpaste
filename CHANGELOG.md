@@ -40,6 +40,12 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
     keeps error lines; `tidy` command. Package exports `dndpaste/check` and the SRD slot table.
   - Extract: `meta.sources`; 2014 expanded spell lists are not granted; options record granted spells.
   - README: install, recipe, helpers, checker, CLI, site endpoints. Guide: D192–D198 copy.
+- **Subclass placement and bare names** (D220, D221). A `Subclass` line goes in the level block where its
+  class gains the subclass, or in the header; any other block is `misplaced`/warning with "move it to L3
+  Wizard" and an `at` target. `Diviner Wizard` (short name, then class) resolves. A name with no code
+  means its newest printing within `Rules` (newest of all without), a core book before a setting book
+  of the same edition; a bare name only Unearthed Arcana prints is a warning. Extract: `meta.sourceDates`,
+  `meta.settingSources`; `isUaSource` exported from `dndpaste/check`.
 - Site (needed by the site tests, outside the editor): key-table rows for the family keys, and the
   render kind and marker style for marked and capped keys. `RENDER_VERSION` is 5.
 
