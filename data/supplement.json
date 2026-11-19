@@ -1,6 +1,7 @@
 {
   "_comment": "Hand-kept supplement for choice slots 5etools encodes only as prose (SPEC §6, D30). Names only — no rules text. Keys are 5etools name|SOURCE.",
   "expertiseCount": 2,
+  "masteryCount": { "Paladin|XPHB": 2, "Ranger|XPHB": 2, "Rogue|XPHB": 2 },
   "spellbook": {
     "Wizard|XPHB": { "first": 6, "perLevel": 2 },
     "Wizard|PHB": { "first": 6, "perLevel": 2 }

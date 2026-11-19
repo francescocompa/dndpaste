@@ -131,14 +131,24 @@ Cantrips: Light
   assert.match(ghostHtml(ghosts(text)[0], 1), /class="gc over">1\/0<svg/);
 });
 
+const none2014 = (text: string) => assert.deepEqual(ghosts(text), [], "2014 classes have no masteries");
+
 test("no ghost: Other class, an unknown edition or source, a count the table lacks, header and entity blocks", () => {
   const none = (text: string, what: string) => assert.deepEqual(ghosts(text), [], what);
   none("Rules: 2024\nClasses: Artificer 1\n\nL1 Artificer\nCantrips:\nSpells:\n", "Other class (D127)");
   none("Classes: Wizard 1\n\nL1 Wizard\nCantrips:\n", "no source and no Rules");
   none("Rules: 2024\nClasses: Wizard|TCE 1\n\nL1 Wizard|TCE\nCantrips:\n", "a source not in the table");
-  none("Rules: 2024\nClasses: Paladin 1\n\nL1 Paladin\nMasteries:\n", "2024 paladin masteries: no progression in the table");
+  none("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nPrepared:\n", "2014 prepared: the count needs the ability modifier");
   none("Rules: 2024\nClasses: Wizard 1\nSpells: Shield\n\nBackground: Sage|XPHB\nSkills:\n", "header and Background lines");
   none("", "an empty editor");
+});
+
+test("2024 Paladin, Ranger and Rogue masteries: the supplement's fixed count, a loadout at every level", () => {
+  for (const cls of ["Paladin", "Ranger", "Rogue"]) {
+    assert.deepEqual(byLine(`Rules: 2024\nClasses: ${cls} 3\n\nL1 ${cls}\nMasteries: Longsword\n\nL3 ${cls}\nMasteries:\n`),
+      { "L1 Masteries: Longsword": "1 of 2", "L3 Masteries:": "0 of 2" }, cls);
+  }
+  none2014("Rules: 2014\nClasses: Rogue 1\n\nL1 Rogue\nMasteries:\n");
 });
 
 test("Rules picks the table for an unsourced class; a source on the class wins", () => {
