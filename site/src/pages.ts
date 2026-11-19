@@ -2,6 +2,8 @@
 import { emit, isClean, parse } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { BUILD } from "./build.gen.ts";
+import { TO_CHOOSE_SHOWN, isToChoose, toChooseLines } from "./client/status.ts";
+import { ghostCounts } from "./ghost.ts";
 import { stampText } from "./client/update.ts";
 import { GUIDE_LINK } from "./example.ts";
 import { FEEDBACK_LINE } from "./links.ts";
@@ -189,7 +191,15 @@ export function formPage(s: FormState = {}): string {
   const diags = s.diagnostics ?? [];
   const errors = diags.filter((d) => d.code.startsWith("E")).length;
   const sum = errors ? `<span class="dsum"><b>${errors} error${errors === 1 ? "" : "s"}</b> · fix ${errors === 1 ? "it" : "them"} to save</span>` : "";
-  const problems = diags.length ? diagList(diags) : `<p class="muted">Checked when you save.</p>`;
+  // D149: an empty "not chosen yet" line (W004) is listed under To choose, not under Problems.
+  const listed = diags.filter((d) => !isToChoose(d));
+  const pasteText = (s.paste ?? "").replace(/\r\n?/g, "\n");
+  const choose = diags.length ? toChooseLines(diags.filter(isToChoose), ghostCounts(parse(pasteText), pasteText)) : [];
+  const problems = listed.length ? diagList(listed) : diags.length ? `<p class="muted">No problems.</p>` : `<p class="muted">Checked when you save.</p>`;
+  const toChoose = choose.length
+    ? `<div class="stack sm tochoose"><span class="lbl">To choose · ${choose.length}</span><div class="chips lns">` +
+      `${choose.slice(0, TO_CHOOSE_SHOWN).map((l) => `<span class="hc">${l}</span>`).join("")}${choose.length > TO_CHOOSE_SHOWN ? `<span class="more">+${choose.length - TO_CHOOSE_SHOWN}</span>` : ""}</div></div>`
+    : "";
   const e = s.edit;
   const notes = [
     s.missingFrom ? `<p class="note">There is no build with the id ${esc(s.missingFrom)}. The form starts empty.</p>` : "",
@@ -205,7 +215,7 @@ ${notes}<div class="stack sm"><label class="fld"><span class="lbl">Title</span><
 <label class="fld"><span class="lbl">Author</span><textarea class="in fit" name="author" rows="1" maxlength="${LIMITS.author}" autocomplete="off" spellcheck="false" placeholder="Anonymous">${esc(s.author ?? "")}</textarea></label></div>
 <div class="tb"><span class="grow"></span>${sum}${cancel}<button class="bt pri" type="submit">${saveBtn}</button></div>
 <div class="fgrid"><div class="pane"><textarea class="src" name="paste" aria-label="Build" spellcheck="false" autocapitalize="off" autocomplete="off" rows="24" placeholder="Paste or type a build">${esc(s.paste ?? "")}</textarea></div>
-<aside class="aside"><div class="stack sm"><span class="lbl">Problems</span>${problems}</div>${GUIDE_LINK}</aside></div>
+<aside class="aside"><div class="stack sm"><span class="lbl">Problems</span>${problems}</div>${toChoose}${GUIDE_LINK}</aside></div>
 </form>`;
   // The editor, hints, Tidy, Open file and recent shares come from /assets/form.js (src/client/); without it this form
   // still saves, and the server answers with its diagnostics.

@@ -7,10 +7,10 @@
  */
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
-import { LANE, ghostCounts, ghostHtml, ghostPads } from "../ghost.ts";
+import { LANE, ghostHtml, ghostPads } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
 import type { Hints } from "./hints.ts";
-import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml } from "./status.ts";
+import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml, toChooseHtml } from "./status.ts";
 import type { Import, Status } from "./status.ts";
 import { recentHtml, recentStore } from "./recent.ts";
 import { editKeys as keysToTry, keyFromHash, keyStore, sendEdit } from "./keys.ts";
@@ -133,11 +133,13 @@ function init(): void {
   lbar.setAttribute("role", "status");
   tb.after(lbar);
 
-  // ---- side column: Problems · Keys you can add · My recent shares ----
+  // ---- side column: Problems · To choose (D149) · Keys you can add · My recent shares ----
   aside.innerHTML = `<div class="stack sm"><span class="lbl">Problems</span><div class="probs"></div></div>` +
+    `<div class="stack sm tochoose" hidden></div>` +
     `<div class="stack sm keys"><span class="lbl klbl">Keys you can add</span><div class="chips"></div></div>` + GUIDE_LINK +
     `<div class="stack sm"><span class="lbl">My recent shares</span><div class="rlist"></div></div>`;
   const probs = aside.querySelector<HTMLElement>(".probs") as HTMLElement;
+  const tochoose = aside.querySelector<HTMLElement>(".tochoose") as HTMLElement;
   const klbl = aside.querySelector<HTMLElement>(".klbl") as HTMLElement;
   const chips = aside.querySelector<HTMLElement>(".chips") as HTMLElement;
   const rlist = aside.querySelector<HTMLElement>(".rlist") as HTMLElement;
@@ -169,6 +171,8 @@ function init(): void {
   let st: Status = status(ta.value);
   let hints: Hints = keyHints(ta.value, 0);
   let saving = false;
+  /** D149: "+N" was pressed; the To choose row shows every line until the form reloads. */
+  let allChoose = false;
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
   let changed = () => {};
 
@@ -180,6 +184,9 @@ function init(): void {
     put(chips, html || `<span class="muted">This block has every key it allows.</span>`);
     put(krow, html || `<span class="muted">No keys left for this block.</span>`);
     kn.textContent = String(hints.keys.length);
+    // D149 review: the To choose chip of the line the cursor is on.
+    const here = String(cursorLine() + 1);
+    for (const c of tochoose.querySelectorAll<HTMLElement>("[data-line]")) c.classList.toggle("cur", document.activeElement === ta && c.dataset.line === here);
     if (tipFor && !tipFor.isConnected) hideTip();
   };
   /**
@@ -223,7 +230,7 @@ function init(): void {
   };
   /** The highlight rows, with the ghost pick counts after their lines (D130): display only, never in the text. */
   const drawRows = () => {
-    const gs = ghostCounts(st.paste, ta.value);
+    const gs = st.ghosts;
     // The lane is there only while a ghost shows: a paste with none keeps the full width.
     if (ed.classList.toggle("gl", gs.length > 0) !== laneOn) { laneOn = gs.length > 0; measure(); }
     const pads = ghostPads(ta.value.split(/\r?\n/), gs, cols, LANE);
@@ -249,6 +256,9 @@ function init(): void {
     ed.classList.toggle("w4", n >= 1000);
     put(sum as HTMLElement, summaryHtml(st));
     put(probs, problemsHtml(st));
+    const choose = toChooseHtml(st, allChoose);
+    put(tochoose, choose);
+    tochoose.hidden = !choose;
     // D94: every dock status (empty, all-clear, warnings, problems) takes its own row above Keys · Save.
     put(prow, dockLineHtml(st));
     setSaveState();
@@ -317,12 +327,17 @@ function init(): void {
     if (e.inputType === "historyUndo") history(e, false);
     else if (e.inputType === "historyRedo") history(e, true);
   });
-  const jump = (line: number) => {
+  /** `atEnd`: the cursor goes after the line's text, where a To choose line's value is typed (D149). */
+  const jump = (line: number, atEnd = false) => {
     const lines = ta.value.split("\n");
-    const pos = lines.slice(0, Math.max(0, line - 1)).reduce((a, l) => a + l.length + 1, 0);
+    const start = lines.slice(0, Math.max(0, line - 1)).reduce((a, l) => a + l.length + 1, 0);
+    const pos = atEnd ? start + (lines[line - 1] ?? "").replace(/\r$/, "").trimEnd().length : start;
     ta.focus({ preventScroll: true });
     ta.setSelectionRange(pos, pos);
-    hl.children[line - 1]?.scrollIntoView({ block: "center" });
+    const row = hl.children[line - 1];
+    row?.scrollIntoView({ block: "center" });
+    // D149 review: the row fills and fades, so the eye finds the line it jumped to.
+    if (row) { row.classList.remove("flash"); void (row as HTMLElement).offsetWidth; row.classList.add("flash"); }
     refreshHints();
   };
   const insertKey = (key: string) => {
@@ -402,7 +417,7 @@ function init(): void {
     if (kind === "insertFromPaste" || kind === "insertFromDrop") void checkLink();
     else if (!lbar.hidden && !linkedId(ta.value, location.host)) hideBar();
   });
-  for (const ev of ["keyup", "click", "focusin"]) ed.addEventListener(ev, refreshHints);
+  for (const ev of ["keyup", "click", "focusin", "focusout"]) ed.addEventListener(ev, refreshHints);
   // D90: the cursor left the held line (arrows, a click, a jump), or the editor lost focus.
   document.addEventListener("selectionchange", () => {
     if (holdLine && document.activeElement === ta && cursorLine() + 1 !== holdLine) release();
@@ -411,7 +426,8 @@ function init(): void {
   form.addEventListener("click", (e) => {
     const t = e.target as Element;
     const at = t.closest<HTMLElement>("[data-line]");
-    if (at) { jump(Number(at.dataset.line)); return; }
+    if (at) { jump(Number(at.dataset.line), "end" in at.dataset); return; }
+    if (t.closest(".tochoose [data-act=more]")) { allChoose = true; refresh(); return; }
     const chip = t.closest<HTMLElement>(".hc[data-key]");
     if (!chip?.dataset.key) return;
     if (pressed === chip) { pressed = null; return; }   // a long press showed the description: it does not insert
