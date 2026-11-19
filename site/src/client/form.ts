@@ -7,7 +7,8 @@
  */
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
-import { LANE, ghostHtml, ghostPads } from "../ghost.ts";
+import { LANE, ghostHtml, ghostPads, keepCount } from "../ghost.ts";
+import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
 import type { Hints } from "./hints.ts";
 import { dockLineHtml, importBarHtml, linkedId, problemsHtml, status, summaryHtml, toChooseHtml } from "./status.ts";
@@ -23,15 +24,19 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, slotHint, spotAt, suggest, written } from "./complete.ts";
-import type { Names, Spot, Suggestion } from "./complete.ts";
+import { afterPick, ghostWord, keySpotAt, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
+import { suggestPref } from "./prefs.ts";
 
 const recent = recentStore(() => window.localStorage);
 const authors = authorStore(() => window.localStorage);
 const keys = keyStore(() => window.localStorage);
+/** D173: the Suggestions switch, set in the header's Settings menu (site.ts); read on every keystroke. */
+const suggestOn = suggestPref(() => window.localStorage);
 const MAX_FILE = 1024 * 1024;
 /** The autocomplete's SRD names (D158), its own bundle: a variable, so esbuild leaves the import to the browser. */
 const NAMES_JS = "/assets/names.js";
+
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = ""): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -185,6 +190,9 @@ function init(): void {
   let saving = false;
   /** D149: "+N" was pressed; the To choose row shows every line until the form reloads. */
   let allChoose = false;
+  /** D175: the count of the line being typed, kept while that line doesn't read; the line it's frozen on (0: none). */
+  let kept: Ghost | null = null;
+  let frozeLine = 0;
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
   let changed = () => {};
 
@@ -202,11 +210,11 @@ function init(): void {
     if (tipFor && !tipFor.isConnected) hideTip();
   };
   /**
-   * D90: the line being typed (1-based; 0 = none) holds its E001 until the cursor leaves it or typing pauses for
-   * HOLD_MS. Save looks ready meanwhile (as in frame form-keys-dark-phone) but still blocks: pressing it lets go of
+   * D90, D176: the line being typed (1-based; 0 = none) holds its errors until the cursor leaves it or typing pauses
+   * for HOLD_MS. Save looks ready meanwhile (as in frame form-keys-dark-phone) but still blocks: pressing it lets go of
    * the hold and shows the error.
    */
-  const HOLD_MS = 1500;
+  const HOLD_MS = 3000;
   let holdLine = 0;
   let holdTimer = 0;
   const release = () => {
@@ -240,13 +248,25 @@ function init(): void {
     }
     rows = next;
   };
+  /** The ghost text at the cursor (D174): the kind of name its short counted line still wants. */
+  const wordNow = () => document.activeElement === ta && ta.selectionStart === ta.selectionEnd
+    ? ghostWord(ta.value, ta.selectionStart, new Set(st.ghosts.filter((g) => g.have < g.of).map((g) => g.line)))
+    : null;
+  let wordShown = "";
   /** The highlight rows, with the ghost pick counts after their lines (D130): display only, never in the text. */
   const drawRows = () => {
     const gs = st.ghosts;
     // The lane is there only while a ghost shows: a paste with none keeps the full width.
     if (ed.classList.toggle("gl", gs.length > 0) !== laneOn) { laneOn = gs.length > 0; measure(); }
     const pads = ghostPads(ta.value.split(/\r?\n/), gs, cols, LANE);
-    draw(highlightRows(ta.value, st.diagnostics, new Map(gs.map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1)]))));
+    const w = wordNow();
+    wordShown = w ? `${w.line}:${w.word}` : "";
+    draw(highlightRows(ta.value, st.diagnostics, new Map(gs.map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1, g.line === w?.line ? w.word : "")]))));
+  };
+  /** A cursor move: redraw when the ghost text comes, goes or moves. */
+  const redrawWord = () => {
+    const w = wordNow();
+    if ((w ? `${w.line}:${w.word}` : "") !== wordShown) drawRows();
   };
   // A wider or narrower row changes which ghosts fit their block's column: redraw when it does.
   new ResizeObserver(() => { if (measure()) drawRows(); }).observe(hl);
@@ -262,6 +282,13 @@ function init(): void {
   const refresh = () => {
     if (bulk) return;
     st = status(ta.value, holdLine);
+    // D175: the line being typed keeps its count while it doesn't read.
+    const cl = document.activeElement === ta ? cursorLine() + 1 : 0;
+    const broken = cl > 0 && st.paste.diagnostics.some((d) => d.line === cl && d.code.startsWith("E"));
+    const k = keepCount(st.ghosts, cl, broken, kept);
+    kept = k.kept;
+    frozeLine = broken && kept ? cl : 0;
+    st = { ...st, ghosts: k.ghosts };
     drawRows();
     const n = rows.length;
     ed.classList.toggle("w3", n >= 100 && n < 1000);
@@ -385,6 +412,8 @@ function init(): void {
   ed.append(acSays);
   let acSpot: Spot | null = null;
   let acRows: Suggestion[] = [];
+  /** D170: a key being typed at the line's start; its rows are keys (`Species:`), not names. */
+  let acKey: KeySpot | null = null;
   /** The row an arrow picked; -1: none, so Enter keeps its new line (D154). */
   let acOn = -1;
   /** What goes in the `[ ]` the cursor is in, one entry per `;` group (D163); null outside one or where unknown. */
@@ -400,6 +429,7 @@ function init(): void {
     if (ac.hidden && !acSpot) return;
     ac.hidden = true;
     acSpot = null;
+    acKey = null;
     acRows = [];
     acOn = -1;
     acSays.textContent = "";
@@ -426,7 +456,8 @@ function init(): void {
     return t.getBoundingClientRect();
   };
   const acPlace = () => {
-    const at = acSpot ? caretBox(acSpot.start) : null;
+    const from = acSpot?.start ?? acKey?.start;
+    const at = from === undefined ? null : caretBox(from);
     if (!at) return;
     const box = ed.getBoundingClientRect();
     // Below the line when the list fits in the window there (it may hang past the editor's edge), else on the
@@ -459,8 +490,10 @@ function init(): void {
     dock.classList.toggle("ac-on", onPhone);
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
-      acSays.textContent = acRows.length ? `${what}${acRows.length === 1 ? "1 name" : `${acRows.length} names`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      const kind = acKey ? "key" : "name";
+      acSays.textContent = acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
+    ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
     ac.hidden = false;
     if (!onPhone) acPlace();
     ac.querySelector(".on")?.scrollIntoView({ block: "nearest" });
@@ -471,7 +504,22 @@ function init(): void {
     // The editor may have had focus before this ran (a restored draft, the browser's own focus): load on first use too.
     if (!names) { if (typing) loadNames(); return; }
     if (!typing && ac.hidden) return;
-    if (document.activeElement !== ta || ta.selectionStart !== ta.selectionEnd) { acClose(); return; }
+    if (!suggestOn.get() || document.activeElement !== ta || ta.selectionStart !== ta.selectionEnd) { acClose(); return; }
+    // A key at the line's start (D170): the hint strip's keys, narrowed by what was typed.
+    const ks = keySpotAt(ta.value, ta.selectionStart);
+    const kk = ks ? suggestKeys(ta.value, ks) : [];
+    if (ks && kk.length) {
+      const rows = kk.slice(0, phone.matches ? 12 : 8).map((k): Suggestion => ({ name: `${k}:`, source: null }));
+      const same = acKey?.start === ks.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
+      if (!same) acOn = -1;
+      acSpot = null;
+      acKey = ks;
+      acRows = rows;
+      acHint = null;
+      acDraw();
+      return;
+    }
+    acKey = null;
     const sp = spotAt(ta.value, ta.selectionStart);
     const rows = sp ? suggest(names, sp, phone.matches ? 12 : 8) : [];
     // An empty `[ ]` group the table knows shows what goes there, even before a name fits (D163).
@@ -493,6 +541,17 @@ function init(): void {
   const acTake = (i: number) => {
     const sp = acSpot;
     const r = acRows[i];
+    const ks = acKey;
+    if (ks && r) {
+      // D171: the key, then its value list at once (Feat (…): the cursor in the parentheses, for the slot's name).
+      acClose();
+      const w = writtenKey(r.name.slice(0, -1));
+      insert(w.text, ks.start, ks.end);
+      ta.setSelectionRange(ks.start + w.cursor, ks.start + w.cursor);
+      refreshHints();
+      complete(true);
+      return;
+    }
     if (!sp || !r) return;
     acClose();
     // Inside [ ], the next group or name starts at once (D163 review), unless a separator is already there.
@@ -624,9 +683,18 @@ function init(): void {
   for (const ev of ["keyup", "click", "focusin", "focusout"]) ed.addEventListener(ev, refreshHints);
   // D90: the cursor left the held line (arrows, a click, a jump), or the editor lost focus.
   document.addEventListener("selectionchange", () => {
-    if (holdLine && document.activeElement === ta && cursorLine() + 1 !== holdLine) release();
+    if (document.activeElement !== ta) return;
+    const here = cursorLine() + 1;
+    if (holdLine && here !== holdLine) release();
+    else if (frozeLine && here !== frozeLine) refresh();   // D175: the count follows the line once the cursor leaves
+    else redrawWord();
   });
-  ed.addEventListener("focusout", release);
+  ed.addEventListener("focusout", () => {
+    release();
+    // After the focus has moved: the frozen count (D175) and the ghost text (D174) belong to the focused editor only.
+    setTimeout(() => { if (document.activeElement === ta) return; if (frozeLine) refresh(); else redrawWord(); });
+  });
+  ed.addEventListener("focusin", redrawWord);
   form.addEventListener("click", (e) => {
     const t = e.target as Element;
     const at = t.closest<HTMLElement>("[data-line]");
@@ -637,6 +705,7 @@ function init(): void {
     if (pressed === chip) { pressed = null; return; }   // a long press showed the description: it does not insert
     hideTip();
     insertKey(chip.dataset.key);
+    complete(true);   // D171: the key's value list opens at once
   });
 
   // ---- Keys popover: a key's description from the guide's key table (keydocs.ts), on hover or keyboard focus of

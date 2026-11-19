@@ -122,6 +122,9 @@ html:not(.hasjs) .njs { display: none !important; }
 .dmenu .tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); transition: left 0.12s; }
 .dmenu .tog.on { background: var(--acc); } .dmenu .tog.on::after { left: 16px; }
+.dmenu .seg button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.dmenu .seg svg.i { width: 13px; height: 13px; }
+.dmenu hr { border: 0; border-top: 1px solid var(--rule); margin: 0; width: 100%; }
 .dmenu .swatches { display: flex; gap: 6px; flex-wrap: wrap; margin-top: -6px; }
 .dmenu .swatches i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 .sw-class { background: var(--kd-class); } .sw-subclass { background: var(--kd-subclass); } .sw-species { background: var(--kd-species); }
@@ -268,6 +271,9 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ed .gc { font: 500 11px/1 var(--sans); letter-spacing: 0.02em; color: var(--mute); font-variant-numeric: tabular-nums;
   background: var(--chip); border-radius: 4px; padding: 2px 5px; }
 .ed .gc .i { display: inline-block; width: 11px; height: 11px; margin-left: 3px; vertical-align: -1.5px; color: var(--err); }
+/* Ghost text (D174): the kind of name a short counted line still wants, at the cursor. Faint sans, out of the flow
+   (over the ghost's padding), so it never wraps or moves a thing. */
+.ed .gt { position: absolute; font: italic 400 12px/inherit var(--sans); color: var(--mute); opacity: 0.75; pointer-events: none; }
 .ed .gprobe { position: absolute; visibility: hidden; white-space: pre; pointer-events: none; left: 0; top: 0; }
 .ed b { font-weight: 600; }
 .ed .row.err { background: var(--errbg); } .ed .row.err .g { color: var(--err); font-weight: 600; }

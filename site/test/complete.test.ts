@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { afterPick, minTyped, slotHint, sourceFor, spellCap, spotAt, suggest, written } from "../src/client/complete.ts";
+import { OPEN_EVERY_SPOT, afterPick, ghostWord, keySpotAt, minTyped, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 
 /** `¦` marks the cursor. */
@@ -23,11 +23,13 @@ function take(src: string, i = 0): string {
 }
 
 test("D164: the letters before the list opens follow the list's size; never where no name goes", () => {
-  assert.deepEqual([minTyped(2), minTyped(12), minTyped(13), minTyped(40), minTyped(41), minTyped(300)], [0, 0, 1, 1, 2, 2]);
-  assert.deepEqual(names("Spells: F¦"), [], "hundreds of spells: 2 letters");
-  assert.ok(names("Spells: Fi¦")?.includes("Fireball"));
-  assert.deepEqual(names("Skills: a¦"), ["Acrobatics", "Animal Handling", "Arcana", "Athletics"], "18 skills: 1 letter");
-  assert.deepEqual(names("Skills: ¦"), [], "but not 0");
+  // With the D172 trial switched off: the sizes D164 settled.
+  const sized = (src: string) => { const s = spot(src); return s ? suggest(N, s, 8, false).map((x) => x.name) : null; };
+  assert.deepEqual([2, 12, 13, 40, 41, 300].map((n) => minTyped(n, false)), [0, 0, 1, 1, 2, 2]);
+  assert.deepEqual(sized("Spells: F¦"), [], "hundreds of spells: 2 letters");
+  assert.ok(sized("Spells: Fi¦")?.includes("Fireball"));
+  assert.deepEqual(sized("Skills: a¦"), ["Acrobatics", "Animal Handling", "Arcana", "Athletics"], "18 skills: 1 letter");
+  assert.deepEqual(sized("Skills: ¦"), [], "but not 0");
   assert.deepEqual(names("Feat: Magic Initiate [¦"), ["CHA", "INT", "WIS"], "3 abilities: on the empty spot");
   assert.deepEqual(names("Feature: Divine Order [¦"), ["Protector", "Thaumaturge"]);
   assert.equal(spot("Spe¦lls: Fireball"), null, "typing the key");
@@ -240,4 +242,63 @@ test("D163 review: a pick inside [ ] starts the next name or group; Thaumaturge 
   assert.deepEqual(names("Feature: Divine Order [Thaumaturge; gu¦]"), ["Guidance"]);
   assert.deepEqual(names("Feature: Primal Order [Magician; dr¦]"), ["Druidcraft"]);
   assert.deepEqual(names("Feature: Divine Order [Protector; gu¦]"), [], "no cantrip group after Protector");
+});
+
+test("D172 (trial): every empty name spot opens its list, after `: `, after `, ` and inside `[ ]`, whatever its size", () => {
+  assert.equal(OPEN_EVERY_SPOT, true);
+  assert.equal(minTyped(300), 0);
+  assert.equal(names("Spells: ¦")?.length, 8, "hundreds of spells, before a letter");
+  assert.equal(names("Skills: ¦")?.length, 8);
+  assert.ok(names("Species: ¦")?.length, "a one-pick key");
+  const after = names("Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: Guidance, ¦");
+  assert.ok(after?.length && !after.includes("Guidance"), "after a comma, the names already there left out");
+  assert.equal(spot("Spe¦"), null, "still nothing where no name goes");
+});
+
+/** The keys offered at `¦` (D170), or null where no key is being typed. */
+function keysAt(src: string): string[] | null {
+  const text = src.replace("¦", "");
+  const ks = keySpotAt(text, src.indexOf("¦"));
+  return ks ? suggestKeys(text, ks) : null;
+}
+
+test("D170: a letter at a line's start suggests the keys its block allows, from the hint strip; never on an empty line or the name line", () => {
+  assert.deepEqual(keysAt("Vice\nRules: 2024\nSpe¦"), ["Species", "Spells"]);
+  assert.deepEqual(keysAt("Vice\nRules: 2024\nspec¦"), ["Species"], "any case");
+  assert.deepEqual(keysAt("Vice\nRules: 2024\nr¦"), [], "Rules is already there");
+  assert.ok(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nC¦")?.includes("Cantrips"), "a level block's keys");
+  assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nSpe¦"), ["Spells"], "a level block opens no Species block");
+  assert.deepEqual(keysAt("Vice\nZz¦"), [], "nothing fits");
+  assert.equal(keysAt("Vice\n¦"), null, "an empty line opens nothing");
+  assert.equal(keysAt("Vic¦"), null, "the first line is the build's name");
+  assert.equal(keysAt("Vice\nSpe¦cies"), null, "the cursor inside a word");
+  assert.equal(keysAt("Vice\nL5 Wiz¦"), null, "a level header");
+  assert.equal(keysAt("Vice\nSpecies: E¦"), null, "a value");
+  const text = "Vice\n  Spe  ";
+  const ks = keySpotAt(text, text.length - 2);
+  assert.deepEqual(ks && [text.slice(ks.start, ks.end), ks.typed], ["Spe  ", "Spe"], "a pick replaces from the key's first letter to the line's end");
+});
+
+test("D171: a key pick writes `Key: ` with the cursor after it; `Feat (…)` puts it in the parentheses", () => {
+  assert.deepEqual(writtenKey("Species"), { text: "Species: ", cursor: 9 });
+  const f = writtenKey("Feat (…)");
+  assert.equal(f.text, "Feat (): ");
+  assert.equal(f.text.slice(0, f.cursor), "Feat (");
+  // The value list opens on the written key's empty spot.
+  assert.ok(names("Vice\nSpecies: ¦")?.length);
+});
+
+test("D174: the ghost text names the kind of name a short counted line still wants, at its end, outside `[ ]`", () => {
+  const base = "Vice\nRules: 2024\nClasses: Cleric 1\n\nL1 Cleric\n";
+  const at = (src: string, short = new Set([6])) => ghostWord((base + src).replace("¦", ""), base.length + src.indexOf("¦"), short);
+  assert.deepEqual(at("Cantrips: Guidance, ¦"), { line: 6, word: "cantrip" });
+  assert.deepEqual(at("Cantrips: Guidance,¦"), { line: 6, word: " cantrip" }, "a space when the line doesn't end in one");
+  assert.deepEqual(at("Cantrips: ¦"), { line: 6, word: "cantrip" }, "an empty line still owed");
+  assert.deepEqual(at("Spells: Bless, ¦")?.word, "spell");
+  assert.deepEqual(at("Skills: ¦")?.word, "skill");
+  assert.equal(at("Cantrips: Guidance, ¦", new Set()), null, "the count is met");
+  assert.equal(at("Cantrips: Guidance, L¦"), null, "gone at the first letter");
+  assert.equal(at("Cantrips: ¦, Guidance"), null, "not at the line's end");
+  assert.equal(at("Feat: Magic Initiate [¦]"), null, "inside [ ]");
+  assert.equal(at("Gear: Rope, ¦"), null, "a line with no count");
 });

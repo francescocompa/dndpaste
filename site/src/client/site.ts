@@ -2,7 +2,7 @@
  * Site chrome and the view page's interactions (M3 T3.2c). A classic script in <head>, not deferred: the first lines
  * apply the saved Display settings to <html> before the first paint (D82), the rest waits for the DOM.
  *
- * - Header: the Display menu (theme Auto/Light/Dark, Colour by kind, Colour abilities), saved in this browser.
+ * - Header: the Settings menu (theme Auto/Light/Dark, Colour by kind, Colour abilities, Suggestions), saved in this browser.
  * - View: the split Copy link button and its ▾ menu (Copy text, Copy canonical) with a copied state (D87), fold all /
  *   expand all over the level blocks, the report form's Cancel, the phone dock (CSS) and sheets.
  * - Editing (D97): Edit on the latest revision when this browser keeps the share's edit key; after a save, the private
@@ -19,6 +19,7 @@ import { matches, sortRows } from "./codes.ts";
 import type { Col, Dir } from "./codes.ts";
 import { applyDisplay, displayMenuHtml, displayStore } from "./display.ts";
 import type { Display } from "./display.ts";
+import { suggestPref } from "./prefs.ts";
 import { keyFromHash, keyStore } from "./keys.ts";
 import { imageFileName } from "../shareimg.ts";
 import { BUILD } from "../build.gen.ts";
@@ -145,13 +146,14 @@ function wirePopovers(): void {
 /** D93: on a phone sheet, a grab bar and a close × in the head (CSS puts it first; hidden off a sheet). */
 const SHEET_HEAD = `<div class="shead"><span class="grab" aria-hidden="true"></span><button type="button" class="x shut" aria-label="Close">${icon("x")}</button></div>`;
 
-// ---- Display menu (D82) ----
+// ---- Settings menu (D82; "Display" until the D173 review, which added Suggestions) ----
 function wireDisplay(): void {
   const btn = document.querySelector<HTMLButtonElement>(".top .dbtn");
   if (!btn) return;
   let d: Display = store.get();
-  const body = () => displayMenuHtml(d, store.persistent()) + SHEET_HEAD;
-  const p = panel("dmenu", body(), "Display", "dialog");
+  const suggest = suggestPref(() => window.localStorage);
+  const body = () => displayMenuHtml(d, store.persistent(), suggest.get()) + SHEET_HEAD;
+  const p = panel("dmenu", body(), "Settings", "dialog");
   btn.setAttribute("aria-controls", (p.id = "dmenu"));
   const redraw = (focus: string) => {
     p.innerHTML = body();
@@ -163,7 +165,8 @@ function wireDisplay(): void {
     if (!t) return;
     if (t.classList.contains("shut")) { close(); return; }
     const th = t.dataset.themeSet as Display["theme"] | undefined;
-    const sw = t.dataset.switch as "kind" | "abilities" | undefined;
+    const sw = t.dataset.switch as "kind" | "abilities" | "suggest" | undefined;
+    if (sw === "suggest") { suggest.set(!suggest.get()); redraw(`[data-switch="suggest"]`); return; }
     if (th) d = { ...d, theme: th };
     else if (sw) d = { ...d, [sw]: !d[sw] };
     else return;

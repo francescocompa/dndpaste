@@ -36,7 +36,7 @@ interface Layout { title: string; main: string; head?: string; page: string }
 const FOOT = `<footer class="foot"><span class="bld"${fmtDate(BUILD.date) ? ` title="${fmtDate(BUILD.date)}"` : ""}>${esc(stampText(BUILD))}</span></footer>`;
 
 /**
- * Every page: the header (wordmark, New paste, Guide, About, the Display button), the build stamp in the foot (D137)
+ * Every page: the header (wordmark, New paste, Guide, About, the Settings button), the build stamp in the foot (D137)
  * and /assets/site.js, a classic script in <head> that applies the saved Display settings before the first paint (D82)
  * and wires the chrome. Controls that need JavaScript carry `njs` and stay hidden without it.
  */
@@ -54,7 +54,7 @@ export function layout(o: Layout): string {
 ${o.head ?? ""}</head>
 <body class="${esc(o.page)}">
 <div class="wrap">
-<header class="top"><a class="wm" href="/">${LOGO}dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New paste</a><a class="nav" href="/guide">Guide</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("contrast")}<span class="dl">Display</span></button></header>
+<header class="top"><a class="wm" href="/">${LOGO}dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New paste</a><a class="nav" href="/guide">Guide</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("settings")}<span class="dl">Settings</span></button></header>
 <main>
 ${o.main}
 </main>
@@ -235,7 +235,7 @@ export function aboutPage(): string {
 <h2>Saved builds</h2>
 <p>The browser that saved a build can edit it: open the build and choose Edit. After you save a build, the site also shows a private edit link. Keep it to edit the build from another device. The browser that saved the build can copy the link again from the Copy link menu. Anyone who has the link can edit the build.</p>
 <p>Each edit adds a revision. The link shows the latest revision a few minutes after the edit. The address <code>/&lt;id&gt;/2</code> always shows revision 2 as it was saved. If you lose the edit key, choose Duplicate and edit and save a copy. The copy gets a new link. You cannot delete a saved build.</p>
-<p>There are no accounts. The site stores the title, the author, the text that you save, and a scrambled form of the edit key that cannot be turned back into the key. My recent shares, your edit keys and the Display settings stay in your browser.</p>
+<p>There are no accounts. The site stores the title, the author, the text that you save, and a scrambled form of the edit key that cannot be turned back into the key. My recent shares, your edit keys and your settings stay in your browser.</p>
 <h2>For apps</h2>
 <p>Each build has three plain-text addresses. Any site can fetch them.</p>
 <ul><li><code>/&lt;id&gt;/raw</code>: the text as written</li><li><code>/&lt;id&gt;/canon</code>: the text in canonical form, as Tidy writes it</li><li><code>/&lt;id&gt;/json</code>: the title, the author, the text, the date, the date of the last edit and the revision number</li></ul>

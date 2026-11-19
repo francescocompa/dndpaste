@@ -5,7 +5,7 @@ import { parse } from "../../src/dndpaste.ts";
 import { PRESETS } from "../src/presets.ts";
 import { presetText } from "../src/preset.ts";
 import type { Edition } from "../src/preset.ts";
-import { ghostCounts, ghostHtml, ghostPads, ghostText } from "../src/ghost.ts";
+import { ghostCounts, ghostHtml, ghostPads, ghostText, keepCount } from "../src/ghost.ts";
 import type { Ghost } from "../src/ghost.ts";
 import { highlightRows } from "../src/client/highlight.ts";
 
@@ -230,4 +230,33 @@ test("the ghost lives in the highlight layer only: a row's text is the line, the
   assert.equal(plain(row), "Cantrips: Light");
   // Without ghosts the rows are as before.
   assert.deepEqual(highlightRows(text, parse(text).diagnostics), highlightRows(text, parse(text).diagnostics, new Map()));
+});
+
+test("D175: the count on the line being typed keeps its last value while the line doesn't read", () => {
+  const text = "Vice\nRules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: ";
+  const g1 = ghosts(text + "Guidance");
+  assert.deepEqual(g1.map((g) => ghostText(g)), ["1/3"]);
+  let k = keepCount(g1, 6, false, null);
+  assert.equal(k.kept?.have, 1, "a line that reads is kept");
+  const broken = ghosts(text + "Guidance, ");
+  assert.deepEqual(broken.map((g) => ghostText(g)), ["0/3"], "the parser reads no items after an open comma");
+  k = keepCount(broken, 6, true, k.kept);
+  assert.deepEqual(k.ghosts.map((g) => ghostText(g)), ["1/3"], "so the chip keeps 1/3");
+  k = keepCount(ghosts(text + "Guidance, \"Li"), 6, true, k.kept);
+  assert.deepEqual(k.ghosts.map((g) => ghostText(g)), ["1/3"], "an open quote too");
+  k = keepCount(ghosts(text + "Guidance, Light"), 6, false, k.kept);
+  assert.deepEqual(k.ghosts.map((g) => ghostText(g)), ["2/3"], "it follows the line once it reads");
+  assert.deepEqual(keepCount(broken, 0, false, k.kept).ghosts.map((g) => ghostText(g)), ["0/3"], "the cursor left the line");
+  assert.deepEqual(keepCount(broken, 6, true, null).ghosts.map((g) => ghostText(g)), ["0/3"], "nothing kept: shown as it reads");
+  assert.deepEqual(keepCount(broken, 6, true, { ...g1[0], line: 9 }).ghosts.map((g) => ghostText(g)), ["0/3"], "a count kept for another line");
+});
+
+test("D174: the ghost text sits over the ghost's padding; the chip steps right when the word needs the room", () => {
+  const g: Ghost = { line: 6, n: 1, have: 1, of: 3 };
+  const pad = (html: string) => /<span class="gp">( *)<\/span>/.exec(html)?.[1].length;
+  assert.match(ghostHtml(g, 12, "cantrip"), /^<span class="gh"><span class="gt">cantrip<\/span><span class="gp">/);
+  assert.equal(pad(ghostHtml(g, 12, "cantrip")), 12);
+  assert.equal(pad(ghostHtml(g, 2, "cantrip")), 9);
+  assert.equal(pad(ghostHtml(g, 2)), 2);
+  assert.ok(!ghostHtml(g, 2).includes('class="gt"'));
 });

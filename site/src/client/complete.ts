@@ -8,6 +8,8 @@
 import { ABILITIES, classSequence, keyDef, parse, splitMarker } from "../../../src/dndpaste.ts";
 import { needsQuotes } from "../render.ts";
 import { findSeparator, LEVEL_RE } from "./highlight.ts";
+import { keyHints } from "./hints.ts";
+import { MARKED_FEAT } from "../keydocs.ts";
 import type * as N from "../names.gen.ts";
 
 /** The generated names module (/assets/names.js, D158). */
@@ -51,8 +53,12 @@ export interface Suggestion {
   dim?: boolean;
 }
 
+/** D172 trial: every empty spot opens its list, whatever its size. False goes back to D164's letters by size. */
+export const OPEN_EVERY_SPOT = true;
+
 /** Letters before the list opens, by how many names fit the spot (D164): a short list opens on the empty spot. */
-export function minTyped(pool: number): number {
+export function minTyped(pool: number, everySpot = OPEN_EVERY_SPOT): number {
+  if (everySpot) return 0;
   return pool <= 12 ? 0 : pool <= 40 ? 1 : 2;
 }
 const BOOKS: readonly [string, number, Edition][] = [["PHB", 1, "2014"], ["DMG", 4, "2014"], ["XPHB", 2, "2024"], ["XDMG", 8, "2024"]];
@@ -322,13 +328,13 @@ export function spellCap(n: Names, sp: Spot): number | null {
 /**
  * The suggestions for a spot, best first, at most `limit`: the spot's classes first (D156), spells above the class's
  * level last and dimmed (D162), then how well the name matches, then A–Z. One row per name. Empty under the letters
- * the spot's list size asks (D164), or when the typed name is already exactly one.
+ * the spot's list size asks (D164; none while the D172 trial is on), or when the typed name is already exactly one.
  */
-export function suggest(n: Names, sp: Spot, limit = 8): Suggestion[] {
+export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SPOT): Suggestion[] {
   const q = norm(sp.typed);
   const cands = candidates(n, sp).filter((c) => !sp.taken.has(lc(c.name)));
   const pool = new Set(cands.map((c) => lc(c.name))).size;
-  if (q.replace(/\s/g, "").length < minTyped(pool)) return [];
+  if (q.replace(/\s/g, "").length < minTyped(pool, everySpot)) return [];
   const best = new Map<string, { c: Cand; t: number }>();
   for (const c of cands) {
     const t = q ? Math.min(...[c.name, c.alt ?? ""].filter(Boolean).map((x) => tier(x, q)).map((v) => (v < 0 ? 9 : v))) : 0;
@@ -421,4 +427,63 @@ export function afterPick(n: Names, sp: Spot, picked: string): string {
 /** The text a pick writes over the spot's range: quoted when the name needs it, then its source. */
 export function written(sp: Spot, s: Suggestion): string {
   return (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
+}
+
+// ---- Key names (D170, D171) ----
+
+/** A key being typed at a line's start (D170): the range a pick replaces and what was typed. */
+export interface KeySpot { start: number; end: number; typed: string }
+
+/**
+ * Where the cursor is typing a key: letters (and spaces) from the line's start, no separator yet, the cursor after
+ * them. Null on an empty line, on the paste's first line (its name, SPEC 2.1), a level header, or anything else.
+ */
+export function keySpotAt(text: string, pos: number): KeySpot | null {
+  const ls = text.lastIndexOf("\n", pos - 1) + 1;
+  let le = text.indexOf("\n", ls);
+  if (le < 0) le = text.length;
+  const line = text.slice(ls, le).replace(/\r$/, "");
+  const col = pos - ls;
+  if (line.slice(col).trim()) return null;
+  const head = line.slice(0, col);
+  const t = head.trim();
+  if (!/^[A-Za-z][A-Za-z ]*$/.test(t)) return null;
+  if (!text.slice(0, ls).trim()) return null;   // the first line is the build's name
+  return { start: ls + head.length - head.trimStart().length, end: ls + line.length, typed: t };
+}
+
+/** The keys that fit a key spot (D170): the hint strip's keys (D83), narrowed by what was typed; none when none fits. */
+export function suggestKeys(text: string, ks: KeySpot): string[] {
+  const h = keyHints(text, text.slice(0, ks.start).split("\n").length - 1);
+  return h.narrowed ? h.keys : [];
+}
+
+/** The text a key pick writes and where the cursor goes, from the start of the write: `Species: `, or
+ *  `Feat (): ` with the cursor in the parentheses (D110). */
+export function writtenKey(key: string): { text: string; cursor: number } {
+  return key === MARKED_FEAT ? { text: "Feat (): ", cursor: 6 } : { text: `${key}: `, cursor: key.length + 2 };
+}
+
+// ---- Ghost text (D174) ----
+
+/** The kind of name each counted key wants, as the ghost text says it. */
+const KIND: Record<string, string> = {
+  Cantrips: "cantrip", Spells: "spell", Prepared: "spell", Skills: "skill", Expertise: "skill", Options: "option", Masteries: "weapon",
+};
+
+/**
+ * The ghost text at the cursor (D174): the kind of name a counted line still wants, when the cursor sits at an empty
+ * name spot at the end of that line and its count (`short`: the lines whose chip reads under its count) is short.
+ * Not inside `[ ]`. The word gets a space before it when the line doesn't end in one.
+ */
+export function ghostWord(text: string, pos: number, short: ReadonlySet<number>): { line: number; word: string } | null {
+  const sp = spotAt(text, pos);
+  if (!sp || sp.parent !== null || sp.typed.trim() || !KIND[sp.key]) return null;
+  let le = text.indexOf("\n", pos);
+  if (le < 0) le = text.length;
+  if (text.slice(pos, le).trim()) return null;
+  const line = text.slice(0, pos).split("\n").length;
+  if (!short.has(line)) return null;
+  const end = text.slice(0, le).replace(/\r$/, "");
+  return { line, word: (/\s$/.test(end) ? "" : " ") + KIND[sp.key] };
 }

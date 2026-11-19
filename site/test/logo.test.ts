@@ -20,7 +20,7 @@ test("logo: every page's header carries the logo inside the wordmark link, hidde
     assert.deepEqual(pathsOf(wm[1]!), LOGO_PATHS, `${route}: the header logo is the drawn geometry`);
     assert.match(html, /<link rel="icon" href="\/favicon\.svg\?v=2" type="image\/svg\+xml">/, `${route}: favicon link`);
     // Narrow phones hide the label visually (site.css), never from the accessible name.
-    assert.match(html, /<button type="button" class="dbtn njs"[^>]*><svg class="i i-contrast"[^>]*>.*?<\/svg><span class="dl">Display<\/span><\/button>/, `${route}: Display label`);
+    assert.match(html, /<button type="button" class="dbtn njs"[^>]*><svg class="i i-settings"[^>]*>.*?<\/svg><span class="dl">Settings<\/span><\/button>/, `${route}: Settings label (D173 review)`);
   }
 });
 

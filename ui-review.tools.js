@@ -65,6 +65,18 @@ const acSetup = async (x, name, text) => {
   typeIn(text, 'insertText')
   await x.sleep(500)
 }
+// Editor polish (D170–D176): add text at the cursor's end as one keystroke, so the form sees each step.
+const typeMore = (more) => {
+  const ta = editor(); if (!ta) return
+  ta.focus(); ta.value += more; ta.setSelectionRange(ta.value.length, ta.value.length)
+  ta.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+}
+// Two steps: the line reads (`Guidance`), then the open comma, so the chip has a count to keep (D175).
+const commaSetup = async (x, name) => {
+  await acSetup(x, name, 'Vice\nRules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: Guidance')
+  typeMore(', ')
+  await x.sleep(400)
+}
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 // A preset laid out in the editor, from an empty form (any draft bar cleared first). Skips when it is already there.
@@ -83,7 +95,7 @@ const laidPreset = async (x, name, rows, edition = '2024') => {
 uiReview.config({
   schema: 1,
   groups: [
-    { id: 'display', label: 'Display (the site’s own setting)', open: true, controls: [
+    { id: 'display', label: 'Settings (the site’s own menu)', open: true, controls: [
       { id: 'theme', label: 'Theme', kind: 'select', options: ['auto', 'light', 'dark'], default: 'auto', get: () => display().theme, set: (v) => setDisplay('theme', v) },
       { id: 'kind', label: 'Colour by kind', kind: 'toggle', default: true, get: () => display().kind, set: (v) => setDisplay('kind', v) },
       { id: 'abilities', label: 'Colour abilities', kind: 'toggle', default: true, get: () => display().abilities, set: (v) => setDisplay('abilities', v) },
@@ -273,6 +285,25 @@ uiReview.config({
       await x.sleep(600)
       // The panel's focus may close the list: an input event (no change) opens it again, as a keystroke would.
       editor().focus(); editor().dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }))
+    },
+    // D170: a key typed at a line's start in the header.
+    'ed-key': (x) => acSetup(x, 'ed-key', 'Vice\nRules: 2024\nClasses: Cleric 1\nB'),
+    // D171: the key taken from the list; its value list opens at once.
+    'ed-key-chain': async (x) => {
+      await acSetup(x, 'ed-key-chain', 'Vice\nRules: 2024\nClasses: Cleric 1\nB')
+      document.querySelector('#ac-names .ao')?.click()
+      await x.sleep(400)
+    },
+    // D172 trial: a Spells line before any letter.
+    'ed-every': (x) => acSetup(x, 'ed-every', 'Vice\nRules: 2024\nClasses: Wizard 5\n\nL5 Wizard\nSpells: '),
+    // D174, D175, D176: `Guidance, ` on a Cleric's Cantrips line.
+    'ed-comma': (x) => commaSetup(x, 'ed-comma'),
+    // D173 (review): the header's Settings menu open, Suggestions in it.
+    'settings-open': async (x) => {
+      await x.waitFor('.top .dbtn')
+      const m = document.querySelector('#dmenu')
+      if (!m || m.hidden) document.querySelector('.top .dbtn')?.click()
+      await x.sleep(200)
     },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')

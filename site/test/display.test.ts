@@ -59,12 +59,22 @@ test("display: apply sets data-theme (none for Auto) and the .ck / .ca switches"
 
 test("display: the menu marks the current theme and switches (frame view-display-desk)", () => {
   const html = displayMenuHtml({ theme: "light", kind: true, abilities: false });
-  assert.ok(html.includes(`<button type="button" role="radio" aria-checked="true" data-theme-set="light" class="on">Light</button>`));
-  assert.ok(html.includes(`role="radio" aria-checked="false" data-theme-set="auto">Auto</button>`));
+  assert.match(html, /<button type="button" role="radio" aria-checked="true" data-theme-set="light" class="on"><svg class="i i-sun"[^>]*>.*?<\/svg>Light<\/button>/);
+  assert.match(html, /role="radio" aria-checked="false" data-theme-set="dark"><svg class="i i-moon"[^>]*>.*?<\/svg>Dark<\/button>/);
+  assert.match(html, /role="radio" aria-checked="false" data-theme-set="auto"><svg class="i i-contrast"[^>]*>.*?<\/svg>Auto<\/button>/);
   assert.ok(html.includes(`role="switch" aria-checked="true" data-switch="kind"><span class="swl">Colour by kind</span><span class="tog on"`));
   assert.ok(html.includes(`role="switch" aria-checked="false" data-switch="abilities"><span class="swl">Colour abilities</span><span class="tog"`));
   assert.ok(html.includes("Class, subclass, species, background, feat, spell, item"));
   assert.equal((html.match(/<i class="sw-/g) ?? []).length, 7);
-  assert.ok(html.includes("Saved in this browser."));
+  assert.ok(!html.includes("Saved in this browser."), "round 2: no saved line while storage works");
   assert.ok(!/style=/.test(html), "no inline styles (CSP)");
+});
+
+test("D173 (review): the menu is Settings and carries the editor's Suggestions switch, after the display settings", () => {
+  const on = displayMenuHtml({ theme: "auto", kind: true, abilities: true });
+  assert.ok(on.startsWith(`<div class="h" id="dmenu-h">Settings</div>`));
+  assert.ok(on.includes(`<hr><button type="button" class="sw" role="switch" aria-checked="true" data-switch="suggest"><span class="swl">Suggestions</span><span class="tog on"`));
+  assert.ok(on.indexOf('data-switch="suggest"') > on.indexOf('data-switch="abilities"'));
+  const off = displayMenuHtml({ theme: "auto", kind: true, abilities: true }, true, false);
+  assert.ok(off.includes(`aria-checked="false" data-switch="suggest"><span class="swl">Suggestions</span><span class="tog"`));
 });

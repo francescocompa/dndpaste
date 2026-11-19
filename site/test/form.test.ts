@@ -254,7 +254,7 @@ test("status, D90: an E001 on the line being typed is held; Save still blocks; l
   assert.equal(held.canTidy, false);
   // The frame form-keys-dark-phone: no error in the dock. (Since D149's review, vice's short Options line reads "1 to choose".)
   assert.match(dockLineHtml(held), /^<span class="dsum"><span class="okc">No (problems|errors)<\/span>/);
-  // Another line's E001 and other codes on the held line are never held.
+  // Another line's errors are never held.
   const other = status(text, line - 1);
   assert.equal(other.held, 0);
   assert.equal(other.errors, free.errors);
@@ -262,6 +262,22 @@ test("status, D90: an E001 on the line being typed is held; Save still blocks; l
   assert.equal(two.held, 1);
   assert.equal(two.diagnostics.filter((d) => d.code === "E001").length, 1);
   assert.equal(status(text, 0).held, 0);
+});
+
+test("status, D176: every error on the line being typed is held, an open comma, bracket or quote too; warnings never", () => {
+  const base = "Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: ";
+  const line = base.split("\n").length;
+  for (const tail of ["Guidance, ", "Guidance, Light [", 'Guidance, "Li', "Guidance, Li|"]) {
+    const free = status(base + tail);
+    assert.ok(free.diagnostics.some((d) => d.code === "E011" && d.line === line), tail);
+    const held = status(base + tail, line);
+    assert.equal(held.errors, 0, tail);
+    assert.ok(held.held > 0, tail);
+    assert.equal(held.canSave, false, "Save still blocks on a held error");
+  }
+  // A warning on the line being typed (an empty value, D149's To choose) is not held.
+  const empty = status("Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips:", 5);
+  assert.ok(empty.diagnostics.some((d) => d.code === "W004" && d.line === 5));
 });
 
 test("status (D95): a name-only paste can't be saved; the toolbar, Problems and dock say why", () => {

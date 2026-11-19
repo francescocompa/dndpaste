@@ -12,7 +12,7 @@
 import { classSequence, splitMarker } from "../../src/dndpaste.ts";
 import type { Paste, Ref } from "../../src/dndpaste.ts";
 import { PRESETS } from "./presets.ts";
-import { icon } from "./render.ts";
+import { esc, icon } from "./render.ts";
 import type { ClassPreset } from "./presets.ts";
 
 export interface Ghost {
@@ -113,10 +113,28 @@ export function ghostWidth(g: Ghost): number {
 }
 
 /** A ghost's markup after its line: the padding spaces (mono, so they align) and the tag, a small sans chip (so it
- * never reads as text of the paste), the alert icon after the numbers when over (T3.9 review). */
-export function ghostHtml(g: Ghost, pad: number): string {
+ * never reads as text of the paste), the alert icon after the numbers when over (T3.9 review). `word`: the ghost
+ * text at the cursor (D174), drawn over the padding; the chip steps right on that line when the word needs the room. */
+export function ghostHtml(g: Ghost, pad: number, word = ""): string {
   const over = g.have > g.of;
-  return `<span class="gh"><span class="gp">${" ".repeat(pad)}</span><span class="gc${over ? " over" : ""}">${ghostText(g)}${over ? icon("alert") : ""}</span></span>`;
+  const gt = word ? `<span class="gt">${esc(word)}</span>` : "";
+  const p = word ? Math.max(pad, word.length + 2) : pad;
+  return `<span class="gh">${gt}<span class="gp">${" ".repeat(p)}</span><span class="gc${over ? " over" : ""}">${ghostText(g)}${over ? icon("alert") : ""}</span></span>`;
+}
+
+/**
+ * D175: the count on the line being typed keeps its last value while that line doesn't read (an open comma, bracket
+ * or quote leaves the parser no items: `Guidance, ` would read 0/3). `line` is the cursor's line (1-based; 0 = none),
+ * `broken` whether it has an error now, `kept` what the last call returned. A line that reads, or another line, takes
+ * the new count and is kept for next time.
+ */
+export function keepCount(ghosts: readonly Ghost[], line: number, broken: boolean, kept: Ghost | null): { ghosts: Ghost[]; kept: Ghost | null } {
+  const now = ghosts.find((g) => g.line === line) ?? null;
+  if (!line) return { ghosts: [...ghosts], kept: null };
+  if (!broken || !kept || kept.line !== line) return { ghosts: [...ghosts], kept: broken ? null : now };
+  const out = ghosts.filter((g) => g.line !== line);
+  out.push(kept);
+  return { ghosts: out.sort((a, b) => a.line - b.line), kept };
 }
 
 /** The ghost lane (D130): the editor keeps this many characters free at the right of every row while a ghost shows,
