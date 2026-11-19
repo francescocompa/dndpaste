@@ -97,8 +97,8 @@ Findings are warnings or infos, never errors. Each has a code:
 | Code | Kind | Meaning |
 |---|---|---|
 | C001 | missing | a pick the build still owes; `at` names the key and level block to add it to |
-| C002 | misplaced | a pick at a level or class that can't have it |
-| C003 | unresolved | a name that matches nothing, or a homebrew, Unearthed Arcana or unknown book code |
+| C002 | misplaced | a pick at a level or class that can't have it; a `Subclass` in the wrong block gets `at` too |
+| C003 | unresolved | a name that matches nothing, a bare Unearthed Arcana name, or a homebrew, Unearthed Arcana or unknown book code |
 | C004 | redundant | something the rules give anyway, or a name repeated on one Gear line |
 | C005 | unplaced | a header pick that more than one class could own |
 | C006 | extra | a pick beyond what the rules grant; accepted, since a DM may allow it |
@@ -107,6 +107,11 @@ Findings are warnings or infos, never errors. Each has a code:
 Gear names written as `x2`, and `Options` lines moved onto their family key. `finalScores` adds up
 the ability scores. `UA_SOURCES` (`dndpaste/sources`) lists the Unearthed Arcana codes the checker
 knows.
+
+A name with no book code means its newest printing under the paste's `Rules`, or in either edition
+when there is none. A core book wins over a setting book or an adventure of the same edition. The
+slot table's `meta.sourceDates` (release date per book code) and `meta.settingSources` carry what
+this needs.
 
 ## Command line
 

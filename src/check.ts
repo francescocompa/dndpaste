@@ -38,8 +38,12 @@ export interface FeatSlots { name: string; source: string; edition?: string | nu
 /** `feats`: feats the option itself grants (5etools featProgression), e.g. Lessons of the First Ones → one Origin feat (D50, D51). */
 export interface OptionalFeatureSlots { name: string; source: string; types: string[]; prereqLevel: number | null; feats?: { category: string[]; count: number }[]; grantedSpells?: string[] }
 export interface Slots {
-  /** `sources`: every book code the full table cites (D205), so a subset table still knows a book it lacks. */
-  meta?: { sources?: string[] };
+  /**
+   * `sources`: every book code the full table cites (D205), so a subset table still knows a book it lacks.
+   * `sourceDates`: each cited book's release date (`YYYY-MM-DD`, D221), so a bare name resolves to the newest printing.
+   * `settingSources`: the setting books and adventures among them, whose printing loses to a core book's (D221).
+   */
+  meta?: { sources?: string[]; sourceDates?: Record<string, string>; settingSources?: string[] };
   classes: Record<string, ClassSlots>; subclasses: Record<string, SubclassSlots>; species: Record<string, SpeciesSlots>;
   backgrounds: Record<string, BackgroundSlots>; feats: Record<string, FeatSlots>; optionalFeatures: Record<string, OptionalFeatureSlots>;
   families: Record<string, string>; spells: Record<string, { name: string; source: string; level: number; classes?: string[]; subclasses?: string[] }>; items: Record<string, ItemSlots>;
@@ -86,35 +90,54 @@ const refStr = (r: Ref) => (r.source ? `${r.name}|${r.source}` : r.name);
 // D40: a generic magic-variant bonus prefix ("+1 Longsword") is not part of the entity name.
 const stripPlus = (name: string): string | null => { const m = /^\+\d+\s+(.+)$/.exec(name); return m ? m[1] : null; };
 
+/** True for an Unearthed Arcana code: one of `UA_SOURCES`, or any code with the `UA` or `XUA` prefix (D221). */
+const uaCodes = new Set(UA_SOURCES.map((u) => lc(u.code)));
+export const isUaSource = (code: string): boolean => uaCodes.has(lc(code)) || /^X?UA[A-Z0-9]/.test(code);
+
 class Index<T extends { name: string; source: string; edition?: string | null; core?: boolean }> {
   private byName = new Map<string, T[]>();
   private all: T[] = [];
-  constructor(table: Record<string, T>, alias?: (t: T) => string | undefined) {
+  private setting: Set<string>;
+  /** `meta`: release dates and setting books (D221), so a bare name picks the newest printing. */
+  constructor(table: Record<string, T>, alias?: (t: T) => (string | undefined)[], private meta: Slots["meta"] = {}) {
+    this.setting = new Set(meta?.settingSources ?? []);
     for (const t of Object.values(table)) {
       this.all.push(t);
       this.push(lc(t.name), t);
-      const a = alias?.(t);
-      if (a && lc(a) !== lc(t.name)) this.push(lc(a), t);
+      for (const a of alias?.(t) ?? []) if (a && lc(a) !== lc(t.name)) this.push(lc(a), t);
     }
   }
-  private push(k: string, t: T) { const l = this.byName.get(k); if (l) l.push(t); else this.byName.set(k, [t]); }
+  private push(k: string, t: T) { const l = this.byName.get(k); if (l) { if (!l.includes(t)) l.push(t); } else this.byName.set(k, [t]); }
+  /**
+   * Several printings of one name (D8, D221): a published printing before Unearthed Arcana, then the paste's edition,
+   * then a setting book's or adventure's printing loses to a core book's of the same edition, then the newest. A table
+   * with no release dates falls back to the core books. Still several: ambiguous.
+   */
+  private narrow(c: T[], ref: Ref, rules: string | null): T[] {
+    if (c.length > 1 && !ref.source) { const p = c.filter((t) => !isUaSource(t.source)); if (p.length) c = p; }
+    if (c.length > 1 && rules) { const e = c.filter((t) => t.edition === rules); if (e.length) c = e; }
+    if (c.length > 1) { const core = new Set(c.filter((t) => t.core).map((t) => t.edition)); c = c.filter((t) => !(this.setting.has(t.source) && core.has(t.edition))); }
+    if (c.length > 1) c = dedupeByName(c);
+    if (c.length > 1) {
+      const date = (t: T) => this.meta?.sourceDates?.[t.source] ?? "";
+      const best = c.reduce((m, t) => (date(t) > m ? date(t) : m), "");
+      if (best) c = c.filter((t) => date(t) === best);
+      else { const k = c.filter((t) => t.core); if (k.length) c = k; }
+    }
+    return c;
+  }
   resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean, alias = true): { hit: T | null; status: "ok" | "none" | "ambiguous" | "alias" } {
     let c = this.byName.get(lc(ref.name)) ?? [];
     if (extra) c = c.filter(extra);
     if (ref.source) c = c.filter((t) => lc(t.source) === lc(ref.source as string));
-    if (c.length > 1 && rules) { const e = c.filter((t) => t.edition === rules); if (e.length) c = e; }
-    if (c.length > 1) { const k = c.filter((t) => t.core); if (k.length) c = k; }
-    if (c.length > 1) { const d = dedupeByName(c); if (d.length === 1) return { hit: d[0], status: "ok" }; return { hit: c[0], status: "ambiguous" }; }
-    if (c.length === 1) return { hit: c[0], status: "ok" };
+    if (c.length) { c = this.narrow(c, ref, rules); return { hit: c[0], status: c.length === 1 ? "ok" : "ambiguous" }; }
     // ── D43: name-alias contains fallback — a ref of 4+ chars with no direct match against
     // exactly one entity of the same kind whose name contains it, case-insensitively. ────────
     if (alias && ref.name.length >= 4) {
       let a = this.all.filter((t) => lc(t.name).includes(lc(ref.name)));
       if (extra) a = a.filter(extra);
       if (ref.source) a = a.filter((t) => lc(t.source) === lc(ref.source as string));
-      if (a.length > 1 && rules) { const e = a.filter((t) => t.edition === rules); if (e.length) a = e; }
-      if (a.length > 1) { const k = a.filter((t) => t.core); if (k.length) a = k; }
-      if (a.length > 1) a = dedupeByName(a);
+      a = this.narrow(a, ref, rules);
       if (a.length === 1) return { hit: a[0], status: "alias" };
     }
     return { hit: null, status: "none" };
@@ -129,16 +152,18 @@ function dedupeByName<T extends { name: string; source: string }>(c: T[]): T[] {
 // ─── Checker ────────────────────────────────────────────────────────────────
 
 function buildIndexes(slots: Slots) {
+  const d = slots.meta ?? {};
   return {
-    classes: new Index(slots.classes),
-    subclasses: new Index(slots.subclasses, (s) => s.shortName),
-    species: new Index(slots.species),
-    backgrounds: new Index(slots.backgrounds),
-    feats: new Index(slots.feats),
-    options: new Index(slots.optionalFeatures),
-    spells: new Index(slots.spells),
-    items: new Index(slots.items),
-    variants: new Index(slots.magicVariants ?? {}, (v) => v.name.replace(/ \(\*\)$/, "")),
+    classes: new Index(slots.classes, undefined, d),
+    // A subclass also answers to its short name and to "<short name> <class>" (`Diviner Wizard`, D220).
+    subclasses: new Index(slots.subclasses, (s) => [s.shortName, `${s.shortName} ${s.className}`], d),
+    species: new Index(slots.species, undefined, d),
+    backgrounds: new Index(slots.backgrounds, undefined, d),
+    feats: new Index(slots.feats, undefined, d),
+    options: new Index(slots.optionalFeatures, undefined, d),
+    spells: new Index(slots.spells, undefined, d),
+    items: new Index(slots.items, undefined, d),
+    variants: new Index(slots.magicVariants ?? {}, (v) => [v.name.replace(/ \(\*\)$/, "")], d),
   };
 }
 type Indexes = ReturnType<typeof buildIndexes>;
@@ -261,6 +286,8 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
       const editionNote = rules && r.hit.edition && r.hit.edition !== rules ? ` (${r.hit.edition} edition; paste is ${rules})` : "";
       add("unresolved", "info", where, `${at}"${refStr(ref)}" resolved as ${full}${editionNote}`, key, refStr(ref));
     }
+    // A bare name that only Unearthed Arcana prints (D221): playtest material always carries its code.
+    if (r.hit && !ref.source && isUaSource(r.hit.source)) add("unresolved", "warning", where, `${at}"${ref.name}" is Unearthed Arcana; write it as ${ref.name}|${r.hit.source}`, key, refStr(ref));
     return r.hit;
   };
   const uidOf = (t: { name: string; source: string }) => `${t.name}|${t.source}`;
@@ -368,20 +395,35 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
   // A written subclass that resolves to nothing (homebrew, a typo) still counts as picked (D192 T07): the
   // unresolved finding already names it, and "owes a Subclass" would be false.
   const looseSubclasses: Item[] = [];
+  const headerSubclassOf = new Map<Item, string>();   // a header Subclass line → the class it resolved to
+  /** The character level where the class reaches class level `k`, or null when the timeline never gets there. */
+  const levelOfClassLevel = (cls: string, k: number): number | null => { for (let n = 1; n <= classAt.length; n++) if (classAt[n - 1] === cls && classLevelAt(n, cls) === k) return n; return null; };
   for (const s of subclassLines) {
     const cand = s.cls ? [s.cls] : [...classData.keys()];
-    const hit = resolveRef(ix.subclasses, s.item.ref, s.where, "Subclass", "warning", (t) => cand.includes(lc(t.className)));
+    const inClass = (t: SubclassSlots) => cand.includes(lc(t.className));
+    // A level block of another class (D220): resolve against every class of the build, then report where it goes.
+    const other = s.cls && ix.subclasses.resolve(s.item.ref, rules, inClass).status === "none" ? ix.subclasses.resolve(s.item.ref, rules, (t) => classData.has(lc(t.className))).hit : null;
+    const hit = other ?? resolveRef(ix.subclasses, s.item.ref, s.where, "Subclass", "warning", inClass);
     if (!hit) {
       if (s.cls) { const sl = slot(s.cls, "Subclass"); sl.picked++; sl.where.push(s.where); } else looseSubclasses.push(s.item);
       continue;
     }
     const cls = lc(hit.className);
+    if (s.n === null) headerSubclassOf.set(s.item, cls);
     if (subclassOf.get(cls)) add("extra", "info", s.where, `second subclass "${hit.name}" for ${hit.className} — accepted as an extra`, "Subclass", hit.name);
     subclassOf.set(cls, hit);
-    if (s.n !== null) subclassFrom.set(cls, s.n);
     const cd = classData.get(cls);
-    if (s.n !== null) { const sl = slot(cls, "Subclass"); sl.picked++; sl.where.push(s.where); }
-    if (s.n !== null && cd?.subclassLevel && classLevelAt(s.n, cls) !== cd.subclassLevel) add("misplaced", "warning", s.where, `${hit.className} subclass is chosen at class level ${cd.subclassLevel}, this is class level ${classLevelAt(s.n, cls)}`, "Subclass", hit.name);
+    // Placement (D220): a level block holds the subclass only where the class gains it; the header holds it unplaced.
+    // A wrong block gets the block to move it to, as `at`; a class not there yet takes it in the header, as a plan.
+    const k = s.n !== null ? classLevelAt(s.n, cls) : null;
+    const misplaced = s.n !== null && Boolean(cd?.subclassLevel) && (Boolean(other) || k !== cd?.subclassLevel);
+    const n = misplaced && cd?.subclassLevel ? levelOfClassLevel(cls, cd.subclassLevel) : null;
+    if (s.n !== null && !(misplaced && n === null)) { const sl = slot(cls, "Subclass"); sl.picked++; sl.where.push(s.where); }
+    if (misplaced && cd?.subclassLevel) {
+      const why = other ? `${hit.name} is a ${cd.name} subclass` : `${cd.name} gets its subclass at class level ${cd.subclassLevel}, not ${k}`;
+      add("misplaced", "warning", s.where, n !== null ? `${why}; move it to L${n} ${cd.name}` : `${why}; move it to the header until then`, "Subclass", hit.name, { key: "Subclass", level: n });
+      if (n !== null) subclassFrom.set(cls, n);
+    } else if (s.n !== null) subclassFrom.set(cls, s.n);
     if (s.n === null && classEntries.length > 1 && !s.item.ref.source) add("unplaced", "info", s.where, `"${hit.name}" assigned to ${hit.className}`, "Subclass", hit.name);
   }
 
@@ -574,7 +616,7 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
     const target = classNames.find((c) => { const s = ledger(c).get("Subclass"); return s && s.owed > s.picked; });
     if (target) { const sl = slot(target, "Subclass"); sl.picked++; sl.where.push("header"); }
   }
-  for (const s of subclassLines) if (s.n === null) { const cls = subclassOf.size ? [...subclassOf.entries()].find(([, v]) => v && lc(v.name) === lc(s.item.ref.name) || (v && lc(v.shortName) === lc(s.item.ref.name)))?.[0] : undefined; if (cls) { const sl = slot(cls, "Subclass"); sl.picked++; sl.where.push("header"); } }
+  for (const s of subclassLines) if (s.n === null) { const cls = headerSubclassOf.get(s.item); const sl = cls ? slot(cls, "Subclass") : null; if (sl && sl.picked < sl.owed) { sl.picked++; sl.where.push("header"); } }   // a header subclass ahead of its level is a plan, not an extra (D220)
 
   // ── Ledger → findings ─────────────────────────────────────────────────────
   // A pick still owed names the line to add (D192 T07): "Cleric: 2 of 4 Cantrips written; add 2 at L1 Cleric".

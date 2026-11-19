@@ -189,8 +189,10 @@ A reference is `Name[|SOURCE]`. The parser normalises (trim, unquote) and nothin
 Resolution is the consumer's. Two references are *compatible* when names match
 case-insensitively and either source is absent or both match; the parser never dedupes or
 matches drops against adds — the checker does, on resolved entities. Subclasses may be
-written by their printed name or their short name (`Celestial`, `Celestial Patron`,
-`The Celestial`); consumers match either.
+written by their printed name, their short name (`Celestial`, `Celestial Patron`,
+`The Celestial`) or their short name before the class name (`Diviner Wizard`, D220); consumers
+match any of them. A reference with no `|SOURCE` is a **bare name**; the profile says which
+printing it means (`dnd5e`: §5, D221).
 
 ---
 
@@ -245,7 +247,11 @@ A scope's lines in canonical order, one entry per line, are the library's `scope
 ## 5. Profile `dnd5e`
 
 Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-less references
-(D8); absent, the AST carries no default and consumers apply their own.
+(D8); absent, the AST carries no default. A **bare name means its newest printing** in the
+`Rules` edition, or in either edition when there is no `Rules` (D221). Two exceptions: a setting
+book's or an adventure's printing gives way to a core book's printing in the same edition
+(`Elf` under 2024 rules is the 2024 Player's Handbook elf), and a published printing comes before
+an Unearthed Arcana one. A name that only Unearthed Arcana prints always carries its code.
 
 ### 5.1 Keys
 
@@ -262,7 +268,7 @@ Covers the 2014 and 2024 rules. `Rules:` names the default edition for source-le
 | `HP` | hp | H, L | **hit-point method**, optional (D59). In H: `Fixed` (the class's fixed value at each level after 1st) or `Rolled`. In L: that level's method, overriding H: `Fixed`, `Rolled`, or the **die result** rolled there (`HP: 7`). Level 1 always takes the die's maximum, so it has no line. Absent: no method stated, never assumed |
 | `Species` | item · **opens block** | H | the species; its picks are the block's lines. 2024 lineages are a `Feature` line in the block; 2014 subraces are part of the name, the 5etools way: `Species: Elf (Wood)|PHB`, `Species: Human (Variant)|PHB` |
 | `Background` | item · **opens block** | H | the background; official: block holds only the picks it asks (2024: a `Scores` increase); custom/homebrew: the block holds everything (`Scores` increase, `Skills`, `Tools`, `Feat`, `Gear`) so the paste is complete without the homebrew file (D21, D26) |
-| `Subclass` | items¹ | H, L | the class's subclass; in L it belongs to the block's class |
+| `Subclass` | items¹ | H, L | the class's subclass. In L, the block where its class gains the subclass, and it belongs to the block's class (D220); in H, unplaced (a flat snapshot, or a subclass still to come) |
 | `Skills` | items | H, S, B, L | skill proficiencies **chosen** |
 | `Tools` | items | H, S, B, L | tool proficiencies chosen |
 | `Languages` | items | H, S, B, L | languages chosen |
@@ -531,7 +537,7 @@ miss is `unresolved`/warning with the nearest name ("did you mean"), no match at
 `unresolved`/info and accepted. A spell above its line's cap is `misplaced`/warning. The cap is
 never judged against what the class can cast.
 
-**After the wide user test** (D192, D193, D195, D201, D204–D206).
+**After the wide user test** (D192, D193, D195, D201, D204–D206, D220, D221).
 
 - *Owed picks say where to add them.* A `missing` pick reads "Cleric: 1 of 3 Cantrips written; add 2 at
   L1 Cleric" (no level blocks: "add 2 to the Cantrips line"), and the finding's `at` names the key and
@@ -553,6 +559,19 @@ never judged against what the class can cast.
   `normalise` writes the quantity.
 - *Options* (D195). `normalise` moves a plain `Options` line onto its family key when every pick on it
   resolves to that family (`Options: Pact of the Chain` → `Invocations: Pact of the Chain`).
+- *Subclass placement* (D220). A `Subclass` line in a level block where its class does not gain the
+  subclass is `misplaced`/warning: "Wizard gets its subclass at class level 3, not 1; move it to L3
+  Wizard", or "Evoker is a Wizard subclass; move it to L6 Wizard" in another class's block. The
+  finding's `at` names the block (`{ key: "Subclass", level: 3 }`); a class that has not reached
+  its subclass level yet gets "move it to the header until then" (`level: null`). A header
+  `Subclass` has no placement finding, and one ahead of its class level is a plan, not an extra.
+- *Bare names* (D221). A bare name resolves to its newest printing as §5 says; "matches several
+  sources" remains only for printings with the same date, or a slot table with no release dates
+  (`meta.sourceDates`, `meta.settingSources`), which falls back to the core books. A bare name
+  that resolves only to Unearthed Arcana content is `unresolved`/warning: "write it as
+  Mystic|UATheMysticClass". With the data the extract reads, only a few entities are playtest
+  material (the Mystic class and its subclasses); other playtest codes are not in the table and
+  stay accepted at info (D205).
 - *Codes* (D204). Each finding carries the code of its kind:
 
 | Code | Kind |
