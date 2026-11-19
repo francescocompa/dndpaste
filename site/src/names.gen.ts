@@ -1141,6 +1141,8 @@ export const ITEMS: readonly (readonly [string, Books, number])[] = [
   ["Wyvern Poison",12,1],
   ["Yew Wand",3,1],
 ];
+/** [name, books]: weapons with a mastery property, for `Masteries:` (D165) */
+export const MASTERY_WEAPONS: readonly (readonly [string, Books])[] = [["Battleaxe",2],["Blowgun",2],["Club",2],["Dagger",2],["Dart",2],["Flail",2],["Glaive",2],["Greataxe",2],["Greatclub",2],["Greatsword",2],["Halberd",2],["Hand Crossbow",2],["Handaxe",2],["Heavy Crossbow",2],["Javelin",2],["Lance",2],["Light Crossbow",2],["Light Hammer",2],["Longbow",2],["Longsword",2],["Mace",2],["Maul",2],["Morningstar",2],["Musket",2],["Pike",2],["Pistol",2],["Quarterstaff",2],["Rapier",2],["Scimitar",2],["Shortbow",2],["Shortsword",2],["Sickle",2],["Sling",2],["Spear",2],["Trident",2],["War Pick",2],["Warhammer",2],["Whip",2]];
 export const SKILLS: readonly string[] = ["Acrobatics","Animal Handling","Arcana","Athletics","Deception","History","Insight","Intimidation","Investigation","Medicine","Nature","Perception","Performance","Persuasion","Religion","Sleight of Hand","Stealth","Survival"];
 export const LANGUAGES: readonly string[] = ["Common","Draconic","Dwarvish","Elvish","Gnomish","Halfling","Infernal","Orc"];
 export const TOOLS: readonly string[] = ["Brewer's Supplies","Calligrapher's Supplies","Mason's Tools","Smith's Tools","Thieves' Tools","Tinker's Tools","Vehicles (Land)"];

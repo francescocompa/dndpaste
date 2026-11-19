@@ -80,7 +80,7 @@ test("D156: each key offers its own kind", () => {
   assert.ok(names("Gear: flame t¦")?.includes("Flame Tongue"), "magic items");
   assert.ok(names("Gear: +1 ar¦")?.includes("+1 Armor"), "magic variants");
   assert.ok(names("Masteries: long¦")?.includes("Longsword"));
-  assert.ok(!names("Masteries: flame t¦")?.length, "mundane items only");
+  assert.ok(!names("Masteries: flame t¦")?.length, "weapons only");
   assert.ok(names("Skills: ar¦")?.includes("Arcana"));
   assert.ok(names("Expertise: st¦")?.includes("Stealth"));
   assert.ok(names("Languages: dr¦")?.includes("Draconic"));
@@ -240,4 +240,11 @@ test("D163 review: a pick inside [ ] starts the next name or group; Thaumaturge 
   assert.deepEqual(names("Feature: Divine Order [Thaumaturge; gu¦]"), ["Guidance"]);
   assert.deepEqual(names("Feature: Primal Order [Magician; dr¦]"), ["Druidcraft"]);
   assert.deepEqual(names("Feature: Divine Order [Protector; gu¦]"), [], "no cantrip group after Protector");
+});
+
+test("D165: Masteries offers weapons with a mastery property, never other gear", () => {
+  const sh = names("Masteries: sh¦") ?? [];
+  assert.ok(sh.includes("Shortsword") && sh.includes("Shortbow"), "weapons");
+  for (const gear of ["Shovel", "Shield", "Shawm"]) assert.ok(!sh.includes(gear), `${gear} is not a weapon`);
+  assert.ok(!names("Masteries: rope¦")?.length && !names("Masteries: back¦")?.length, "no adventuring gear");
 });

@@ -156,7 +156,8 @@ const propsOf = (i) => {
   for (const k of matcherKeys) if (i[k] !== undefined) out[k] = k === "property" ? i[k].map((p) => (typeof p === "string" ? p : p.uid)) : i[k];
   return out;
 };
-for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false, base: true, props: propsOf(i) };
+for (const i of load("items-base.json").baseitem ?? []) items[uid(i)] = { name: i.name, source: i.source, edition: edition(i), srd: isSrd(i), rarity: "none", attune: false, base: true, props: propsOf(i),
+  ...(i.weapon && i.mastery?.length ? { mastery: true } : {}) }; // a weapon with a mastery property (not a focus that fights as one): what `Masteries:` can name
 const itemsByKey = itemsIndex(items);
 const magicVariants = {};
 for (const v of variantList) {

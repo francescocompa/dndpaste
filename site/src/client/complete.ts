@@ -278,7 +278,7 @@ function candidates(n: Names, sp: Spot): Cand[] {
     case "Subclass": return n.SUBCLASSES.map((s) => ({ name: s[0], books: s[1], first: Boolean(2 ** s[2] & mine), alt: s[3] || undefined }));
     case "Classes": case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
     case "Gear": return items(false);
-    case "Masteries": return items(true);
+    case "Masteries": return n.MASTERY_WEAPONS.map((w) => ({ name: w[0], books: w[1], first: false })); // weapons only (D165)
     case "Skills": case "Expertise": return plain(n.SKILLS);
     case "Languages": return plain(n.LANGUAGES);
     case "Tools": return tools();

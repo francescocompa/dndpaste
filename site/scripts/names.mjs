@@ -55,6 +55,8 @@ const options = rows(Object.values(slots.optionalFeatures), (o) => [
 ], (r, [bits, fs, picks]) => { r[2] |= bits; r[3] |= fs; r[4] = Math.max(r[4], picks); });
 const items = rows([...Object.values(slots.items), ...Object.values(slots.magicVariants)],
   (i) => [i.rarity === "none" ? 1 : 0], (r, [mundane]) => { r[2] &= mundane; });
+// Weapons with a mastery property: the only names a `Masteries:` line takes (D165). Books are those of the entries that have one.
+const masteryWeapons = rows(Object.values(slots.items).filter((i) => i.mastery), () => []);
 
 // Class features with a choice (D163): Divine Order's Protector or Thaumaturge. Names only.
 const features = [];
@@ -144,6 +146,8 @@ ${list(options)}
 export const ITEMS: readonly (readonly [string, Books, number])[] = [
 ${list(items)}
 ];
+/** [name, books]: weapons with a mastery property, for \`Masteries:\` (D165) */
+export const MASTERY_WEAPONS: readonly (readonly [string, Books])[] = ${q(masteryWeapons)};
 export const SKILLS: readonly string[] = ${q(words(skills))};
 export const LANGUAGES: readonly string[] = ${q(words(languages))};
 export const TOOLS: readonly string[] = ${q(words(tools))};
@@ -154,5 +158,5 @@ export const CASTERS: readonly (readonly [string, Books, readonly number[]])[] =
 /** [feature name, abilities its first slot takes (0: no ability slot), picks] */
 export const LINEAGES: readonly (readonly [string, AbilityBits, readonly string[]])[] = ${q(lineages)};
 `);
-console.log(`${out}: ${spells.length} spells, ${feats.length} feats, ${options.length} options, ${items.length} items, ` +
+console.log(`${out}: ${spells.length} spells, ${feats.length} feats, ${options.length} options, ${items.length} items, ${masteryWeapons.length} mastery weapons, ` +
   `${species.length} species, ${backgrounds.length} backgrounds, ${subclasses.length} subclasses, ${classes.length} classes, ${lineages.length} lineage features, ${features.length} class features, ${casters.length} casters`);

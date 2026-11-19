@@ -705,6 +705,11 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 
 ## SRD subset data fixes (2026-11-19) — mechanism: overseer brief (pre-launch data bugs found by D151), data-fixes worker
 
+- **D165 — `Masteries:` suggests weapons with a mastery property only. DECIDED (2026-11-19).** The slot table marks a base item `mastery: true` when it is a weapon with a mastery property (a focus that fights as a staff is not); `site/scripts/names.mjs` exports them as `MASTERY_WEAPONS`, and the Masteries list reads that, not every mundane item. 38 names in the SRD subset, all 2024 (2014 weapons have no mastery property).
+  *Raw note (brief):* "Masteries suggests every mundane item. Only weapons can have masteries."
+  *Rejected:* the `weapon` flag alone (offers the 2014-only Net and the futuristic firearms, which have no mastery); a fourth field on `ITEMS` rows (touches every reader of the row shape while another worker edits them).
+  *Enforced by:* `test/srd-subset.test.ts` ("D165: …"), `site/test/names.test.ts` ("D165: …"), `site/test/complete.test.ts` ("D165: …").
+
 - **D166 — A 2014 subrace is in the SRD subset only on its own flag, never its parent race's. DECIDED (2026-11-19); amends D141's count.** The extract gave every subrace of an SRD race (`Elf|PHB`) that race's flag, so 45 non-SRD subraces reached `data/srd/slots.json`: the 44 D159 flagged (MTF, ERLW, SCAG, EGW, PSD, the DMG Eladrin) plus `Elf (Drow)|PHB` and `Gnome (Forest)|PHB`. The subset keeps 8 subraces: Hill and Mountain Dwarf, High and Wood Elf, Rock Gnome, Lightfoot and Stout Halfling, Variant Human. Recounted against the current data folder, the Basic-Rules-only names in the subset are 17 (4 subraces, 6 backgrounds, 3 items, 1 DMG potion, 3 magic variants), not 36: none of the 2024 items D141 counted is Basic-Rules-only there now. `NOTICE.md` says 17.
   *Raw note (brief):* "44 non-SRD species carry an SRD flag in the slot table, so they land in the public data/srd/slots.json."
   *Rejected:* keeping the parent's flag and filtering by book (a PHB subrace like Drow is not SRD either).
