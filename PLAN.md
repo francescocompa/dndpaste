@@ -91,4 +91,5 @@ L<n> <Class>                   level block, n = character level
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
 - Community showcase (O5): opt-in public list, likes, filters by build element; D1 index. Revisit after a few hundred shares.
+- Generic names importer (D160): load your own names file in the browser, names, sources and counts only; a plain documented format. Plugs into autocomplete (D151) and the later visitor-data checker (D66).
 - Variants / party blocks (D6). `Game:` header and a second profile (O1). Python port only if extract.py needs it.

@@ -639,3 +639,11 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 
 - **D153 — 2024 Paladin, Ranger and Rogue get a Masteries ghost count of 2 from `data/supplement.json` (numbers only), since the SRD slot table has mastery but no progression for them. DECIDED (2026-11-19); amends D129 (those three had no count).** Mechanism: a /ui-review pin in the D149 build session. `presets.mjs` reads the supplement when the table has no progression.
   *Enforced by:* `site/test/ghost.test.ts` (42c6607, unmerged).
+
+## Visitor data, safely (2026-11-19) — mechanism: overseer analysis, Francesco's "Yes, log it and fix the README line"
+
+- **D160 — The later visitor-data step (D66 step 2; D151's "your own data") is a file the visitor picks, read in their browser only, never uploaded, never fetched by the site, and never named or linked as 5etools. DECIDED (2026-11-19).** The importer keeps names, sources and counts only, and drops any text the file carries before anything is kept or shown. It accepts a plain documented names format anyone can write by hand, so it is a generic importer, not a door to one site. The UI says "your own data" or "a names file". The repo's public docs describe data inputs generically; citing 5etools source codes (`XPHB`) as a naming convention stays. Not built: planned for later (PLAN Later).
+  *Raw note:* "Is there any way that it's safe for me to suggest linking 5etools repo eventually? … I feel like just having a connection exposes me to legal issues" → "Yes, log it and fix the README line. We'll plan for later to try to implement the generic importer".
+  *Why:* names and indexes carry little risk; a live connection to a mirror WotC has taken down points visitors at infringing material, and most D&D subreddits remove posts that promote it.
+  *Rejected:* a "connect 5etools" button or a fetch from a mirror; naming 5etools as a supported source.
+  *Enforced by:* prose only (README reworded in this commit).

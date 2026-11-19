@@ -16,7 +16,7 @@
 
 Working set: none
 
-Spawned: none
+Spawned: SRD name autocomplete (D151) · local_b7617c81-338a-4788-bb3b-15c7f51b1bbe · worktree `srd-autocomplete` · running (interview, then build + /ui-review) · owed: merge → then D152 copy pass worker (last; also fix the /about privacy line) → deploy → post. To choose + author merged b378f20 (not deployed).
 
 - **Library:** 0.8.0 on main (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
   The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
