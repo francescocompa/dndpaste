@@ -237,7 +237,7 @@ function wireView(): void {
   live.setAttribute("aria-live", "polite");
   acts.append(live);
 
-  const DONE = { link: "Link copied", raw: "Text copied", canon: "Canonical copied", edit: "Edit link copied" } as const;
+  const DONE = { link: "Link copied", raw: "Text copied", canon: "Tidied text copied", edit: "Edit link copied" } as const;
   // Edit and the one-time panel; the private edit link when this browser keeps the share's key (D97).
   const editUrl = rev ? null : wireEdit(acts, id, link);
   let timer = 0;
@@ -267,14 +267,14 @@ function wireView(): void {
 
   const copy = async (k: "link" | "raw" | "canon" | "edit") => {
     const text = k === "link" ? link : k === "edit" ? editUrl : texts[k] ?? (await fetchText(k));
-    if (text === null || text === undefined) { live.textContent = "The text could not be loaded. Try again."; return; }
+    if (text === null || text === undefined) { live.textContent = "The text didn't load. Try again."; return; }
     if (await writeClip(text)) copied(k);
     else showManual(text);
   };
 
   const menu = panel("ovf copym",
     `<button type="button" role="menuitem" class="it" data-copy="raw"><span class="il">${icon("copy")}Copy text</span><small>as written</small></button>` +
-    `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy canonical</span><small>tidied, for apps</small></button>` +
+    `<button type="button" role="menuitem" class="it" data-copy="canon"><span class="il">${icon("tidy")}Copy tidied text</span><small>for apps</small></button>` +
     (editUrl ? `<button type="button" role="menuitem" class="it" data-copy="edit"><span class="il">${icon("pencil")}Copy edit link</span><small>private, to edit elsewhere</small></button>` : "") +
     // D119 round 2: the share image and Post to Reddit live in this menu, not in the row.
     `<button type="button" role="menuitem" class="it" data-share="image"><span class="il">${icon("image")}Share image</span><small>a picture of the whole build</small></button>` +
@@ -349,7 +349,7 @@ function wireShare(btn: HTMLButtonElement, id: string, link: string, raw: () => 
     (copyOk ? `<button type="button" class="bt" data-img="copy" disabled>${icon("copy")}<span>Copy image</span></button>` : "") +
     (shareOk ? `<button type="button" class="bt" data-img="share" disabled>${icon("share-box")}<span>Share image</span></button>` : "") + `</div>` +
     `<small class="msg" aria-live="polite"></small></div>` + SHEET_HEAD,
-  "Share", "dialog");
+  "Share image", "dialog");
   p.id = "shp";
   // A build of one block draws the same in both layouts: no choice to make.
   if (document.querySelectorAll(".view .build > *").length < 2) p.querySelectorAll<HTMLElement>(".lay").forEach((el) => { el.hidden = true; });
@@ -394,7 +394,7 @@ function wireShare(btn: HTMLButtonElement, id: string, link: string, raw: () => 
       for (const b of imgBtns()) b.disabled = false;
     } catch {
       made.delete(key);
-      prev.innerHTML = `<span class="wait">The site could not draw the image. Close this panel and try again.</span>`;
+      prev.innerHTML = `<span class="wait">Couldn't draw the image. Close this panel and try again.</span>`;
     }
   };
 
@@ -438,7 +438,7 @@ function wireShare(btn: HTMLButtonElement, id: string, link: string, raw: () => 
       flash(b, "Downloaded");
     } else if (act === "copy") {
       navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
-        .then(() => flash(b, "Image copied"), () => { live.textContent = "This browser could not copy the image. Download it instead."; });
+        .then(() => flash(b, "Image copied"), () => { live.textContent = "This browser can't copy images. Download it instead."; });
     } else if (act === "share") {
       navigator.share({ files: [file], title: meta.title }).catch(() => { /* closed by the reader */ });
     }
@@ -489,7 +489,7 @@ function wireEdit(acts: HTMLElement, id: string, link: string): string | null {
   box.innerHTML = `<div class="shd"><b>${icon("check")}Saved</b><button type="button" class="x" aria-label="Close">${icon("x")}</button></div>` +
     `<p>${blocked
       ? "This browser can't keep the edit key. To edit the build later, keep this private link."
-      : "You can edit this build from this browser. To edit it from another device, keep this private link. This browser also keeps it in the Copy link menu."} ` +
+      : "This browser can edit the build. To edit it on another device, keep this private link. You can copy it again from the Copy link menu."} ` +
     `Anyone who has the link can edit the build.</p>` +
     `<div class="erow"><input class="in" readonly spellcheck="false" aria-label="Private edit link"><button type="button" class="bt cpe">${icon("copy")}<span>Copy edit link</span></button></div>`;
   const input = box.querySelector("input") as HTMLInputElement;
@@ -498,7 +498,7 @@ function wireEdit(acts: HTMLElement, id: string, link: string): string | null {
   input.addEventListener("focus", () => input.select());
   const cpe = box.querySelector<HTMLButtonElement>(".cpe") as HTMLButtonElement;
   cpe.addEventListener("click", async () => {
-    if (await writeClip(editUrl)) cpe.innerHTML = `${icon("check")}<span>Link copied</span>`;
+    if (await writeClip(editUrl)) cpe.innerHTML = `${icon("check")}<span>Edit link copied</span>`;
     else { input.focus(); input.select(); }
   });
   box.querySelector(".x")?.addEventListener("click", () => {

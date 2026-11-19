@@ -224,7 +224,7 @@ test("import: only this site's links or a bare id (D85)", () => {
   assert.ok(importBarHtml({ kind: "found", id: "k3Vq9TzR2m", title: "", author: "" }).includes("Open <b>Untitled build</b> in the editor?"));
   assert.ok(importBarHtml({ kind: "found", id: "k3Vq9TzR2m", title: "<script>", author: `"x"` }).includes("<b>&lt;script&gt;</b> by &quot;x&quot;"));
   const missing = importBarHtml({ kind: "missing", id: "zzzzzzzzzz" });
-  assert.ok(missing.includes("there is no build with the id <b>zzzzzzzzzz</b>") && !missing.includes(`data-act="import"`));
+  assert.ok(missing.includes("no build has the id <b>zzzzzzzzzz</b>") && !missing.includes(`data-act="import"`));
 });
 
 test("recent shares: newest first, deduped, capped, escaped; storage blocked still works for the visit", () => {
@@ -419,6 +419,6 @@ test("drafts: the restore bar says when, in plain words; an older revision says 
   const bar = draftBarHtml(d, now, 2);
   assert.equal(textOf(bar), "You have unsaved changes from today at 9:05.RestoreDiscard");
   assert.ok(bar.includes(`data-act="restore"`) && bar.includes(`data-act="discard"`));
-  assert.match(textOf(draftBarHtml(d, now, 4)), /made on revision 2; restoring them replaces the changes saved since/);
+  assert.match(textOf(draftBarHtml(d, now, 4)), /You made them on revision 2. Restoring them replaces the changes saved since/);
   assert.equal(textOf(draftBarHtml({ ...d, rev: null }, now, null)), "You have unsaved changes from today at 9:05.RestoreDiscard");
 });

@@ -161,7 +161,7 @@ test("cross-site: POSTs a browser marks cross-site, or from another Origin, are 
   assert.equal([...env.PASTES.map.keys()].length, 4);
   const page = await call(env, "POST", "/", { ...form({ paste: VICE }), headers: { Origin: "https://evil.example" } });
   assert.equal(page.status, 403);
-  assert.ok((await page.text()).includes("This form was sent from another site."));
+  assert.ok((await page.text()).includes("Another site sent this form."));
 });
 
 test("cross-site: the canonical origin counts as ours; reports are covered too", async () => {

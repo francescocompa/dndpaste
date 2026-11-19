@@ -12,7 +12,7 @@ export interface KVLike {
  */
 export const isBare = (p: { header: ReadonlyMap<string, unknown>; entities: readonly unknown[]; levels: readonly unknown[] }): boolean =>
   p.header.size === 0 && p.entities.length === 0 && p.levels.length === 0;
-export const BARE = "A build needs at least one key besides its name, such as Species:. Add one to save.";
+export const BARE = "A build needs at least one key besides its name, such as Species. Add one to save.";
 
 export const LIMITS = {
   pasteBytes: 32 * 1024,

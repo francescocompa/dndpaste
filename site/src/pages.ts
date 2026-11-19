@@ -54,7 +54,7 @@ export function layout(o: Layout): string {
 ${o.head ?? ""}</head>
 <body class="${esc(o.page)}">
 <div class="wrap">
-<header class="top"><a class="wm" href="/">${LOGO}dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New paste</a><a class="nav" href="/guide">Guide</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("settings")}<span class="dl">Settings</span></button></header>
+<header class="top"><a class="wm" href="/">${LOGO}dndpaste<span class="dot">.</span></a><nav class="navs"><a class="nav" href="/">New build</a><a class="nav" href="/guide">Guide</a><a class="nav" href="/about">About</a></nav><button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">${icon("settings")}<span class="dl">Settings</span></button></header>
 <main>
 ${o.main}
 </main>
@@ -139,23 +139,23 @@ export function viewPage(id: string, rec: PasteRecord, origin: string, s: ViewSt
   ].join("\n") + "\n";
 
   const unclean = r.clean ? "" :
-    `<p class="note">Some lines of this build did not parse and are not shown. <a href="/${path}/raw">See the text as written</a>.</p>`;
+    `<p class="note">Lines that didn't parse aren't shown. <a href="/${path}/raw">See the text as written</a>.</p>`;
   const pinnedNote = s.pinned
-    ? `<p class="note pinned">This is revision ${n} of the build, kept as it was. <a href="/${id}">See the latest version</a>.</p>\n`
+    ? `<p class="note pinned">This is revision ${n}, kept as it was. <a href="/${id}">See the latest version</a>.</p>\n`
     : "";
 
   // Fold all / expand all over the level blocks' <details> (D87): shown only when a level block has lines to fold.
   const folds = r.folds
-    ? `<div class="fold njs"><button type="button" class="b" data-fold="close">Fold all levels</button> · <button type="button" class="b" data-fold="open">Expand all</button></div>\n`
+    ? `<div class="fold njs"><button type="button" class="b" data-fold="close">Fold levels</button> · <button type="button" class="b" data-fold="open">Unfold levels</button></div>\n`
     : "";
   const report = s.reported
-    ? `<p class="report done">${icon("check")}Thanks. Your report went to the site's maintainer.</p>`
-    : `<details class="report"${s.reportError ? " open" : ""}><summary>Something wrong with this build? <span class="u">Report it</span></summary>
+    ? `<p class="report done">${icon("check")}Thanks. Report sent.</p>`
+    : `<details class="report"${s.reportError ? " open" : ""}><summary><span class="u">Report a problem</span></summary>
 <form class="rform" method="post" action="/${id}/report"><b>Report this build</b>${s.pinned ? `<input type="hidden" name="rev" value="${n}">` : ""}
 ${s.reportError ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.reportError)}</p>` : ""}<label class="fld"><span class="lbl">Reason</span><textarea class="in ta" name="reason" required maxlength="${LIMITS.reason}" placeholder="What's wrong? For example: it copies rules text, or it's spam.">${esc(s.reportReason ?? "")}</textarea><small>Required, up to ${LIMITS.reason} characters.</small></label>
 <label class="fld"><span class="lbl">Contact (optional)</span><input class="in" name="contact" maxlength="${LIMITS.contact}" autocomplete="off" placeholder="An email or handle, if you want an answer" value="${esc(s.reportContact ?? "")}"></label>
 <div class="actrow"><button class="bt pri" type="submit">${icon("flag")}Send report</button><button class="bt ghost njs" type="button" data-act="cancel-report">Cancel</button></div>
-<small>Reports go to the site's maintainer and are never shown on this page.</small>
+<small>Only the site's maintainer sees reports.</small>
 </form></details>`;
 
   // D119: data-reddit is Post to Reddit's link for the Copy link menu (site.js), which also opens Share image; without
@@ -164,7 +164,7 @@ ${s.reportError ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.reportEr
   const main = `<div class="meta"><h1 class="ttl${rec.title ? "" : " none"}">${esc(title)}</h1><div class="by">${byline}</div>${r.books}</div>
 <div class="actrow acts" data-id="${id}"${s.pinned ? ` data-rev="${n}"` : ""} data-reddit="${esc(reddit)}"><span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">${icon("link")}<span class="cl">Copy link</span></button>` +
     `<button type="button" class="bt pri caret icon" aria-label="More ways to copy and share" aria-haspopup="menu" aria-expanded="false">${icon("chevron-down")}</button></span>` +
-    `<span class="grow"></span><a class="bt dup" href="/?from=${path}">${icon("duplicate")}<span>Duplicate<span class="dl"> and edit</span></span></a><noscript><span class="alt"><a href="/${path}/raw">Text as written</a> · <a href="/${path}/canon">Canonical text</a> · <a href="${esc(reddit)}" target="_blank" rel="noopener noreferrer">Post to Reddit</a></span></noscript></div>
+    `<span class="grow"></span><a class="bt dup" href="/?from=${path}">${icon("duplicate")}<span>Duplicate<span class="dl"> and edit</span></span></a><noscript><span class="alt"><a href="/${path}/raw">Text as written</a> · <a href="/${path}/canon">Tidied text</a> · <a href="${esc(reddit)}" target="_blank" rel="noopener noreferrer">Post to Reddit</a></span></noscript></div>
 ${pinnedNote}${folds}${unclean}${r.body}
 ${report}`;
   return layout({ title: `${title} · dndpaste`, main, head, page: "view" });
@@ -207,9 +207,9 @@ export function formPage(s: FormState = {}): string {
     : "";
   const e = s.edit;
   const notes = [
-    s.missingFrom ? `<p class="note">There is no build with the id ${esc(s.missingFrom)}. The form starts empty.</p>` : "",
-    e ? `<p class="note editing">Editing <a href="/${e.id}">${esc(e.title || UNTITLED)}</a>. Saving adds revision ${e.rev + 1}; the link then shows it, and <a href="/${e.id}/${e.rev}">revision ${e.rev}</a> stays as it is.</p>` +
-      `<noscript><p class="note">Editing needs JavaScript: the edit key stays in your browser. Without it, use <a href="/?from=${e.id}">Duplicate and edit</a>.</p></noscript>` : "",
+    s.missingFrom ? `<p class="note">No build has the id ${esc(s.missingFrom)}. The editor starts empty.</p>` : "",
+    e ? `<p class="note editing">Editing <a href="/${e.id}">${esc(e.title || UNTITLED)}</a>. Saving makes revision ${e.rev + 1}, and the link then shows it. <a href="/${e.id}/${e.rev}">revision ${e.rev}</a> stays as it is.</p>` +
+      `<noscript><p class="note">Editing needs JavaScript to read the edit key in your browser. Without it, use <a href="/?from=${e.id}">Duplicate and edit</a>.</p></noscript>` : "",
     s.error ? `<p class="ferr" role="alert">${icon("alert")}${esc(s.error)}</p>` : "",
   ].join("");
   const saveBtn = e ? `${icon("check")}Save changes` : `${icon("link")}Save and get link`;
@@ -225,7 +225,7 @@ ${notes}<div class="stack sm"><label class="fld"><span class="lbl">Title</span><
   // The editor, hints, Tidy, Open file and recent shares come from /assets/form.js (src/client/); without it this form
   // still saves, and the server answers with its diagnostics.
   const head = `<script type="module" src="/assets/form.js"></script>\n`;
-  return layout({ title: e ? `Edit ${e.title || UNTITLED} · dndpaste` : "New paste · dndpaste", main, head, page: e ? "new edit" : "new" });
+  return layout({ title: e ? `Edit ${e.title || UNTITLED} · dndpaste` : "New build · dndpaste", main, head, page: e ? "new edit" : "new" });
 }
 
 /**
@@ -257,13 +257,13 @@ ${FEEDBACK_LINE}
 export function messagePage(heading: string, text: string): string {
   const main = `<div class="prose"><h1>${esc(heading)}</h1>
 <p>${esc(text)}</p>
-<p><a href="/">New paste</a></p></div>`;
+<p><a href="/">New build</a></p></div>`;
   return layout({ title: `${heading} · dndpaste`, main, page: "missing" });
 }
 
 export function notFoundPage(): string {
   const main = `<div class="prose"><h1>Not found</h1>
 <p>There is nothing at this address. Links are case-sensitive: check the letters.</p>
-<p><a href="/">New paste</a></p></div>`;
+<p><a href="/">New build</a></p></div>`;
   return layout({ title: "Not found · dndpaste", main, page: "missing" });
 }

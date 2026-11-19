@@ -34,7 +34,7 @@ test("display: storage blocked or full keeps the settings for the visit", () => 
   blocked.set({ theme: "light", kind: true, abilities: false });
   assert.deepEqual(blocked.get(), { theme: "light", kind: true, abilities: false });
   assert.equal(blocked.persistent(), false);
-  assert.ok(displayMenuHtml(blocked.get(), blocked.persistent()).includes("kept for this visit only"));
+  assert.ok(displayMenuHtml(blocked.get(), blocked.persistent()).includes("last for this visit only"));
   const full = memStorage();
   full.setItem = () => { throw new Error("QuotaExceededError"); };
   const f = displayStore(() => full);

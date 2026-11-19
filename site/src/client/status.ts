@@ -92,7 +92,7 @@ export function summaryHtml(s: Status): string {
   if (s.over) return `<b>Over ${LIMITS.pasteBytes / 1024} KB</b> · shorten it to save`;
   if (s.errors) return `<b>${plural(s.errors, "error")}</b> · fix ${s.errors === 1 ? "it" : "them"} to save`;
   if (s.bare) return `<b>Only a name</b> · add a key to save`;
-  if (s.warnings || s.toChoose.length) return `<span class="okc">No errors</span> · ${notes(s)}, ready to save`;
+  if (s.warnings || s.toChoose.length) return `<span class="okc">No errors</span> · ${notes(s)} · ready to save`;
   return `<span class="okc">No problems</span> · ready to save`;
 }
 
@@ -112,7 +112,7 @@ export function problemsHtml(s: Status): string {
       : "";
   const shown = s.diagnostics.filter((d) => !isToChoose(d));
   if (!shown.length && !size) {
-    return `<div class="dsum"><span class="okc">No problems.</span> Warnings show here; they don't block saving.</div>`;
+    return `<div class="dsum"><span class="okc">No problems.</span> Warnings show here and don't block saving.</div>`;
   }
   const list = shown.sort((a, b) => Number(b.code.startsWith("E")) - Number(a.code.startsWith("E")) || a.line - b.line);
   const rest = list.length - PROBLEMS_SHOWN;
@@ -148,7 +148,7 @@ export function dockLineHtml(s: Status): string {
     const inner = `${icon("alert")}<b>${esc(e.code)}</b>${e.line ? ` <span class="pln">line ${e.line}</span>` : ""}${more}<span class="pmsg">${esc(cap(e.message))}</span>`;
     return e.line ? `<button type="button" class="dsum perr" data-line="${e.line}">${inner}</button>` : `<span class="dsum perr">${inner}</span>`;
   }
-  if (s.bare) return `<span class="dsum perr">${icon("alert")}<b>Only a name</b><span class="pmsg">Add a key, such as Species:</span></span>`;
+  if (s.bare) return `<span class="dsum perr">${icon("alert")}<b>Only a name</b> · <span class="pmsg">add a key to save</span></span>`;
   if (s.warnings || s.toChoose.length) return `<span class="dsum"><span class="okc">No errors</span> · ${notes(s)}</span>`;
   return `<span class="dsum"><span class="okc">No problems</span></span>`;
 }
@@ -174,10 +174,10 @@ export type Import =
 export function importBarHtml(r: Import): string {
   const keep = `<button type="button" class="bt" data-act="keep">Keep as text</button>`;
   if (r.kind === "missing") {
-    return `<span>That looks like a dndpaste link, but there is no build with the id <b>${esc(r.id)}</b>.</span><span class="grow"></span>${keep}`;
+    return `<span>That's a dndpaste link, but no build has the id <b>${esc(r.id)}</b>.</span><span class="grow"></span>${keep}`;
   }
   if (r.kind === "failed") {
-    return `<span>That looks like a dndpaste link, but the build could not be loaded.</span><span class="grow"></span>` +
+    return `<span>That's a dndpaste link, but the build didn't load.</span><span class="grow"></span>` +
       `<button type="button" class="bt" data-act="retry">Try again</button>${keep}`;
   }
   const by = r.author ? ` by ${esc(r.author)}` : "";

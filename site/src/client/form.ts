@@ -98,7 +98,7 @@ function init(): void {
     cols = next;
     return true;
   };
-  const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the text in the editor. Undo brings it back.</small>`);
+  const dropz = el("div", "dropz", `<b>Drop to open the file</b><small>Replaces the editor text. Undo brings it back.</small>`);
   dropz.hidden = true;
   pane.append(dropz);
   // D121: a new, empty form offers "Start a build". Only while the editor is empty, never on an edit or on Duplicate
@@ -140,7 +140,7 @@ function init(): void {
   };
   if (editId && !editKeys.length) {
     const nokey = el("p", "ferr nokey", `${icon("alert")}<span>This browser has no edit key for this build. Open the private edit link ` +
-      `from when you saved it, or <a href="/?from=${editId}">duplicate and edit</a> it.</span>`);
+      `from when you saved it, or use <a href="/?from=${editId}">Duplicate and edit</a>.</span>`);
     nokey.setAttribute("role", "alert");
     form.prepend(nokey);
   }
@@ -155,7 +155,7 @@ function init(): void {
   aside.innerHTML = `<div class="stack sm"><span class="lbl">Problems</span><div class="probs"></div></div>` +
     `<div class="stack sm tochoose" hidden></div>` +
     `<div class="stack sm keys"><span class="lbl klbl">Keys you can add</span><div class="chips"></div></div>` + GUIDE_LINK +
-    `<div class="stack sm"><span class="lbl">My recent shares</span><div class="rlist"></div></div>`;
+    `<div class="stack sm"><span class="lbl">Saved builds</span><div class="rlist"></div></div>`;
   const probs = aside.querySelector<HTMLElement>(".probs") as HTMLElement;
   const tochoose = aside.querySelector<HTMLElement>(".tochoose") as HTMLElement;
   const klbl = aside.querySelector<HTMLElement>(".klbl") as HTMLElement;
@@ -211,7 +211,7 @@ function init(): void {
     hints = keyHints(ta.value, cursorLine());
     klbl.textContent = `Keys you can add to ${hints.label}`;
     const html = hints.keys.map((k) => `<button type="button" class="hc" data-key="${esc(k)}">${esc(k)}:</button>`).join("");
-    put(chips, html || `<span class="muted">This block has every key it allows.</span>`);
+    put(chips, html || `<span class="muted">No keys left for this block.</span>`);
     put(krow, html || `<span class="muted">No keys left for this block.</span>`);
     kn.textContent = String(hints.keys.length);
     // D149 review: the To choose chip of the line the cursor is on.
@@ -897,7 +897,7 @@ function init(): void {
     if (!plan) return false;
     tidyPop.innerHTML = `<p class="tph">Tidy will:</p><ul class="tpl">${plan.changes.map((c) =>
       `<li><button type="button" class="tpi" aria-pressed="${!c.off}" data-label="${esc(c.label)}">${esc(c.label)}</button></li>`).join("")}</ul>` +
-      `<p class="muted tpu">Click a change to leave it out.</p>`;
+      `<p class="muted tpu">Select a change to leave it out.</p>`;
     return true;
   };
   tidyBadge.addEventListener("click", () => {
@@ -936,7 +936,7 @@ function init(): void {
       replaceAll(await f.text());
       hideBar();
     } catch {
-      showErr("That file could not be read.");
+      showErr("The site couldn't read that file.");
     }
   };
   openBtn.addEventListener("click", () => file.click());
@@ -1078,9 +1078,9 @@ function init(): void {
         location.assign(key ? `/${id}#new=${key}` : `/${id}`);
         return;
       }
-      showErr(typeof data.error === "string" ? data.error : "The build could not be saved. Try again.");
+      showErr(typeof data.error === "string" ? data.error : "Couldn't save the build. Try again.");
     } catch {
-      showErr("The site could not be reached. Your text is still here; try again.");
+      showErr("Can't reach the site. Your text is still here. Try again.");
     }
     saving = false;
     setSaveState();
