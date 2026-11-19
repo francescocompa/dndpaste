@@ -810,7 +810,7 @@ Hands, so the line fills no Spells slot. A test reads this build from here.
 
 ## 11. Changes from 0.8
 
-0.9 (D180–D185) adds keys and markers and renames nothing: every 0.8 paste reads and emits as
+0.9 (D180–D185, D200–D206) adds keys and markers and renames nothing: every 0.8 paste reads and emits as
 before, with no new warning (§2.6). The additions are minor-version.
 
 - **Option family keys** (D180): `Invocations`, `Metamagic`, `Maneuvers`, `Infusions`,

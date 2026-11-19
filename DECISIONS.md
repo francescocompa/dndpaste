@@ -848,3 +848,34 @@ Run per D191: 19 vault builds, 5 headless personas + phone and desktop editor se
   *Raw note:* T13: "For now, Gear is a catch all for kit". T18: "I'm not sure if to fix this, I don't want in general to reroute user choices. A user may want to force select a cantrip for a class that doesn't have because the dm allowed it for example."
   *Rejected:* T13 an `Equipped:` key or Gear details now; T18 the board's fix.
   *Enforced by:* prose only.
+
+## Wide user test fixes (2026-11-19) — mechanism: AskUserQuestion, 1 round (2 questions) for D200–D201; the rest delegated to the lib-fixes worker on `claude/lib-fixes-0-9` under D192–D197
+Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide). Tests: `test/usertest.test.ts`.
+
+- **D200 — Notes go on a `Note:` key: free text, any block, one line per block, written last in its block; no warning, the checker ignores it. DECIDED (2026-11-19).** (D195 T14.) A `#` line stays E001, with a fix that turns it into `Note: …`; a second `Note` in a block is E003 and its fix joins the two with `; `. `X-` keys keep W001 and their item-list values.
+  *Raw note:* picked "Note: key (Recommended)".
+  *Rejected:* `#` comment lines (Tidy reorders lines, so a comment can't stay pinned above one; the canonical form would move it); `X-` keys as free text with no W001 (changes the value type of an existing key family under apps reading it).
+  *Enforced by:* `test/usertest.test.ts` (D195 T14), SPEC §5.1, §5.5.
+- **D201 — A granted feature or spell is highlighted with a plain line where it arrives (`Feature: Portent`, `Prepared: Bless`); no new syntax. DECIDED (2026-11-19).** (D193 T26, T02.) The checker never counts a granted spell (subclass always-prepared list, species spell, a feat's or option's fixed spell) as a pick, never calls it misplaced or "more than the rules grant"; a bare `Feature` the data knows no pick for is silent anywhere. Header `Prepared` fills no slot. The extract no longer counts a 2014 patron's *expanded* list as granted, and records the spells an option grants (Pact of the Chain → Find Familiar).
+  *Raw note:* picked "Plain Feature/Spells line (Recommended)".
+  *Rejected:* a `Highlight:` key (one more key to learn; Francesco chose no new syntax). Cost accepted: a misspelt bare `Feature` passes silently.
+  *Enforced by:* `test/usertest.test.ts` (D193, D201), SPEC §5.1, §6.
+- **D202 — `emit` keeps a line that failed to parse, as written, at the end of the block it stood in; it never refuses. DECIDED (2026-11-19).** (D197 T04.) The parser records it in `Paste.kept`; `emit(parse(emit(p))) === emit(p)` holds with errors too. The CLI `emit` prints the text and exits 1 when a line has an error.
+  *Raw note:* D197: "keep it verbatim, or refuse; the fix session picks".
+  *Rejected:* `emit` refusing on errors (an app would still lose the text unless it checked first; keeping is what T04 asked for).
+  *Enforced by:* `test/usertest.test.ts` (D202), `test/cli.test.ts`, SPEC §0 rule 6, §4.
+- **D203 — Each diagnostic carries a short `hint` and, when the parser can write it, a `fix` (text edits on the paste as written); `tidy()` makes every safe fix, then emits. DECIDED (2026-11-19).** (D192, D196 T12, T37.) Shape: `fix: { label, safe, edits: { line, text | null, insert? }[] }`, made by `applyFix`. Safe: E005 move above the first block, E003 join, E012 `/` between classes, a space after a colon. Not safe (one click only): did-you-mean, `Level 5 Wizard` → `L5 Wizard`, a line made a `Note`. `message` texts stay as they were, so existing consumers keep matching them. `tidy(text, { optionFamily })` also folds a plain `Options` line into its family key (D195 T33); the checker's `normalise` does the same from the slot table.
+  *Raw note:* D192 T17: "For these errors, keep the text concise and if possible one or two words".
+  *Rejected:* putting the hint inside `message` (breaks every consumer matching message text, the site's tests among them); Tidy guessing (did-you-mean is never automatic).
+  *Enforced by:* `test/usertest.test.ts` (D192), SPEC §7.
+- **D204 — `check` is exported as `dndpaste/check` with the SRD slot table and supplement in the package; the CLI `check` exits 1 on errors only, `--strict` on warnings too; findings carry a code per kind (C001–C006). DECIDED (2026-11-19).** (D197 T06, T32.) The main entry stays data-free. `dndpaste/sources` exports the UA list (D205). A missing finding carries `at: { key, level }`.
+  *Rejected:* `check` in the main entry (pulls checker code into every parser-only consumer, the editor bundle among them); a code per finding message (kinds are what tools filter on; messages still change).
+  *Enforced by:* `test/cli.test.ts`, `test/usertest.test.ts` (D204), SPEC §6, README.
+- **D205 — A source code no entity of the slot table carries is accepted with one info: homebrew (`HB`), Unearthed Arcana (the library's `UA_SOURCES`, from the local UA collection by `scripts/ua-sources.mjs`, the codes character-forge reads), or not a known book code. DECIDED (2026-11-19).** (D194 T03.) A known book the table lacks resolves as before: the extract writes `meta.sources`, every book code the full table cites, into both tables.
+  *Raw note:* T03: "Check character-forge, I think we used custom UA codes there". (character-forge uses the collection's own `XUA…` codes, no custom ones.)
+  *Rejected:* a warning for an unknown code (D194: any element can be homebrew without breaking the builder).
+  *Enforced by:* `test/usertest.test.ts` (D194, D205), SPEC §6.
+- **D206 — On a 2024 feat whose ability slot raises that score (half feat, epic boon; not origin or fighting-style), `[+1 CHA]` reads as `[CHA]`. DECIDED (2026-11-19).** (D193 T22.) `abilityOf`/`isAbilitySlot` accept both; the checker gives an info ("write [WIS]") on any other feat. `emit` keeps what was written; `[CHA]` stays canonical.
+  *Raw note:* T22: "Accept, for 2024 feats that are all half feats (except origin-like and FS), it's ok both to have +1 CHA and CHA only".
+  *Rejected:* rewriting `[+1 CHA]` in `emit` (data-free emit can't tell a half feat).
+  *Enforced by:* `test/usertest.test.ts` (D206), SPEC §5.3.
