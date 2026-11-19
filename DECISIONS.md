@@ -611,3 +611,10 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
   *Raw note:* "use this" (his SVG); "show me the logo in site then deploy".
   *Rejected:* the overseer's traced versions v1–v3 (his own drawing replaced them).
   *Enforced by:* `site/test/logo.test.ts`.
+
+## Empty lines in the edit form (2026-11-19) — mechanism: AskUserQuestion, 1 round (1 question), overseer
+
+- **D149 — On the edit form, `W004` (an empty "not chosen yet" line) leaves the Problems list for its own "To choose · N" row of line chips under it; the toolbar summary and the phone dock say "N to choose", not "N warnings". DECIDED (2026-11-19).** Display only: the spec and the library keep `W004` as a warning (D112). A fresh Bard 5 preset (2024) listed 19 W004 rows and nothing else, and the editor's ghost counts (D129) already mark those lines. Problems now shows only what is wrong.
+  *Raw note:* "the problems section can be overwhelming, especially right after starting a preset, with multiple empty line problem mentions"; picked "Separate To-do line (Recommended)".
+  *Rejected:* one folded "N lines not chosen yet" row inside Problems (the panel still opens with a warning, the toolbar still counts warnings); hiding preset W004s until the first edit (the list jumps to 19 rows on the first keystroke, and the same text shows different problems by how it was made).
+  *Enforced by:* pending (the To choose build).
