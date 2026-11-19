@@ -11,7 +11,7 @@
  */
 import { classSequence, keyGroup, resolveKey } from "../../src/dndpaste.ts";
 import type { Paste, Ref } from "../../src/dndpaste.ts";
-import { PRESETS } from "./presets.ts";
+import { PRESETS, SPECIES_PRESETS } from "./presets.ts";
 import { esc, icon } from "./render.ts";
 import type { ClassPreset } from "./presets.ts";
 
@@ -46,9 +46,14 @@ function tableFor(ref: Ref, rules: string | null): ClassPreset | undefined {
 }
 
 /** A class that prepares from its whole list (D190, D23): its table counts a `Prepared` loadout and never `Spells`.
- *  2024 Cleric, Druid, Paladin and Ranger. A Wizard keeps both: `Spells` is the spellbook. */
+ *  2024 Cleric, Druid, Paladin and Ranger. A Wizard keeps both: `Spells` is the spellbook. D212 (T09): a 2014 class
+ *  whose table counts no `Spells` and whose 2024 twin prepares from its whole list (Cleric, Druid, Paladin; a 2014
+ *  Ranger knows its spells, so it counts them). */
 export function isWholeList(table: ClassPreset): boolean {
-  return table.counted.includes("Prepared") && !table.counts.some((c) => c.Spells);
+  const own = (t: ClassPreset) => t.counted.includes("Prepared") && !t.counts.some((c) => c.Spells);
+  if (table.source === "XPHB") return own(table);
+  const twin = PRESETS.find((p) => p.source === "XPHB" && p.name === table.name);
+  return Boolean(twin && own(twin)) && !table.counts.some((c) => c.Spells);
 }
 
 /** The level block's class name when it prepares from its whole list (D190), else null. */
@@ -60,18 +65,6 @@ export function wholeListClass(name: string, source: string | null, rules: strin
 /** D190: the hint a whole-list preparer's `Spells` line shows instead of a count. The D152 copy pass reviews it. */
 export function wholeListNote(cls: string): string {
   return `${cls} prepares from its whole list, so its spells go on Prepared.`;
-}
-
-/**
- * D190 review (round 2): a whole-list preparer's `Spells` key gets the hint underline, `k wl`, in place of a chip; the
- * form lays a button over it that opens Switch to Prepared. `rows` are highlightRows' rows, one per line.
- */
-export function markWholeList(rows: readonly string[], ghosts: readonly Ghost[]): string[] {
-  const out = [...rows];
-  for (const g of ghosts) {
-    if (g.note && out[g.line - 1]) out[g.line - 1] = out[g.line - 1].replace(`<span class="k">`, `<span class="k wl" data-line="${g.line}">`);
-  }
-  return out;
 }
 
 /**
@@ -167,7 +160,7 @@ export function ghostCounts(paste: Paste, text: string): Ghost[] {
     else groups.set(id, { n: cur, key, lines: [i + 1], scopes: [r.key] });
   }
 
-  const out: Ghost[] = [];
+  const out: Ghost[] = [...speciesGhosts(paste, lines, rules)];
   for (const { n, key, lines: at1, scopes } of groups.values()) {
     const here = at.get(n);
     if (!here || !here.table.counted.includes(key)) continue;
@@ -191,8 +184,51 @@ export function ghostCounts(paste: Paste, text: string): Ghost[] {
   return out;
 }
 
+/** D211 (T11): the species block's Skills count, from the species table (SPECIES_PRESETS); n is 0, its own column. */
+function speciesGhosts(paste: Paste, lines: readonly string[], rules: string | null): Ghost[] {
+  const sp = paste.entities.find((e) => e.key === "Species");
+  const sd = sp?.item ? speciesPreset(sp.item.ref, rules) : undefined;
+  if (!sp || !sd) return [];
+  const want = new Map(sd.lines.filter(([, v]) => typeof v === "number").map(([k, v]) => [k, v as number]));
+  const out: Ghost[] = [];
+  for (const [key, v] of sp.lines) {
+    const of = want.get(key);
+    if (of === undefined || !COUNTED.has(key.toLowerCase()) || v.type !== "items") continue;
+    const line = blockLine(lines, "Species", key);
+    if (!line) continue;
+    const have = v.items.filter((it) => !it.drop).length;
+    const g: Ghost = { line, n: 0, have, of: of + v.items.length - have };
+    out.push(g);
+  }
+  return out;
+}
+
+/** The species table row for a written species: its own source, else the `Rules:` edition's. */
+export function speciesPreset(ref: Ref, rules: string | null) {
+  const src = ref.source ? ref.source.toUpperCase() : rules ? EDITION_SOURCE[rules] : undefined;
+  const name = ref.name.toLowerCase();
+  return src ? SPECIES_PRESETS.find((p) => p.source === src && p.name.toLowerCase() === name) : undefined;
+}
+
+/** The 1-based line of `key` inside the block that `opener:` opens (a header block), else 0. */
+function blockLine(lines: readonly string[], opener: string, key: string): number {
+  let inside = false;
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (!t) continue;
+    if (LEVEL_RE.test(t)) return 0;
+    const sep = separator(t);
+    if (sep < 0) continue;
+    const k = resolveKey(t.slice(0, sep).trim());
+    if (k.def?.opensBlock) { if (inside) return 0; inside = k.def.key === opener; continue; }
+    if (inside && k.def && k.key === key) return i + 1;
+  }
+  return 0;
+}
+
 /** The ghost's words: `2/3` (T3.9 review, amends D130). Over the count, the alert icon says so, not the words (D132). */
 export function ghostText(g: Ghost): string {
+  // D210 (T08, review round 2): the chip stays 1/0 with its alert icon, and opens nothing.
   return g.note ?? `${g.have}/${g.of}`;
 }
 

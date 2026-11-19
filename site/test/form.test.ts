@@ -110,6 +110,16 @@ test("D177: a frame lists only its class's option family keys; a half-typed key 
   assert.equal(typing.narrowed, true);
 });
 
+test("D219 (T28): a subclass's option family follows the written subclass; with none written, all of the class's show", () => {
+  const fam = (keys: string[]) => keys.filter((k) => ["Maneuvers", "Arcane Shots", "Runes", "Disciplines"].includes(k));
+  assert.deepEqual(fam(keyHints("EK\nClasses: Fighter 8\nSubclass: Eldritch Knight\n\nL8 Fighter\n", 5).keys), [], "T28: an Eldritch Knight");
+  assert.deepEqual(fam(keyHints("BM\nClasses: Fighter 8\n\nL3 Fighter\nSubclass: Battle Master|XPHB\n\nL8 Fighter\n", 7).keys), ["Maneuvers"]);
+  assert.deepEqual(fam(keyHints("F\nClasses: Fighter 8\n\nL8 Fighter\n", 4).keys), ["Maneuvers", "Arcane Shots", "Runes"], "no subclass yet");
+  assert.deepEqual(fam(keyHints("Mix\nClasses: Fighter 3 / Monk 3\nSubclass: Champion\n\nL1 Fighter\n", 5).keys), ["Maneuvers", "Arcane Shots", "Runes"],
+    "a header Subclass with two classes names neither");
+  assert.deepEqual(keyHints("EK\nClasses: Fighter 8\nSubclass: Eldritch Knight\n\nL8 Fighter\nRun", 5).keys, ["Runes"], "a half-typed key still finds it");
+});
+
 test("hints (D110): Feat (…) follows Feat, stays offered, and a marked feat line leaves Feat offered", () => {
   const marked = keyHints("Feat (Origin): Alert\n", 1);
   assert.deepEqual(marked.keys.slice(marked.keys.indexOf("Feat"), marked.keys.indexOf("Feat") + 2), ["Feat", "Feat (…)"]);

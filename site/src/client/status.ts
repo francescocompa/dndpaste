@@ -6,6 +6,8 @@ import { emit, parse } from "../../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../../src/dndpaste.ts";
 import { ghostCounts } from "../ghost.ts";
 import type { Ghost } from "../ghost.ts";
+import { lineFixes } from "../fixes.ts";
+import type { Fix } from "../fixes.ts";
 import { esc, icon } from "../render.ts";
 import { ID_RE, LIMITS, isBare } from "../store.ts";
 
@@ -35,6 +37,8 @@ export interface Status {
   held: number;
   /** The parsed text, for the editor's ghost pick counts (D129). */
   paste: Paste;
+  /** One-click fixes the site can offer without the names table (D196 T12, fixes.ts). */
+  fixes: Fix[];
 }
 
 const enc = new TextEncoder();
@@ -75,6 +79,7 @@ export function status(text: string, holdLine = 0): Status {
     canTidy: !empty && canon !== null && canon.trimEnd() !== t.trimEnd(),
     held,
     paste,
+    fixes: lineFixes(t, paste, diagnostics, ghosts),
   };
 }
 

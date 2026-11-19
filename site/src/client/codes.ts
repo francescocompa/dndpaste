@@ -8,7 +8,7 @@ export type Col = "code" | "title" | "type";
 export type Dir = "asc" | "desc";
 
 /** Sort order of the Type column. */
-export const TYPE_ORDER: readonly BookType[] = ["Core", "Supplement", "Setting", "Adventure", "Extra"];
+export const TYPE_ORDER: readonly BookType[] = ["Core", "Supplement", "Setting", "Adventure", "Extra", "Unearthed Arcana", "Homebrew"];
 
 /** The Type cell: `Core`, or `Core, 2014` for a book the 2024 rules replaced. */
 export function typeLabel(b: Pick<Book, "type" | "y2014">): string {

@@ -7,7 +7,7 @@ import { ghostCounts } from "./ghost.ts";
 import { stampText } from "./client/update.ts";
 import { GUIDE_LINK } from "./example.ts";
 import { FEEDBACK_LINE } from "./links.ts";
-import { esc, icon, renderPaste } from "./render.ts";
+import { esc, icon, isEmptyValue, renderPaste } from "./render.ts";
 import { citedBooks, redditSubmitUrl } from "./shareimg.ts";
 import type { CitedBook } from "./shareimg.ts";
 import type { PasteRecord, Rendered } from "./store.ts";
@@ -82,7 +82,7 @@ export interface ViewState {
  * Bump when the view body or the canonical text a record caches would change (renderer, library parse or emit).
  * test/cache.test.ts holds a hash of every fixture's output and fails until this moves with it.
  */
-export const RENDER_VERSION = 5;
+export const RENDER_VERSION = 6;   // 6: empty lines left out (D216), the Sources line (D217)
 
 /** Everything the view and /canon derive from the paste, computed once at save (free-plan CPU, T3.3). */
 export function prerender(paste: Paste): Rendered {
@@ -90,17 +90,22 @@ export function prerender(paste: Paste): Rendered {
     v: RENDER_VERSION,
     body: renderPaste(paste),
     clean: isClean(paste),
-    folds: paste.levels.some((l) => l.lines.size),
+    folds: paste.levels.some((l) => [...l.lines.values()].some((v) => !isEmptyValue(v))),
     canon: emit(paste),
     books: booksLine(citedBooks(paste)),
   };
 }
 
-/** D120: "Books: <title> (<code>) · …" under the byline; a code `BOOKS` lacks shows as written; none cited, no line. */
+/**
+ * D120, D217 (T03): "Sources: <title> (<code>) · …" under the byline, then the codes /codes lacks, set apart as
+ * "Unknown codes", linked to /codes; none cited, no line.
+ */
 export function booksLine(list: CitedBook[]): string {
   if (!list.length) return "";
-  const one = (b: CitedBook) => (b.title ? `${esc(b.title)} <span class="bc">(${esc(b.code)})</span>` : `<span class="bc">${esc(b.code)}</span>`);
-  return `<div class="bks">Books: ${list.map(one).join(" · ")}</div>`;
+  const known = list.filter((b) => b.title).map((b) => `${esc(b.title as string)} <span class="bc">(${esc(b.code)})</span>`);
+  const unknown = list.filter((b) => !b.title).map((b) => `<span class="bc">${esc(b.code)}</span>`);
+  if (unknown.length) known.push(`<span class="bun"><a href="/codes">Unknown ${unknown.length === 1 ? "code" : "codes"}</a>: ${unknown.join(", ")}</span>`);
+  return `<div class="bks">Sources: ${known.join(" · ")}</div>`;
 }
 
 /** The record's cached render when it is current; otherwise rendered now (a renderer change re-renders on read). */

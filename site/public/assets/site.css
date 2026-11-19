@@ -518,11 +518,23 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ctab th:not([aria-sort]) .srt .i-chevron-down, .ctab th[aria-sort=ascending] .srt .i-chevron-down, .ctab th[aria-sort=descending] .srt .i-chevron-up { display: none; }
 .ctab th[aria-sort] .srt .i, .ctab .srt:hover .i { visibility: visible; }
 .ctab thead .kk .srt { flex-direction: row-reverse; }
-/* D190 review: a key in the wrong place for its class (a whole-list preparer's Spells) gets the hint underline, not an
-   error's wavy red; a transparent button over it opens Switch to Prepared. */
-.ed .k.wl { text-decoration: underline dashed var(--acc); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+/* D190 review, D196 T12: a key or level header with a one-click fix gets the hint underline, not an error's wavy red;
+   a transparent button over it opens the fix. An over chip (D210) gets one that opens why. */
+.ed .wl { text-decoration: underline dashed var(--acc); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.ed .lvh.wl .lvn { text-decoration: inherit; }
 .ed .wls { position: absolute; inset: 0; pointer-events: none; }
 .ed .wlb { position: absolute; z-index: 2; pointer-events: auto; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
-.ed .wlb:hover, .ed .wlb:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 1px; }
-.wlpop { padding: 4px; }
-.wlpop .it { white-space: nowrap; }
+.ed .wlb:hover { background: color-mix(in srgb, var(--acc) 12%, transparent); }   /* fix-level review: no outline over the underline */
+.ed .wlb:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 1px; }
+.wlpop { padding: 4px; max-width: min(340px, calc(100vw - 16px)); }
+.wlpop .it { white-space: normal; }
+/* D218 review: the Type column's info button on /codes; a plain <details>, its note under the header. */
+.ctab th.ct { position: relative; }
+.ctab .tinfo { display: inline-block; vertical-align: middle; }
+.ctab .tinfo summary { list-style: none; cursor: pointer; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; color: var(--mute); }
+.ctab .tinfo summary::-webkit-details-marker { display: none; }
+.ctab .tinfo summary:hover, .ctab .tinfo[open] summary { color: var(--fg); background: var(--chip); }
+.ctab .tinfo summary .i { width: 14px; height: 14px; }
+.ctab .tinfo .tpop { position: absolute; right: 0; top: 100%; z-index: 5; width: min(300px, calc(100vw - 32px)); padding: 8px 10px;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 10px 28px rgb(0 0 0 / 0.16);
+  font: 400 13px/1.4 var(--sans); text-transform: none; letter-spacing: 0; white-space: normal; text-align: left; }

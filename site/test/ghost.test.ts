@@ -128,7 +128,7 @@ Spells:
 Cantrips: Light
 `;
   assert.deepEqual(byLine(text), { "L2 Cantrips: Light": "1 of 0" });
-  assert.match(ghostHtml(ghosts(text)[0], 1), /class="gc over">1\/0<svg/);
+  assert.match(ghostHtml(ghosts(text)[0], 1), /class="gc over">1\/0<svg/, "D210 review round 2: 1/0 with its icon");
 });
 
 const none2014 = (text: string) => assert.deepEqual(ghosts(text), [], "2014 classes have no masteries");
@@ -307,18 +307,20 @@ test("D178: the ghost text stands alone on a group's chipless line", async () =>
 
 test("D190: a 2024 whole-list preparer's Spells line shows a plain hint, not a red 0; Prepared keeps its count", async () => {
   const { isWholeList } = await import("../src/ghost.ts");
-  assert.deepEqual(PRESETS.filter((p) => isWholeList(p)).map((p) => `${p.name} ${p.source}`), ["Cleric XPHB", "Druid XPHB", "Paladin XPHB", "Ranger XPHB"]);
+  assert.deepEqual(PRESETS.filter((p) => isWholeList(p)).map((p) => `${p.name} ${p.source}`),
+    ["Cleric PHB", "Cleric XPHB", "Druid PHB", "Druid XPHB", "Paladin PHB", "Paladin XPHB", "Ranger XPHB"], "2014 Cleric, Druid, Paladin too (D212)");
   const text = "Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nSpells: Bless\nPrepared: Bless\n";
   const gs = ghosts(text);
   assert.deepEqual(gs.find((g) => g.line === 5), { line: 5, n: 1, have: 0, of: 0, note: "Cleric prepares from its whole list, so its spells go on Prepared." });
   assert.deepEqual(gs.find((g) => g.line === 6), { line: 6, n: 1, have: 1, of: 4 });
   assert.equal(ghostHtml(gs.find((g) => g.line === 5)!, 1), "", "no chip, never the over form (D190 review)");
-  const { markWholeList } = await import("../src/ghost.ts");
-  const rows = markWholeList(highlightRows(text, [], new Map()), gs);
+  const { markFixes, lineFixes } = await import("../src/fixes.ts");
+  const rows = markFixes(highlightRows(text, [], new Map()), lineFixes(text, parse(text), [], gs));
   assert.ok(rows[4].includes(`<span class="k wl" data-line="5">Spells</span>`), "the key carries the hint underline");
   assert.ok(!rows[5].includes(" wl"), "Prepared is left alone");
   assert.ok(!ghosts("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: Sleep\n")[0].note, "a Wizard's Spells is its spellbook");
-  assert.ok(!ghosts("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nSpells: Bless\n")[0].note, "2014 as before (no loadout counted)");
+  assert.ok(ghosts("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nSpells: Bless\n")[0].note, "D212 (T09): a 2014 Cleric too, no count");
+  assert.ok(!ghosts("Rules: 2014\nClasses: Ranger 2\n\nL2 Ranger\nSpells: Cure Wounds\n")[0].note, "a 2014 Ranger knows its spells");
 });
 
 test("D190: the 2024 preset lays out Prepared where a whole-list preparer's loadout first appears or grows", () => {

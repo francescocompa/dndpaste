@@ -7,6 +7,8 @@
  * The option family keys (SPEC 0.9) show only for their class (D177): a level block's class, else the `Classes:`
  * line's; with no class, none (plain `Options` stays). A half-typed key still finds every one of them.
  * A whole-list preparer's level block (2024 Cleric, Druid, Paladin, Ranger) never offers `Spells` (D190).
+ * D219 (T28): a family a subclass gives (Maneuvers, Arcane Shots, Runes, Disciplines) follows the written subclass:
+ * once that class has a `Subclass` line, only its own family shows.
  */
 import { KEYS, keyDef, splitMarker } from "../../../src/dndpaste.ts";
 import { MARKED_FEAT } from "../keydocs.ts";
@@ -30,6 +32,11 @@ export const FAMILY_CLASS: Readonly<Record<string, string>> = {
   Invocations: "warlock", "Pact Boon": "warlock", Metamagic: "sorcerer", Maneuvers: "fighter", "Arcane Shots": "fighter",
   Runes: "fighter", Disciplines: "monk", Infusions: "artificer",
 };
+/** The subclass each subclass-given option family key belongs to (D219), lower case. Key and subclass names only. */
+export const FAMILY_SUBCLASS: Readonly<Record<string, string>> = {
+  Maneuvers: "battle master", "Arcane Shots": "arcane archer", Runes: "rune knight", Disciplines: "way of the four elements",
+};
+const subName = (s: string) => s.replace(/\[.*$/, "").replace(/\|.*$/, "").trim().replace(/^"|"$/g, "").toLowerCase();
 const className = (s: string) => s.replace(/\|.*$/, "").replace(/\s+\d+\s*$/, "").trim().replace(/^"|"$/g, "").toLowerCase();
 
 /** `cursorLine` is 0-based. */
@@ -42,6 +49,9 @@ export function keyHints(text: string, cursorLine: number): Hints {
   let cur = 0;
   let cursorBlock = 0;
   let partial = "";
+  /** D219: the subclasses written, lower-case class → names; a header line counts for the header's only class. */
+  const subs = new Map<string, Set<string>>();
+  const headerSubs: string[] = [];
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i].trim();
     const atCursor = i === cursorLine;
@@ -60,6 +70,12 @@ export function keyHints(text: string, cursorLine: number): Hints {
         blocks.push({ scope: def.opensBlock, label: `the ${def.key} block`, used: new Set(), cls: null });
         cur = blocks.length - 1;
       } else if (def && !(def.key === "Feat" && splitMarker(t.slice(0, sep)).marker)) {
+        if (def.key === "Subclass") {
+          const names = t.slice(sep + 1).split(",").map(subName).filter(Boolean);
+          const c = blocks[cur].cls;
+          if (blocks[cur].scope === "L" && c) for (const x of names) subs.set(c, new Set([...(subs.get(c) ?? []), x]));
+          else if (blocks[cur].scope === "H") headerSubs.push(...names);
+        }
         if (def.key === "Classes") for (const c of t.slice(sep + 1).split("/")) if (className(c)) header.add(className(c));
         blocks[cur].used.add(def.key);   // a marked feat line leaves `Feat` free: a scope may hold both (D110)
       }
@@ -78,7 +94,13 @@ export function keyHints(text: string, cursorLine: number): Hints {
   const p = partial.toLowerCase();
   const narrow = p ? all.filter((k) => k.toLowerCase().startsWith(p)) : [];
   const mine = b.cls ? new Set([b.cls]) : header;
-  const shown = all.filter((k) => !FAMILY_CLASS[k] || mine.has(FAMILY_CLASS[k]));
+  if (header.size === 1 && headerSubs.length) { const c = [...header][0]; subs.set(c, new Set([...(subs.get(c) ?? []), ...headerSubs])); }
+  const bySub = (k: string) => {
+    const want = FAMILY_SUBCLASS[k];
+    const written = want ? subs.get(FAMILY_CLASS[k]) : undefined;
+    return !written?.size || written.has(want);
+  };
+  const shown = all.filter((k) => !FAMILY_CLASS[k] || (mine.has(FAMILY_CLASS[k]) && bySub(k)));
   return narrow.length
     ? { label: b.label, scope: b.scope, keys: narrow, narrowed: true }
     : { label: b.label, scope: b.scope, keys: shown, narrowed: false };

@@ -359,11 +359,24 @@ test("D186: family lines get the ghost text of their kind", () => {
   assert.deepEqual(ghostWord("Spells (6th): ", 14, new Set([1])), { line: 1, word: "spell" });
 });
 
-test("D190: a 2024 whole-list preparer's block offers no Spells key; a Wizard's and a 2014 Cleric's do", () => {
+test("D190, D212: a whole-list preparer's block offers no Spells key, 2014 too; a Wizard's does", () => {
   assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nSpe¦"), [], "Cleric prepares from its list");
   assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nPre¦"), ["Prepared"]);
   assert.deepEqual(keysAt("Vice\n\nL1 Paladin|XPHB\nSpe¦"), [], "the class's own source picks the table");
   assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Wizard\nSpe¦"), ["Spells"]);
-  assert.deepEqual(keysAt("Vice\nRules: 2014\n\nL1 Cleric\nSpe¦"), ["Spells"], "2014: no loadout counted (D129)");
+  assert.deepEqual(keysAt("Vice\nRules: 2014\n\nL1 Cleric\nSpe¦"), [], "D212 (T09): a 2014 Cleric as in 2024");
+  assert.deepEqual(keysAt("Vice\nRules: 2014\n\nL2 Ranger\nSpe¦"), ["Spells"], "a 2014 Ranger knows its spells");
   assert.deepEqual(keysAt("Vice\n\nL1 Cleric\nSpe¦"), ["Spells"], "no edition: no table to go by");
+});
+
+test("D219 (T29, review): under Rules, the edition's own names rank first; the other edition's are dimmed", () => {
+  const s = spot("Vice\nRules: 2024\n\nSpecies: E¦");
+  const rows = s ? suggest(N, s, 8) : [];
+  assert.deepEqual(rows.map((r) => [r.name, r.source, Boolean(r.dim)]).slice(0, 3),
+    [["Elf", null, false], ["Elf (High)", "PHB", true], ["Elf (Wood)", "PHB", true]]);
+  const old = spot("Vice\nRules: 2014\n\nSpecies: G¦");
+  assert.deepEqual((old ? suggest(N, old, 8) : []).map((r) => [r.name, Boolean(r.dim)]).slice(0, 3),
+    [["Gnome", false], ["Gnome (Rock)", false], ["Goliath", true]]);
+  const none = spot("Vice\n\nSpecies: E¦");
+  assert.ok((none ? suggest(N, none, 8) : []).every((r) => !r.dim), "no Rules: no edition to go by");
 });

@@ -522,7 +522,12 @@ function wireCodes(): void {
   }));
   let col: Col = "code";
   let dir: Dir = "asc";
-  for (const th of heads) th.innerHTML = `<button type="button" class="srt">${esc(th.textContent ?? "")}${icon("chevron-up")}${icon("chevron-down")}</button>`;
+  for (const th of heads) {
+    const info = th.querySelector(".tinfo");   // D218 review: the Type column's info button stays beside its sort button
+    const label = th.querySelector(".tl")?.textContent ?? th.textContent ?? "";
+    th.innerHTML = `<button type="button" class="srt">${esc(label)}${icon("chevron-up")}${icon("chevron-down")}</button>`;
+    if (info) th.append(info);
+  }
   const draw = () => {
     const shown = sortRows(rows, col, dir).filter((r) => matches(r, q.value));
     tbody.replaceChildren(...shown.map((r) => r.tr));
@@ -535,7 +540,7 @@ function wireCodes(): void {
   };
   table.tHead?.addEventListener("click", (e) => {
     const th = (e.target as Element).closest<HTMLElement>("th[data-col]");
-    if (!th) return;
+    if (!th || (e.target as Element).closest(".tinfo")) return;
     const c = th.dataset.col as Col;
     dir = c === col && dir === "asc" ? "desc" : "asc";
     col = c;

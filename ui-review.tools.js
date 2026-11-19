@@ -314,6 +314,21 @@ uiReview.config({
     'w9-preset': (x) => laidPreset(x, 'w9-preset', [['Cleric', 3]]),
     'w9-clericspells': (x) => acSetup(x, 'w9-clericspells', 'Vice\nRules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: Guidance\nSpells: Bless\nPrepared: Bless\n'),
     'w9-cap': (x) => acSetup(x, 'w9-cap', 'Vice\nRules: 2024\nClasses: Warlock 11\n\nL11 Warlock\nSpells (3rd): fire'),
+    // Wide user test fixes (D196, D210–D219): the editor's one-click fixes and over-chip reasons.
+    'ut-move': (x) => acSetup(x, 'ut-move', 'Vice\nRules: 2024\nClasses: Wizard 5\n\nSpecies: Elf\nSkills: Insight\nFeature: Elven Lineage [INT; High Elf]\nSpells: Shield\nSubclass: Diviner\n\nL1 Wizard\nSkills: Arcana, History\nGear: A\nCantrips: Light, Mage Hand, Fire Bolt\nSpells: Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar, Alarm\n\nL3 Wizard\nSpells: Blur, Web\n'),
+    'ut-level': (x) => acSetup(x, 'ut-level', 'Vice\nRules: 2024\nClasses: Fighter 8\n\nL1 Fighter\n\nL3 Fighter\n'),
+    'ut-species': (x) => acSetup(x, 'ut-species', 'Vice\nRules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\n\nL1 Warlock\nSkills: Arcana, Deception\nGear: A\nInvocations: Agonizing Blast\nCantrips: Eldritch Blast, Minor Illusion\nSpells: Hex, Charm Person\n'),
+    'ut-rename': (x) => acSetup(x, 'ut-rename', 'Vice\nPaste: 1\nRules: 2014\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\nEquipment: Rope\n'),
+    'ut-names': (x) => acSetup(x, 'ut-names', 'Vice\nRules: 2024\nClasses: Warlock 2\n\nSpecies: Gnome|PHB\nFeature: Gnomish Lineage\n\nL1 Warlock\nSkills: Arcana, Deception\nGear: A\nOptions: Agonizing Blast, Repelling Blast\nCantrips: Eldritch Blast, Minor Illusion\nSpells: Hex|PHB, Sleep|PHB\n'),
+    'ut-over': async (x) => {
+      await acSetup(x, 'ut-over', 'Vice\nRules: 2024\nClasses: Ranger 5\n\nL3 Ranger\nSubclass: Hunter\nPrepared: Hunter\'s Mark, Cure Wounds, Goodberry, Ensnaring Strike\nOptions: Colossus Slayer\n')
+    },
+    'ut-2014': async (x) => {
+      await acSetup(x, 'ut-2014', 'Vice\nRules: 2014\nClasses: Cleric 3 / Paladin 2\n\nL1 Cleric\nSkills: Insight, Medicine\nSubclass: Life Domain\nCantrips: Guidance, Light, Sacred Flame\nSpells: Bless, Cure Wounds, Healing Word\n')
+      if (document.querySelector('.wlpop')?.hidden) document.querySelector('.wlb[data-line="9"]')?.click()
+    },
+    'ut-ac': (x) => acSetup(x, 'ut-ac', 'Vice\nRules: 2024\nClasses: Warlock 1\n\nSpecies: E'),
+    'ut-subclass': (x) => acSetup(x, 'ut-subclass', 'Vice\nRules: 2024\nClasses: Fighter 8\nSubclass: Eldritch Knight\n\nL8 Fighter\n'),
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
       const dt = new DataTransfer(); dt.items.add(new File(['Shigen\n'], 'shigen.dndpaste', { type: 'text/plain' }))

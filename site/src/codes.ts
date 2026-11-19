@@ -7,11 +7,16 @@
 import { BOOKS } from "./books.ts";
 import { typeLabel } from "./client/codes.ts";
 import { layout } from "./pages.ts";
-import { esc } from "./render.ts";
+import { esc, icon } from "./render.ts";
+
+/** D218 review: what the types mean, behind an info button beside the Type header (no script needed). */
+const TYPE_INFO = `<details class="tinfo"><summary aria-label="What the types mean">${icon("info")}</summary><div class="tpop">` +
+  `Core is the three core books of an edition. An extra is a small, free or promotional release. Unearthed Arcana is ` +
+  `playtest material. A 2014 book is one that the 2024 rules replaced. Write <code>HB</code> for homebrew.</div></details>`;
 
 export function codesTable(): string {
   const head = `<thead><tr><th scope="col" class="kk" data-col="code" aria-sort="ascending">Code</th>` +
-    `<th scope="col" data-col="title">Book</th><th scope="col" class="ct" data-col="type">Type</th></tr></thead>`;
+    `<th scope="col" data-col="title">Book</th><th scope="col" class="ct" data-col="type"><span class="tl">Type</span>${TYPE_INFO}</th></tr></thead>`;
   const rows = BOOKS.map((b) => `<tr data-code="${esc(b.code)}" data-title="${esc(b.title)}" data-type="${esc(b.type)}"${b.y2014 ? ` data-y2014="1"` : ""}>` +
     `<th scope="row" class="kk">${esc(b.code)}</th><td>${esc(b.title)}</td><td class="ct">${esc(typeLabel(b))}</td></tr>`).join("");
   return `<table class="ktab ctab" aria-label="Book codes">${head}<tbody>${rows}</tbody></table>`;
@@ -20,7 +25,6 @@ export function codesTable(): string {
 export function codesPage(): string {
   const main = `<div class="prose gd"><h1>Book codes</h1>
 <p>A name can end with <code>|</code> and the short code of the book it comes from, as in <code>Tiefling|XPHB</code>. The code is optional. This page lists the codes and the book that each one stands for. The <a href="/guide#names">format guide</a> shows where codes go.</p>
-<p>Type: Core is the three core books of an edition. An extra is a small, free or promotional release. A 2014 book is one that the 2024 rules replaced.</p>
 <div class="cfind njs"><input type="search" class="in" id="cq" placeholder="Find a code or a book" aria-label="Find a code or a book" autocomplete="off" spellcheck="false"><span class="muted cn" role="status"></span></div>
 ${codesTable()}
 <p class="muted cnone" hidden>No code or book matches.</p></div>`;

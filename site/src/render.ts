@@ -112,7 +112,20 @@ export function lineEntries(scope: Scope): [string, Value][] {
       ? [[k, { ...v, increase: null }], [k, { type: "scores", values: NONE(), increase: v.increase }]]
       : [[k, v]]);
 }
-const rows = (scope: Scope, vc = ""): string => lineEntries(scope).map(([k, v]) => row(renderKey(k), renderValue(k, v), "", vc)).join("");
+/** D216 (T25): a line with nothing after its key (a preset's "not chosen yet" line). The view leaves it out; Raw and
+ *  Edit keep it. */
+export function isEmptyValue(v: Value): boolean {
+  switch (v.type) {
+    case "empty": return true;
+    case "items": return v.items.length === 0;
+    case "classes": return v.entries.length === 0;
+    case "scores": return !v.increase && v.values.every((x) => x === null);
+    case "text": return v.value === "";
+    default: return false;
+  }
+}
+const filled = (scope: Scope): [string, Value][] => lineEntries(scope).filter(([, v]) => !isEmptyValue(v));
+const rows = (scope: Scope, vc = ""): string => filled(scope).map(([k, v]) => row(renderKey(k), renderValue(k, v), "", vc)).join("");
 
 export interface RenderOptions {
   /** URL of the SVG sprite (D89: icons, never text glyphs). */
@@ -124,13 +137,14 @@ export function icon(name: string, sprite = "/assets/icons.svg"): string {
 }
 
 function renderEntity(b: EntityBlock): string {
+  if (!b.item && !filled(b.lines).length) return "";   // D216: an empty Species or Background block
   return `<div class="bl ent">${row(renderKey(b.key), (b.item ? renderItem(b.item, KIND_OF_KEY[b.key]) : ""), "", "ehv")}${rows(b.lines, "grp")}</div>`;
 }
 
 function renderLevel(b: LevelBlock, o: RenderOptions): string {
   const head = (marker: string) => row(`L${b.n}`, renderRef(b.class, "class") + marker, "lvk", "lvv");
-  if (!b.lines.size) return `<div class="bl lvb">${head("")}</div>`;
-  const n = lineEntries(b.lines).length;
+  const n = filled(b.lines).length;
+  if (!n) return `<div class="bl lvb">${head("")}</div>`;
   const marker = `<span class="mk">${icon("chevron-down", o.sprite)}${icon("chevron-right", o.sprite)}` +
     `<span class="cnt">${n} line${n === 1 ? "" : "s"}</span></span>`;
   // <details> folds without JavaScript; slice 3 adds fold all / expand all on top.
@@ -142,7 +156,7 @@ export function renderPaste(paste: Paste, o: RenderOptions = {}): string {
   let head = paste.identifier ? row("", esc(paste.identifier), "", "idv") : "";
   head += rows(paste.header);
   const parts = head ? [`<div class="bl">${head}</div>`] : [];
-  for (const e of paste.entities) parts.push(renderEntity(e));
+  for (const e of paste.entities) { const h = renderEntity(e); if (h) parts.push(h); }
   for (const l of paste.levels) parts.push(renderLevel(l, o));
   return `<div class="build">${parts.join("")}</div>`;
 }

@@ -7,7 +7,9 @@
  */
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
-import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, markWholeList, toPrepared } from "../ghost.ts";
+import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount } from "../ghost.ts";
+import { markFixes, nameFixes } from "../fixes.ts";
+import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
 import type { Hints } from "./hints.ts";
@@ -193,6 +195,9 @@ function init(): void {
   /** D175: the count of the line being typed, kept while that line doesn't read; the line it's frozen on (0: none). */
   let kept: Ghost | null = null;
   let frozeLine = 0;
+  /** D196 T12: the names table once loaded (D158), for the fixes that need it; the fixes on show now. */
+  let fixNames: Names | null = null;
+  let fixes: Fix[] = [];
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
   let changed = () => {};
 
@@ -264,27 +269,33 @@ function init(): void {
     const after = new Map(gs.filter((g) => !g.note).map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1, g.line === w?.line ? w.word : "")]));
     // A group's other line (D178) has no chip: its ghost text stands alone.
     if (w && !after.has(w.line)) after.set(w.line, ghostWordHtml(w.word));
-    draw(markWholeList(highlightRows(ta.value, st.diagnostics, after), gs));
+    fixes = fixNames
+      ? [...st.fixes, ...nameFixes(fixNames, ta.value, st.paste, new Set(st.fixes.map((f) => f.line)))].sort((a, b) => a.line - b.line)
+      : st.fixes;
+    draw(markFixes(highlightRows(ta.value, st.diagnostics, after), fixes));
     placeNotes();
   };
-  // ---- D190 review: a whole-list preparer's Spells key: the hint underline, a button over it, Switch to Prepared ----
+  // ---- D190 review, D196 T12: a key or level header with a one-click fix gets the hint underline and a button over
+  // it that opens one action. The highlight layer sits under the textarea, so it can't take a click: the buttons sit
+  // over it. ----
   const wls = el("div", "wls");
   ed.append(wls);
   const wlPop = el("div", "pop wlpop");
   wlPop.hidden = true;
   wlPop.setAttribute("role", "dialog");
   document.body.append(wlPop);
+  /** The popover's line; 0 when closed. */
   let wlLine = 0;
   const wlClose = () => { wlPop.hidden = true; wlLine = 0; };
-  /** One button over each underlined key in the highlight layer (it sits under the textarea, so it can't take a click). */
+  const fixAt = (line: number) => fixes.find((f) => f.line === line);
   function placeNotes() {
-    const marks = [...hl.querySelectorAll<HTMLElement>(".k.wl")];
+    const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line]")];
     if (!marks.length && !wls.firstChild) return;
     const box = ed.getBoundingClientRect();
     wls.innerHTML = marks.map((m) => {
       const r = m.getBoundingClientRect();
-      const g = st.ghosts.find((x) => x.line === Number(m.dataset.line));
-      return `<button type="button" class="wlb" data-line="${m.dataset.line}" aria-label="${esc(g?.note ?? "")}" ` +
+      const line = Number(m.dataset.line);
+      return `<button type="button" class="wlb" data-line="${line}" aria-label="${esc(fixAt(line)?.why ?? "")}" ` +
         `style="left:${r.left - box.left}px;top:${r.top - box.top}px;width:${r.width}px;height:${r.height}px"></button>`;
     }).join("");
     if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine)) wlClose();
@@ -294,24 +305,28 @@ function init(): void {
     if (!b) return;
     const line = Number(b.dataset.line);
     if (wlLine === line && !wlPop.hidden) { wlClose(); return; }
-    const g = st.ghosts.find((x) => x.line === line);
+    const f = fixAt(line);
+    if (!f) return;
+    wlPop.setAttribute("aria-label", f.why);
+    wlPop.innerHTML = `<button type="button" class="it" data-go>${esc(f.act)}</button>`;
     wlLine = line;
-    wlPop.setAttribute("aria-label", g?.note ?? "");
-    wlPop.innerHTML = `<button type="button" class="it" data-go>Switch to Prepared</button>`;
     wlPop.hidden = false;
+    // T35: anchored to its key: the popover's left edge at the key's, kept inside the window.
     const r = b.getBoundingClientRect();
     const w = wlPop.offsetWidth;
-    wlPop.style.left = `${Math.max(8, Math.min(r.right - w, innerWidth - w - 8))}px`;
-    wlPop.style.top = `${r.bottom + 6}px`;
+    wlPop.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+    const h = wlPop.offsetHeight;
+    wlPop.style.top = `${r.bottom + 6 + h > innerHeight - 8 && r.top - 6 - h > 8 ? r.top - 6 - h : r.bottom + 6}px`;
     wlPop.querySelector<HTMLElement>("[data-go]")?.focus();
   });
   wlPop.addEventListener("click", (e) => {
     if (!(e.target as Element).closest("[data-go]")) return;
+    const f = fixAt(wlLine);
     const before = ta.value;
-    const next = toPrepared(before, wlLine);
+    const next = f ? f.apply(before) : null;
     wlClose();
-    if (next === null) return;
-    // Write only the part that changed, through insert, so Undo brings the Spells line back.
+    if (next === null || next === before) return;
+    // Write only the part that changed, through insert, so Undo brings the old text back.
     let a = 0;
     while (a < before.length && a < next.length && before[a] === next[a]) a++;
     let b = 0;
@@ -595,7 +610,7 @@ function init(): void {
     if (names || loading) return;
     loading = true;
     // Typed before the names arrived: show what fits now.
-    (import(NAMES_JS) as Promise<Names>).then((m) => { names = m; complete(true); }, () => { loading = false; });
+    (import(NAMES_JS) as Promise<Names>).then((m) => { names = m; fixNames = m; drawRows(); complete(true); }, () => { loading = false; });
   };
   const acTake = (i: number) => {
     const sp = acSpot;

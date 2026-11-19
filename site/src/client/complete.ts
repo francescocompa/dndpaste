@@ -383,15 +383,19 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
   const typed = sp.typed.trim();
   const cap = sp.cap ?? spellCap(n, sp);   // a capped line's own cap wins (D184)
   const rows = [...best.values()].map(({ c, t }) => {
-    const dim = c.level !== undefined && cap !== null && c.level > cap;
+    const other0 = Boolean(sp.rules && c.books && !BOOKS.some(([, bit, ed]) => ed === sp.rules && c.books & bit));
+    const dim = other0 || (c.level !== undefined && cap !== null && c.level > cap);
+    // T29 (review): a name the build's edition lacks ranks after the edition's own and is dimmed, as not available
+    // by default; its `|SOURCE` (the book a pick writes, D155) says which.
+    const other = other0;
     return {
-      name: c.name, source: sp.hasSource ? null : sourceFor(c.books, sp.rules), level: c.level, dim,
+      name: c.name, source: sp.hasSource ? null : sourceFor(c.books, sp.rules), level: c.level, dim, other,
       grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q,
     };
   });
   // The name is already written as it should be: nothing to suggest.
   if (rows.some((r) => r.name === typed && !r.source)) return [];
-  rows.sort((a, b) => Number(b.exact) - Number(a.exact) || a.grade - b.grade || a.t - b.t ||
+  rows.sort((a, b) => Number(b.exact) - Number(a.exact) || Number(Boolean(a.other)) - Number(Boolean(b.other)) || a.grade - b.grade || a.t - b.t ||
     (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const top = rows.slice(0, limit);
   // A cantrip says so only among other kinds of names (the general list); a list of cantrips doesn't repeat it.

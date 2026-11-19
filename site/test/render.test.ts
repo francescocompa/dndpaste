@@ -72,6 +72,16 @@ test("render (0.8): a header base and increase are two Scores rows, in the order
     .map((m) => `${textOf(m[1])} ${textOf(m[2])}`.trim());
   assert.deepEqual(rows.slice(0, 4), ["Scores: 15/10/13/8/10/15", "Scores: +2 CHA", "Classes: Warlock 4", "Feat (Origin): Alert"]);
   assert.ok(html.includes(`<span class="k">Feat <span class="km">(Origin)</span></span>`));
-  assert.ok(html.includes(`<span class="cnt">2 lines</span>`), "the level's count counts lines");
-  assert.ok(rows.includes("Scores: +1 CON") && rows.includes("Spells:"), "a level increase and an empty value (D112)");
+  assert.ok(html.includes(`<span class="cnt">1 line</span>`), "the level's count counts the lines shown");
+  assert.ok(rows.includes("Scores: +1 CON") && !rows.includes("Spells:"), "a level increase; an empty value is left out (D216)");
+});
+
+test("D216 (T25): the view leaves out empty lines and an empty Species or Background block; a level of empty lines keeps its header", () => {
+  const p = parse("Rules: 2024\nScores:\nClasses: Warlock 1\n\nSpecies: Elf\nSkills:\n\nBackground:\nTools:\n\nL1 Warlock\nOptions: Agonizing Blast\nCantrips:\n\nL2 Warlock\nSpells:\n");
+  const html = renderPaste(p);
+  const text = textOf(html);
+  assert.ok(!/Scores:|Skills:|Tools:|Cantrips:|Spells:|Background/.test(text), text);
+  assert.ok(text.includes("Species:") && text.includes("Elf") && text.includes("Agonizing Blast"));
+  assert.ok(html.includes(`<span class="cnt">1 line</span>`));
+  assert.ok(/<div class="bl lvb"><span class="hk lvk">L2<\/span>/.test(html), "L2 keeps its header, unfolded");
 });

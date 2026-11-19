@@ -9,7 +9,7 @@
 import { ABILITIES, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, Item, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
 import { BOOKS } from "./books.ts";
-import { KIND_OF_KEY, kindOfKey, lineEntries } from "./render.ts";
+import { KIND_OF_KEY, isEmptyValue, kindOfKey, lineEntries } from "./render.ts";
 import type { Kind } from "./render.ts";
 
 export interface Run { t: string; c: string; w?: "d" | "drop" }
@@ -72,14 +72,15 @@ export function keyRuns(key: string): Run[] {
   return [...body, P(":")];
 }
 
-const rows = (scope: Scope, vc?: "grp"): Row[] => lineEntries(scope).map(([k, v]) => ({ k: keyRuns(k), v: valueRuns(k, v), ...(vc ? { vc } : {}) }));
+// D216: the image, like the view, leaves out empty lines.
+const rows = (scope: Scope, vc?: "grp"): Row[] => lineEntries(scope).filter(([, v]) => !isEmptyValue(v)).map(([k, v]) => ({ k: keyRuns(k), v: valueRuns(k, v), ...(vc ? { vc } : {}) }));
 
 /** The whole build, block by block, in the view's order: identifier and header, Species/Background, then levels. */
 export function shareBlocks(paste: Paste): Block[] {
   const head: Row[] = paste.identifier ? [{ k: [], v: [{ t: paste.identifier, c: "" }], vc: "idv" }] : [];
   head.push(...rows(paste.header));
   const out: Block[] = head.length ? [head] : [];
-  for (const e of paste.entities) out.push([{ k: keyRuns(e.key), v: e.item ? item(e.item, KIND_OF_KEY[e.key]) : [], vc: "ehv" }, ...rows(e.lines, "grp")]);
+  for (const e of paste.entities) if (e.item || rows(e.lines).length) out.push([{ k: keyRuns(e.key), v: e.item ? item(e.item, KIND_OF_KEY[e.key]) : [], vc: "ehv" }, ...rows(e.lines, "grp")]);
   for (const l of paste.levels) out.push([{ k: [{ t: `L${l.n}`, c: "" }], v: ref(l.class, "class"), kc: "lvk", vc: "lvv" }, ...rows(l.lines, "grp")]);
   return out;
 }
