@@ -82,7 +82,7 @@ function additionalSpellsSpec(list) {
         else if (s && typeof s === "object" && s.choose) { if (/level=0/.test(String(s.choose))) cantrip += s.count ?? 1; else choose += s.count ?? 1; }
         else visit(s);
       } return; }
-      if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) { if (k === "ability" || k === "name") continue; visit(v); }
+      if (node && typeof node === "object") for (const [k, v] of Object.entries(node)) { if (k === "ability" || k === "name" || k === "expanded") continue; visit(v); }
     };
     visit(g);
     out.choose = Math.max(out.choose, choose); out.cantripChoose = Math.max(out.cantripChoose, cantrip);
@@ -299,6 +299,9 @@ for (const o of load("optionalfeatures.json").optionalfeature ?? []) {
   // is {"*": n} for "n each time the option is taken"; a per-level map takes its largest value.
   const grants = (o.featProgression ?? []).map((fp) => ({ category: fp.category, count: Array.isArray(fp.progression) ? Math.max(0, ...fp.progression) : fp.progression?.["*"] ?? Math.max(0, ...Object.values(fp.progression ?? {})) })).filter((g) => g.count > 0);
   if (grants.length) optionalFeatures[uid(o)].feats = grants;
+  // Spells the option grants outright (Pact of the Chain → Find Familiar): written, they are highlights (D201).
+  const osp = additionalSpellsSpec(o.additionalSpells);
+  if (osp?.fixed.length) optionalFeatures[uid(o)].grantedSpells = osp.fixed;
 }
 Object.assign(families, { EI: "Eldritch Invocations", MM: "Metamagic", "MV:B": "Maneuvers", "MV:C2-UA": "Maneuvers (UA)", AI: "Artificer Infusions", AS: "Arcane Shots", RN: "Runes", ED: "Elemental Disciplines", PB: "Pact Boons", "FS:F": "Fighting Styles (Fighter)", "FS:R": "Fighting Styles (Ranger)", "FS:P": "Fighting Styles (Paladin)", "FS:B": "Fighting Styles (Bard)", OTH: "Other", "FS:F/FS:P/FS:R": "Fighting Styles" });
 const spells = {};
@@ -337,6 +340,9 @@ try {
 const meta = { generated: new Date().toISOString().slice(0, 10), counts: {} };
 const full = { meta, classes, subclasses, species, backgrounds, feats, optionalFeatures, families, featCategories, spells, items, magicVariants };
 for (const k of Object.keys(full)) if (k !== "meta" && k !== "families" && k !== "featCategories") meta.counts[k] = Object.keys(full[k]).length;
+// Every book code an entity of the full table cites (D205): the checker tells a known book that the table lacks (the
+// SRD subset) from a code no book has. Codes only.
+meta.sources = [...new Set(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].flatMap((k) => Object.values(full[k]).map((e) => e.source)).filter((x) => typeof x === "string"))].sort();
 
 const srdFilter = (tbl) => Object.fromEntries(Object.entries(tbl).filter(([, v]) => v.srd));
 const srd = { meta: { ...meta, subset: "srd" }, families, featCategories, ...Object.fromEntries(["classes", "subclasses", "species", "backgrounds", "feats", "optionalFeatures", "spells", "items", "magicVariants"].map((k) => [k, srdFilter(full[k])])) };

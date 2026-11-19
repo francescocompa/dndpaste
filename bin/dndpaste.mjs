@@ -4,7 +4,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse, emit, isClean } from "../dist/src/dndpaste.js";
+import { parse, emit, isClean, tidy } from "../dist/src/dndpaste.js";
 import { check, normalise } from "../dist/src/check.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -12,26 +12,31 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const USAGE = `dndpaste — plain-text D&D 5e build parser/checker
 
 Usage:
-  dndpaste check <file|-> [--json] [--info] [--slots <path>]
+  dndpaste check <file|-> [--json] [--info] [--strict] [--slots <path>]
   dndpaste emit <file|->
+  dndpaste tidy <file|->
   dndpaste normalise <file|-> [--slots <path>]
   dndpaste --help
 
 Commands:
   check        Parse and check a paste; prints diagnostics then findings.
-  emit         Print the canonical text for a paste (exit 1 on grammar errors).
+  emit         Print the canonical text for a paste. A line with an error is kept
+               as written (exit 1 when there is one).
+  tidy         Like emit, after making the safe fixes: header keys moved out of a
+               block, duplicate lines joined, / between classes.
   normalise    Print the canonical text after checker normalisation.
 
 Options:
   --json       Machine-readable output for \`check\` (full diagnostics + findings).
   --info       Also print info-level findings (hidden by default).
+  --strict     \`check\` exits 1 on warnings too, not only on errors.
   --slots      Path to a slots.json. Defaults to data/slots.json, falling back
                to data/srd/slots.json, both relative to the package root.
   --help, -h   Show this help.
 
 Exit codes:
-  0  clean (no errors, no warnings)
-  1  parse errors and/or warnings (check: including warning-level findings)
+  0  no errors (check --strict: no errors and no warnings)
+  1  grammar errors (check --strict: or any warning, a warning finding included)
   2  usage error (bad arguments, missing/unreadable file)
 `;
 
@@ -87,15 +92,15 @@ function diagnosticRows(diagnostics) {
     severity: d.code.startsWith("E") ? "error" : "warning",
     kind: d.code,
     where: `L${d.line}`,
-    message: d.message,
+    message: d.hint ? `${d.message} → ${d.hint}` : d.message,
   }));
 }
 
 function findingRows(findings) {
-  return findings.map((f) => ({ severity: f.severity, kind: f.kind, where: f.where, message: f.message }));
+  return findings.map((f) => ({ severity: f.severity, kind: f.code ?? f.kind, where: f.where, message: f.message }));
 }
 
-function cmdCheck(file, { json, info, slotsOverride }) {
+function cmdCheck(file, { json, info, strict, slotsOverride }) {
   let text;
   try {
     text = readInput(file);
@@ -121,12 +126,12 @@ function cmdCheck(file, { json, info, slotsOverride }) {
     }
   }
 
-  const hasErrorOrWarning =
-    p.diagnostics.length > 0 || findings.some((f) => f.severity === "warning");
+  // Errors only by default, so a sparse paste passes; --strict also fails on warnings (D204).
+  const fails = !isClean(p) || (strict && (p.diagnostics.length > 0 || findings.some((f) => f.severity === "warning")));
 
   if (json) {
     console.log(JSON.stringify({ diagnostics: p.diagnostics, findings }, null, 2));
-    process.exit(hasErrorOrWarning ? 1 : 0);
+    process.exit(fails ? 1 : 0);
   }
 
   const rows = [...diagnosticRows(p.diagnostics), ...findingRows(findings)].filter(
@@ -135,7 +140,7 @@ function cmdCheck(file, { json, info, slotsOverride }) {
   for (const r of sortRows(rows)) {
     console.log(`${r.severity} ${r.kind} ${r.where}: ${r.message}`);
   }
-  process.exit(hasErrorOrWarning ? 1 : 0);
+  process.exit(fails ? 1 : 0);
 }
 
 function cmdEmit(file) {
@@ -146,15 +151,30 @@ function cmdEmit(file) {
     console.error(`dndpaste: cannot read ${file}: ${e.message}`);
     process.exit(2);
   }
+  // A line with an error is kept as written (D202): print the text anyway, the errors on stderr, exit 1.
   const p = parse(text);
-  if (!isClean(p)) {
-    for (const d of p.diagnostics.filter((d) => d.code.startsWith("E"))) {
-      console.error(`error ${d.code} L${d.line}: ${d.message}`);
-    }
-    process.exit(1);
-  }
   process.stdout.write(emit(p));
-  process.exit(0);
+  for (const d of p.diagnostics.filter((d) => d.code.startsWith("E"))) {
+    console.error(`error ${d.code} L${d.line}: ${d.message}${d.hint ? ` → ${d.hint}` : ""}`);
+  }
+  process.exit(isClean(p) ? 0 : 1);
+}
+
+function cmdTidy(file) {
+  let text;
+  try {
+    text = readInput(file);
+  } catch (e) {
+    console.error(`dndpaste: cannot read ${file}: ${e.message}`);
+    process.exit(2);
+  }
+  const out = tidy(text);
+  process.stdout.write(out);
+  const p = parse(out);
+  for (const d of p.diagnostics.filter((d) => d.code.startsWith("E"))) {
+    console.error(`error ${d.code} L${d.line}: ${d.message}${d.hint ? ` → ${d.hint}` : ""}`);
+  }
+  process.exit(isClean(p) ? 0 : 1);
 }
 
 function cmdNormalise(file, { slotsOverride }) {
@@ -195,7 +215,7 @@ function main() {
   }
 
   const cmd = args[0];
-  if (!["check", "emit", "normalise"].includes(cmd)) {
+  if (!["check", "emit", "tidy", "normalise"].includes(cmd)) {
     console.error(`dndpaste: unknown command "${cmd}"\n`);
     printUsage(process.stderr);
     process.exit(2);
@@ -205,11 +225,13 @@ function main() {
   let file = null;
   let json = false;
   let info = false;
+  let strict = false;
   let slotsOverride = null;
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--json") json = true;
     else if (a === "--info") info = true;
+    else if (a === "--strict") strict = true;
     else if (a === "--slots") {
       slotsOverride = rest[++i];
       if (slotsOverride === undefined || slotsOverride.startsWith("--")) {
@@ -235,8 +257,9 @@ function main() {
     process.exit(2);
   }
 
-  if (cmd === "check") cmdCheck(file, { json, info, slotsOverride });
+  if (cmd === "check") cmdCheck(file, { json, info, strict, slotsOverride });
   else if (cmd === "emit") cmdEmit(file);
+  else if (cmd === "tidy") cmdTidy(file);
   else cmdNormalise(file, { slotsOverride });
 }
 

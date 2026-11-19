@@ -65,6 +65,7 @@ export const KEY_HOLDS: Readonly<Record<string, string>> = {
   Prepared: "The spells prepared by default, for a caster who knows more spells than it prepares.",
   Gear: "In the background block or at level 1, the starting gear or its option letter. At a later level, gear gained " +
     "in play. In the header, gear carried.",
+  Note: "A note in your own words: a plan, a second version, a reminder. One line per block. It is not part of the build.",
 };
 
 /** The `Feat (…)` key hint (D110): a marked feat, written `Feat (<slot>): <name>`. */

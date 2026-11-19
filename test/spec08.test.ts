@@ -98,7 +98,7 @@ describe("D108: Scores holds increases too; the + decides", () => {
   });
   test("a level's Scores increase is not its ASI (that is the feat line, D109)", () => {
     const f = run("Rules: 2024\nClasses: Fighter 4\n\nL1 Fighter\nSkills: Athletics, Perception\nFeat (Fighting Style): Archery\nMasteries: Longbow, Shortsword, Greatsword\n\nL3 Fighter\nSubclass: Champion\n\nL4 Fighter\nScores: +2 STR");
-    assert.ok(has(f, "missing", /Fighter owes 1 more ASI\/Feat/), JSON.stringify(f));
+    assert.ok(has(f, "missing", /Fighter: 0 of 1 Feat written/), JSON.stringify(f));
   });
 });
 
@@ -145,7 +145,7 @@ describe("D110: Feat takes an optional slot marker; the Fighting Style key goes"
       const f = run(base + line);
       assert.ok(!has(f, "missing", /Fighting Style/) && !has(f, "extra", /ASI\/Feat/), `${line}: ${JSON.stringify(f)}`);
     }
-    assert.ok(has(run(base), "missing", /owes 1 more Fighting Style/));
+    assert.ok(has(run(base), "missing", /0 of 1 Fighting Style written/));
   });
   test("a near-miss marker gets the nearest category; an unknown one is accepted at info", () => {
     const typo = run("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nFeat (Figthing Style): Archery");
