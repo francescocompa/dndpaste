@@ -8,4 +8,4 @@ export const FEEDBACK_URL = "https://github.com/francescocompa/dndpaste/issues/n
 /** One GitHub release per tag lists what changed and how to migrate (D145). */
 export const RELEASES_URL = "https://github.com/francescocompa/dndpaste/releases";
 /** The "Send feedback" line on /about and /guide (D147). The page foot stays the version only (D137). */
-export const FEEDBACK_LINE = `<p><a href="${FEEDBACK_URL}">Send feedback</a> on GitHub about a build you cannot write or a build the site reads wrong.</p>`;
+export const FEEDBACK_LINE = `<p><a href="${FEEDBACK_URL}">Send feedback</a> on GitHub about a build you can't write or a build the site reads wrong.</p>`;

@@ -124,7 +124,7 @@ export function canonicalOrigin(v: string | undefined): string | null {
 }
 
 const RETRY = { "Retry-After": "3600" };
-const UNAVAILABLE = "The site can't take this right now. Try again in an hour.";
+const UNAVAILABLE = "The site is busy. Try again in an hour.";
 const unavailable = () => html(messagePage("Try again later", UNAVAILABLE), 503, RETRY);
 
 async function route(request: Request, env: Env, deps: Deps, url: URL, method: string, origin: string, canonical: string | null): Promise<Response> {
@@ -283,7 +283,7 @@ async function readFields(req: Request, names: readonly string[], tooLarge: stri
       return { ok: false, json, status: 415, error: "Send the form, or JSON." };
     }
   } catch {
-    return { ok: false, json, status: 400, error: "The request could not be read." };
+    return { ok: false, json, status: 400, error: "The site couldn't read the request." };
   }
   return { ok: true, json, fields };
 }
@@ -330,7 +330,7 @@ export function crossSite(req: Request, url: URL, canonical: string | null): boo
   const o = req.headers.get("Origin");
   return o !== null && o !== url.origin && o !== canonical;
 }
-const CROSS_SITE = "This form was sent from another site. Open dndpaste and send it from there.";
+const CROSS_SITE = "Another site sent this form. Open dndpaste and send it from there.";
 const refuseCrossSite = (req: Request) =>
   isJson(req) ? json({ error: CROSS_SITE }, 403) : html(messagePage("Not sent", CROSS_SITE), 403);
 
@@ -388,11 +388,11 @@ function checkBuild(f: Fields): Checked {
   const no = (status: number, error: string, diagnostics?: FormState["diagnostics"]): Checked => ({ ok: false, build, status, error, diagnostics });
   if (!paste.trim()) return no(400, "Write or paste a build first.");
   if (new TextEncoder().encode(paste).byteLength > LIMITS.pasteBytes) return no(413, TOO_LARGE);
-  if (chars(title) > LIMITS.title) return no(400, `The title is over ${LIMITS.title} characters.`);
-  if (chars(author) > LIMITS.author) return no(400, `The author is over ${LIMITS.author} characters.`);
+  if (chars(title) > LIMITS.title) return no(400, `The title is over ${LIMITS.title} characters. Shorten it to save.`);
+  if (chars(author) > LIMITS.author) return no(400, `The author is over ${LIMITS.author} characters. Shorten it to save.`);
   const parsed = parse(paste);
   const errors = parsed.diagnostics.filter((d) => d.code.startsWith("E"));
-  if (errors.length) return no(422, `${errors.length} error${errors.length === 1 ? "" : "s"} in the build.`, parsed.diagnostics);
+  if (errors.length) return no(422, `${errors.length} error${errors.length === 1 ? "" : "s"} in the build. Fix ${errors.length === 1 ? "it" : "them"} to save.`, parsed.diagnostics);
   if (isBare(parsed)) return no(422, BARE);
   return { ok: true, build, parsed };
 }
@@ -404,7 +404,7 @@ function checkBuild(f: Fields): Checked {
 async function saveGate(request: Request, env: Env, token: string | undefined, now: Date, cost = 1): Promise<{ status: number; error: string } | null> {
   const ip = ipOf(request);
   const key = rateKey(ip);
-  if (!(await turnstileOk(env, token, ip))) return { status: 403, error: "The check that you are a person failed. Try again." };
+  if (!(await turnstileOk(env, token, ip))) return { status: 403, error: "The human check failed. Try again." };
   if (!(await allowed(env.SAVE_LIMITER, `save:${key}`))) return { status: 429, error: "Too many saves from your connection. Wait a minute and try again." };
   if (!(await underDailyCap(env, `save:${key}`, LIMITS.savesPerDay, now, cost))) return { status: 429, error: "Your connection has saved a lot of builds today. Try again tomorrow." };
   return null;
@@ -495,7 +495,7 @@ async function edit(request: Request, env: Env, deps: Deps, id: string, origin: 
 
 /** `rev` (optional) is the revision the reader was on (D97): the report records it, and the reader lands back on it. */
 async function report(request: Request, env: Env, deps: Deps, id: string, origin: string): Promise<Response> {
-  const body = await readFields(request, ["reason", "contact", "rev"], "The report is too long.");
+  const body = await readFields(request, ["reason", "contact", "rev"], "The report is too long. Shorten it to send.");
   const revText = body.ok ? body.fields.rev : "";
   const pinned = REV_RE.test(revText) ? Number(revText) : null;
   const found = await load(env, id, pinned);

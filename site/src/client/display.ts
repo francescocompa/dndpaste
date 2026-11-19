@@ -89,5 +89,5 @@ export function displayMenuHtml(d: Display, persistent = true, suggest = true): 
     // D173 (review): the editor's name and key lists, beside the display settings.
     `<hr>` + sw("suggest", "Suggestions", "Name and key lists in the editor") +
     // Round 2: no "Saved in this browser." line; only blocked storage says something.
-    (persistent ? "" : `<small class="saved">This browser blocks storage: kept for this visit only.</small>`);
+    (persistent ? "" : `<small class="saved">This browser blocks storage, so these settings last for this visit only.</small>`);
 }

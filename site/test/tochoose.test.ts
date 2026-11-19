@@ -8,7 +8,7 @@ import { formPage } from "../src/pages.ts";
 import { TO_CHOOSE_SHOWN, dockLineHtml, problemsHtml, status, summaryHtml, toChooseHtml } from "../src/client/status.ts";
 
 const bard5 = presetText("2024", [{ cls: "Bard", levels: 5 }]);
-const NO_PROBLEMS = `<div class="dsum"><span class="okc">No problems.</span> Warnings show here; they don't block saving.</div>`;
+const NO_PROBLEMS = `<div class="dsum"><span class="okc">No problems.</span> Warnings show here and don't block saving.</div>`;
 const chips = (html: string) => [...html.matchAll(/data-line="(\d+)"/g)].map((m) => Number(m[1]));
 
 test("D149: a fresh Bard 5 preset (2024) has no problems rows and 19 to choose", () => {
@@ -20,7 +20,7 @@ test("D149: a fresh Bard 5 preset (2024) has no problems rows and 19 to choose",
   assert.deepEqual(s.toChoose, [...s.toChoose].sort((a, b) => a - b));
   assert.equal(s.canSave, true);
   assert.equal(problemsHtml(s), NO_PROBLEMS);
-  assert.equal(summaryHtml(s), `<span class="okc">No errors</span> · 19 to choose, ready to save`);
+  assert.equal(summaryHtml(s), `<span class="okc">No errors</span> · 19 to choose · ready to save`);
   assert.equal(dockLineHtml(s), `<span class="dsum"><span class="okc">No errors</span> · 19 to choose</span>`);
 
   const row = toChooseHtml(s);
@@ -42,7 +42,7 @@ test("D149 review: a counted line short of its count (1 of 3 skills) stays to ch
   assert.equal(one.toChoose.length, 19);
   assert.ok(one.toChoose.includes(at));
   assert.equal(one.warnings, 0);
-  assert.equal(summaryHtml(one), `<span class="okc">No errors</span> · 19 to choose, ready to save`);
+  assert.equal(summaryHtml(one), `<span class="okc">No errors</span> · 19 to choose · ready to save`);
   const full = status(fill("Performance, Insight, History"));
   assert.equal(full.toChoose.length, 18);
   assert.ok(!full.toChoose.includes(at));
@@ -70,12 +70,12 @@ test("D149: an error, another warning and W004s: Problems lists the first two, T
   assert.equal(fixed.errors, 0);
   // Spells: Hex is 1 of the 4 a Bard 1 learns: to choose too (D149 review).
   assert.deepEqual(fixed.toChoose, [5, 8, 9]);
-  assert.equal(summaryHtml(fixed), `<span class="okc">No errors</span> · 1 warning · 3 to choose, ready to save`);
+  assert.equal(summaryHtml(fixed), `<span class="okc">No errors</span> · 1 warning · 3 to choose · ready to save`);
   assert.equal(dockLineHtml(fixed), `<span class="dsum"><span class="okc">No errors</span> · 1 warning · 3 to choose</span>`);
 
   const warned = status(text.replace("Spels: Hex", "Spells: Hex").replace(/^Species:$/m, "X-Other: yes"));
   assert.equal(warned.warnings, 2);
-  assert.match(summaryHtml(warned), /· 2 warnings · 2 to choose, ready to save$/);
+  assert.match(summaryHtml(warned), /· 2 warnings · 2 to choose · ready to save$/);
 });
 
 test("D149: no To choose row when nothing is empty; the summary reads as before", () => {
@@ -84,7 +84,7 @@ test("D149: no To choose row when nothing is empty; the summary reads as before"
   assert.equal(toChooseHtml(s), "");
   assert.equal(summaryHtml(s), `<span class="okc">No problems</span> · ready to save`);
   const w = status("Rules: 2024\nClasses: Bard 1\nX-Note: hi\n");
-  assert.equal(summaryHtml(w), `<span class="okc">No errors</span> · 1 warning, ready to save`);
+  assert.equal(summaryHtml(w), `<span class="okc">No errors</span> · 1 warning · ready to save`);
 });
 
 test("D149: the server-rendered form splits W004 out of Problems the same way", () => {

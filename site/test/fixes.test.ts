@@ -89,7 +89,7 @@ test("D214: a plain Options line of one family moves to that family's key", () =
 
 test("D212 (T09): a 2014 Cleric's Spells line offers Switch to Prepared, as in 2024", () => {
   const text = "Rules: 2014\nClasses: Cleric 3 / Paladin 2\nL1 Cleric\nSpells: Bless, Cure Wounds, Healing Word\n";
-  assert.equal(at(text, 4)?.act, "Switch to Prepared");
+  assert.equal(at(text, 4)?.act, "Change to Prepared");
   assert.equal(at(text, 4)?.apply(text)?.split("\n")[3], "Prepared: Bless, Cure Wounds, Healing Word");
 });
 

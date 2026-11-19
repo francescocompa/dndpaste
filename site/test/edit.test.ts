@@ -137,7 +137,7 @@ test("edit with the key: revision 2 at the link, revision 1 kept at /<id>/1; cre
   assert.ok(view.includes(`data-id="${id}" data-reddit=`) && !view.includes(`data-rev=`), "the latest has no data-rev, so it offers Edit");
   const pinned = await text(env, `/${id}/1`);
   assert.ok(pinned.includes(`data-rev="1"`));
-  assert.ok(pinned.includes("This is revision 1 of the build, kept as it was."));
+  assert.ok(pinned.includes("This is revision 1, kept as it was."));
   assert.ok(pinned.includes(`<link rel="canonical" href="https://dndpaste.test/${id}/1">`));
   assert.ok(pinned.includes(`href="/?from=${id}/1"`), "Duplicate and edit copies the revision shown");
   assert.ok(pinned.includes("revision 1 · <time"));
@@ -186,7 +186,7 @@ test("edit: the form page is the paste form, filled with the latest, saving to t
   assert.ok(page.includes(`action="/${id}/edit" data-edit="${id}"`));
   assert.ok(page.includes(`<input type="hidden" name="base" value="1">`));
   assert.ok(page.includes("Save changes"));
-  assert.ok(page.includes("Saving adds revision 2"));
+  assert.ok(page.includes("Saving makes revision 2"));
   assert.ok(page.includes("&lt;b&gt;&quot;Vice&quot;&lt;/b&gt;"), "the title is escaped in the note and the field");
   assert.ok(!page.includes(`<b>"Vice"</b>`));
   assert.ok(page.includes("Editing needs JavaScript"), "a no-JS visitor learns why it won't save");
@@ -413,8 +413,8 @@ test("duplicate: ?from=<id>/<n> fills the form with revision n; a bad revision s
   await editJson(env, id, { paste: SHIGEN, key: KEY });
   const one = await text(env, `/?from=${id}/1`);
   assert.ok(one.includes(VICE.split("\n")[0]));
-  assert.ok(!one.includes("There is no build"));
-  for (const bad of [`${id}/3`, `${id}/0`, `${id}/1/2`, `${id}/x`]) assert.ok((await text(env, `/?from=${encodeURIComponent(bad)}`)).includes("There is no build"), bad);
+  assert.ok(!one.includes("No build has the id"));
+  for (const bad of [`${id}/3`, `${id}/0`, `${id}/1/2`, `${id}/x`]) assert.ok((await text(env, `/?from=${encodeURIComponent(bad)}`)).includes("No build has the id"), bad);
 });
 
 test("report: on a revision page it records the revision and lands back there", async () => {

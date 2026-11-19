@@ -210,7 +210,7 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
   for (const f of libraryFixes(lines, diagnostics)) add(f);
 
   // D190, D212: a whole-list preparer's Spells line.
-  for (const g of ghosts) if (g.note) add({ line: g.line, at: "key", kind: "prepared", why: g.note, act: "Switch to Prepared", apply: (x) => toPrepared(x, g.line) });
+  for (const g of ghosts) if (g.note) add({ line: g.line, at: "key", kind: "prepared", why: g.note, act: "Change to Prepared", apply: (x) => toPrepared(x, g.line) });
 
   // D213: a Subclass under Species or Background (E005) moves to the level where its class gains it, not to the header
   // (the library's fix skips it); then a pick the written species doesn't give moves above Species.
@@ -385,7 +385,7 @@ export interface TidyChange { label: string; off: boolean }
 export interface TidyPlan { text: string; changes: TidyChange[] }
 
 /** The canonical-form step's line in the list. */
-export const CANONICAL = "Rewrites the text in canonical form: key order, spelling and spacing";
+export const CANONICAL = "Put keys in order and fix spelling and spacing";
 
 /**
  * Tidy's plan (D229): the site's Subclass moves to its level block first (D213; the library would move it above

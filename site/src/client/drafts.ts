@@ -144,7 +144,7 @@ export function draftWhen(iso: string, now: Date): string {
 /** The restore bar. `rev`: the revision the edit form opened on (null for a new build). */
 export function draftBarHtml(d: Draft, now: Date, rev: number | null): string {
   const older = rev !== null && d.rev !== null && d.rev < rev;
-  const note = older ? ` They were made on revision ${d.rev}; restoring them replaces the changes saved since.` : "";
+  const note = older ? ` You made them on revision ${d.rev}. Restoring them replaces the changes saved since.` : "";
   return `<span>You have unsaved changes from ${esc(draftWhen(d.saved, now))}.${note}</span><span class="grow"></span>` +
     `<button type="button" class="bt pri" data-act="restore">Restore</button><button type="button" class="bt" data-act="discard">Discard</button>`;
 }

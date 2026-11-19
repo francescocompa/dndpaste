@@ -212,7 +212,7 @@ test("view: title, byline, date, OG tags, folds; untitled and anonymous", async 
   // Slice 3 (D87): the split Copy button and fold controls need JS (njs); Duplicate and edit is a plain link.
   assert.ok(page.includes(`<span class="splitb njs"><button type="button" class="bt pri cpy" data-copy="link">`));
   assert.ok(page.includes(`aria-label="More ways to copy and share" aria-haspopup="menu" aria-expanded="false"`));
-  assert.ok(page.includes(`<div class="fold njs"><button type="button" class="b" data-fold="close">Fold all levels</button>`));
+  assert.ok(page.includes(`<div class="fold njs"><button type="button" class="b" data-fold="close">Fold levels</button>`));
   assert.ok(page.includes(`data-act="cancel-report">Cancel</button>`));
   assert.ok(page.includes(`<button type="button" class="dbtn njs" aria-haspopup="dialog" aria-expanded="false">`));
   assert.ok(!/Names only, never rules text|affiliated/.test(page), "no footer disclaimer (D89 c)");
@@ -247,7 +247,7 @@ test("form: GET / is the empty form; ?from= pre-fills it; a missing id says so",
   assert.ok(pre.includes(`<script type="module" src="/assets/form.js"></script>`));
   assert.ok(pre.includes("Spells: Hex, Armor of Agathys"));
   const miss = await (await call(env, "GET", "/?from=nothing")).text();
-  assert.ok(miss.includes("There is no build with the id nothing."));
+  assert.ok(miss.includes("No build has the id nothing."));
 });
 
 test("routes: about, 404, 405, and fixed pages cannot collide with an id", async () => {
@@ -256,7 +256,7 @@ test("routes: about, 404, 405, and fixed pages cannot collide with an id", async
   assert.equal(about.status, 200);
   const aboutText = await about.text();
   assert.equal((aboutText.match(/not affiliated with Wizards of the Coast/g) ?? []).length, 1);
-  for (const w of ["never rules text", "Report it", "/&lt;id&gt;/raw", "/&lt;id&gt;/canon", "/&lt;id&gt;/json", "Duplicate and edit"]) assert.ok(aboutText.includes(w), w);
+  for (const w of ["never rules text", "Report a problem", "/&lt;id&gt;/raw", "/&lt;id&gt;/canon", "/&lt;id&gt;/json", "Duplicate and edit"]) assert.ok(aboutText.includes(w), w);
   assert.ok(!/—|–/.test(aboutText.replace(/<title>.*<\/title>/, "")), "no dashes in the about copy (D88 c)");
   for (const p of ["/nope", "/ABCDEFGHIJ", "/ABCDEFGHIJK", "/ABCDEFGHI", "/ABCDEFGHIJ/", "/ABCDEFGHIJ/other", "/about/x", "/ABCDE-GHIJ"]) {
     const r = await call(env, "GET", p);
@@ -326,7 +326,7 @@ test("report: stored under r:<iso>:<id>:<nonce>, never shown; form lands on a th
   const key = `r:2026-11-15T11:00:00.000Z:${id}:n0nce1`;
   assert.deepEqual(JSON.parse(env.PASTES.map.get(key)!), { id, reason: "Spam\nline two", contact: "me@example.org", created: "2026-11-15T11:00:00.000Z", revision: 1 });
   const thanks = await (await call(env, "GET", `/${id}?reported=1`)).text();
-  assert.ok(thanks.includes("Thanks. Your report went to the site's maintainer."));
+  assert.ok(thanks.includes("Thanks. Report sent."));
   assert.ok(!thanks.includes("Spam"));
   const json = await call(env, "POST", `/${id}/report`, asJson({ reason: "x" }));
   assert.equal(json.status, 201);
@@ -354,4 +354,20 @@ test("save (D95): a name-only paste is refused with 422, JSON and form alike", a
   assert.equal(j.status, 422);
   assert.match(((await j.json()) as { error: string }).error, /at least one key besides its name/);
   assert.equal((await call(env, "POST", "/", asJson({ paste: "Vice\nSpecies: Human\n" }))).status, 201);
+});
+
+test("D152 round 2: the view offers the tidied text only when Tidy would change it", async () => {
+  const env = makeEnv();
+  const save = async (paste: string) => {
+    const { id } = await (await call(env, "POST", "/", asJson({ title: "T", paste }))).json() as { id: string };
+    return (await call(env, "GET", `/${id}`)).text();
+  };
+  const untidy = VICE.replace(": ", ":   ");
+  assert.notEqual(emit(parse(untidy)), untidy, "the text is not already tidy");
+  const messy = await save(untidy);
+  assert.ok(!messy.includes(`data-tidy="same"`));
+  assert.ok(messy.includes(`/canon">Tidied text</a>`));
+  const tidy = await save(emit(parse(VICE)));
+  assert.ok(tidy.includes(`data-tidy="same"`));
+  assert.ok(!tidy.includes(`/canon">Tidied text</a>`));
 });
