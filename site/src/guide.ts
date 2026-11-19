@@ -63,6 +63,7 @@ ${code(ex.entities, "The species and background blocks of the example")}
 ${code(ex.levels, "The level blocks of the example")}
 <p>${c("L1 Fighter")} opens the block for character level 1, taken in Fighter. Its lines are the choices made at that level. ${c("L2 Warlock")} is the first level in Warlock. Level blocks go up in order, and each one names its class, so the text shows where each class starts. A level with no choices needs no block.</p>
 <p>${c("Feat (Fighting Style): Defense")} names the slot that the feat fills, in parentheses after the key. ${c("Options")} lists optional features, here the warlock's invocations. At level 5 the ability score improvement is a feat: ${c("Ability Score Improvement [+2 CHA]")}.</p>
+<p>A ${c("Subclass")} line goes in the level block where the class gains its subclass, or in the header when the build has no level blocks or has not reached that level yet. Write the subclass's name, its short name, or the short name before the class: ${c("Subclass: Diviner Wizard")}.</p>
 <p>In a level block, a minus sign before a name removes it from the build at that level. ${c("Spells: -Hex, Hold Person")} drops Hex and adds Hold Person.</p>
 <p>A class feature that asks for a choice goes on a ${c("Feature")} line, with the choice in brackets: ${c("Feature: Hunter's Prey [Colossus Slayer]")}. An artificer's plans go the same way: ${c("Feature: Replicate Magic Item [Bag of Holding]")}. Plans are not infusions. ${c("Infusions")} holds the infusions of the 2014 artificer.</p>
 <p>A familiar, a steed, a summoned creature or a pact weapon can name its form in brackets: ${c("Invocations: Pact of the Chain [Imp]")}, ${c("Pact of the Blade [Glaive]")}, ${c("Spells: Find Familiar [Owl]")}, ${c("Summon Fey [Fuming]")}. The brackets are optional.</p>
@@ -74,7 +75,7 @@ ${code("Classes: Paladin 9 / Rogue 1\n\nL9 Rogue\n\nL10 Paladin", "A build that 
 <h2 id="names">Names, sources and details</h2>
 <p>A value gives names only. It never copies rules text.</p>
 <ul>
-<li>${c("Tiefling|XPHB")}: a name, then ${c("|")} and the short code of the book it comes from, such as ${c("PHB")}, ${c("XPHB")} and ${c("TCE")} (<a href="/codes">all book codes</a>). The code is optional. Without one, the edition in ${c("Rules:")} applies.</li>
+<li>${c("Tiefling|XPHB")}: a name, then ${c("|")} and the short code of the book it comes from, such as ${c("PHB")}, ${c("XPHB")} and ${c("TCE")} (<a href="/codes">all book codes</a>). The code is optional. Without one, the name means its newest printing in the edition of ${c("Rules:")}, or in either edition when there is no ${c("Rules:")}. A core book comes before a setting book.</li>
 <li>${c("Magic Initiate [WIS; Druid; Guidance, Shillelagh; Goodberry]")}: the choices that a feat or feature asks for go in brackets. A semicolon separates one choice from the next. A comma separates the names inside one choice. Each key has a fixed order for these choices (${spec("#53-detail-slot-orders", "specification, section 5.3")}).</li>
 <li>${c(`"Bag of Tricks, Gray"`)}: a name that contains a comma, a semicolon, a colon or a bracket goes in double quotes.</li>
 <li>${c("Arrows (20) x2")}: a quantity of 2 or more, on ${c("Gear")} only. Write ${c("Shortsword x2")}, not the name twice. Brackets on gear hold a choice the item asks for, not a note: ${c("Headband of Intellect")} needs nothing after it.</li>
@@ -83,7 +84,7 @@ ${code("Classes: Paladin 9 / Rogue 1\n\nL9 Rogue\n\nL10 Paladin", "A build that 
 <h3 id="homebrew">Unearthed Arcana and homebrew</h3>
 <p>Any name can come from Unearthed Arcana or from homebrew, and the build still saves.</p>
 <ul>
-<li>Unearthed Arcana: write its code, such as ${c("Psion|XUA2025Psion")}. The <a href="/codes">book codes</a> page lists the codes.</li>
+<li>Unearthed Arcana: always write its code, such as ${c("Psion|XUA2025Psion")}. The <a href="/codes">book codes</a> page lists the codes.</li>
 <li>Homebrew: write the code its file gives, or ${c("|HB")} if it has none: ${c("Feat: Fey Pact|HB [CHA]")}. A name with no code works too.</li>
 <li>A homebrew background lists everything it gives in its block, so the build is complete without the homebrew file.</li>
 </ul>
