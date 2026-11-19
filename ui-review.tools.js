@@ -305,6 +305,15 @@ uiReview.config({
       if (!m || m.hidden) document.querySelector('.top .dbtn')?.click()
       await x.sleep(200)
     },
+    // Wire 0.9 (D177, D178, D186): a Warlock's family keys, the arcanum's shared count, 2024 pacts, a capped line.
+    'w9-hints': (x) => acSetup(x, 'w9-hints', 'Vice\nRules: 2024\nClasses: Warlock 2\n\nL1 Warlock\nCantrips: Eldritch Blast\n\nL2 Warlock\n'),
+    'w9-arcanum': (x) => acSetup(x, 'w9-arcanum', 'Vice\nRules: 2024\nClasses: Warlock 11\n\nL11 Warlock\nSpells: Counterspell\nSpells (6th): '),
+    'w9-pactboon': (x) => acSetup(x, 'w9-pactboon', 'Vice\nRules: 2024\nClasses: Warlock 3\n\nL3 Warlock\nPact Boon: '),
+    'w9-pactinv': (x) => acSetup(x, 'w9-pactinv', 'Vice\nRules: 2024\nClasses: Warlock 3\n\nL3 Warlock\nInvocations: Pact'),
+    // D190: a 2024 Cleric's preset, and a Spells line in a Cleric block.
+    'w9-preset': (x) => laidPreset(x, 'w9-preset', [['Cleric', 3]]),
+    'w9-clericspells': (x) => acSetup(x, 'w9-clericspells', 'Vice\nRules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nCantrips: Guidance\nSpells: Bless\nPrepared: Bless\n'),
+    'w9-cap': (x) => acSetup(x, 'w9-cap', 'Vice\nRules: 2024\nClasses: Warlock 11\n\nL11 Warlock\nSpells (3rd): fire'),
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
       const dt = new DataTransfer(); dt.items.add(new File(['Shigen\n'], 'shigen.dndpaste', { type: 'text/plain' }))

@@ -5,7 +5,7 @@
  * It only ever suggests. A name the list doesn't know is never flagged or replaced (D151): Enter keeps its new line
  * unless an arrow picked a row (D154).
  */
-import { ABILITIES, classSequence, keyDef, parse, splitMarker } from "../../../src/dndpaste.ts";
+import { ABILITIES, classSequence, familyOf, keyDef, keyGroup, levelCap, parse, splitMarker } from "../../../src/dndpaste.ts";
 import { needsQuotes } from "../render.ts";
 import { findSeparator, LEVEL_RE } from "./highlight.ts";
 import { keyHints } from "./hints.ts";
@@ -22,6 +22,10 @@ export interface Spot {
   key: string;
   /** A `Feat (…)` slot marker (D110), lower case. */
   marker: string | null;
+  /** The line's own spell level cap, `Spells (3rd)` → 3 (D184); null when it has none. */
+  cap: number | null;
+  /** The option family codes the line takes (`Invocations`, `Options (Invocation)`: `EI`; D186); null for any option. */
+  family: readonly string[] | null;
   /** The paste's `Rules:` edition, if it has one (D155). */
   rules: Edition | null;
   /** Classes whose names lead the list (D156): the level block's class, else the header's `Classes:`. */
@@ -121,6 +125,8 @@ export function spotAt(text: string, pos: number): Spot | null {
 
   let key: string;
   let marker: string | null = null;
+  let cap: number | null = null;
+  let family: readonly string[] | null = null;
   let vs: number;            // where the value starts, in the line
   const lv = LEVEL_RE.exec(t);
   if (lv) {
@@ -135,6 +141,9 @@ export function spotAt(text: string, pos: number): Spot | null {
     key = def.key === "Fighting Style" ? "Feat" : def.key === "Equipment" || def.key === "Items" ? "Gear" : def.key;
     marker = def.key === "Fighting Style" ? "fighting style" : raw.marker ? lc(raw.marker) : null;
     if (!["items", "item", "items¹", "classes"].includes(def.type)) return null;
+    cap = levelCap(t.slice(0, sep));
+    const fam = keyGroup(t.slice(0, sep)) === "Options" ? familyOf(t.slice(0, sep)) : null;
+    family = fam ? ("codes" in fam ? fam.codes : null) : null;
     vs = lead + sep + 1;
   }
   const col = pos - ls;
@@ -200,12 +209,32 @@ export function spotAt(text: string, pos: number): Spot | null {
 
   const where = setting(text, lines, at);
   return {
-    key, marker, rules: where.rules, classes: where.classes, levels: where.levels,
+    key, marker, cap, family, rules: where.rules, classes: where.classes, levels: where.levels,
     start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, slot, groups, taken,
   };
 }
 
 interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number }
+
+/** The family codes an open `Options (<marker>)` names, matched to the table's family names and codes as the checker
+ *  does (D185): `Options (Eldritch Invocation)` → `EI`. Empty when none fits: the line then takes any option. */
+export function markerCodes(n: Names, marker: string): string[] {
+  const m = lc(marker.trim());
+  return Object.entries(n.FAMILIES).filter(([code, name]) => lc(code) === m || lc(name) === m || lc(name) === m + "s" ||
+    lc(name).startsWith(m + " ") || lc(name).endsWith(" " + m) || lc(name).endsWith(" " + m + "s")).map(([code]) => code);
+}
+
+/**
+ * The options a family line takes (D186): those of its family codes (`MV` covers `MV:B`). Under a `Rules:` edition, a
+ * name that edition files under another family is left out: in a 2024 paste the pacts are invocations, so `Pact Boon:`
+ * offers none of them and `Invocations:` does; in a 2014 paste, the other way round.
+ */
+function familyOptions(n: Names, codes: readonly string[], rules: Edition | null): Names["OPTIONS"][number][] {
+  const fits = (types: readonly string[]) => types.some((t) => codes.some((c) => t === c || t.startsWith(c + ":") || c.split("/").includes(t)));
+  const ed = BOOKS.filter((b) => b[2] === rules).reduce((a, b) => a | b[1], 0);
+  return n.OPTIONS.filter((o) => fits(o[5]) &&
+    !(ed && !(o[1] & ed) && n.OPTIONS.some((x) => x[0] === o[0] && x[1] & ed && !fits(x[5]))));
+}
 
 const abilities = (bits: number): Cand[] =>
   ABILITIES.flatMap((a, i) => (bits & (2 ** i) ? [{ name: a, books: 0, first: false, alt: ABILITY_NAMES[i] }] : []));
@@ -260,13 +289,18 @@ function candidates(n: Names, sp: Spot): Cand[] {
         const slots = l[1] ? [abilities(l[1]), plain(l[2])] : [plain(l[2])];
         if (slots[sp.slot]) return slots[sp.slot];
       }
-    } else if (sp.key === "Options") {
+    } else if (keyGroup(sp.key) === "Options") {
       const o = pick(n.OPTIONS);
       if (o && o[4] && sp.slot === 0) return spells((l) => l === 0);
     }
     return general();
   }
 
+  if (keyGroup(sp.key) === "Options") {
+    const codes = sp.family ?? (sp.marker ? markerCodes(n, sp.marker) : []);
+    const rows = codes.length ? familyOptions(n, codes, sp.rules) : n.OPTIONS;
+    return rows.map((o) => ({ name: o[0], books: o[1], first: Boolean(o[2] & mine) }));
+  }
   switch (sp.key) {
     case "Spells": case "Prepared": return spells((l) => l > 0);
     case "Cantrips": return spells((l) => l === 0);
@@ -277,7 +311,6 @@ function candidates(n: Names, sp: Spot): Cand[] {
       const all = [...feats, ...styles].map((r) => ({ name: r[0], books: r[1], first: false }));
       return all.length ? all : n.FEATS.map((f) => ({ name: f[0], books: f[1], first: false }));
     }
-    case "Options": return n.OPTIONS.map((o) => ({ name: o[0], books: o[1], first: Boolean(o[2] & mine) }));
     case "Feature": return [...n.CLASS_FEATURES.map((f) => ({ name: f[0], books: 0, first: Boolean(2 ** f[1] & mine) })), ...plain(n.LINEAGES.map((l) => l[0]))];
     case "Species": return n.SPECIES.map((s) => ({ name: s[0], books: s[1], first: false }));
     case "Background": return n.BACKGROUNDS.map((s) => ({ name: s[0], books: s[1], first: false }));
@@ -348,7 +381,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
     }
   }
   const typed = sp.typed.trim();
-  const cap = spellCap(n, sp);
+  const cap = sp.cap ?? spellCap(n, sp);   // a capped line's own cap wins (D184)
   const rows = [...best.values()].map(({ c, t }) => {
     const dim = c.level !== undefined && cap !== null && c.level > cap;
     return {
@@ -402,7 +435,7 @@ export function slotHint(n: Names, sp: Spot): { slots: string[]; at: number; pic
       if (l[1]) slots.push(["ability", 1]);
       slots.push([kind, 1]);
     }
-  } else if (sp.key === "Options") {
+  } else if (keyGroup(sp.key) === "Options") {
     const o = pick(n.OPTIONS);
     if (o && o[4]) slots.push(count(o[4], "cantrip", "cantrips"));
   }
@@ -469,6 +502,8 @@ export function writtenKey(key: string): { text: string; cursor: number } {
 /** The kind of name each counted key wants, as the ghost text says it. */
 const KIND: Record<string, string> = {
   Cantrips: "cantrip", Spells: "spell", Prepared: "spell", Skills: "skill", Expertise: "skill", Options: "option", Masteries: "weapon",
+  Invocations: "invocation", Metamagic: "metamagic", Maneuvers: "maneuver", Infusions: "infusion", "Arcane Shots": "arcane shot",
+  Runes: "rune", Disciplines: "discipline", "Pact Boon": "pact boon",
 };
 
 /**

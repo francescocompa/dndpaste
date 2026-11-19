@@ -7,7 +7,7 @@
  */
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
-import { LANE, ghostHtml, ghostPads, keepCount } from "../ghost.ts";
+import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, markWholeList, toPrepared } from "../ghost.ts";
 import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
 import type { Hints } from "./hints.ts";
@@ -250,7 +250,7 @@ function init(): void {
   };
   /** The ghost text at the cursor (D174): the kind of name its short counted line still wants. */
   const wordNow = () => document.activeElement === ta && ta.selectionStart === ta.selectionEnd
-    ? ghostWord(ta.value, ta.selectionStart, new Set(st.ghosts.filter((g) => g.have < g.of).map((g) => g.line)))
+    ? ghostWord(ta.value, ta.selectionStart, new Set(st.ghosts.filter((g) => g.have < g.of).flatMap((g) => [g.line, ...(g.also ?? [])])))
     : null;
   let wordShown = "";
   /** The highlight rows, with the ghost pick counts after their lines (D130): display only, never in the text. */
@@ -261,8 +261,67 @@ function init(): void {
     const pads = ghostPads(ta.value.split(/\r?\n/), gs, cols, LANE);
     const w = wordNow();
     wordShown = w ? `${w.line}:${w.word}` : "";
-    draw(highlightRows(ta.value, st.diagnostics, new Map(gs.map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1, g.line === w?.line ? w.word : "")]))));
+    const after = new Map(gs.filter((g) => !g.note).map((g) => [g.line, ghostHtml(g, pads.get(g.line) ?? 1, g.line === w?.line ? w.word : "")]));
+    // A group's other line (D178) has no chip: its ghost text stands alone.
+    if (w && !after.has(w.line)) after.set(w.line, ghostWordHtml(w.word));
+    draw(markWholeList(highlightRows(ta.value, st.diagnostics, after), gs));
+    placeNotes();
   };
+  // ---- D190 review: a whole-list preparer's Spells key: the hint underline, a button over it, Switch to Prepared ----
+  const wls = el("div", "wls");
+  ed.append(wls);
+  const wlPop = el("div", "pop wlpop");
+  wlPop.hidden = true;
+  wlPop.setAttribute("role", "dialog");
+  document.body.append(wlPop);
+  let wlLine = 0;
+  const wlClose = () => { wlPop.hidden = true; wlLine = 0; };
+  /** One button over each underlined key in the highlight layer (it sits under the textarea, so it can't take a click). */
+  function placeNotes() {
+    const marks = [...hl.querySelectorAll<HTMLElement>(".k.wl")];
+    if (!marks.length && !wls.firstChild) return;
+    const box = ed.getBoundingClientRect();
+    wls.innerHTML = marks.map((m) => {
+      const r = m.getBoundingClientRect();
+      const g = st.ghosts.find((x) => x.line === Number(m.dataset.line));
+      return `<button type="button" class="wlb" data-line="${m.dataset.line}" aria-label="${esc(g?.note ?? "")}" ` +
+        `style="left:${r.left - box.left}px;top:${r.top - box.top}px;width:${r.width}px;height:${r.height}px"></button>`;
+    }).join("");
+    if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine)) wlClose();
+  }
+  wls.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLElement>(".wlb");
+    if (!b) return;
+    const line = Number(b.dataset.line);
+    if (wlLine === line && !wlPop.hidden) { wlClose(); return; }
+    const g = st.ghosts.find((x) => x.line === line);
+    wlLine = line;
+    wlPop.setAttribute("aria-label", g?.note ?? "");
+    wlPop.innerHTML = `<button type="button" class="it" data-go>Switch to Prepared</button>`;
+    wlPop.hidden = false;
+    const r = b.getBoundingClientRect();
+    const w = wlPop.offsetWidth;
+    wlPop.style.left = `${Math.max(8, Math.min(r.right - w, innerWidth - w - 8))}px`;
+    wlPop.style.top = `${r.bottom + 6}px`;
+    wlPop.querySelector<HTMLElement>("[data-go]")?.focus();
+  });
+  wlPop.addEventListener("click", (e) => {
+    if (!(e.target as Element).closest("[data-go]")) return;
+    const before = ta.value;
+    const next = toPrepared(before, wlLine);
+    wlClose();
+    if (next === null) return;
+    // Write only the part that changed, through insert, so Undo brings the Spells line back.
+    let a = 0;
+    while (a < before.length && a < next.length && before[a] === next[a]) a++;
+    let b = 0;
+    while (b < before.length - a && b < next.length - a && before[before.length - 1 - b] === next[next.length - 1 - b]) b++;
+    insert(next.slice(a, next.length - b), a, before.length - b);
+  });
+  document.addEventListener("pointerdown", (e) => {
+    if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb")) wlClose();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !wlPop.hidden) { wlClose(); ta.focus(); } });
   /** A cursor move: redraw when the ghost text comes, goes or moves. */
   const redrawWord = () => {
     const w = wordNow();

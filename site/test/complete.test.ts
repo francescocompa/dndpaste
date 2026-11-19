@@ -267,7 +267,7 @@ test("D170: a letter at a line's start suggests the keys its block allows, from 
   assert.deepEqual(keysAt("Vice\nRules: 2024\nspec¦"), ["Species"], "any case");
   assert.deepEqual(keysAt("Vice\nRules: 2024\nrul¦"), [], "Rules is already there");
   assert.ok(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nC¦")?.includes("Cantrips"), "a level block's keys");
-  assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nSpe¦"), ["Spells"], "a level block opens no Species block");
+  assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Wizard\nSpe¦"), ["Spells"], "a level block opens no Species block");
   assert.deepEqual(keysAt("Vice\nZz¦"), [], "nothing fits");
   assert.equal(keysAt("Vice\n¦"), null, "an empty line opens nothing");
   assert.equal(keysAt("Vic¦"), null, "the first line is the build's name");
@@ -308,4 +308,62 @@ test("D165: Masteries offers weapons with a mastery property, never other gear",
   assert.ok(sh.includes("Shortsword") && sh.includes("Shortbow"), "weapons");
   for (const gear of ["Shovel", "Shield", "Shawm"]) assert.ok(!sh.includes(gear), `${gear} is not a weapon`);
   assert.ok(!names("Masteries: rope¦")?.length && !names("Masteries: back¦")?.length, "no adventuring gear");
+});
+
+test("D186: a family line offers its family only; an Options (<marker>) line filters by its marker; plain Options all", () => {
+  const meta = names("Classes: Sorcerer 3\nMetamagic: ¦", 50) ?? [];
+  assert.ok(meta.length >= 8 && meta.includes("Twinned Spell"));
+  assert.ok(!meta.includes("Agonizing Blast") && !meta.includes("Archery"), "no invocation, no fighting style");
+  const inv = names("Invocations: ¦", 80) ?? [];
+  assert.ok(inv.includes("Agonizing Blast") && !inv.includes("Twinned Spell"));
+  assert.deepEqual(names("Options (Invocation): ¦", 80), inv, "a folded marker reads as its family key");
+  assert.deepEqual(names("Options (Eldritch Invocations): ¦", 80), inv, "an open marker matched to the table's family names");
+  const fs = names("Options (Fighting Style): ¦", 20) ?? [];
+  assert.ok(fs.includes("Archery") && !fs.includes("Agonizing Blast"));
+  assert.ok((names("Options (Zzz): ¦", 80) ?? []).includes("Twinned Spell"), "an unknown marker takes any option");
+  assert.ok((names("Options: ¦", 80) ?? []).includes("Twinned Spell") && (names("Options: ¦", 80) ?? []).includes("Agonizing Blast"));
+  assert.deepEqual(names("Maneuvers: ¦"), [], "a family the loaded data lacks: nothing to offer");
+});
+
+test("D186: the pacts follow the edition: Pact Boon in 2014, invocations in 2024; without Rules, both", () => {
+  const pacts = (xs: string[] | null) => (xs ?? []).filter((x) => x.startsWith("Pact of"));
+  assert.deepEqual(pacts(names("Rules: 2014\nPact Boon: ¦")), ["Pact of the Blade", "Pact of the Chain", "Pact of the Tome"]);
+  assert.deepEqual(pacts(names("Rules: 2024\nPact Boon: ¦")), [], "2024 has no pact boons: none offered under a PHB source");
+  assert.deepEqual(pacts(names("Rules: 2024\nInvocations: Pact¦")), ["Pact of the Blade", "Pact of the Chain", "Pact of the Tome"]);
+  assert.deepEqual(pacts(names("Rules: 2014\nInvocations: Pact¦")), [], "2014 pacts are boons, not invocations");
+  assert.equal(first("Rules: 2024\nInvocations: Pact of the T¦")?.source, null, "the 2024 row: no source to write");
+  assert.deepEqual(pacts(names("Pact Boon: ¦")).length, 3);
+  assert.deepEqual(pacts(names("Invocations: Pact¦")).length, 3);
+  // The Book of Shadows' cantrips: both editions' Pact of the Tome, on either key.
+  assert.deepEqual(slotHint(N, spot("Rules: 2014\nPact Boon: Pact of the Tome [¦")!)?.slots, ["3 cantrips"]);
+  assert.deepEqual(slotHint(N, spot("Rules: 2024\nInvocations: Pact of the Tome [¦")!)?.slots, ["3 cantrips"]);
+  assert.ok((names("Invocations: Agonizing Blast [¦") ?? []).includes("Eldritch Blast"), "the bracket branch reads the family key as Options");
+});
+
+test("D184: a capped line's own cap dims the spells above it, in place of the class's (D162)", () => {
+  const rows = (src: string) => { const s = spot(src); return s ? suggest(N, s, 400) : []; };
+  const at11 = "Rules: 2024\nClasses: Warlock 11\n";
+  assert.equal(spot(at11 + "Spells (3rd): ¦")?.cap, 3);
+  assert.equal(spot(at11 + "Spells: ¦")?.cap, null);
+  const capped = rows(at11 + "Spells (3rd): fire¦");
+  assert.equal(capped.find((r) => r.name === "Fireball")?.dim, undefined, "3rd: under the cap");
+  assert.equal(capped.find((r) => r.name === "Fire Shield")?.dim, true, "4th: above the line's cap though the warlock casts it");
+  assert.equal(rows(at11 + "Spells: fire¦").find((r) => r.name === "Fire Shield")?.dim, undefined, "uncapped: the class's cap (D162)");
+  assert.equal(rows("Rules: 2024\nClasses: Wizard 1\nPrepared (6th): fire¦").find((r) => r.name === "Fireball")?.dim, undefined,
+    "the line's cap wins over the class's too");
+});
+
+test("D186: family lines get the ghost text of their kind", () => {
+  assert.deepEqual(ghostWord("Invocations: Agonizing Blast,", 29, new Set([1])), { line: 1, word: " invocation" });
+  assert.deepEqual(ghostWord("Pact Boon: ", 11, new Set([1])), { line: 1, word: "pact boon" });
+  assert.deepEqual(ghostWord("Spells (6th): ", 14, new Set([1])), { line: 1, word: "spell" });
+});
+
+test("D190: a 2024 whole-list preparer's block offers no Spells key; a Wizard's and a 2014 Cleric's do", () => {
+  assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nSpe¦"), [], "Cleric prepares from its list");
+  assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Cleric\nPre¦"), ["Prepared"]);
+  assert.deepEqual(keysAt("Vice\n\nL1 Paladin|XPHB\nSpe¦"), [], "the class's own source picks the table");
+  assert.deepEqual(keysAt("Vice\nRules: 2024\n\nL1 Wizard\nSpe¦"), ["Spells"]);
+  assert.deepEqual(keysAt("Vice\nRules: 2014\n\nL1 Cleric\nSpe¦"), ["Spells"], "2014: no loadout counted (D129)");
+  assert.deepEqual(keysAt("Vice\n\nL1 Cleric\nSpe¦"), ["Spells"], "no edition: no table to go by");
 });

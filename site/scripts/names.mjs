@@ -29,11 +29,11 @@ const FAMILY_CLASS = { EI: "Warlock", PB: "Warlock", MM: "Sorcerer", "MV:B": "Fi
   ED: "Monk", AI: "Artificer", "FS:F": "Fighter", "FS:R": "Ranger", "FS:P": "Paladin", "FS:B": "Bard" };
 
 /** Rows merged by name (and by `same`, the extras that must match): books OR'd together, `merge` folds the rest. */
-function rows(entries, extras, merge = null) {
+function rows(entries, extras, merge = null, same = () => "") {
   const m = new Map();
   for (const e of entries.filter(keep)) {
     const x = extras(e);
-    const k = merge ? e.name : `${e.name}\u0000${JSON.stringify(x)}`;
+    const k = merge ? `${e.name}\u0000${same(e)}` : `${e.name}\u0000${JSON.stringify(x)}`;
     const r = m.get(k);
     if (!r) m.set(k, [e.name, BOOK[e.source], ...x]);
     else { r[1] |= BOOK[e.source]; if (merge) merge(r, x); }
@@ -52,7 +52,11 @@ const options = rows(Object.values(slots.optionalFeatures), (o) => [
   (o.types ?? []).reduce((a, t) => a | classBit(FAMILY_CLASS[t] ?? ""), 0),
   (o.types ?? []).some((t) => t.startsWith("FS")) ? 1 : 0,
   sup.optionPicks?.[`${o.name}|${o.source}`] ?? 0,
-], (r, [bits, fs, picks]) => { r[2] |= bits; r[3] |= fs; r[4] = Math.max(r[4], picks); });
+  [...(o.types ?? [])].sort(),
+// A name whose family differs by book stays two rows (D186): Pact of the Blade is a Pact Boon in the PHB, an invocation in the XPHB.
+], (r, [bits, fs, picks]) => { r[2] |= bits; r[3] |= fs; r[4] = Math.max(r[4], picks); }, (o) => [...(o.types ?? [])].sort().join("/"));
+// Picks stay per name, as before the split: the PHB Pact of the Tome asks its three cantrips too.
+for (const r of options) r[4] = Math.max(...options.filter((x) => x[0] === r[0]).map((x) => x[4]));
 const items = rows([...Object.values(slots.items), ...Object.values(slots.magicVariants)],
   (i) => [i.rarity === "none" ? 1 : 0], (r, [mundane]) => { r[2] &= mundane; });
 // Weapons with a mastery property: the only names a `Masteries:` line takes (D165). Books are those of the entries that have one.
@@ -138,10 +142,12 @@ export const BACKGROUNDS: readonly (readonly [string, Books])[] = ${q(background
 export const FEATS: readonly (readonly [string, Books, string, AbilityBits, readonly string[], number, number])[] = [
 ${list(feats)}
 ];
-/** [name, books, classes its families belong to, 1 if a fighting style, picks it asks] */
-export const OPTIONS: readonly (readonly [string, Books, ClassBits, number, number])[] = [
+/** [name, books, classes its families belong to, 1 if a fighting style, picks it asks, family codes] (D186) */
+export const OPTIONS: readonly (readonly [string, Books, ClassBits, number, number, readonly string[]])[] = [
 ${list(options)}
 ];
+/** Option family code → its name, for an \`Options (<marker>)\` line's filter (D186). */
+export const FAMILIES: Readonly<Record<string, string>> = ${q(slots.families)};
 /** [name, books, 1 if mundane] */
 export const ITEMS: readonly (readonly [string, Books, number])[] = [
 ${list(items)}

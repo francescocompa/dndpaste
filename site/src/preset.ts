@@ -7,6 +7,7 @@
  */
 import { emit, parse } from "../../src/dndpaste.ts";
 import { PRESETS } from "./presets.ts";
+import { isWholeList } from "./ghost.ts";
 import type { ClassPreset, Edition } from "./presets.ts";
 
 export type { Edition };
@@ -68,6 +69,9 @@ export function presetText(edition: Edition, rows: readonly Row[]): string {
       const k = (classLevel.get(r.cls) ?? 0) + 1;
       classLevel.set(r.cls, k);
       const keys = p ? [...(k === 1 ? (n === 1 ? p.first : p.multi) : []), ...(p.owes[k - 1] ?? [])] : [];
+      // D190: a whole-list preparer (2024 Cleric, Druid, Paladin, Ranger) gets an empty `Prepared:` line where its
+      // loadout first appears or grows, with its ghost count; never a `Spells` line. 2014 counts no loadout (D129).
+      if (p && edition === "2024" && isWholeList(p) && (p.counts[k - 1]?.Prepared ?? 0) > (k > 1 ? p.counts[k - 2]?.Prepared ?? 0 : 0)) keys.push("Prepared");
       if (keys.length || n === 1) blocks.push(`L${n} ${ref(r.cls)}\n${[...new Set(keys)].map((key) => `${key}:`).join("\n")}`);
     }
     runs.push(`${ref(r.cls)} ${classLevel.get(r.cls)}`);

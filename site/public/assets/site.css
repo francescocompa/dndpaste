@@ -518,3 +518,11 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ctab th:not([aria-sort]) .srt .i-chevron-down, .ctab th[aria-sort=ascending] .srt .i-chevron-down, .ctab th[aria-sort=descending] .srt .i-chevron-up { display: none; }
 .ctab th[aria-sort] .srt .i, .ctab .srt:hover .i { visibility: visible; }
 .ctab thead .kk .srt { flex-direction: row-reverse; }
+/* D190 review: a key in the wrong place for its class (a whole-list preparer's Spells) gets the hint underline, not an
+   error's wavy red; a transparent button over it opens Switch to Prepared. */
+.ed .k.wl { text-decoration: underline dashed var(--acc); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.ed .wls { position: absolute; inset: 0; pointer-events: none; }
+.ed .wlb { position: absolute; z-index: 2; pointer-events: auto; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+.ed .wlb:hover, .ed .wlb:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 1px; }
+.wlpop { padding: 4px; }
+.wlpop .it { white-space: nowrap; }

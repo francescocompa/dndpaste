@@ -71,21 +71,21 @@ test("highlight: the frames' marks — identifier bold, level header accent, unk
     .includes(`<span class="p">&quot;</span><span class="r kd-item">Bag of Tricks, Gray</span><span class="p">&quot;</span><span class="p">, </span><span class="r kd-item">Arrows (20)</span> <span class="q">x2</span>`));
 });
 
-test("hints: the frames' key lists (header 30, drop-dark header 23, L5 Warlock 23, half-typed Spe → Spells; SPEC 0.9 family keys, Feat (…))", () => {
+test("hints: the frames' key lists (header 22, drop-dark header 20, L5 Warlock 17, half-typed Spe → Spells; SPEC 0.9 family keys by class (D177), Feat (…))", () => {
   const empty = keyHints("", 0);
   assert.equal(empty.label, "the header");
-  assert.equal(empty.keys.length, 30);
+  assert.equal(empty.keys.length, 22);
   assert.deepEqual(empty.keys.slice(0, 5), ["Paste", "Producer", "Rules", "Scores", "Classes"]);
 
   const drop = `Rules: 2024\nClasses: Fighter 3 / Warlock 3\nSubclass: Battle Master, Celestial\nFeat: Resilient [CON]\nFeat (Fighting Style): Archery\nOptions: Riposte\nCantrips: Eldritch Blast\nSpells: Hex`;
   assert.deepEqual(keyHints(drop, 3).keys, ["Paste", "Producer", "Scores", "HP", "Species", "Background", "Skills", "Tools",
-    "Languages", "Expertise", "Feat (…)", "Masteries", "Invocations", "Metamagic", "Maneuvers", "Infusions", "Arcane Shots", "Runes", "Disciplines", "Pact Boon", "Feature", "Prepared", "Gear"]);
+    "Languages", "Expertise", "Feat (…)", "Masteries", "Invocations", "Maneuvers", "Arcane Shots", "Runes", "Pact Boon", "Feature", "Prepared", "Gear"]);
 
   const vice = fixture("vice.dndpaste").trimEnd();
   const last = vice.split("\n").length - 1;
   const l5 = keyHints(vice, last);
   assert.equal(l5.label, "L5 Warlock");
-  assert.equal(l5.keys.length, 23);
+  assert.equal(l5.keys.length, 17);
   assert.ok(!l5.keys.includes("Options") && !l5.keys.includes("Species"));
 
   const typing = keyHints(vice + "\nSpe", last + 1);
@@ -93,7 +93,21 @@ test("hints: the frames' key lists (header 30, drop-dark header 23, L5 Warlock 2
   assert.equal(typing.narrowed, true);
   const noMatch = keyHints(vice + "\nZz", last + 1);
   assert.equal(noMatch.narrowed, false);
-  assert.equal(noMatch.keys.length, 23);
+  assert.equal(noMatch.keys.length, 17);
+});
+
+test("D177: a frame lists only its class's option family keys; a half-typed key still finds any of them", () => {
+  const fam = (keys: string[]) => keys.filter((k) => ["Invocations", "Metamagic", "Maneuvers", "Infusions", "Arcane Shots", "Runes", "Disciplines", "Pact Boon"].includes(k));
+  const t = "Mix\nClasses: Warlock 2 / Sorcerer 1\nL1 Warlock\nSpells: Hex\nL2 Sorcerer\n\nL3 Monk\n";
+  assert.deepEqual(fam(keyHints(t, 1).keys), ["Invocations", "Metamagic", "Pact Boon"], "the header: its Classes line's");
+  assert.deepEqual(fam(keyHints(t, 3).keys), ["Invocations", "Pact Boon"], "L1 Warlock");
+  assert.deepEqual(fam(keyHints(t, 5).keys), ["Metamagic"], "L2 Sorcerer");
+  assert.deepEqual(fam(keyHints(t, 6).keys), ["Disciplines"], "L3 Monk");
+  assert.deepEqual(fam(keyHints("Mix\nL1 Barbarian\n", 2).keys), [], "a class with no family");
+  assert.ok(keyHints("Mix\nL1 Barbarian\n", 2).keys.includes("Options"), "plain Options stays");
+  const typing = keyHints("Mix\nL1 Barbarian\nMeta", 2);
+  assert.deepEqual(typing.keys, ["Metamagic"]);
+  assert.equal(typing.narrowed, true);
 });
 
 test("hints (D110): Feat (…) follows Feat, stays offered, and a marked feat line leaves Feat offered", () => {
