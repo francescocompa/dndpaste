@@ -471,7 +471,7 @@ uiReview.config({
     'src-split': async (x) => { await srcHomebrew(x, 'src-split'); await srcLens(x, 'source', true); document.querySelector('.srcp [data-remove-no]')?.click() },
     'src-unread': async (x) => {
       await srcHomebrew(x, 'src-unread'); await srcLens(x, 'source')
-      const d = document.querySelector('.srcp .pop'); if (d) d.open = true
+      const d = document.querySelector('.srcp .upop'); if (d) d.open = true
       await x.sleep(100)
     },
     'ed-own-spell': async (x) => { if (await edHomebrew(x, 'ed-own-spell')) await acSetup(x, 'ed-own-spell', 'Rules: 2024\nClasses: Druid 3\n\nL3 Druid\nSpells: Moonb') },
@@ -490,6 +490,20 @@ uiReview.config({
       if (!(await edHomebrew(x, 'ed-settings'))) return
       await x.waitFor('.top .dbtn'); if (!document.querySelector('.srcrow')) await x.click('.top .dbtn'); await x.sleep(150)
     },
+    // Round 3 (D270): the species fix writes the trait's brackets; the cursor goes inside, the list open.
+    'ed-fix-brackets': async (x) => {
+      await acSetup(x, 'ed-fix-brackets', 'Rules: 2024\nClasses: Wizard 1\nSpecies: Elf\n\nL1 Wizard\n')
+      await x.sleep(300)
+      document.querySelector('button.wlb[data-line="3"]')?.click(); await x.sleep(150)
+      ;[...document.querySelectorAll('button')].find((b) => /^Add Skills, Elven Lineage$/.test(b.textContent.trim()))?.click()
+      await x.sleep(300)
+    },
+    'src-docs-folder': async (x) => {
+      await x.waitFor('.srcp .list .srow, .srcp .list .empty', 6000)
+      document.querySelector('#names-format').open = true; document.querySelector('#format-more').open = true
+      document.querySelector('#format-more').scrollIntoView({ block: 'start' })
+    },
+    'src-builtin': async (x) => { await srcHomebrew(x, 'src-builtin'); await srcLens(x, 'source'); document.querySelector('.srcp [data-remove-no]')?.click() },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
       const dt = new DataTransfer(); dt.items.add(new File(['Shigen\n'], 'shigen.dndpaste', { type: 'text/plain' }))
