@@ -5,6 +5,7 @@
  * response passes through untouched.
  */
 import type { Env } from "./app.ts";
+import { CONNECT_SRC } from "./app.ts";
 
 const LOOPBACK = /^http:\/\/(?:127\.0\.0\.1|localhost):\d{2,5}$/;
 
@@ -20,7 +21,7 @@ export async function withUiReview(res: Response, setting: string | undefined): 
   h.set(
     "Content-Security-Policy",
     `default-src 'self'; script-src 'self' ${o}; style-src 'self' 'unsafe-inline' ${o}; img-src 'self' data: blob: ${o}; ` +
-      `connect-src 'self' ${o}; frame-src ${o}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
+      `connect-src ${CONNECT_SRC} ${o}; frame-src ${o}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
   );
   return new Response(body, { status: res.status, headers: h });
 }

@@ -7,7 +7,9 @@
  */
 import { esc, icon } from "../render.ts";
 import { highlightRows } from "./highlight.ts";
-import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount } from "../ghost.ts";
+import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, useYourPresets } from "../ghost.ts";
+import { readSummary } from "./summary.ts";
+import type * as Yours from "./sync.ts";
 import { markFixes, nameFixes, tidyPlan } from "../fixes.ts";
 import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
@@ -41,6 +43,8 @@ const suggestOn = suggestPref(() => window.localStorage);
 const MAX_FILE = 1024 * 1024;
 /** The autocomplete's SRD names (D158), its own bundle: a variable, so esbuild leaves the import to the browser. */
 const NAMES_JS = "/assets/names.js";
+/** Your own sources for the editor (D246): a variable as well, loaded after the names when a source exists. */
+const YOURS_JS = "/assets/yours.js";
 
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = ""): HTMLElementTagNameMap[K] {
@@ -524,6 +528,8 @@ function init(): void {
   let acOn = -1;
   /** What goes in the `[ ]` the cursor is in, one entry per `;` group (D163); null outside one or where unknown. */
   let acHint: { slots: string[]; at: number } | null = null;
+  /** D256: nothing matches a name of 3+ letters and no source is added yet: one line that links to /sources. */
+  let acEmpty = false;
   const acAria = () => {
     ta.setAttribute("aria-autocomplete", "list");
     ta.setAttribute("aria-controls", ac.id);
@@ -540,6 +546,7 @@ function init(): void {
     acOn = -1;
     acSays.textContent = "";
     acHint = null;
+    acEmpty = false;
     dock.classList.remove("ac-on");
     acAria();
   };
@@ -586,8 +593,9 @@ function init(): void {
     const hint = !acHint ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
-    ac.innerHTML = hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
-      `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}` +
+    ac.innerHTML = (acEmpty ? `<div class="ae">No matches. <a href="/sources">Add your own sources</a> to suggest more books.</div>` : "") +
+      hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+      `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
       `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
     // Phone: the dock's last row, right on the keyboard (D157 amended).
@@ -597,7 +605,7 @@ function init(): void {
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : "name";
-      acSays.textContent = acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      acSays.textContent = acEmpty ? "No matches. Add your own sources to suggest more books." : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
     ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
     ac.hidden = false;
@@ -630,7 +638,10 @@ function init(): void {
     const rows = sp ? suggest(names, sp, phone.matches ? 12 : 8) : [];
     // An empty `[ ]` group the table knows shows what goes there, even before a name fits (D163).
     const hint = sp ? slotHint(names, sp) : null;
-    if (!sp || !(rows.length || (hint && !sp.typed.trim()))) { acClose(); return; }
+    // D256: while no source is added, a name of 3+ letters that matches nothing keeps one line open, linking to /sources.
+    const none = Boolean(sp && !rows.length && !hint && sp.typed.replace(/\s/g, "").length >= 3 && !readSummary().n);
+    if (!sp || !(rows.length || (hint && !sp.typed.trim()) || none)) { acClose(); return; }
+    acEmpty = none;
     const same = acSpot?.start === sp.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
     if (!same) acOn = -1;
     acSpot = sp;
@@ -642,7 +653,17 @@ function init(): void {
     if (names || loading) return;
     loading = true;
     // Typed before the names arrived: show what fits now.
-    (import(NAMES_JS) as Promise<Names>).then((m) => { names = m; fixNames = m; drawRows(); complete(true); }, () => { loading = false; });
+    (import(NAMES_JS) as Promise<Names>).then((m) => { names = m; fixNames = m; drawRows(); complete(true); loadYours(m); }, () => { loading = false; });
+  };
+  /** D246: your own sources join the names, and your classes the ghost counts; the links are checked on this visit (D248). */
+  const loadYours = (base: Names) => {
+    if (!readSummary().n) return;
+    (import(YOURS_JS) as Promise<typeof Yours>).then((y) => y.editorVisit(base, (m) => {
+      names = m ? (m.names as Names) : base;
+      fixNames = names;
+      useYourPresets(m?.presets ?? [], m?.species ?? []);
+      refresh();
+    })).catch(() => { /* the built-in names stay */ });
   };
   const acTake = (i: number) => {
     const sp = acSpot;
@@ -727,6 +748,8 @@ function init(): void {
   acAria();
   ed.addEventListener("focusin", loadNames);
   if (ed.contains(document.activeElement)) loadNames();
+  // Your classes' ghost counts show before the editor is used (D246): with a source added, load at once.
+  else if (readSummary().n) loadNames();
   ed.addEventListener("focusout", acClose);
   // D229: a click into an empty `[ ]` opens the list, as typing would; any other click only updates or closes it.
   ed.addEventListener("keyup", (e) => { if (!ac.contains(e.target as Node)) complete(false); });

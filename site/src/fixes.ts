@@ -22,10 +22,9 @@
  * The library's fixes win over the site's own fix on a line (D225).
  */
 import { KEYS, applyFix, classSequence, emit, familyOf, keyGroup, parse, resolveKey } from "../../src/dndpaste.ts";
-import type { Diagnostic, Paste, Ref } from "../../src/dndpaste.ts";
-import { isWholeList, speciesPreset, toPrepared } from "./ghost.ts";
+import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
+import { isWholeList, speciesPreset, tableFor, toPrepared } from "./ghost.ts";
 import type { Ghost } from "./ghost.ts";
-import { PRESETS } from "./presets.ts";
 import type { ClassPreset } from "./presets.ts";
 import type * as N from "./names.gen.ts";
 
@@ -46,7 +45,6 @@ export interface Fix {
 }
 
 const LEVEL_RE = /^L([1-9]\d*)\s+(.+)$/i;
-const EDITION_SOURCE: Record<string, ClassPreset["source"]> = { "2014": "PHB", "2024": "XPHB" };
 const lc = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 
 /** The first `:` followed by a space or ending the line, as the parser reads a key line; -1 if none. */
@@ -142,11 +140,6 @@ export function moveAbove(text: string, line: number): string | null {
   return lines.join("\n");
 }
 
-/** The class table for a level's class (its own source, else the `Rules:` edition). */
-function tableFor(ref: Ref, rules: string | null): ClassPreset | undefined {
-  const src = ref.source ? ref.source.toUpperCase() : rules ? EDITION_SOURCE[rules] : undefined;
-  return src ? PRESETS.find((p) => p.source === src && p.name.toLowerCase() === ref.name.toLowerCase()) : undefined;
-}
 
 /** D215 (T10): the keys a level owes, as a preset lays them out (preset.ts): the class level's owed keys, the first
  *  class's or a later class's level-1 keys, and a 2024 whole-list preparer's `Prepared` where its loadout grows. */

@@ -3,6 +3,12 @@
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
 ## Unreleased
+- Library: `dndpaste/extract` (D246, D260): the slot extractor as a pure function (`extractSlots`, `mergeData`,
+  `srdSubset`); `scripts/extract-slots.mjs` now runs on it, with the same output.
+- Site, not deployed: `/sources`, your own sources (M6, D244–D265). A hand-written names file or a GitHub file or folder
+  link adds names to the editor's autocomplete, the options inside `[ ]` and the ghost pick counts. Kept in this
+  browser only; GitHub is fetched by the browser and checked again on each visit (CSP `connect-src` allows GitHub's
+  API and raw hosts only). Built-in names are hidden per book and kind where yours stand in (D255).
 - Site only, deployed 2026-11-20 (e04074d): one-click fix buttons survive the live CSP (D240); name lists put the
   line's class first and dim the rest (D241, D243); a pick that asks a detail opens its brackets (D242).
 

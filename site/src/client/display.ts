@@ -75,7 +75,7 @@ const THEME_ICON: Record<Theme, string> = { auto: "contrast", light: "sun", dark
 
 /** The Settings menu's body (frame view-display-desk; "Display" until the D173 review). `persistent` false: storage is
  *  blocked. `suggest`: the editor's Suggestions switch (D173), stored on its own (prefs.ts). */
-export function displayMenuHtml(d: Display, persistent = true, suggest = true): string {
+export function displayMenuHtml(d: Display, persistent = true, suggest = true, sources: { n: number; on: number } | null = null): string {
   const seg = THEMES.map((t) =>
     `<button type="button" role="radio" aria-checked="${d.theme === t}" data-theme-set="${t}"${d.theme === t ? ` class="on"` : ""}>${icon(THEME_ICON[t])}${LABEL[t]}</button>`).join("");
   const sw = (key: "kind" | "abilities" | "suggest", label: string, small: string, on = key === "suggest" ? suggest : d[key]) =>
@@ -88,6 +88,8 @@ export function displayMenuHtml(d: Display, persistent = true, suggest = true): 
     sw("abilities", "Colour abilities", ABS.map((a) => `<span class="ab ab-${a.toLowerCase()}">${a}</span>`).join(" ")) +
     // D173 (review): the editor's name and key lists, beside the display settings.
     `<hr>` + sw("suggest", "Suggestions", "Name and key lists in the editor") +
+    // D256: the way to /sources, at the menu's foot.
+    (sources ? `<hr><a class="srcrow" href="/sources">${icon("database")}<span class="grow">Your sources</span><span class="muted">${sources.n ? `${sources.on} on` : "None yet"}</span>${icon("chevron-right")}</a>` : "") +
     // Round 2: no "Saved in this browser." line; only blocked storage says something.
     (persistent ? "" : `<small class="saved">This browser blocks storage, so these settings last for this visit only.</small>`);
 }

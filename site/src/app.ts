@@ -7,6 +7,7 @@ import { parse } from "../../src/dndpaste.ts";
 import { BUILD } from "./build.gen.ts";
 import { codesPage } from "./codes.ts";
 import { guidePage } from "./guide.ts";
+import { sourcesPage } from "./sourcespage.ts";
 import { aboutPage, formPage, messagePage, notFoundPage, prerender, rendered, viewPage } from "./pages.ts";
 import type { FormState, ViewState } from "./pages.ts";
 import {
@@ -41,7 +42,10 @@ export interface Env {
 /** Injection points for tests. */
 export interface Deps { makeId?: () => string; now?: () => Date; reportNonce?: () => string; makeKey?: () => string }
 
-export const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'";
+/** `connect-src`: the site itself, and GitHub's API and raw-file hosts only: the browser fetches a visitor's GitHub
+ *  sources itself (D248), never through the server. No other host. */
+export const CONNECT_SRC = "'self' https://api.github.com https://raw.githubusercontent.com";
+export const CSP = `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src ${CONNECT_SRC}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`;
 const BASE_HEADERS: Record<string, string> = {
   "Content-Security-Policy": CSP,
   // Not no-referrer: under no-referrer browsers send `Origin: null` on our own POSTs, and the cross-site check needs it.
@@ -136,6 +140,8 @@ async function route(request: Request, env: Env, deps: Deps, url: URL, method: s
     return notAllowed("GET, HEAD, POST");
   }
   if (path === "/guide") return method === "GET" ? html(guidePage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
+  // D247: your own sources. The page holds no data of its own: the browser keeps and draws the sources (D245).
+  if (path === "/sources") return method === "GET" ? html(sourcesPage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
   if (path === "/codes") return method === "GET" ? html(codesPage(), 200, { "Cache-Control": "public, max-age=3600" }) : notAllowed("GET, HEAD");
   // The deployed build (scripts/stamp.mjs): the page's update check compares it with the build it loaded. Never cached.
   if (path === "/version") return method === "GET" ? json(BUILD) : notAllowed("GET, HEAD");

@@ -46,6 +46,7 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
 | `POST /<id>/report` | Report: reason (required, ≤ 500 chars), contact (optional), `rev` (the revision the reader was on; a pinned page sends it). Stored, never shown. |
 | `GET /about` | What the site is; names only; unaffiliated with Wizards of the Coast; how reporting works. |
 | `GET /guide` | Format guide (D99): how a paste is laid out, one annotated example (`site/src/example.ts`), and the key table built from the library's `KEYS` at bundle time. Links SPEC.md as the authority. Fixed path, 5 chars: cannot collide with a 10-char id. |
+| `GET /sources` | Your own sources (M6, D244–D265): add a names file (pick or drop) or a GitHub file or folder link, list them By book, By kind or By source, switch sources, books and kinds, check links, remove. The page carries no data: the sources live in this browser's IndexedDB (D245) and `/assets/sources.js` draws the list. The names format is documented on the page. Linked from the Settings menu's foot and the autocomplete's no-match line (D256). Fixed path, 7 chars: cannot collide with a 10-char id. |
 | `GET /version` | The deployed build, `{ version, commit, date }` (D138), `no-store`. The page's update check compares it with its own. Fixed path, 7 chars. |
 | anything else | 404 page. |
 

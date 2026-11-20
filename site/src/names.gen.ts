@@ -450,6 +450,8 @@ export const OPTIONS: readonly (readonly [string, Books, ClassBits, number, numb
 ];
 /** Option family code → its name, for an `Options (<marker>)` line's filter (D186). */
 export const FAMILIES: Readonly<Record<string, string>> = {"EI":"Eldritch Invocations","MM":"Metamagic","MV:B":"Maneuvers","MV:C2-UA":"Maneuvers (UA)","AI":"Artificer Infusions","AS":"Arcane Shots","RN":"Runes","ED":"Elemental Disciplines","PB":"Pact Boons","FS:F":"Fighting Styles (Fighter)","FS:R":"Fighting Styles (Ranger)","FS:P":"Fighting Styles (Paladin)","FS:B":"Fighting Styles (Bard)","OTH":"Other","FS:F/FS:P/FS:R":"Fighting Styles"};
+/** Feat category code → its name, for a visitor's own feats (D246). */
+export const FEAT_CATEGORIES: Readonly<Record<string, string>> = {"D":"Dragonmark","DG":"Dark Gift","G":"General","O":"Origin","FS":"Fighting Style","FS:P":"Fighting Style Replacement (Paladin)","FS:R":"Fighting Style Replacement (Ranger)","EB":"Epic Boon"};
 /** [name, books, 1 if mundane] */
 export const ITEMS: readonly (readonly [string, Books, number])[] = [
   ["+1 Ammunition",12,0],
