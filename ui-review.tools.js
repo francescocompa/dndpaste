@@ -173,6 +173,13 @@ uiReview.config({
       if (editor().value) typeIn('')
       await x.sleep(200)
     },
+    // D240–D242 (0.9.0 live bugs): a species fix to click, a Subclass list by class, a feat pick that opens its brackets.
+    'bug-species-fix': async (x) => { await acSetup(x, 'bug-species-fix', 'Rules: 2024\nClasses: Wizard 3\nSpecies: Elf'); editor().blur() },
+    'bug-subclass': (x) => acSetup(x, 'bug-subclass', 'Rules: 2024\nClasses: Wizard 3 / Fighter 3\n\nL3 Fighter\nSubclass: '),
+    'bug-brackets': (x) => acSetup(x, 'bug-brackets', 'Rules: 2024\nClasses: Wizard 3\n\nL1 Wizard\nFeat: Magic Ini'),
+    'bug-dim-spells': (x) => acSetup(x, 'bug-dim-spells', 'Rules: 2024\nClasses: Cleric 5\n\nL5 Cleric\nSpells: fi'),
+    'bug-dim-features': (x) => acSetup(x, 'bug-dim-features', 'Rules: 2024\nClasses: Cleric 1\n\nL1 Cleric\nFeature: '),
+    'bug-dim-options': (x) => acSetup(x, 'bug-dim-options', 'Rules: 2024\nClasses: Warlock 2\n\nL2 Warlock\nOptions: '),
     // 9fe4df1: an edit link whose key the server refuses (route carries a well-formed wrong #k=).
     'wrong-key': async (x) => {
       await x.waitFor('form.pform textarea.src')
