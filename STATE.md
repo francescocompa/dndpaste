@@ -1,15 +1,14 @@
 # STATE — dndpaste
 
 ## TL;DR (2026-11-20 · main 0cd3b57 + this commit · read 93k, healthy)
-- **State:** 0.10.0 released (tag `v0.10.0`, local, not pushed) and live at `https://dndpaste.fcomfy.workers.dev`
+- **State:** 0.10.0 released (tag `v0.10.0` pushed, GitHub release published, D299) and live at `https://dndpaste.fcomfy.workers.dev`
   (`/version` 0.10.0, commit 0cd3b57). SPEC 0.10 lineage format (D280–D298): `Species: Elf|XPHB [Drow; WIS]`; 0.9 forms
   read with W006/W007 and Tidy rewrites them. Library 266 + site 309 pass. M7 done; nothing queued in PLAN past T3.11.
-- **Single next action:** T3.11 community round (🎲, his): push, GitHub release, then the r/3d6 post (D285).
-- **Manual for Francesco:** ① `git push origin main v0.10.0` ② publish the GitHub release v0.10.0 with
-  `.claude/drafts/release-v0.10.0.md` ③ post (T3.11): save a real build for `[BUILD LINK]` in
-  `.claude/drafts/reddit-3d6.md`, not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the done sessions
+- **Single next action:** T3.11 community round (🎲, his): the r/3d6 post (D285).
+- **Manual for Francesco:** ① post (T3.11): save a real build for `[BUILD LINK]` in
+  `.claude/drafts/reddit-3d6.md`, not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ② archive the done sessions
   (copy-pass, editor-fixes-after-0.9, M6/T6.3 children, lineage-0-10, lineage-site, t7-2-ui-review-and-merge) and remove
-  their worktrees (7 under `.claude/worktrees/`, all merged or stale) ⑤ point the Zen Browser backup outside Google Drive
+  their worktrees (7 under `.claude/worktrees/`, all merged or stale) ③ point the Zen Browser backup outside Google Drive
   (memory `mac-disk-worktrees`).
 
 Working set: none
