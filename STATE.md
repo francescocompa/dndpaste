@@ -16,7 +16,7 @@
 
 Working set: none
 
-Spawned: none running. Main at 5395969 = chore(release): 0.9.0 (copy pass D230–D234 merged 3b7e117; root 243 with the full local table, site 288; site build stamped 0.9.0) · next (Francesco, D57): annotated tag v0.9.0 → push main + tag → GitHub release from the CHANGELOG's Migrating list (FORMAT-UPDATES §5) → deploy the site → post · archive: copy-pass session
+Spawned: none running. 0.9.0 released and deployed (tag v0.9.0 on 273ff8b). Editor bugs from the live test fixed (D240–D243), merged e04074d, deployed 2026-11-20 (version fc111c84, /version commit e04074d), smoke-tested live · main not pushed since the merge (push is Francesco's) · next: GitHub release v0.9.0 notes (draft `.claude/drafts/release-v0.9.0.md`) → post (r/3d6 draft) · archive: copy-pass, editor-fixes-after-0-9 sessions
 
 - **Library:** 0.8.0 on main (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
   The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
