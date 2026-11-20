@@ -382,3 +382,10 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
 ## Lineage format build, T7.2 (2026-11-20) ↪ D286–D294 · source after the name, `Wood Elf`, W006/W007 rules, short lineage names, Gnome ability, names by species, editor lineage list, site Tidy, guide · Landed: 828d7ab (released 0.10.0) · `DECISIONS-settled.md`
 
 ## T7.2 site /ui-review (2026-11-20) ↪ D295–D298 · Wood Elf Tidy-only, 2014 subraces open `[]`, Tab on ghost, Feature keeps lineage traits · Landed: 828d7ab (released 0.10.0) · `DECISIONS-settled.md`
+
+## Who publishes a release (2026-11-20) — mechanism: Francesco's question in chat, overseer
+
+- **D299 — From now on, the overseer that cuts a release also pushes it and publishes its GitHub release. DECIDED (2026-11-20).** After the D57 release commit and tag, the overseer runs `git push origin main vX.Y.Z` and `gh release create vX.Y.Z --title "dndpaste X.Y.Z" --notes-file .claude/drafts/release-vX.Y.Z.md`. The notes are drafted and humanized first. The CHANGELOG section stays the canonical record (D57), and the GitHub release is its reader-facing copy (D145). Deploy as before. The Reddit and community posts stay his (T3.11).
+  *Raw note:* "Where should I write the release changelog? Can you do it yourself as well as the push next time?"
+  *Rejected:* keeping push and release on the Manual-for-Francesco list (they were the only manual steps left in a release).
+  *Enforced by:* prose only (CLAUDE.md Conventions).
