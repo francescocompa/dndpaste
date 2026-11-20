@@ -321,12 +321,18 @@ function init(): void {
     const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line]")];
     if (!marks.length && !wls.firstChild) return;
     const box = ed.getBoundingClientRect();
-    wls.innerHTML = marks.map((m) => {
+    // D240: positions through CSSOM, never a style="" attribute: the live CSP (`style-src 'self'`) drops those, which
+    // left every button 0x0 and the fix unclickable (the /ui-review dev CSP allows them, so review never saw it).
+    wls.replaceChildren(...marks.map((m) => {
       const r = m.getBoundingClientRect();
       const line = Number(m.dataset.line);
-      return `<button type="button" class="wlb" data-line="${line}" aria-label="${esc(fixAt(line)?.why ?? "")}" ` +
-        `style="left:${r.left - box.left}px;top:${r.top - box.top}px;width:${r.width}px;height:${r.height}px"></button>`;
-    }).join("");
+      const b = el("button", "wlb");
+      b.type = "button";
+      b.dataset.line = String(line);
+      b.setAttribute("aria-label", fixAt(line)?.why ?? "");
+      Object.assign(b.style, { left: `${r.left - box.left}px`, top: `${r.top - box.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      return b;
+    }));
     if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine)) wlClose();
   }
   wls.addEventListener("click", (e) => {
@@ -367,7 +373,9 @@ function init(): void {
     if ((w ? `${w.line}:${w.word}` : "") !== wordShown) drawRows();
   };
   // A wider or narrower row changes which ghosts fit their block's column: redraw when it does.
-  new ResizeObserver(() => { if (measure()) drawRows(); }).observe(hl);
+  // D240: the fix buttons follow their marks through any reflow (a width change, the web font arriving).
+  new ResizeObserver(() => { if (measure()) drawRows(); else placeNotes(); }).observe(hl);
+  void document.fonts?.ready.then(() => placeNotes());
   /** Sets innerHTML only when it changed: most keystrokes leave the summary, Problems and hints as they were. */
   const shown = new WeakMap<Element, string>();
   const put = (e: Element, html: string) => {
