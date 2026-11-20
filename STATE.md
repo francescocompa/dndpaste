@@ -13,7 +13,7 @@
 
 Working set: none
 
-Spawned: lineage-0-10 · local_4030e56e · T7.2 library half done (7acf1af, unmerged) · lineage-site · local_efc0766d-b5b3-4d70-9d54-baa74b808f7a · T7.2 site half · running · next: overseer releases 0.10.0 (D57), deploys, then Francesco posts (D285)
+Spawned: T7.2 built on `claude/lineage-site-04f809` (a458bd7, worktree data-fixes-208994; 266 + 309 pass), unmerged · lineage-0-10 + lineage-site done (size limit) · next: lineage-review card (/ui-review, merge), then overseer releases 0.10.0 (D57), deploys, Francesco posts (D285)
 
 - **Library:** 0.9.0 on main (SPEC 0.9; 0.7 keys still read with W005). Releases per D57. The full slot table is
   gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
