@@ -1,4 +1,4 @@
-/* global uiReview, dispatchEvent, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent, sessionStorage, addEventListener, history, Event, PointerEvent */
+/* global uiReview, dispatchEvent, document, localStorage, location, URLSearchParams, DataTransfer, File, DragEvent, InputEvent, sessionStorage, addEventListener, history, Event, PointerEvent, indexedDB, MouseEvent */
 // /ui-review dev tools for the share site (site/). Loaded only under `wrangler dev` with UI_REVIEW in site/.dev.vars
 // (site/src/devreview.ts). The site's own look stays in site/; this file only drives it.
 
@@ -92,6 +92,82 @@ const laidPreset = async (x, name, rows, edition = '2024') => {
   await x.sleep(300)
 }
 
+// T6.2 (D244–D265): your own sources on /sources. A hand-written names file, the one the build was checked with.
+const HOMEBREW = 'Spell: Moonbeam Lance|MYHB [2; Druid, Ranger]\nSpell: Ember Ward|MYHB [cantrip; Wizard]\nFeat: Lucky Streak|MYHB [Origin]\n' +
+  'Subclass: Oath of Ash|MYHB [Paladin]\nItem: Lantern of Echoes|MYHB\nFeature: Ember Gift|MYHB [Spark, Flare]\nClass: Gunslinger|MYTR\n' +
+  'Option: Ember Lance|MYHB [Eldritch Invocations]\nSpellz: Not a kind\n'
+const SRC_DB = 'dndpaste-sources', SRC_SUMMARY = 'dndpaste.sources', SRC_LENS = 'dndpaste.sources.lens'
+const srcCount = () => { try { return JSON.parse(localStorage.getItem(SRC_SUMMARY) || 'null')?.n || 0 } catch { return 0 } }
+// Drops a file on a /sources page's drop zone (this page's, or an iframe's) the way a real drop does.
+const srcDrop = (doc, text, name = 'homebrew.txt') => {
+  const W = doc.defaultView, dt = new W.DataTransfer(); dt.items.add(new W.File([text], name, { type: 'text/plain' }))
+  doc.querySelector('.srcp .drop')?.dispatchEvent(new W.DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+}
+// Every source and switch gone: both stores emptied in place (deleting the database would wait on the page's own
+// connection), then one reload so the page and the editor read the empty state.
+const srcClear = async (x, name) => {
+  if (!srcCount() && !document.querySelector('.srcp .srow .act [data-remove]')) return false
+  await new Promise((resolve) => {
+    const req = indexedDB.open(SRC_DB, 1)
+    req.onerror = () => resolve()
+    req.onupgradeneeded = () => { req.result.createObjectStore('sources', { keyPath: 'id' }); req.result.createObjectStore('state') }
+    req.onsuccess = () => {
+      const db = req.result, t = db.transaction(['sources', 'state'], 'readwrite')
+      t.objectStore('sources').clear(); t.objectStore('state').clear()
+      t.oncomplete = t.onerror = () => { db.close(); resolve() }
+    }
+  })
+  try { localStorage.removeItem(SRC_SUMMARY); localStorage.removeItem(SRC_LENS) } catch { /* storage blocked */ }
+  return reloadOnce(name)
+}
+// /sources with the homebrew file added (and nothing else). `fresh` clears first, so the add message shows.
+// One at a time: the overlay can start an item's setup again while the first run is still adding.
+let srcBusy = null
+const srcHomebrew = (x, name, fresh = false) => srcBusy || (srcBusy = srcAdd(x, name, fresh).finally(() => { srcBusy = null }))
+// The stored sources, read straight from the page's database (names and ids only).
+const srcIdb = (mode, fn) => new Promise((resolve) => {
+  const req = indexedDB.open(SRC_DB, 1)
+  req.onerror = () => resolve([])
+  req.onupgradeneeded = () => { req.result.createObjectStore('sources', { keyPath: 'id' }); req.result.createObjectStore('state') }
+  req.onsuccess = () => {
+    const db = req.result, t = db.transaction(['sources'], mode), st = t.objectStore('sources'), out = []
+    const all = st.getAll(); all.onsuccess = () => { for (const r of all.result) out.push(r); fn?.(st, all.result) }
+    t.oncomplete = t.onerror = () => { db.close(); resolve(out.map((r) => ({ id: r.id, name: r.name }))) }
+  }
+})
+// Only the test file is added or replaced: any other source (his data folder link) stays as it is.
+const srcAdd = async (x, name, fresh) => {
+  await x.waitFor('.srcp .list .srow, .srcp .list .bgrp, .srcp .list .empty', 6000)
+  const hb = (await srcIdb('readonly')).filter((r) => r.name === 'homebrew.txt')
+  const said = /Added homebrew\.txt/.test(document.querySelector('.srcp .addout')?.textContent || '')
+  if (hb.length === 1 && (!fresh || said)) return
+  if (hb.length) {
+    await srcIdb('readwrite', (st, rows) => { for (const r of rows) if (r.name === 'homebrew.txt') st.delete(r.id) })
+    if (reloadOnce(name)) return
+  }
+  srcDrop(document, HOMEBREW)
+  await x.waitFor('.srcp .addout .done', 4000)
+  await x.sleep(200)
+}
+const srcLens = async (x, lens, split = false) => {
+  const b = document.querySelector(`.srcp [data-lens="${lens}"]`)
+  if (b && b.getAttribute('aria-checked') !== 'true') { b.click(); await x.sleep(150) }
+  const k = document.querySelector('.srcp [data-split]')
+  if (k && (k.getAttribute('aria-pressed') === 'true') !== split) { k.click(); await x.sleep(150) }
+}
+// The editor with the homebrew source: added through a hidden /sources frame, then one reload (the form reads sources at load).
+const edHomebrew = async (x, name) => {
+  await x.waitFor('form.pform textarea.src')
+  if (srcCount()) return true
+  const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:600px;height:400px;left:-9999px'; f.src = '/sources'
+  document.body.appendChild(f)
+  for (let i = 0; i < 60 && !f.contentDocument?.querySelector('.srcp .list .srow, .srcp .list .empty'); i++) await x.sleep(100)
+  srcDrop(f.contentDocument, HOMEBREW)
+  for (let i = 0; i < 40 && !srcCount(); i++) await x.sleep(100)
+  f.remove()
+  return !reloadOnce(name)
+}
+
 uiReview.config({
   schema: 1,
   groups: [
@@ -106,6 +182,10 @@ uiReview.config({
       { id: 'xsite', label: 'POSTs look cross-site (403)', kind: 'toggle', default: false, get: () => faults().has('xsite'), set: (v) => setFault('xsite', v) },
       { id: 'build', label: 'A newer build is deployed', kind: 'toggle', default: false, get: () => faults().has('build'), set: (v) => setFault('build', v) },
       { id: 'check', label: 'Check for an update now', kind: 'action', dodge: false, run: () => dispatchEvent(new Event('dndpaste:check-update')) },
+    ] },
+    { id: 'sources', label: 'Your sources (T6.2)', open: false, controls: [
+      { id: 'add', label: 'Add the test homebrew file', kind: 'action', dodge: false, run: async (x) => { if (location.pathname === '/sources') await srcHomebrew(x, 'tool-add'); else x.toast('Open /sources first') } },
+      { id: 'clear', label: 'Remove every source', kind: 'action', dodge: false, run: async (x) => { if (!(await srcClear(x, 'tool-clear'))) x.toast('No sources here') } },
     ] },
     { id: 'form', label: 'Paste form', open: false, controls: [
       { id: 'err', label: 'Type a build with an error', kind: 'action', dodge: false, run: () => typeIn(ERROR_TEXT) },
@@ -361,6 +441,54 @@ uiReview.config({
       await acSetup(x, 'r2-tidy', 'Vice\nRules: 2024\nClasses: Warlock 3 / Wizard 2\n\nSpecies: Elf\nMasteries: Dagger\nSubclass: Fiend Patron\n\nL1 Warlock\nOptions: Agonizing Blast\n\nL3 Warlock\n')
       if (document.querySelector('.tidypop')?.hidden) [...document.querySelectorAll('.bt')].find((b) => /Tidy/.test(b.textContent))?.click()
       await x.sleep(200)
+    },
+    // T6.2 (D244–D265): /sources states, and the editor with your own names.
+    'src-empty': async (x) => {
+      await x.waitFor('.srcp .list .srow, .srcp .list .empty', 6000)
+      if (await srcClear(x, 'src-empty')) return
+      await x.waitFor('.srcp .list .empty', 4000)
+    },
+    'src-plain': async (x) => {
+      await x.waitFor('.srcp .list .srow, .srcp .list .empty', 6000)
+      if (await srcClear(x, 'src-plain')) return
+      document.querySelector('#names-format').open = true; document.querySelector('#format-plain').open = true
+      document.querySelector('#format-plain').scrollIntoView({ block: 'start' })
+    },
+    'src-added': (x) => srcHomebrew(x, 'src-added', true),
+    'src-bysource': async (x) => { await srcHomebrew(x, 'src-bysource'); await srcLens(x, 'source'); document.querySelector('.srcp [data-remove-no]')?.click() },
+    'src-remove': async (x) => {
+      await srcHomebrew(x, 'src-remove'); await srcLens(x, 'source')
+      if (!document.querySelector('.srcp [data-remove-yes]')) document.querySelector('.srcp .srow [data-remove]')?.click()
+      await x.sleep(150)
+    },
+    'src-bybook': async (x) => {
+      await srcHomebrew(x, 'src-bybook'); await srcLens(x, 'book')
+      // "Other books" open (MYHB and MYTR are codes the site doesn't know), so a category switch and book rows show.
+      const hb = document.querySelector('.srcp .ghb[data-cat="Other books"]')
+      if (hb && hb.getAttribute('aria-expanded') !== 'true') { hb.click(); await x.sleep(150) }
+    },
+    // D267: Group by Source with Kinds on.
+    'src-split': async (x) => { await srcHomebrew(x, 'src-split'); await srcLens(x, 'source', true); document.querySelector('.srcp [data-remove-no]')?.click() },
+    'src-unread': async (x) => {
+      await srcHomebrew(x, 'src-unread'); await srcLens(x, 'source')
+      const d = document.querySelector('.srcp .pop'); if (d) d.open = true
+      await x.sleep(100)
+    },
+    'ed-own-spell': async (x) => { if (await edHomebrew(x, 'ed-own-spell')) await acSetup(x, 'ed-own-spell', 'Rules: 2024\nClasses: Druid 3\n\nL3 Druid\nSpells: Moonb') },
+    'ed-own-options': async (x) => { if (await edHomebrew(x, 'ed-own-options')) await acSetup(x, 'ed-own-options', 'Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nFeature: Ember Gift [') },
+    // D266: brackets with two slots keep their title; an unknown feature's brackets offer nothing.
+    'ed-two-slots': (x) => acSetup(x, 'ed-two-slots', 'Rules: 2024\nSpecies: Elf\nFeature: Elven Lineage ['),
+    'ed-unknown-feature': (x) => acSetup(x, 'ed-unknown-feature', 'Rules: 2024\nSpecies: Elf\nFeature: Elf Lineage ['),
+    // D268: needs a data folder with species variants added on /sources (his link).
+    'ed-species': (x) => acSetup(x, 'ed-species', 'Rules: 2024\nSpecies: Drag'),
+    'ed-nomatch': async (x) => {
+      await x.waitFor('form.pform textarea.src')
+      if (await srcClear(x, 'ed-nomatch')) return
+      await acSetup(x, 'ed-nomatch', 'Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: Zzqx')
+    },
+    'ed-settings': async (x) => {
+      if (!(await edHomebrew(x, 'ed-settings'))) return
+      await x.waitFor('.top .dbtn'); if (!document.querySelector('.srcrow')) await x.click('.top .dbtn'); await x.sleep(150)
     },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
