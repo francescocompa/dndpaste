@@ -292,6 +292,33 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
   };
   const uidOf = (t: { name: string; source: string }) => `${t.name}|${t.source}`;
 
+  // ── Origin languages (D272): under 2024 rules a character knows Common and two standard languages from its
+  // origin, which no species, background or class data grants. They are written in the Background or Species
+  // block, the header or the L1 block: Common is always free, and two more fill the origin before any is an extra.
+  // A species or background that grants languages of its own (a 2014 book under 2024 rules) fills those first. ──
+  const originLangs = new Set<Item>();
+  if (rules !== "2014") {
+    let left = 2;
+    const own = (spec: ChooseSpec | null | undefined) => (spec?.choose?.count ?? 0) + (spec?.any ?? 0);
+    const take = (list: Item[], keep = 0) => {
+      for (const it of list) {
+        if (lc(it.ref.name) === "common") originLangs.add(it);
+        else if (keep > 0) keep--;
+        else if (left > 0) { left--; originLangs.add(it); }
+      }
+    };
+    const bgE = paste.entities.find((e) => e.key === "Background"), spE = paste.entities.find((e) => e.key === "Species");
+    const bgD = bgE?.item ? ix.backgrounds.resolve(bgE.item.ref, rules).hit : null;
+    const spD = spE?.item ? ix.species.resolve(spE.item.ref, rules).hit : null;
+    if (bgE) take(adds(bgE.lines, "Languages").filter((it) => !bgD?.languages?.fixed.some((f) => lc(f) === lc(it.ref.name))), own(bgD?.languages));
+    if (spE) take(adds(spE.lines, "Languages"), own(spD?.languages));
+    take(adds(paste.header, "Languages"));
+    const l1 = paste.levels.find((lv) => lv.n === 1);
+    if (l1) take(adds(l1.lines, "Languages"));
+  }
+  /** The Languages a scope writes beyond the origin ones (D272). */
+  const langAdds = (scope: Scope) => adds(scope, "Languages").filter((it) => !originLangs.has(it));
+
   // ── Slot markers (D110): a marker names a feat category by name or code; a fighting style's slot also takes a
   // 5etools "Fighting Style Replacement" feat. Open list: an unknown marker is accepted, a near miss gets a hint. ──
   const categories: Record<string, string> = { ...FEAT_CATEGORIES, ...(slots.featCategories ?? {}) };
@@ -511,7 +538,7 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
 
   // ── Placed picks ──────────────────────────────────────────────────────────
   const countInto = (cls: string, key: string, scope: Scope, where: string, n: number | null = null) => {
-    const a = adds(scope, key).filter((it) => !SPELL_KEYS.includes(key) || !grantedSpell(it.ref.name, cls, n)).length, d = drops(scope, key).length;
+    const a = (key === "Languages" ? langAdds(scope) : adds(scope, key)).filter((it) => !SPELL_KEYS.includes(key) || !grantedSpell(it.ref.name, cls, n)).length, d = drops(scope, key).length;
     if (!a && !d) return;
     const s = slot(cls, key); s.picked += a; s.dropped += d; s.where.push(where);
   };
@@ -593,7 +620,7 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
     }
   };
   // `Prepared` is a loadout, not a pick (D193): it fills no slot, so a header Prepared line is never "beyond" anything.
-  for (const key of ["Skills", "Tools", "Languages", "Expertise", "Cantrips", "Spells"]) distribute(key, () => key, adds(paste.header, key).filter((it) => !SPELL_KEYS.includes(key) || !grantedSpell(it.ref.name, null, null)));
+  for (const key of ["Skills", "Tools", "Languages", "Expertise", "Cantrips", "Spells"]) distribute(key, () => key, (key === "Languages" ? langAdds(paste.header) : adds(paste.header, key)).filter((it) => !SPELL_KEYS.includes(key) || !grantedSpell(it.ref.name, null, null)));
   const headerFeats = featItems(paste.header).filter(({ item }) => !item.drop && !granted.has(item));
   distribute("Feat", () => "Fighting Style", headerFeats.filter(({ item, marker }) => fsFeat(item, marker)).map(({ item }) => item));
   if (has(paste.header, "Masteries")) distribute("Masteries", () => "Masteries", [{ ref: { name: "Masteries", source: null }, drop: false, details: [], qty: null }]);
@@ -656,7 +683,7 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
       };
       owe("Skills", (sd.skills?.choose?.count ?? 0) + (sd.skills?.any ?? 0));
       owe("Tools", (sd.tools?.choose?.count ?? 0) + (sd.tools?.any ?? 0));
-      owe("Languages", (sd.languages?.choose?.count ?? 0) + (sd.languages?.any ?? 0));
+      owe("Languages", (sd.languages?.choose?.count ?? 0) + (sd.languages?.any ?? 0), "warning", "Languages", langAdds(sp.lines).length);
       owe("Feat", sd.feats.reduce((a, f) => a + (f.count ?? 0), 0), "warning", "Feat", featItems(sp.lines).filter(({ item }) => !item.drop).length);
       // The casting-ability pick is the first detail of the line that asks it (D107), or a 0.7 `Ability` line that stayed.
       const abilityPicked = has(sp.lines, "Ability") || [...adds(sp.lines, "Feature"), ...featItems(sp.lines).map(({ item }) => item)].some((x) => isAbilitySlot(x.details[0]));
@@ -703,7 +730,7 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
         const spec = key === "Skills" ? bd.skills : key === "Tools" ? bd.tools : bd.languages;
         const owed = (spec?.choose?.count ?? 0) + (spec?.any ?? 0);
         for (const it of adds(bg.lines, key)) if (spec?.fixed.some((f) => lc(f) === lc(it.ref.name))) add("redundant", "info", where, `${key} "${it.ref.name}" is granted by ${bd.name}, not chosen`, key, it.ref.name);
-        const got = adds(bg.lines, key).filter((it) => !spec?.fixed.some((f) => lc(f) === lc(it.ref.name))).length;
+        const got = (key === "Languages" ? langAdds(bg.lines) : adds(bg.lines, key)).filter((it) => !spec?.fixed.some((f) => lc(f) === lc(it.ref.name))).length;
         if (got < owed) add("missing", "warning", where, `${bd.name} asks for ${owed - got} more ${key} pick(s)`, key);
         if (got > owed) add("extra", "info", where, `${bd.name}: ${got - owed} ${key} pick(s) beyond what it grants — accepted`, key);
       }
