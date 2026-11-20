@@ -1,15 +1,15 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-20 · main 9a1ce7c + this commit · read 83k, healthy after the /clean split)
-- **State:** 0.9.0 released (tag `v0.9.0` on 273ff8b, pushed) and live at `https://dndpaste.fcomfy.workers.dev`
-  (deploy fc111c84, `/version` commit e04074d, 2026-11-20): SPEC 0.9 family keys + level cap (D180–D186), SRD autocomplete
-  (D151, D154–D164), editor polish (D170–D178, D190), wide user test fixes (D192–D229), copy pass (D230–D234), live-test
-  editor bugs (D240–D243). Library 243 tests (with the full local table) + site 293 pass.
-- **Single next action:** T6.1b — /jam the `/sources` page (D247) in a fresh Mac session, then T6.2 (size L,
-  PLAN M6). T6.1 scoped 2026-11-20: D244–D251.
-- **Manual for Francesco:** ① push main (1 commit ahead: STATE) ② publish the GitHub release v0.9.0 with
+## TL;DR (2026-11-20 · main 1031bf4 + this commit · read ~88k, healthy)
+- **State:** 0.9.0 released (tag `v0.9.0` on 273ff8b, pushed). M6 "your own sources" merged (1031bf4, D244–D270) and
+  live at `https://dndpaste.fcomfy.workers.dev` (deploy 1d8d0b13, `/version` commit 1031bf4, still reports 0.9.0):
+  `/sources` adds names from a file, a local folder or a GitHub link (browser-only, IndexedDB), feeding autocomplete,
+  `[ ]` options and ghost counts; built-in SRD names hidden per book and kind. Library 245 + site 306 pass.
+- **Single next action:** scope 0.10 — Francesco: "check if we need other changes to dndpaste before 0.10". Review the
+  queue (PLAN Later, post-launch follow-ups below, open O1/O4/O5 and the format-update ⚑) with him, then release per D57.
+- **Manual for Francesco:** ① push main (several commits ahead: /clean, T6.1, T6.1b, T6.2 merge) ② publish the GitHub release v0.9.0 with
   `.claude/drafts/release-v0.9.0.md` ③ post (T3.11): save a real build for `[BUILD LINK]` in `.claude/drafts/reddit-3d6.md`,
-  not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions
+  not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions, and the M6 ones (decisions split, sources jam, sources build, both reviews); remove the `data-fixes-208994` worktree
   ⑤ point the Zen Browser backup outside Google Drive (memory `mac-disk-worktrees`) ⑥ ⚑ Spellfire Spark / Fey Sentinel
   ability pick (homebrew); the homebrew merge needs a real homebrew file.
 - **Ids:** live ones (OPEN, ⚑, standing rules, the M6 chain) are in `DECISIONS.md`; landed ones moved to

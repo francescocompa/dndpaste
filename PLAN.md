@@ -89,12 +89,12 @@ L<n> <Class>                   level block, n = character level
 ### M5 — my-spellbook import · size M in that repo
 - [ ] Paste → build, resolving refs against loaded sources; unresolved refs use the existing "not loaded" path (its D56).
 
-### M6 — Your own sources (D160, D244–D251) · next · size L
+### M6 — Your own sources (D160, D244–D270) · done 2026-11-20 · size L
 - [x] T6.1 Scope: /interview done 2026-11-20 → D244–D251.
 - [x] 🔍 T6.1b /jam the `/sources` page (D247): add by file or GitHub link, list with counts, on/off, remove, format docs;
   desktop and phone. Fresh Mac session · Opus@high · Done when: a pick logged as a decision, artifact linked.
   → Done 2026-11-20: D252–D257 (one column; By book | By kind | By source; SRD hidden per book and kind; build frames).
-- [ ] T6.2 Build per D244–D251 and the T6.1b pick · own worktree · Opus@high · size L. Importer (plain format + generic
+- [x] T6.2 (merged 1031bf4, deployed 2026-11-20; review D266–D270) Build per D244–D251 and the T6.1b pick · own worktree · Opus@high · size L. Importer (plain format + generic
   JSON, text dropped on read) → IndexedDB store → extractor as a pure library function in the browser → names, `[ ]`
   options and counts into autocomplete, ghost counts and slot hints; per-book SRD hiding (D251); GitHub file/folder links
   fetched browser-side with ETags, CSP `connect-src` for GitHub hosts only (D248–D249); no source named anywhere.
