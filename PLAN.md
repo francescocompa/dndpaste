@@ -106,9 +106,9 @@ L<n> <Class>                   level block, n = character level
   list; Spellfire Spark / Fey Sentinel ability pick checked with a homebrew file on `/sources`; `/sources` copy pass.
   /ui-review · Done when: verify + site tests pass, review approved, merged, deployed (no release).
 
-### M7 — 0.10: lineage format (D271) · next · size L
+### M7 — 0.10: lineage format (D271) · ✅ released 0.10.0 2026-11-20 (0cd3b57, deployed) · size L
 - [x] T7.1 Scope: /interview done 2026-11-20 → D280–D284.
-- [ ] T7.2 SPEC 0.10 + library + site per D280–D284 · unblocked (T6.3 merged, D284) · own worktree · Opus@high · size L.
+- [x] T7.2 (merged 828d7ab; D285–D298; /ui-review 4 rounds) SPEC 0.10 + library + site per D280–D284 · own worktree · Opus@high · size L.
   SPEC: §5.1 `Species` row and the "no details" rule, the `Ability` line (§5.3), §8.4 examples, a W-code for the 0.9
   `Feature` form and for `Elf (Wood)`. Library: parse/emit/normalise (Tidy folds `Ability:` and old `Feature` lines into
   the brackets, rewrites `Elf (Wood)` → `Elf [Wood]`), checker slots for the defining pick (supplement for prose-only
