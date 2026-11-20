@@ -409,3 +409,11 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Picked:* "Pact of the Blade at L2 (Recommended)", "After 0.10 ships (Recommended)".
   *Rejected:* a sample cut to L1 (loses the level-block point); another build; posting before 0.10 (the guide's Tiefling example changes under readers).
   *Enforced by:* `fixtures/shigen.dndpaste` (the checker run is clean of C002), `test/parse.test.ts` ("shigen: structure").
+
+
+## Lineage format build, T7.2 (2026-11-20) — mechanism: AskUserQuestion, worker; ids D286–
+
+- **D286 — The species' source goes after its name, as on every item: `Species: Elf|PHB [Wood]`, `Species: Elf|XPHB [Drow; WIS]`. DECIDED (2026-11-20); amends D282's example (`Elf [Wood]|PHB`).** The item grammar (§3.1) stays the same for every key: `Name|SOURCE [details] xN`. A hand-written `Elf [Wood]|PHB` gets a one-click fix that Tidy also makes.
+  *Raw note:* "After the name (Recommended)"; then "Actually, maybe the source should always come last" and a pick of "Last, everywhere"; then "I'm still debating. Perhaps for now let's keep it as we always did it for everything, I may open this up for revision later."
+  *Rejected for now (open for a later revision, owner Francesco):* the source last on every item (`Spellfire Spark [CHA]|FRHoF`), with the old order read with a warning (it changes every sourced item with details and makes saved builds warn); the source last on Species only (a Species-only exception to the item grammar); both orders read silently (two canonical forms, against D283).
+  *Enforced by:* SPEC §3.1 and §5.1 (0.10), `test/` once T7.2 lands.
