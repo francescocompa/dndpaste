@@ -101,14 +101,14 @@ L<n> <Class>                   level block, n = character level
   /ui-review before commit · Done when: verify + site tests pass, a names file and a GitHub folder both load on
   `/sources` and feed the editor, review approved, merged.
 
-- [ ] T6.3 Small fixes after M6 (D271, ids D272–D279) · own worktree · Opus@high · size S–M: checker counts 2024 origin
+- [x] T6.3 (merged cd1ed0c, deployed 2026-11-20; D272–D278) Small fixes after M6 (D271, ids D272–D279) · own worktree · Opus@high · size S–M: checker counts 2024 origin
   languages as extras; raw book titles from data; sort by Type at phone width; Psion UA and Arcane Shots in the names
   list; Spellfire Spark / Fey Sentinel ability pick checked with a homebrew file on `/sources`; `/sources` copy pass.
   /ui-review · Done when: verify + site tests pass, review approved, merged, deployed (no release).
 
 ### M7 — 0.10: lineage format (D271) · next · size L
 - [x] T7.1 Scope: /interview done 2026-11-20 → D280–D284.
-- [ ] T7.2 SPEC 0.10 + library + site per D280–D284 · after T6.3 merges (D284) · own worktree · Opus@high · size L.
+- [ ] T7.2 SPEC 0.10 + library + site per D280–D284 · unblocked (T6.3 merged, D284) · own worktree · Opus@high · size L.
   SPEC: §5.1 `Species` row and the "no details" rule, the `Ability` line (§5.3), §8.4 examples, a W-code for the 0.9
   `Feature` form and for `Elf (Wood)`. Library: parse/emit/normalise (Tidy folds `Ability:` and old `Feature` lines into
   the brackets, rewrites `Elf (Wood)` → `Elf [Wood]`), checker slots for the defining pick (supplement for prose-only
