@@ -67,7 +67,7 @@ test("shigen: structure", () => {
   assert.equal(p.entities[1].item?.ref.source, "HB");
   assert.deepEqual(items(p, p.entities[1].lines, "Feat"), ["Mark of Making"]);
   assert.deepEqual(p.levels.map((l) => l.n), [1, 2, 3, 4, 5, 6]);
-  const opts = p.levels[1].lines.get("Options");
+  const opts = p.levels[2].lines.get("Options");
   assert.ok(opts && opts.type === "items");
   assert.deepEqual(opts.items[0].details, [[{ ref: { name: "True Strike", source: null }, at: null }]]);
   const inc = p.entities[1].lines.get("Scores");

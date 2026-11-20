@@ -25,8 +25,11 @@ Feat (Fighting Style): Archery
 Masteries: Longbow, Rapier, Warhammer
 
 L2 Warlock
-Options: Agonizing Blast [True Strike]
+Invocations: Pact of the Blade
 Cantrips: Blade Ward, True Strike
+
+L3 Warlock
+Invocations: Agonizing Blast [True Strike]
 ```
 
 - **Spec:** [`SPEC.md`](SPEC.md): the core grammar (game-neutral) and the `dnd5e` profile.

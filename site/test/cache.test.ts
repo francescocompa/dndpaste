@@ -53,7 +53,7 @@ test("a stale or missing cache re-renders on read from the paste", async () => {
  * Locks RENDER_VERSION to the renderer's output. If this fails, the view body or canon text changed: bump
  * RENDER_VERSION in src/pages.ts (so saved shares re-render on read) and paste the new hash here.
  */
-const LOCK = { version: 7, hash: "c8dec9a584490c33" };
+const LOCK = { version: 7, hash: "90f9040661160892" };
 test("RENDER_VERSION moves with the renderer's output over every fixture", () => {
   const h = createHash("sha256");
   for (const [name, text] of FIXTURES) {

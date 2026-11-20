@@ -79,7 +79,7 @@ L<n> <Class>                   level block, n = character level
 - [x] T3.9 ✅ 2026-11-17 (fb682b9, 9275fd0; merged 6c78f01, deployed f4c67871) Ghost pick counts in the editor: a `have/of` tag on lines that owe picks, from the SRD table (D129–D134); /ui-review 2 rounds, all approved; 179 + 197 tests.
 - [x] T3.10 ✅ 2026-11-18 Launch prep (D141–D147): SRD licence check, format-update policy decided, feedback route (README, issue forms, `/about` + `/guide` links; merged 4c34e26). Deploy, tag + push and the GitHub release are his.
 - [x] 🔍 T3.12 Wide user test (D191) · done 2026-11-19: D192–D229, merged to main 1b54399, vault Tidy pass T34 (48 notes) · after the 0.9 keys are wired, before the D152 copy pass and the 0.9 release · 4 personas, ~15 Obsidian builds, mixed headless + browser, triage board → fix sessions
-- [ ] 🎲 T3.11 Community feedback round · after the deploy and push · soft round with his table, then r/3d6, then r/onednd · Done when: feedback triaged into issues or decisions.
+- [ ] 🎲 T3.11 Community feedback round · after 0.10.0 is live (D285) · soft round with his table, then r/3d6, then r/onednd · Done when: feedback triaged into issues or decisions.
 - Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
 ### M4 — character-forge interview seeding · size M in that repo

@@ -402,3 +402,10 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
 - **D284 — T7.2 (SPEC 0.10, library, site) starts after T6.3 merges. DECIDED (2026-11-20).** One writer on `src/check.ts` at a time; T7.2 branches from a main that holds T6.3. Then /ui-review, release 0.10.0 per D57, deploy.
   *Picked:* "After T6.3 merges (Recommended)". *Rejected:* both in parallel (a likely conflict in the checker and the site's autocomplete).
 
+
+## Reddit post review (2026-11-20) — mechanism: /start review of the live site and the r/3d6 draft, AskUserQuestion, 1 round (2 questions), overseer
+
+- **D285 — The r/3d6 post waits for 0.10; its sample and the Shigen fixture take Pact of the Blade at L2 and Agonizing Blast at L3. DECIDED (2026-11-20).** The draft's sample (and `fixtures/shigen.dndpaste`, README) took Agonizing Blast at Warlock 1; the 2024 invocation needs Warlock 2 and the checker flags it (C002). The draft also writes `Invocations:` (D180) and `Spellfire Spark|FRHoF [CHA]` (D276), and names autocomplete and `/sources`; its homebrew question points at `/sources`. T3.11 posts after 0.10.0 is live, so first readers see `Species: Elf [Drow]` and the guide's new species example. T7.2 decision ids start at D286.
+  *Picked:* "Pact of the Blade at L2 (Recommended)", "After 0.10 ships (Recommended)".
+  *Rejected:* a sample cut to L1 (loses the level-block point); another build; posting before 0.10 (the guide's Tiefling example changes under readers).
+  *Enforced by:* `fixtures/shigen.dndpaste` (the checker run is clean of C002), `test/parse.test.ts` ("shigen: structure").

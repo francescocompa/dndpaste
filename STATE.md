@@ -5,12 +5,11 @@
   `/version` commit cd1ed0c, still reports 0.9.0): M6 your own sources on `/sources` (D244–D270) and T6.3 small fixes
   (D272–D278). Unreleased in CHANGELOG: `dndpaste/extract`, the origin-language checker fix. Library 246 + site 307 pass.
 - **Single next action:** T7.2 — SPEC 0.10 lineage format (D280–D284; brief in PLAN M7): one worker in its own worktree,
-  /ui-review, merge; then the overseer releases 0.10.0 per D57 and deploys.
-- **Manual for Francesco:** ① push main (9 commits ahead) ② publish the GitHub release v0.9.0 with
-  `.claude/drafts/release-v0.9.0.md` ③ post (T3.11): save a real build for `[BUILD LINK]` in `.claude/drafts/reddit-3d6.md`,
-  not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions and
-  the M6/T6.3 children (decisions split, sources jam, sources build, both reviews, small fixes); remove their worktrees
-  (`data-fixes-208994`, the T6.3 one) ⑤ point the Zen Browser backup outside Google Drive (memory `mac-disk-worktrees`).
+  /ui-review, merge; then the overseer releases 0.10.0 per D57 and deploys. T7.2 ids from D286.
+- **Manual for Francesco:** ① post (T3.11) after 0.10.0 is live (D285): save a real build for `[BUILD LINK]` in
+  `.claude/drafts/reddit-3d6.md` (sample fixed 2026-11-20), not Mon/Sat; rewrite by hand for r/onednd, r/dndnext
+  ② archive the copy-pass and editor-fixes-after-0.9 sessions and the M6/T6.3 children; remove their worktrees (7 on disk)
+  ③ point the Zen Browser backup outside Google Drive (memory `mac-disk-worktrees`). Push and the v0.9.0 release: done.
 
 Working set: none
 
@@ -26,4 +25,3 @@ Spawned: none
   worktree. Workers past ~300k hand off with a brief in `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`.
   Reserve a decision-id range per parallel worker. Merges into one release branch conflict only in DECISIONS.md.
 
-⟳ Rename previous session → "Your own sources, small fixes and the 0.10 scope"  · session: local_3239e7bc-b6f1-486b-a2bf-8307d5d42585
