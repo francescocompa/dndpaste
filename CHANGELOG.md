@@ -2,7 +2,7 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
-## Unreleased
+## 0.10.0 — 2026-11-20
 - **SPEC 0.10: the lineage format** (D280–D287). A species' defining pick goes in brackets on the `Species` line,
   then its spellcasting ability: `Species: Elf [Drow; WIS]`, `Species: Dragonborn [Black]`, `Species: Goliath [Fire]`.
   2014 subraces use the same form, with the source after the name as on every item: `Species: Elf|PHB [Wood]`.
