@@ -130,6 +130,24 @@ for (const [kind, table, field] of [["S", "species", "skills"], ["C", "classes",
 }
 skillLists.sort((a, b) => byName([a[1] + a[0]], [b[1] + b[0]]) || a[2] - b[2]);
 
+// Names a pick writes with its brackets (D242): the printings that ask a detail. A feat with an ability, a version,
+// cantrips or spells to pick; an option that asks picks (a pact boon carries its picks into both books, as above);
+// a class feature with options and a lineage trait (no books: every printing); and a chosen form (D195): Pact of the
+// Chain and of the Blade, Find Familiar, Find Steed, Find Greater Steed and the Summon spells.
+const FORM_OPTIONS = new Set(["Pact of the Chain", "Pact of the Blade"]);
+const FORM_SPELL = /^(Find Familiar|Find Steed|Find Greater Steed|Summon .+)$/;
+const optionPicks = (o) => sup.optionPicks?.[`${o.name}|${o.source}`] ?? 0;
+const details = rows([
+  ...Object.values(slots.feats).filter((f) => f.abilityChoose?.length || f.versions?.length || f.cantripChoose || f.spellChoose),
+  ...Object.values(slots.optionalFeatures).filter((o) => optionPicks(o) || FORM_OPTIONS.has(o.name) ||
+    ((o.types ?? []).includes("PB") && options.some((r) => r[0] === o.name && r[4]))),
+  ...Object.values(slots.spells).filter((sp) => FORM_SPELL.test(sp.name)),
+], () => [], (r) => r);
+for (const name of [...features.map((f) => f[0]), ...lineages.filter((l) => l[1] || l[2].length).map((l) => l[0])]) {
+  if (!details.some((r) => r[0] === name)) details.push([name, 0]);
+}
+details.sort(byName);
+
 const q = (v) => JSON.stringify(v);
 const list = (rs) => rs.map((r) => `  ${q(r)},`).join("\n");
 writeFileSync(out, `/**
@@ -182,6 +200,8 @@ export const TOOLS: readonly string[] = ${q(words(tools))};
 export const CLASS_FEATURES: readonly (readonly [string, number, readonly string[], readonly string[]])[] = ${q(features)};
 /** [class, books, the highest spell level it can pick at class level 1–20] (D162) */
 export const CASTERS: readonly (readonly [string, Books, readonly number[]])[] = ${q(casters)};
+/** [name, books (0: every printing)]: a pick that asks a detail, written with its brackets (D242) */
+export const DETAILS: readonly (readonly [string, Books])[] = ${q(details)};
 /** [feature name, abilities its first slot takes (0: no ability slot), picks] */
 export const LINEAGES: readonly (readonly [string, AbilityBits, readonly string[]])[] = ${q(lineages)};
 `);

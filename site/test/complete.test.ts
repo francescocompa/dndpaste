@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
+import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, opensDetails, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 
 /** `¦` marks the cursor. */
@@ -345,10 +345,10 @@ test("D184: a capped line's own cap dims the spells above it, in place of the cl
   const at11 = "Rules: 2024\nClasses: Warlock 11\n";
   assert.equal(spot(at11 + "Spells (3rd): ¦")?.cap, 3);
   assert.equal(spot(at11 + "Spells: ¦")?.cap, null);
-  const capped = rows(at11 + "Spells (3rd): fire¦");
-  assert.equal(capped.find((r) => r.name === "Fireball")?.dim, undefined, "3rd: under the cap");
-  assert.equal(capped.find((r) => r.name === "Fire Shield")?.dim, true, "4th: above the line's cap though the warlock casts it");
-  assert.equal(rows(at11 + "Spells: fire¦").find((r) => r.name === "Fire Shield")?.dim, undefined, "uncapped: the class's cap (D162)");
+  // D243: off-list spells are dimmed now, so the cap is checked on Warlock spells (Counterspell 3rd, Banishment 4th).
+  assert.equal(rows(at11 + "Spells (3rd): counter¦").find((r) => r.name === "Counterspell")?.dim, undefined, "3rd: under the cap");
+  assert.equal(rows(at11 + "Spells (3rd): banis¦").find((r) => r.name === "Banishment")?.dim, true, "4th: above the line's cap though the warlock casts it");
+  assert.equal(rows(at11 + "Spells: banis¦").find((r) => r.name === "Banishment")?.dim, undefined, "uncapped: the class's cap (D162)");
   assert.equal(rows("Rules: 2024\nClasses: Wizard 1\nPrepared (6th): fire¦").find((r) => r.name === "Fireball")?.dim, undefined,
     "the line's cap wins over the class's too");
 });
@@ -413,4 +413,82 @@ test("D229 (review): the last pick in [ ] leaves no stray spaces inside the brac
   const u = "Feature: Elven Lineage [INT; Dr ]";
   const [c, d] = bracketTrim(u, u.indexOf("Dr"), u.indexOf("Dr") + 2);
   assert.equal(u.slice(0, c) + "Drow" + u.slice(d), "Feature: Elven Lineage [INT; Drow]", "the space after ; stays");
+});
+
+test("D241: a Subclass line lists its class's subclasses first; the others follow dimmed, still pickable", () => {
+  const rows = (src: string) => { const s = spot(src); return s ? suggest(N, s, 40).map((x) => `${x.name}${x.dim ? "~" : ""}`) : null; };
+  // The header: the Classes classes lead. The 2014 printing of the class's own comes before another class's.
+  const head = rows("Rules: 2024\nClasses: Wizard 3\nSubclass: ¦")!;
+  assert.deepEqual(head.slice(0, 2), ["Evoker", "School of Evocation~"]);
+  assert.ok(head.slice(2).every((x) => x.endsWith("~")), "every other class's subclass is dimmed");
+  assert.ok(head.includes("Champion~"), "still offered");
+  // A level block: that block's class, not the header's other classes.
+  const block = rows("Rules: 2024\nClasses: Wizard 3 / Fighter 3\n\nL3 Fighter\nSubclass: ¦")!;
+  assert.equal(block[0], "Champion");
+  assert.ok(block.includes("Evoker~"));
+  // Two classes in the header: both lead.
+  const both = rows("Rules: 2024\nClasses: Wizard 3 / Fighter 3\nSubclass: ¦")!;
+  assert.deepEqual(new Set(both.slice(0, 2)), new Set(["Champion", "Evoker"]));
+  // Typed letters still find another class's subclass, dimmed.
+  assert.deepEqual(rows("Rules: 2024\nClasses: Wizard 3\nSubclass: Cham¦"), ["Champion~"]);
+  // No class known: nothing dimmed.
+  assert.ok(rows("Subclass: ¦")!.every((x) => !x.endsWith("~")));
+});
+
+test("D242: a pick that asks a detail opens its brackets; one that takes none doesn't", () => {
+  const opens = (src: string, name: string, rest = "") => {
+    const s = spot(src);
+    assert.ok(s, `a spot in ${src}`);
+    const pick = suggest(N, s, 40).find((x) => x.name === name) ?? { name, source: null };
+    return opensDetails(N, s, pick, rest);
+  };
+  // Feats with an ability, versions or spells to pick; the printing follows Rules.
+  assert.equal(opens("Rules: 2024\nFeat: Magic Ini¦", "Magic Initiate"), true);
+  assert.equal(opens("Rules: 2024\nFeat: Grap¦", "Grappler"), true);
+  assert.equal(opens("Rules: 2014\nFeat: Grap¦", "Grappler"), false, "the 2014 Grappler asks nothing");
+  assert.equal(opens("Rules: 2024\nFeat: Ale¦", "Alert"), false);
+  // Options with picks: the 2024 invocation asks its cantrip, the 2014 one doesn't; a pact boon in both.
+  assert.equal(opens("Rules: 2024\nInvocations: Agoniz¦", "Agonizing Blast"), true);
+  assert.equal(opens("Rules: 2014\nInvocations: Agoniz¦", "Agonizing Blast"), false);
+  assert.equal(opens("Rules: 2014\nPact Boon: Pact of the T¦", "Pact of the Tome"), true);
+  // Chosen forms (D195), class feature options, lineage traits.
+  assert.equal(opens("Rules: 2024\nInvocations: Pact of the Ch¦", "Pact of the Chain"), true);
+  assert.equal(opens("Rules: 2024\nSpells: Find Fam¦", "Find Familiar"), true);
+  assert.equal(opens("Feature: Divine Or¦", "Divine Order"), true);
+  assert.equal(opens("Feature: Elven Lin¦", "Elven Lineage"), true);
+  // None: a plain spell, a name inside brackets, brackets already there, a source already there.
+  assert.equal(opens("Rules: 2024\nSpells: Magic Miss¦", "Magic Missile"), false);
+  assert.equal(opens("Options: Lessons of the First Ones [Magic Ini¦", "Magic Initiate"), false, "details don't nest");
+  assert.equal(opens("Rules: 2024\nFeat: Magic Ini¦", "Magic Initiate", " [INT]"), false);
+  assert.equal(opens("Rules: 2024\nFeat: Magic Ini¦|XPHB", "Magic Initiate"), false);
+  // A form's brackets offer no names: the list has no forms.
+  assert.deepEqual(names("Spells: Find Familiar [¦]"), []);
+});
+
+test("D243: where the line's class is clear, its spells, features and options lead; the rest is dimmed, still offered", () => {
+  const rows = (src: string, limit = 400) => { const s = spot(src); return s ? suggest(N, s, limit) : []; };
+  const dim = (src: string, name: string) => rows(src).find((r) => r.name === name)?.dim;
+  // Spells in a level block: the class's list leads; another class's spell is dimmed; over-level class spells stay last (D162).
+  const cle = rows("Classes: Cleric 5\n\nL5 Cleric\nSpells: fi¦", 40).map((r) => r.name);
+  assert.equal(dim("Classes: Cleric 5\n\nL5 Cleric\nSpells: fi¦", "Fireball"), true);
+  assert.equal(dim("Classes: Cleric 5\n\nL5 Cleric\nSpells: fi¦", "Find Traps"), undefined);
+  assert.ok(cle.indexOf("Find Traps") < cle.indexOf("Fireball") && cle.indexOf("Fireball") < cle.indexOf("Fire Storm"));
+  assert.equal(dim("Classes: Wizard 1\n\nL1 Wizard\nCantrips: guid¦", "Guidance"), true, "cantrips too");
+  // The header with Classes counts; a Species block has no class filter (a species spell may come from any list).
+  assert.equal(dim("Classes: Wizard 5\nSpells: cure¦", "Cure Wounds"), true);
+  assert.equal(dim("Classes: Wizard 5\n\nSpecies: Elf\nCantrips: guid¦", "Guidance"), undefined);
+  assert.equal(dim("Spells: cure¦", "Cure Wounds"), undefined, "no class: nothing dimmed");
+  // Class features: the block's class leads; lineage traits are never dimmed.
+  assert.equal(dim("Classes: Cleric 1\n\nL1 Cleric\nFeature: ¦", "Divine Order"), undefined);
+  assert.equal(dim("Classes: Cleric 1\n\nL1 Cleric\nFeature: ¦", "Primal Order"), true);
+  // Review: a level block dims the lineage traits; a Species block leads with them and dims every class feature.
+  assert.equal(dim("Classes: Cleric 1\n\nL1 Cleric\nFeature: ¦", "Elven Lineage"), true);
+  assert.equal(dim("Classes: Cleric 1\n\nSpecies: Elf\nFeature: ¦", "Elven Lineage"), undefined);
+  assert.equal(dim("Classes: Cleric 1\n\nSpecies: Elf\nFeature: ¦", "Divine Order"), true);
+  assert.equal(names("Classes: Cleric 1\n\nSpecies: Elf\nFeature: ¦", 1)?.[0], "Draconic Ancestry", "lineage traits first");
+  assert.equal(dim("Feature: ¦", "Elven Lineage"), undefined, "the header: no placement filter");
+  // A plain Options line: the class's families lead; a family key is already filtered, so nothing is dimmed there.
+  assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Agonizing Blast"), undefined);
+  assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Quickened Spell"), true);
+  assert.ok(rows("Classes: Warlock 2\n\nL2 Warlock\nInvocations: ¦").every((r) => !r.dim || r.source));
 });

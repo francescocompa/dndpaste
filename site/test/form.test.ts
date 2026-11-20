@@ -422,3 +422,13 @@ test("drafts: the restore bar says when, in plain words; an older revision says 
   assert.match(textOf(draftBarHtml(d, now, 4)), /You made them on revision 2. Restoring them replaces the changes saved since/);
   assert.equal(textOf(draftBarHtml({ ...d, rev: null }, now, null)), "You have unsaved changes from today at 9:05.RestoreDiscard");
 });
+
+test("D240: client code never writes a style attribute (the live CSP drops it; positions go through CSSOM)", () => {
+  // `style-src 'self'` ignores style="" in markup, so a fix button placed that way stayed 0x0 and couldn't be clicked.
+  // The /ui-review dev CSP allows inline styles, so only this test catches it.
+  const dir = new URL("../src/client/", import.meta.url);
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".ts"))) {
+    const code = readFileSync(new URL(f, dir), "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+    assert.ok(!/style=|setAttribute\(\s*["']style["']/.test(code), `${f} writes a style attribute`);
+  }
+});

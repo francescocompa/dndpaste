@@ -279,6 +279,10 @@ const plain = (list: readonly string[]): Cand[] => list.map((name) => ({ name, b
 function candidates(n: Names, sp: Spot): Cand[] {
   const bitsOf = (names: string[]) => names.reduce((a, c) => { const i = n.CLASSES.findIndex((x) => lc(x) === lc(c)); return i < 0 ? a : a | 2 ** i; }, 0);
   const mine = bitsOf(sp.classes);
+  // D243: where the line's class is clear (a level block, or the header with Classes), a name outside it is dimmed and
+  // ranked last, still pickable (D199: a DM may allow it). Not in a Species or Background block: no class filter there.
+  const filter = mine && sp.block?.kind !== "S" && sp.block?.kind !== "B" ? mine : 0;
+  const off = (bits: number) => (filter && !(bits & filter) ? { out: true } : {});
   const spells = (level: (l: number) => boolean, only = 0): Cand[] =>
     n.SPELLS.filter((s) => level(s[2]) && (!only || s[3] & only)).map((s) => ({ name: s[0], books: s[1], first: Boolean(s[3] & mine), level: s[2] }));
   const items = (mundane: boolean): Cand[] => n.ITEMS.filter((i) => !mundane || i[2]).map((i) => ({ name: i[0], books: i[1], first: false }));
@@ -296,7 +300,7 @@ function candidates(n: Names, sp: Spot): Cand[] {
       const ed = BOOKS.filter((b) => b[2] === sp.rules).reduce((a, b) => a | b[1], 0);
       return hits.find((r) => r[1] & ed) ?? hits[hits.length - 1];
     };
-    if (["Species", "Background", "Subclass", "Classes"].includes(sp.key)) return [];
+    if (["Species", "Background", "Subclass", "Classes"].includes(sp.key) || isForm(n, p)) return [];
     if (sp.key === "Feat") {
       if (p === "ability score improvement" || p === "asi") return abilities(63);
       const f = pick(n.FEATS);
@@ -334,11 +338,11 @@ function candidates(n: Names, sp: Spot): Cand[] {
   if (keyGroup(sp.key) === "Options") {
     const codes = sp.family ?? (sp.marker ? markerCodes(n, sp.marker) : []);
     const rows = codes.length ? familyOptions(n, codes, sp.rules) : n.OPTIONS;
-    return rows.map((o) => ({ name: o[0], books: o[1], first: Boolean(o[2] & mine) }));
+    return rows.map((o) => ({ name: o[0], books: o[1], first: Boolean(o[2] & mine), ...(codes.length ? {} : off(o[2])) }));
   }
   switch (sp.key) {
-    case "Spells": case "Prepared": return spells((l) => l > 0);
-    case "Cantrips": return spells((l) => l === 0);
+    case "Spells": case "Prepared": return spells((l) => l > 0).map((c) => (c.first ? c : { ...c, ...off(0) }));
+    case "Cantrips": return spells((l) => l === 0).map((c) => (c.first ? c : { ...c, ...off(0) }));
     case "Feat": {
       const fs = sp.marker === "fighting style";
       const feats = n.FEATS.filter((f) => !sp.marker || lc(f[2]) === sp.marker || (fs && lc(f[2]).startsWith("fighting style")));
@@ -346,10 +350,21 @@ function candidates(n: Names, sp: Spot): Cand[] {
       const all = [...feats, ...styles].map((r) => ({ name: r[0], books: r[1], first: false }));
       return all.length ? all : n.FEATS.map((f) => ({ name: f[0], books: f[1], first: false }));
     }
-    case "Feature": return [...n.CLASS_FEATURES.map((f) => ({ name: f[0], books: 0, first: Boolean(2 ** f[1] & mine) })), ...plain(n.LINEAGES.map((l) => l[0]))];
+    case "Feature": {
+      // D243 review: a level block dims the species' lineage traits; a Species block dims every class feature.
+      const kind = sp.block?.kind;
+      const cls = n.CLASS_FEATURES.map((f) => ({ name: f[0], books: 0, first: Boolean(2 ** f[1] & mine), ...(kind === "S" ? { out: true } : off(2 ** f[1])) }));
+      return [...cls, ...n.LINEAGES.map((l) => ({ name: l[0], books: 0, first: kind === "S", ...(kind === "L" ? { out: true } : {}) }))];
+    }
     case "Species": return n.SPECIES.map((s) => ({ name: s[0], books: s[1], first: false }));
     case "Background": return n.BACKGROUNDS.map((s) => ({ name: s[0], books: s[1], first: false }));
-    case "Subclass": return n.SUBCLASSES.map((s) => ({ name: s[0], books: s[1], first: Boolean(2 ** s[2] & mine), alt: s[3] || undefined }));
+    case "Subclass":
+      // D241: the line's class leads (the level block's, else the header's Classes); other classes' subclasses follow,
+      // dimmed, still pickable. No class known: no dimming.
+      return n.SUBCLASSES.map((s) => {
+        const own = Boolean(2 ** s[2] & mine);
+        return { name: s[0], books: s[1], first: own, alt: s[3] || undefined, ...(mine && !own ? { out: true } : {}) };
+      });
     case "Classes": case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
     case "Gear": return items(false);
     case "Masteries": return n.MASTERY_WEAPONS.map((w) => ({ name: w[0], books: w[1], first: false })); // weapons only (D165)
@@ -437,18 +452,22 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
   const cap = sp.cap ?? spellCap(n, sp);   // a capped line's own cap wins (D184)
   const rows = [...best.values()].map(({ c, t }) => {
     const other0 = Boolean(sp.rules && c.books && !BOOKS.some(([, bit, ed]) => ed === sp.rules && c.books & bit));
-    const dim = other0 || Boolean(c.out) || (c.level !== undefined && cap !== null && c.level > cap);
+    const over = c.level !== undefined && cap !== null && c.level > cap;
+    const dim = other0 || Boolean(c.out) || over;
     // T29 (review): a name the build's edition lacks ranks after the edition's own and is dimmed, as not available
     // by default; its `|SOURCE` (the book a pick writes, D155) says which.
     const other = other0;
     return {
       name: c.name, source: sp.hasSource ? null : sourceFor(c.books, sp.rules), level: c.level, dim, other,
-      grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q,
+      grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over,
     };
   });
   // The name is already written as it should be: nothing to suggest.
   if (rows.some((r) => r.name === typed && !r.source)) return [];
-  rows.sort((a, b) => Number(b.exact) - Number(a.exact) || Number(Boolean(a.other)) - Number(Boolean(b.other)) || a.grade - b.grade || a.t - b.t ||
+  // A spell above the level cap comes last (D162): it can't be picked yet. Before it, outside the spot's short list
+  // (D227 skills, D241 another class's subclass, D243 another class's spell, feature or option), after the other
+  // edition: the class's own subclass from the other book still comes before another class's.
+  rows.sort((a, b) => Number(b.exact) - Number(a.exact) || Number(a.over) - Number(b.over) || Number(a.out) - Number(b.out) || Number(Boolean(a.other)) - Number(Boolean(b.other)) || a.grade - b.grade || a.t - b.t ||
     (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   const top = rows.slice(0, limit);
   // A cantrip says so only among other kinds of names (the general list); a list of cantrips doesn't repeat it.
@@ -518,6 +537,27 @@ export function afterPick(n: Names, sp: Spot, picked: string): string {
 export function written(sp: Spot, s: Suggestion): string {
   return (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
 }
+
+/** Keys whose items never carry details (SPEC §5.3): a pick there is never written with brackets. */
+const NO_DETAILS = new Set(["Species", "Background", "Subclass", "Classes", "L"]);
+
+/**
+ * A pick that asks a detail is written with its brackets, the cursor inside (D242): a feat with an ability, version
+ * or spells to pick, an option with picks, a class feature's option, a lineage trait, a chosen form (D195). Which
+ * printing: the `|SOURCE` the pick writes, else the `Rules:` edition, else any. Never inside brackets (details don't
+ * nest), never where brackets or a source already follow the name (`rest`: the line after the spot).
+ */
+export function opensDetails(n: Names, sp: Spot, s: Suggestion, rest: string): boolean {
+  if (sp.parent !== null || sp.hasSource || NO_DETAILS.has(sp.key) || /^\s*\[/.test(rest)) return false;
+  const rows = n.DETAILS.filter((r) => lc(r[0]) === lc(s.name));
+  if (!rows.length) return false;
+  const want = s.source ? BOOKS.find((b) => b[0] === s.source)?.[1] ?? 0 : BOOKS.filter((b) => b[2] === sp.rules).reduce((a, b) => a | b[1], 0);
+  return rows.some((r) => !r[1] || !want || Boolean(r[1] & want));
+}
+
+/** A name whose one detail is a chosen form (D195): the list has no forms to offer inside its brackets. */
+const isForm = (n: Names, name: string) =>
+  n.DETAILS.some((r) => lc(r[0]) === name) && (/^(find |summon )/.test(name) || /^pact of the (chain|blade)$/.test(name));
 
 // ---- Key names (D170, D171) ----
 
