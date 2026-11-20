@@ -6,6 +6,8 @@
 ## Read first
 Cold read: `CLAUDE.md` `STATE.md` `PLAN.md` `DECISIONS.md` `CHANGELOG.md`
 `STATE.md` (resume block) → `PLAN.md` (queue) → `DECISIONS.md` (append-only; superseded entries are marked AMENDED in place) → `SPEC.md`.
+`DECISIONS-settled.md` is on demand, not a cold read: landed decisions, opened to cite one, to check an idea was not
+already rejected, or before changing a surface it owns (`grep -n "D146" DECISIONS*.md`).
 
 ## What it is / is not
 - A **format** (`SPEC.md`) + a **zero-dependency TypeScript library**: `parse`, `emit`, later `check`.

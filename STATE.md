@@ -1,6 +1,6 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-20 · main 9a1ce7c + this commit · read 219k, overdue: DECISIONS.md is 86%)
+## TL;DR (2026-11-20 · main 9a1ce7c + this commit · read 83k, healthy after the /clean split)
 - **State:** 0.9.0 released (tag `v0.9.0` on 273ff8b, pushed) and live at `https://dndpaste.fcomfy.workers.dev`
   (deploy fc111c84, `/version` commit e04074d, 2026-11-20): SPEC 0.9 family keys + level cap (D180–D186), SRD autocomplete
   (D151, D154–D164), editor polish (D170–D178, D190), wide user test fixes (D192–D229), copy pass (D230–D234), live-test
@@ -12,7 +12,8 @@
   not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions
   ⑤ point the Zen Browser backup outside Google Drive (memory `mac-disk-worktrees`) ⑥ ⚑ Spellfire Spark / Fey Sentinel
   ability pick (homebrew); the homebrew merge needs a real homebrew file.
-- **Before T6.1:** `/clean` — DECISIONS.md is 190k (86% of the cold read) with no settled split; /start reads it whole.
+- **Ids:** live ones (OPEN, ⚑, standing rules, the M6 chain) are in `DECISIONS.md`; landed ones moved to
+  `DECISIONS-settled.md` (on demand). One lookup: `grep -n "D146" DECISIONS*.md`.
 
 Working set: none
 
@@ -29,4 +30,3 @@ Spawned: none
   worktree. Workers past ~300k hand off with a brief in `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`.
   Reserve a decision-id range per parallel worker. Merges into one release branch conflict only in DECISIONS.md.
 
-⟳ Rename previous session → "0.9 release: autocomplete, user test and fixes"  · session: local_fca37e60-edcc-4a35-90aa-22609d4b288b
