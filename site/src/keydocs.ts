@@ -38,7 +38,8 @@ export const KEY_HOLDS: Readonly<Record<string, string>> = {
     "in the species or background block, at a level, or in the header.",
   Classes: "Each class and its levels.",
   HP: "How the build gains hit points.",
-  Species: "The species. Its choices follow in its block.",
+  Species: "The species, with its lineage in brackets and the lineage's spellcasting ability after it. " +
+    "Its other choices follow in its block.",
   Background: "The background. Its choices follow in its block.",
   Subclass: "The subclass.",
   Skills: "Skill proficiencies chosen.",

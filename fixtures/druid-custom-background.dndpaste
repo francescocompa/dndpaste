@@ -2,9 +2,8 @@ Rules: 2024
 Scores: 10/14/13/8/16/12
 Classes: Druid 4
 
-Species: Elf
+Species: Elf [Wood; WIS]
 Skills: Perception
-Feature: Elven Lineage [WIS; Wood]
 
 Background: Custom
 Scores: +2 WIS, +1 DEX

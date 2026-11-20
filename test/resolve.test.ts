@@ -122,9 +122,10 @@ describe("D221: a bare name is the newest printing within Rules; Unearthed Arcan
     assert.deepEqual(featFindings("Rules: 2014\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Test Feat", t).filter((x) => x.kind === "unresolved"), []);
   });
   test("the full table: Elf is the 2024 PHB's, not a setting book's; Goblin resolves (skipped when data/slots.json is absent)", { skip: !full }, () => {
-    const lineage = (text: string) => run(text, full as Slots).find((x) => x.key === "Feature" && /asks for a Feature/.test(x.message))?.message ?? "";
-    assert.match(lineage("Rules: 2024\nSpecies: Elf"), /\[Drow \| High Elf \| Wood Elf\]/);
-    assert.match(lineage("Species: Elf"), /\[Drow \| High Elf \| Wood Elf\]/);
+    const lineage = (text: string) => run(text, full as Slots).find((x) => x.key === "Species" && /asks for a lineage/.test(x.message))?.message ?? "";
+    assert.match(lineage("Rules: 2024\nSpecies: Elf"), /Elf \[Drow \| High \| Wood\]/);
+    assert.match(lineage("Species: Elf"), /Elf \[Drow \| High \| Wood\]/);
+    assert.ok(!run("Species: Elf [Lorwyn]", full as Slots).some((x) => x.key === "Species" && x.kind !== "missing"), "a lineage only another printing offers picks that printing (Elf|LFL)");
     assert.ok(!run("Rules: 2014\nSpecies: Goblin", full as Slots).some((x) => /several sources/.test(x.message)));
   });
   test("the full table's own playtest class needs its code (skipped when data/slots.json is absent)", { skip: !full }, () => {

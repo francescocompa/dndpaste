@@ -78,8 +78,11 @@ export const CLASS_FEATURES: readonly (readonly [string, number, readonly string
 export const CASTERS: readonly (readonly [string, Books, readonly number[]])[] = ${q(casters)};
 /** [name, books (0: every printing)]: a pick that asks a detail, written with its brackets (D242) */
 export const DETAILS: readonly (readonly [string, Books])[] = ${q(details)};
-/** [feature name, abilities its first slot takes (0: no ability slot), picks] */
-export const LINEAGES: readonly (readonly [string, AbilityBits, readonly string[]])[] = ${q(lineages)};
+/** [species, books, its defining trait ("" for a 2014 subrace), abilities the trait's spellcasting takes (0: none),
+ *  its options as the editor writes them]: the Species line's \`[ ]\` (D280, D289, D291) */
+export const LINEAGES: readonly (readonly [string, Books, string, AbilityBits, readonly string[]])[] = ${q(lineages)};
+/** [feature name, picks]: a species feature with picks that is not its defining trait, on a \`Feature\` line */
+export const SPECIES_FEATURES: readonly (readonly [string, readonly string[]])[] = ${q(n.SPECIES_FEATURES)};
 `);
 console.log(`${out}: ${spells.length} spells, ${feats.length} feats, ${options.length} options, ${items.length} items, ${masteryWeapons.length} mastery weapons, ` +
-  `${n.SPECIES.length} species, ${n.BACKGROUNDS.length} backgrounds, ${n.SUBCLASSES.length} subclasses, ${classes.length} classes, ${lineages.length} lineage features, ${features.length} class features, ${casters.length} casters`);
+  `${n.SPECIES.length} species, ${n.BACKGROUNDS.length} backgrounds, ${n.SUBCLASSES.length} subclasses, ${classes.length} classes, ${lineages.length} lineage rows, ${features.length} class features, ${casters.length} casters`);

@@ -15,7 +15,7 @@ test("D158: src/names.gen.ts matches what scripts/names.mjs writes", () => {
 
 test("D158: names only, no rules text", () => {
   const all = [N.SPELLS, N.FEATS, N.OPTIONS, N.ITEMS, N.SPECIES, N.BACKGROUNDS, N.SUBCLASSES, N.CLASS_ROWS].flatMap((rows) => rows.map((r) => r[0]));
-  all.push(...N.SKILLS, ...N.LANGUAGES, ...N.TOOLS, ...N.LINEAGES.flatMap((l) => [l[0], ...l[2]]), ...N.FEATS.flatMap((f) => f[4]));
+  all.push(...N.SKILLS, ...N.LANGUAGES, ...N.TOOLS, ...N.LINEAGES.flatMap((l) => [l[0], ...(l[2] ? [l[2]] : []), ...l[4]]), ...N.FEATS.flatMap((f) => f[4]));
   // A sentence (a capital after a full stop), a 5etools tag or a long run of words would be text, not a name.
   for (const name of all) assert.ok(name.length <= 60 && name.split(" ").length <= 8 && !/\.\s+[A-Z]|\{@/.test(name), `not a name: ${name}`);
   assert.ok(N.SPELLS.length > 300 && N.ITEMS.length > 500, "the SRD lists are there");
@@ -47,7 +47,11 @@ test("D242: DETAILS names the picks that ask a detail, by printing", () => {
   assert.equal(books("Pact of the Tome"), 3);
   assert.equal(books("Pact of the Chain"), 3);
   assert.equal(books("Find Familiar"), 3);
-  assert.equal(books("Elven Lineage"), 0);
+  assert.equal(books("Elven Lineage"), 0, "D298: a 0.9 lineage line opens its brackets in every printing");
+  assert.equal(books("Elf"), 3, "D291, D296: the 2024 elf's lineage and the 2014 one's subrace both open");
+  assert.equal(books("Dwarf"), 1, "D296: the 2014 dwarf's subraces; the 2024 dwarf has none");
+  assert.equal(books("Dragonborn"), 2);
+  assert.equal(books("Human"), 1, "D296: the 2014 human's Variant is a subrace; the 2024 human has none");
   assert.equal(books("Divine Order"), 0);
   for (const none of ["Alert", "Archery", "Magic Missile", "Devil's Sight", "Phantom Steed"]) assert.equal(books(none), undefined, none);
 });

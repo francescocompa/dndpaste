@@ -259,6 +259,20 @@ test("D268: a species variant is left out when its plain name is there", () => {
   assert.deepEqual(Object.keys(dropVariants(sp, ["Elf"])), ["Dragonborn|XPHB", "Vedalken (Kaladesh)|PSK"], "the SRD's Elf counts as the plain name");
 });
 
+test("D291: a kept species variant is a lineage of its base in the editor, not a species of its own", () => {
+  const read = readText(JSON.stringify({ race: [{ name: "Elf", source: "MYHB" }, { name: "Elf (Moon)", source: "MYHB" },
+    { name: "Elf (Sun)", source: "MYHB" }, { name: "Dwarf (Deep)", source: "MYHB" }, { name: "Vedalken (Kaladesh)", source: "MYHB" }] }));
+  const t = keepTable(read, {}, N.FEAT_CATEGORIES);
+  assert.ok(t.species?.["Elf (Moon)|MYHB"], "the table keeps the variant");
+  const m = merge(N, [src(t)], NO_SWITCHES).names;
+  assert.ok(!m.SPECIES.some((r) => /^(Elf|Dwarf) \(/.test(r[0])), "no variant of a known species is a species name");
+  assert.ok(m.SPECIES.some((r) => r[0] === "Vedalken (Kaladesh)"), "a variant of no known species stays a species");
+  assert.deepEqual(m.LINEAGES.filter((r) => r[0] === "Elf" && r[1] & (OWN_2014 | OWN_2024)).map((r) => r[4]), [["Moon", "Sun"]]);
+  assert.deepEqual(m.LINEAGES.filter((r) => r[0] === "Dwarf" && r[1] & (OWN_2014 | OWN_2024)).map((r) => r[4]), [["Deep"]], "the SRD's Dwarf is its base");
+  const off = merge(N, [], { ...NO_SWITCHES, offBooks: ["XPHB"] }).names;
+  assert.ok(!off.LINEAGES.some((r) => r[1] & 2), "an off book takes its lineages with it");
+});
+
 test("D261, D269: a folder's files: .json at the top, or a path that names a kind; never descriptions", () => {
   for (const ok of ["spells.json", "class/class-wizard.json", "data/spells/spells-phb.json"]) assert.ok(folderFile(ok), ok);
   for (const no of ["readme.md", "fluff-spells.json", "bestiary/bestiary-mm.json", "class/fluff-class-wizard.json"]) assert.ok(!folderFile(no), no);

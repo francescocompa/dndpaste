@@ -87,7 +87,7 @@ test("D156: each key offers its own kind", () => {
   assert.ok(names("Expertise: st¦")?.includes("Stealth"));
   assert.ok(names("Languages: dr¦")?.includes("Draconic"));
   assert.ok(names("Tools: thi¦")?.includes("Thieves' Tools"));
-  assert.ok(names("Feature: elv¦")?.includes("Elven Lineage"));
+  assert.ok(names("Feature: elv¦")?.includes("Elven Lineage"), "D298: a lineage trait is still a Feature name (the 0.9 form reads, W006)");
   assert.ok(names("Equipment: long¦")?.includes("Longsword"), "a 0.7 alias reads as its 0.8 key");
 });
 
@@ -127,13 +127,20 @@ test("D156: inside [ ] the list follows the slot the table knows", () => {
   assert.deepEqual(names("Feat: Magic Initiate [WIS; Cleric; Guidance; bl¦"), ["Bless"], "1st-level spells of that class");
   assert.deepEqual(names("Feat: Ability Score Improvement [+2 ch¦"), ["CHA"], "an ASI's ability after the amount");
   assert.deepEqual(names("Feat: Boon of Irresistible Offense [de¦"), ["DEX"]);
-  assert.deepEqual(names("Feature: Elven Lineage [in¦"), ["INT"]);
-  assert.deepEqual(names("Feature: Elven Lineage [INT; hi¦"), ["High Elf"]);
-  assert.deepEqual(names("Feature: Draconic Ancestry [re¦"), ["Red"]);
+  assert.deepEqual(names("Rules: 2024\nSpecies: Elf [hi¦"), ["High"], "D291: the lineage first, short (D289)");
+  assert.deepEqual(names("Rules: 2024\nSpecies: Elf [High; in¦"), ["INT"], "then its ability");
+  assert.deepEqual(names("Species: Dragonborn [re¦"), ["Red"]);
+  assert.deepEqual(names("Rules: 2014\nSpecies: Elf [¦"), ["High", "Wood"], "D291: a 2014 elf's subraces");
+  assert.deepEqual(names("Rules: 2024\nSpecies: Elf|PHB [¦"), ["High", "Wood"], "the book the source names");
+  assert.deepEqual(names("Rules: 2014\nSpecies: Elf|XPHB [¦"), ["Drow", "High", "Wood"]);
+  assert.deepEqual(names("Rules: 2024\nSpecies: Gnome [Rock; ¦"), ["CHA", "INT", "WIS"], "D290: the supplement's ability");
+  assert.deepEqual(names("Species: Half-Orc [¦") ?? [], [], "a species with no lineage offers nothing");
+  assert.deepEqual(names("Rules: 2024\nSpecies: Elf\nFeature: Elven Lineage [in¦"), ["INT"], "D298: a 0.9 lineage line, ability first");
+  assert.deepEqual(names("Rules: 2024\nSpecies: Elf\nFeature: Elven Lineage [WIS; ¦"), ["Drow", "High", "Wood"], "then the lineage");
+  assert.deepEqual(names("Species: Dragonborn\nFeature: Draconic Ancestry [re¦"), ["Red"], "no ability: the lineage first");
   assert.deepEqual(names("Feature: Spellcasting [ch¦"), ["CHA"]);
   assert.ok(names("Options: Agonizing Blast [el¦")?.includes("Eldritch Blast"), "an option's picks are cantrips");
   assert.ok(!names("Options: Agonizing Blast [fireb¦")?.length);
-  assert.deepEqual(spot("Species: Elf [hi¦") && names("Species: Elf [hi¦"), [], "Species carries no details");
 });
 
 test("D156, D266: an unknown feat's slot gets the general list; an unknown feature's brackets offer nothing", () => {
@@ -224,7 +231,10 @@ test("D163: inside [ ] the hint names each ; group the table knows, the cursor's
   assert.deepEqual(hint("Feat: Magic Initiate [¦"), { slots: ["ability", "class", "2 cantrips", "1st-level spell"], at: 0 });
   assert.deepEqual(hint("Feat: Magic Initiate [WIS; Cleric; ¦")?.at, 2);
   assert.deepEqual(hint("Feature: Divine Order [¦"), { slots: ["option"], at: 0 });
-  assert.deepEqual(hint("Feature: Elven Lineage [INT; ¦"), { slots: ["ability", "lineage"], at: 1 });
+  assert.deepEqual(hint("Rules: 2024\nSpecies: Elf [Drow; ¦"), { slots: ["lineage", "ability"], at: 1 }, "D291: lineage, then ability");
+  assert.deepEqual(hint("Species: Tiefling|XPHB [¦"), { slots: ["legacy", "ability"], at: 0 });
+  assert.deepEqual(hint("Species: Goliath [¦"), { slots: ["ancestry"], at: 0 });
+  assert.deepEqual(hint("Rules: 2014\nSpecies: Dwarf [¦"), { slots: ["subrace"], at: 0 });
   assert.deepEqual(hint("Feat: Ability Score Improvement [¦")?.slots, ["+2 ability, or +1 and +1"]);
   assert.equal(hint("Feat: Homebrew Gift [¦"), null, "an unknown slot has no hint");
   assert.equal(hint("Spells: Fire¦"), null, "outside [ ]");
@@ -359,6 +369,10 @@ test("D186: family lines get the ghost text of their kind", () => {
   assert.deepEqual(ghostWord("Invocations: Agonizing Blast,", 29, new Set([1])), { line: 1, word: " invocation" });
   assert.deepEqual(ghostWord("Pact Boon: ", 11, new Set([1])), { line: 1, word: "pact boon" });
   assert.deepEqual(ghostWord("Spells (6th): ", 14, new Set([1])), { line: 1, word: "spell" });
+  const sg = (t: string) => ghostWord(t, t.length, new Set(), N)?.word;
+  assert.equal(sg("Rules: 2024\nSpecies: Tiefling"), " [legacy]", "D291: the trait's word");
+  assert.equal(sg("Rules: 2014\nSpecies: Dwarf"), " [subrace]", "D296: a 2014 species with subraces");
+  assert.equal(sg("Rules: 2024\nSpecies: Dwarf"), undefined, "the 2024 dwarf has none");
 });
 
 test("D190, D212: a whole-list preparer's block offers no Spells key, 2014 too; a Wizard's does", () => {
@@ -374,11 +388,11 @@ test("D190, D212: a whole-list preparer's block offers no Spells key, 2014 too; 
 test("D219 (T29, review): under Rules, the edition's own names rank first; the other edition's are dimmed", () => {
   const s = spot("Vice\nRules: 2024\n\nSpecies: E¦");
   const rows = s ? suggest(N, s, 8) : [];
-  assert.deepEqual(rows.map((r) => [r.name, r.source, Boolean(r.dim)]).slice(0, 3),
-    [["Elf", null, false], ["Elf (High)", "PHB", true], ["Elf (Wood)", "PHB", true]]);
+  assert.deepEqual(rows.map((r) => [r.name, r.source, Boolean(r.dim)]),
+    [["Elf", null, false], ["Half-Elf", "PHB", true]]);
   const old = spot("Vice\nRules: 2014\n\nSpecies: G¦");
-  assert.deepEqual((old ? suggest(N, old, 8) : []).map((r) => [r.name, Boolean(r.dim)]).slice(0, 3),
-    [["Gnome", false], ["Gnome (Rock)", false], ["Goliath", true]]);
+  assert.deepEqual((old ? suggest(N, old, 8) : []).map((r) => [r.name, Boolean(r.dim)]).slice(0, 2),
+    [["Gnome", false], ["Goliath", true]], "D291: no 2014 subrace is a species name");
   const none = spot("Vice\n\nSpecies: E¦");
   assert.ok((none ? suggest(N, none, 8) : []).every((r) => !r.dim), "no Rules: no edition to go by");
 });
@@ -388,6 +402,10 @@ test("D227: a species' or class's short skill list leads; the skills it can't ta
   const elf = rows("Rules: 2024\nClasses: Wizard 5\n\nSpecies: Elf\nSkills: ¦");
   assert.deepEqual(elf.filter((r) => !r.dim).map((r) => r.name), ["Insight", "Perception", "Survival"]);
   assert.equal(elf.length, 18, "every skill still offered");
+  for (const sp of ["Elf [Drow; WIS]", "Elf|XPHB [Drow]"]) {
+    const drow = rows(`Rules: 2024\nClasses: Wizard 5\n\nSpecies: ${sp}\nSkills: ¦`);
+    assert.deepEqual(drow.filter((r) => !r.dim).map((r) => r.name), ["Insight", "Perception", "Survival"], `D292 review: ${sp} keeps its species' list`);
+  }
   assert.ok(elf.slice(3).every((r) => r.dim), "the rest last, dimmed");
   const wiz = rows("Rules: 2024\nClasses: Wizard 5\n\nL1 Wizard\nSkills: ¦");
   assert.ok(wiz.find((r) => r.name === "Arcana" && !r.dim) && wiz.find((r) => r.name === "Stealth")?.dim, "the class's list at the build's L1");
@@ -453,11 +471,16 @@ test("D242: a pick that asks a detail opens its brackets; one that takes none do
   assert.equal(opens("Rules: 2024\nInvocations: Agoniz¦", "Agonizing Blast"), true);
   assert.equal(opens("Rules: 2014\nInvocations: Agoniz¦", "Agonizing Blast"), false);
   assert.equal(opens("Rules: 2014\nPact Boon: Pact of the T¦", "Pact of the Tome"), true);
-  // Chosen forms (D195), class feature options, lineage traits.
+  // Chosen forms (D195), class feature options, a species that owes its lineage (D291).
   assert.equal(opens("Rules: 2024\nInvocations: Pact of the Ch¦", "Pact of the Chain"), true);
   assert.equal(opens("Rules: 2024\nSpells: Find Fam¦", "Find Familiar"), true);
   assert.equal(opens("Feature: Divine Or¦", "Divine Order"), true);
-  assert.equal(opens("Feature: Elven Lin¦", "Elven Lineage"), true);
+  assert.equal(opens("Feature: Elven Lin¦", "Elven Lineage"), true, "D298: a 0.9 lineage line opens its brackets");
+  assert.equal(opens("Rules: 2024\nSpecies: El¦", "Elf"), true);
+  assert.equal(opens("Rules: 2014\nSpecies: El¦", "Elf"), true, "D296: a 2014 species with subraces opens them too");
+  assert.equal(opens("Rules: 2024\nSpecies: Dwa¦", "Dwarf"), false, "D296: the 2024 dwarf has no lineage");
+  assert.equal(opens("Rules: 2014\nSpecies: Dragon¦", "Dragonborn", ""), false);
+  assert.equal(opens("Rules: 2024\nSpecies: Hum¦", "Human"), false);
   // None: a plain spell, a name inside brackets, brackets already there, a source already there.
   assert.equal(opens("Rules: 2024\nSpells: Magic Miss¦", "Magic Missile"), false);
   assert.equal(opens("Options: Lessons of the First Ones [Magic Ini¦", "Magic Initiate"), false, "details don't nest");
@@ -480,15 +503,13 @@ test("D243: where the line's class is clear, its spells, features and options le
   assert.equal(dim("Classes: Wizard 5\nSpells: cure¦", "Cure Wounds"), true);
   assert.equal(dim("Classes: Wizard 5\n\nSpecies: Elf\nCantrips: guid¦", "Guidance"), undefined);
   assert.equal(dim("Spells: cure¦", "Cure Wounds"), undefined, "no class: nothing dimmed");
-  // Class features: the block's class leads; lineage traits are never dimmed.
+  // Class features: the block's class leads.
   assert.equal(dim("Classes: Cleric 1\n\nL1 Cleric\nFeature: ¦", "Divine Order"), undefined);
   assert.equal(dim("Classes: Cleric 1\n\nL1 Cleric\nFeature: ¦", "Primal Order"), true);
-  // Review: a level block dims the lineage traits; a Species block leads with them and dims every class feature.
-  assert.equal(dim("Classes: Cleric 1\n\nL1 Cleric\nFeature: ¦", "Elven Lineage"), true);
-  assert.equal(dim("Classes: Cleric 1\n\nSpecies: Elf\nFeature: ¦", "Elven Lineage"), undefined);
+  // Review: a Species block dims every class feature. D298: the lineage traits are offered, not dimmed.
   assert.equal(dim("Classes: Cleric 1\n\nSpecies: Elf\nFeature: ¦", "Divine Order"), true);
-  assert.equal(names("Classes: Cleric 1\n\nSpecies: Elf\nFeature: ¦", 1)?.[0], "Draconic Ancestry", "lineage traits first");
-  assert.equal(dim("Feature: ¦", "Elven Lineage"), undefined, "the header: no placement filter");
+  assert.equal(dim("Classes: Cleric 1\n\nSpecies: Elf\nFeature: ¦", "Elven Lineage"), undefined);
+  assert.equal(dim("Feature: ¦", "Divine Order"), undefined, "the header: no placement filter");
   // A plain Options line: the class's families lead; a family key is already filtered, so nothing is dimmed there.
   assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Agonizing Blast"), undefined);
   assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Quickened Spell"), true);

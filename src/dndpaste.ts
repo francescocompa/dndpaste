@@ -1,10 +1,11 @@
 /**
  * dndpaste — reference parser and canonical emitter.
- * Implements SPEC.md 0.9 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113).
+ * Implements SPEC.md 0.10 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113) and the 0.9
+ * lineage forms with a warning (D282, D283).
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.9";
+export const SPEC_VERSION = "0.10";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────
@@ -225,6 +226,12 @@ export function abilityOf(group: readonly Detail[] | undefined): Ability | null 
   const name = group[0].ref.name.replace(/^\+1\s+/, "").toUpperCase() as Ability;
   return ABILITIES.includes(name) ? name : null;
 }
+/** A lineage as the editor writes it (D280): the option's last word goes when it repeats the species or the trait (`High Elf` → `High`, `Fire Giant` → `Fire`). */
+export function shortLineage(option: string, species: string, trait: string | null): string {
+  const words = option.split(" ");
+  const last = words[words.length - 1].toLowerCase();
+  return words.length > 1 && (last === species.toLowerCase() || (trait && last === trait.split(" ")[0].toLowerCase())) ? words.slice(0, -1).join(" ") : option;
+}
 /** True when the detail group is an ability pick (see `abilityOf`). */
 export function isAbilitySlot(group: readonly Detail[] | undefined): boolean {
   return abilityOf(group) !== null;
@@ -253,6 +260,8 @@ const MESSAGES: Record<string, string> = {
   W003: "level header's class has no levels left in Classes",
   W004: "no value yet (not chosen)",
   W005: "renamed key (SPEC 0.7)",
+  W006: "the lineage pick goes on the Species line (SPEC 0.10)",
+  W007: "the species variant goes in [brackets] (SPEC 0.10)",
 };
 
 /** How to fix each code, in as few words as it takes (D192). A line may get a more precise hint or a fix. */
@@ -274,6 +283,8 @@ const HINTS: Record<string, string> = {
   W001: "Free text goes in Note",
   W002: "Put details in [brackets]",
   W005: "Tidy writes the new key",
+  W006: "Tidy moves it onto the Species line",
+  W007: "Tidy writes it in brackets",
 };
 
 class Diag {
@@ -581,6 +592,9 @@ function parseHp(raw: string, scope: ScopeKind, diag: Diag, line: number): Value
   return { type: "hp", method: hit, roll: null };
 }
 
+/** `Name [details]|SOURCE`: a source written after the brackets (D286); `$1` the brackets, `$2` the source. */
+const SOURCE_AFTER_BRACKETS = /(\s*\[[^\[\]]*\])\|([^\s|,;:\[\]"]+)/g;
+
 const HINT_KEYS = ["Feat", "Options", "Feature", "Subclass", "Fighting Style", ...KEYS.filter((k) => k.family?.codes.length).map((k) => k.key)];
 const QTY_KEYS = ["Gear", "Equipment", "Items"];
 
@@ -673,6 +687,7 @@ export function parse(text: string): Paste {
     return true;
   };
   const abilityLines: { scope: Scope; no: number }[] = [];
+  let speciesAt = 0;   // the Species line's number, for the lineage fixes (D283)
 
   /** One line; the caller keeps it verbatim when it adds an error (D202). */
   const handle = (line: string, no: number, first: boolean): void => {
@@ -735,8 +750,25 @@ export function parse(text: string): Paste {
       let item: Item | null = null;
       if (rawValue) {
         const v = parseValue(def, rawValue, "H", diag, no);
-        if (!v || v.type !== "items") return;
+        if (!v || v.type !== "items") {
+          const last = diag.list[diag.list.length - 1];
+          const swapped = rawValue.replace(SOURCE_AFTER_BRACKETS, "|$2$1");
+          if (swapped !== rawValue && last?.line === no && parseValue(def, swapped, "H", new Diag(), 0)) {
+            last.message = `${MESSAGES.E011}: the source goes after the name, before the brackets`;
+        last.hint = "Put the source after the name";
+            last.fix = { label: "Put the source after the name", safe: true, edits: [{ line: no, text: `${rawKey}: ${swapped}` }] };
+          }
+          return;
+        }
         item = v.items[0];
+        // A 0.9 species variant in parentheses, the data's own name (`Elf (Wood)|PHB`), reads as `Elf|PHB [Wood]` (D282).
+        const pv = def.key === "Species" && !item.details.length ? /^(.+?)\s+\(([^()]+)\)$/.exec(item.ref.name) : null;
+        if (pv && !/[,;:\[\]"]/.test(pv[2]) && !/[,;:\[\]"]/.test(pv[1])) {
+          item = { ...item, ref: { name: pv[1].trim(), source: item.ref.source }, details: [[{ ref: { name: pv[2].trim(), source: null }, at: null }]] };
+          const text = `Species: ${fmtItem(item)}`;
+          diag.add("W007", no, `${pv[0]} is written ${fmtItem(item)} (D282)`, renameFix(no, text));
+        }
+        if (def.key === "Species") speciesAt = no;
       } else diag.add("W004", no, def.key);
       opened.add(def.key);
       firstBlock ??= { line: no, label: `Move above ${def.key}` };
@@ -757,6 +789,13 @@ export function parse(text: string): Paste {
     if (!v) {
       // `Classes: Sorcerer 5, Warlock 5`: the 0.4 comma form (D192). Classes are separated with ` / `.
       const last = diag.list[diag.list.length - 1];
+      // `Elf [Wood]|PHB`: the source goes after the name, before the brackets (D286).
+      const swapped = rawValue.replace(SOURCE_AFTER_BRACKETS, "|$2$1");
+      if (swapped !== rawValue && last?.line === no && parseValue(def, swapped, scope, new Diag(), 0)) {
+        last.message = `${MESSAGES.E011}: the source goes after the name, before the brackets`;
+        last.hint = "Put the source after the name";
+        last.fix = { label: "Put the source after the name", safe: true, edits: [{ line: no, text: `${rawKey}: ${swapped}` }] };
+      }
       const slash = rawValue.split(",").map((x) => x.trim()).join(" / ");
       if (def.type === "classes" && rawValue.includes(",") && last?.line === no && parseClasses(slash, new Diag(), 0)) {
         last.hint = "Use / between classes";
@@ -834,9 +873,43 @@ export function parse(text: string): Paste {
     if (diag.list.slice(before).some((d) => d.code.startsWith("E"))) kept.push({ line: no, text: line, scope: where });
   }
 
+  // A 0.9 defining-pick `Feature` line in the Species block moves onto the Species line (D280, D283): the lineage
+  // first, then the ability, `Feature: Elven Lineage [WIS; Wood]` → `Species: Elf [Wood; WIS]`. Data-free: a Species
+  // block feature whose name ends in Lineage, Legacy or Ancestry is the defining pick (SPEC §5.6).
+  const sp = paste.entities.find((e) => e.key === "Species");
+  if (sp?.item && !sp.item.details.length) {
+    const fv = sp.lines.get("Feature");
+    const fs = fv && fv.type === "items" ? fv.items : [];
+    const lineage = fs.find((it) => !it.drop && it.details.length && DEFINING_PICK.test(it.ref.name));
+    if (lineage) {
+      const ability = isAbilitySlot(lineage.details[0]) ? lineage.details[0] : isAbilitySlot(lineage.details[1]) ? lineage.details[1] : null;
+      const pick = lineage.details.find((g) => g !== ability) ?? [];
+      sp.item = { ...sp.item, details: ability ? [pick, ability] : [pick] };
+      const rest = fs.filter((it) => it !== lineage);
+      if (rest.length) sp.lines.set("Feature", { type: "items", items: rest }); else sp.lines.delete("Feature");
+      const at = seen.get(sp.lines)?.get("feature") ?? 0;
+      const edits: FixEdit[] = [{ line: speciesAt, text: `Species: ${fmtItem(sp.item)}` }, { line: at, text: rest.length ? `Feature: ${rest.map(fmtItem).join(", ")}` : null }];
+      const fix: Fix = { label: "Move it onto the Species line", safe: true, edits };
+      diag.add("W006", at, `Feature: ${lineage.ref.name} is written Species: ${fmtItem(sp.item)} (D283)`, { hint: fix.label, fix });
+    }
+  }
+  // An `Ability` line in the Species block is the lineage's ability when the Species line names a lineage and no
+  // ability (D281): `Species: Elf [Drow]` with `Ability: WIS` reads as `Elf [Drow; WIS]`, with no warning.
+  for (const a of abilityLines) {
+    if (!sp?.item || a.scope !== sp.lines) continue;
+    const v = a.scope.get("Ability");
+    const ab = v && v.type === "items" ? v.items[0] : undefined;
+    const d = sp.item.details;
+    if (!ab || d.length !== 1 || !d[0].length || isAbilitySlot(d[0])) continue;
+    sp.item = { ...sp.item, details: [d[0], [{ ref: ab.ref, at: null }]] };
+    a.scope.delete("Ability");
+    a.no = 0;
+  }
+
   // A 0.7 `Ability` line moves into its owner's details when the scope has exactly one owner, a single `Feature`
   // item (`Size` aside, D39); otherwise it stays as written (D107, D113). The parser has no data to do more.
   for (const a of abilityLines) {
+    if (!a.no) continue;
     const v = a.scope.get("Ability");
     const ab = v && v.type === "items" ? v.items[0] : undefined;
     const f = a.scope.get("Feature");
@@ -861,6 +934,9 @@ export function parse(text: string): Paste {
   diag.list.sort((a, b) => a.line - b.line);   // stable: same-line diagnostics keep their order
   return paste;
 }
+
+/** A Species block feature that splits the species into lineages (D280): Elven Lineage, Fiendish Legacy, Draconic Ancestry. */
+const DEFINING_PICK = /\s(lineage|legacy|ancestry)$/i;
 
 /** A W005 line's one-click rewrite in its new form (D113). Tidy needs none: `emit` writes the new form. */
 function renameFix(no: number, text: string): { hint: string; fix: Fix } {
@@ -1124,6 +1200,11 @@ export function foldOptions(paste: Paste, family: (ref: Ref) => string | null): 
 export interface TidyOptions {
   /** A pick's option family, for folding a plain `Options` line into its family key (see `foldOptions`). */
   optionFamily?: (ref: Ref) => string | null;
+  /**
+   * The Species line with a lineage written before the name moved into its brackets (`Wood Elf` → `Elf [Wood]`, D287),
+   * or null. The library has no species list, so the caller brings it (the checker's `speciesLineage` with its table).
+   */
+  species?: (item: Item, rules: string | null) => Item | null;
 }
 /**
  * The editor's Tidy (D203): makes every safe fix (a header key moved out of a block, duplicate lines joined, `/`
@@ -1141,6 +1222,10 @@ export function tidy(text: string, opts: TidyOptions = {}): string {
   }
   const p = parse(t);
   if (opts.optionFamily) foldOptions(p, opts.optionFamily);
+  const sp = p.entities.find((e) => e.key === "Species");
+  const rv = p.header.get("Rules");
+  const moved = sp?.item && opts.species ? opts.species(sp.item, rv && rv.type === "enum" ? rv.value : null) : null;
+  if (sp && moved) sp.item = moved;
   return emit(p);
 }
 

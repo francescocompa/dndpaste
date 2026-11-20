@@ -43,8 +43,8 @@ test("example (D104): a multiclass with an option line, a marked feat (D110) and
   assert.ok(p.levels.some((l) => l.lines.has("Options")), "an option line");
   const scopes = [p.header, ...p.entities.map((e) => e.lines), ...p.levels.map((l) => l.lines)];
   assert.ok(scopes.some((s) => [...s.keys()].some((k) => k.startsWith("Feat ("))), "a marked feat");
-  const items = scopes.flatMap((s) => [...s].flatMap(([k, v]) => (["Feat", "Feature", "Options"].includes(k) && v.type === "items" ? v.items : [])));
-  assert.ok(items.some((it) => isAbilitySlot(it.details[0]) && it.details.length > 1), "an ability as the first detail slot");
+  const sp = p.entities.find((e) => e.key === "Species")?.item;
+  assert.ok(sp && sp.details.length === 2 && !isAbilitySlot(sp.details[0]) && isAbilitySlot(sp.details[1]), "D280, D281: the Species line's lineage, then its ability");
   assert.ok(!/^(ASI|Ability|Fighting Style|Equipment|Items):/m.test(EXAMPLE), "no 0.7 key");
 });
 

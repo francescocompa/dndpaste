@@ -3,6 +3,7 @@
  * names, names.gen.ts) and by the browser for the visitor's own sources (D246). Names, books and the links the ranking
  * and the `[ ]` slots need; no rules text.
  */
+import { shortLineage } from "../../src/dndpaste.ts";
 // The slot table is untyped JSON from the extractor (src/extract.ts).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -17,17 +18,21 @@ export interface RowOptions {
   skills?: readonly string[];
   /** Feat category codes → names, where the table has none of its own. */
   featCategories?: Readonly<Record<string, string>>;
+  /** Species names known elsewhere (the bundled list): a `Base (Variant)` of one of them is a lineage option (D268, D291). */
+  bases?: Iterable<string>;
 }
 
 export interface NameRows {
   CLASSES: string[]; CLASS_ROWS: Row[]; SPELLS: Row[]; SUBCLASSES: Row[]; SPECIES: Row[]; BACKGROUNDS: Row[]; FEATS: Row[];
   OPTIONS: Row[]; FAMILIES: Record<string, string>; ITEMS: Row[]; MASTERY_WEAPONS: Row[]; SKILLS: string[]; SKILL_LISTS: J[][];
   LANGUAGES: string[]; TOOLS: string[]; CLASS_FEATURES: J[][]; CASTERS: J[][]; DETAILS: Row[]; LINEAGES: J[][];
+  SPECIES_FEATURES: J[][];
 }
 
 const ABILITY: Record<string, number> = { str: 1, dex: 2, con: 4, int: 8, wis: 16, cha: 32 };
 const abilityBits = (list: J) => (Array.isArray(list) ? list : []).reduce((a: number, x: string) => a | (ABILITY[x] ?? 0), 0);
 const title = (s: string) => s.replace(/(^|[\s(-])([a-z]+)/g, (_m, p, w) => p + (p === " " && /^(of|the|and)$/.test(w) ? w : w[0].toUpperCase() + w.slice(1)));
+const lc = (s: string) => s.toLowerCase();
 const byName = (a: J[], b: J[]) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
 /** Option family → the class it belongs to, for ranking only (D156). */
 const FAMILY_CLASS: Record<string, string> = { EI: "Warlock", PB: "Warlock", MM: "Sorcerer", "MV:B": "Fighter", AS: "Fighter", RN: "Fighter",
@@ -72,7 +77,16 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
   const SPELLS = rows(vals("spells"), (s) => [s.level, (s.classes ?? []).reduce((a: number, c: string) => a | classBit(c), 0)],
     (r, [level, bits]) => { r[2] = Math.min(r[2], level); r[3] |= bits; });
   const SUBCLASSES = rows(vals("subclasses"), (s) => [classes.indexOf(s.className), s.shortName && s.shortName !== s.name ? s.shortName : ""]);
-  const SPECIES = rows(vals("species"), () => []);
+  // D291: a 2014 subrace (`Elf (High)`, the data's `subraceOf`) or a `Base (Variant)` of a known species is no species of
+  // its own: it is a lineage option of its base, `Elf|PHB [High]` (D282).
+  const bases = new Set([...vals("species").map((e) => lc(e.name)), ...[...(o.bases ?? [])].map(lc)]);
+  const variantOf = (e: J): [string, string] | null => {
+    const m = /^(.+?)\s*\(([^()]+)\)$/.exec(String(e.name));
+    if (!m) return null;
+    const base = typeof e.subraceOf === "string" ? e.subraceOf.split("|")[0] : m[1];
+    return lc(base) === lc(m[1]) && (e.subraceOf || bases.has(lc(m[1]))) ? [m[1], m[2]] : null;
+  };
+  const SPECIES = rows(vals("species").filter((e) => !variantOf(e)), () => []);
   const BACKGROUNDS = rows(vals("backgrounds"), () => []);
   const FEATS = rows(vals("feats"), (f) => [cats[f.category] ?? "", abilityBits(f.abilityChoose),
     f.versions ?? [], f.cantripChoose ?? 0, f.spellChoose ?? 0]);
@@ -125,16 +139,44 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
   for (const k of ["classes", "species", "backgrounds", "feats"]) walk(vals(k).filter(keep));
   const words = (set: Set<string>) => [...set].filter((x) => x !== "other" && x !== "any").map(title).sort();
 
-  // Species lineage features (D156): the feature's name, the abilities its first slot takes (none: no ability slot), its picks.
+  // Species lineages (D280, D291): per species printing, its defining trait ("" for 2014 subraces), the abilities the
+  // trait's spellcasting takes (0: none), its options as the editor writes them (short, D289). The other species
+  // features with picks stay `Feature` lines (SPECIES_FEATURES).
   const LINEAGES: J[][] = [];
+  const addLineage = (species: string, books: number, trait: string, ab: number, opts: string[]) => {
+    if (!books || !opts.length) return;
+    const had = LINEAGES.find((r) => r[0] === species && r[2] === trait && r[3] === ab && JSON.stringify(r[4]) === JSON.stringify(opts));
+    if (had) had[1] |= books;
+    else LINEAGES.push([species, books, trait, ab, opts]);
+  };
+  const SPECIES_FEATURES: J[][] = [];
   for (const sd of vals("species").filter(keep)) {
     const uid = `${sd.name}|${sd.source}`;
     const extra = sup.speciesFeatures?.[uid] ?? {};
-    const trait = sup.lineageTrait?.[uid];
-    if (trait) LINEAGES.push([trait, abilityBits(sd.spellAbility), extra[trait] ?? sd.versions ?? []]);
-    for (const [f, picks] of Object.entries(extra) as [string, J][]) if (f !== trait && picks.length) LINEAGES.push([f, 0, picks]);
+    const v = variantOf(sd);
+    const trait = sup.lineageTrait?.[uid] !== undefined ? sup.lineageTrait[uid] : sd.versions?.length && !v ? `${sd.name} Lineage` : null;
+    if (trait) {
+      const opts: string[] = sd.versions?.length ? sd.versions : extra[trait] ?? [];
+      addLineage(sd.name, o.bookOf(sd), trait, abilityBits(sup.lineageAbility?.[uid] ?? sd.spellAbility), opts.map((x) => shortLineage(x, sd.name, trait)));
+    }
+    for (const [f, picks] of Object.entries(extra) as [string, J][]) {
+      if (f !== trait && picks.length && !SPECIES_FEATURES.some((r) => r[0] === f)) SPECIES_FEATURES.push([f, picks]);
+    }
   }
-  LINEAGES.sort(byName);
+  // Each base's 2014 subraces, one row per book.
+  const subs = new Map<string, Map<number, string[]>>();
+  for (const sd of vals("species").filter(keep)) {
+    const v = variantOf(sd);
+    if (!v) continue;
+    const byBook = subs.get(v[0]) ?? new Map<number, string[]>();
+    const b = o.bookOf(sd);
+    byBook.set(b, [...(byBook.get(b) ?? []), v[1]].sort());
+    subs.set(v[0], byBook);
+  }
+  // A 2024 book's variants are its lineage, owed as the 2024 traits are (D280); a 2014 book's are subraces.
+  for (const [base, byBook] of subs) for (const [b, opts] of byBook) addLineage(base, b, b & (2 | 8 | 32) ? `${base} Lineage` : "", 0, opts);
+  LINEAGES.sort((a, b) => byName(a, b) || a[1] - b[1]);
+  SPECIES_FEATURES.sort(byName);
 
   // Short skill lists (D227): the skills a species or a class lets its player choose from, as bits over SKILLS; "M" is a
   // class's list when it joins as a multiclass. Names only. Only lists that leave some skills out.
@@ -165,14 +207,21 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
       ((op.types ?? []).includes("PB") && OPTIONS.some((r) => r[0] === op.name && r[4]))),
     ...vals("spells").filter((sp) => FORM_SPELL.test(sp.name)),
   ], () => [], (r) => r);
-  for (const name of [...CLASS_FEATURES.map((f) => f[0]), ...LINEAGES.filter((l) => l[1] || l[2].length).map((l) => l[0])]) {
+  for (const name of [...CLASS_FEATURES.map((f) => f[0]), ...SPECIES_FEATURES.map((f) => f[0])]) {
     if (!DETAILS.some((r) => r[0] === name)) DETAILS.push([name, 0]);
+  }
+  // A species with lineages (D280) or 2014 subraces (D296): a pick writes `Elf []` in those books, so its list opens.
+  for (const l of LINEAGES) {
+    // D298: the trait itself (a 0.9 `Feature: Elven Lineage` line, read with W006) opens its brackets in every printing.
+    if (l[2] && !DETAILS.some((r) => r[0] === l[2])) DETAILS.push([l[2], 0]);
+    const had = DETAILS.find((r) => r[0] === l[0]);
+    if (had) { if (had[1]) had[1] |= l[1]; } else DETAILS.push([l[0], l[1]]);
   }
   DETAILS.sort(byName);
 
   return {
     CLASSES: classes, CLASS_ROWS: rows(vals("classes"), () => []), SPELLS, SUBCLASSES, SPECIES, BACKGROUNDS, FEATS, OPTIONS,
     FAMILIES: { ...(slots.families ?? {}) }, ITEMS, MASTERY_WEAPONS, SKILLS, SKILL_LISTS, LANGUAGES: words(languages), TOOLS: words(tools),
-    CLASS_FEATURES, CASTERS, DETAILS, LINEAGES,
+    CLASS_FEATURES, CASTERS, DETAILS, LINEAGES, SPECIES_FEATURES,
   };
 }

@@ -15,6 +15,7 @@
     "Aasimar|XPHB": null,
     "Elf|LFL": "Elven Lineage"
   },
+  "lineageAbility": { "Gnome|XPHB": ["int", "wis", "cha"] },
   "speciesFeatures": {
     "Dragonborn|XPHB": { "Draconic Ancestry": ["Black", "Blue", "Brass", "Bronze", "Copper", "Gold", "Green", "Red", "Silver", "White"] },
     "Goliath|XPHB": { "Giant Ancestry": ["Cloud", "Fire", "Frost", "Hill", "Stone", "Storm"] },

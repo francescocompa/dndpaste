@@ -42,6 +42,8 @@ export interface Spot {
   hasSource: boolean;
   /** Inside `[ ]`: the item the details belong to, the group the cursor is in, and the groups before it. */
   parent: string | null;
+  /** The parent item's `|SOURCE`, when it has one (a species' lineage list follows its book, D291). */
+  parentSource?: string | null;
   slot: number;
   groups: string[][];
   /** Names already on the line, lower case: not offered again (D156). */
@@ -113,7 +115,7 @@ function setting(text: string, lines: string[], at: number): { rules: Edition | 
     else if (i <= at && !block) {
       const sep = findSeparator(t);
       const ob = sep > 0 ? keyDef(t.slice(0, sep))?.opensBlock : undefined;
-      if (ob === "S" || ob === "B") opened = { kind: ob, name: clean(t.slice(sep + 1)) };
+      if (ob === "S" || ob === "B") opened = { kind: ob, name: clean(t.slice(sep + 1).replace(/\s*\[.*$/, "")) }; // D292 review: `Elf [Drow; WIS]` is the Elf block
     }
   }
   const levels = new Map<string, number>();
@@ -235,8 +237,10 @@ export function spotAt(text: string, pos: number): Spot | null {
 
   const groups: string[][] = [];
   let parent: string | null = null;
+  let parentSource: string | null = null;
   if (depth) {
     parent = clean(value.slice(item, open));
+    parentSource = /\|\s*([^\s|[\]]+)/.exec(value.slice(item, open))?.[1] ?? null;
     const inside = value.slice(open + 1, detail);
     const gs = inside.split(";").map((g) => g.split(",").map(clean).filter(Boolean));
     groups.push(...gs.slice(0, slot));
@@ -249,7 +253,7 @@ export function spotAt(text: string, pos: number): Spot | null {
   const where = setting(text, lines, at);
   return {
     key, marker, cap, family, rules: where.rules, classes: where.classes, levels: where.levels,
-    start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, slot, groups, taken,
+    start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, ...(depth ? { parentSource } : {}), slot, groups, taken,
     ...(where.block ? { block: where.block } : {}),
   };
 }
@@ -305,7 +309,13 @@ function candidates(n: Names, sp: Spot): Cand[] {
       const ed = BOOKS.filter((b) => b[2] === sp.rules).reduce((a, b) => a | b[1], 0);
       return hits.find((r) => r[1] & ed) ?? hits[hits.length - 1];
     };
-    if (["Species", "Background", "Subclass", "Classes"].includes(sp.key) || isForm(n, p)) return [];
+    if (sp.key === "Species") {
+      // D280, D291: the species' lineage first, then the ability its spellcasting takes.
+      const l = lineageRow(n, sp.parent, sp.parentSource ?? null, sp.rules);
+      const slots = l ? (l[3] ? [plain(l[4]), abilities(l[3])] : [plain(l[4])]) : [];
+      return slots[sp.slot] ?? [];
+    }
+    if (["Background", "Subclass", "Classes"].includes(sp.key) || isForm(n, p)) return [];
     if (sp.key === "Feat") {
       if (p === "ability score improvement" || p === "asi") return abilities(63);
       const f = pick(n.FEATS);
@@ -328,13 +338,17 @@ function candidates(n: Names, sp: Spot): Cand[] {
         const grants = (sp.groups[0] ?? []).some((g) => cf[3].some((o) => lc(o) === lc(g)));
         return sp.slot === 1 && grants ? spells((l) => l === 0, 2 ** cf[1]) : [];
       }
-      const l = n.LINEAGES.find((r) => lc(r[0]) === p);
-      if (l) {
-        const slots = l[1] ? [abilities(l[1]), plain(l[2])] : [plain(l[2])];
-        if (slots[sp.slot]) return slots[sp.slot];
+      // D298: a 0.9 lineage line still reads (W006 moves it), so `Feature: Elven Lineage [` offers it the 0.9 way:
+      // the ability first when the trait asks one, then the lineage.
+      const lt = traitRow(n, p, sp);
+      if (lt) {
+        const slots = [...(lt[3] ? [() => abilities(lt[3])] : []), () => plain(lt[4])];
+        return slots[sp.slot]?.() ?? [];
       }
+      const f = n.SPECIES_FEATURES.find((r) => lc(r[0]) === p);
+      if (f) return sp.slot === 0 ? plain(f[1]) : [];
       // D266: a feature no list knows offers nothing inside its brackets (the name itself is the thing to fix).
-      if (!l && !n.DETAILS.some((r) => lc(r[0]) === p)) return [];
+      if (!n.DETAILS.some((r) => lc(r[0]) === p)) return [];
     } else if (keyGroup(sp.key) === "Options") {
       const o = pick(n.OPTIONS);
       if (o && o[4] && sp.slot === 0) return spells((l) => l === 0);
@@ -359,10 +373,14 @@ function candidates(n: Names, sp: Spot): Cand[] {
       return all.length ? all : n.FEATS.map((f) => ({ name: f[0], books: f[1], first: false }));
     }
     case "Feature": {
-      // D243 review: a level block dims the species' lineage traits; a Species block dims every class feature.
+      // D243 review: a level block dims the species' features; a Species block dims every class feature.
       const kind = sp.block?.kind;
       const cls = n.CLASS_FEATURES.map((f) => ({ name: f[0], books: 0, first: Boolean(2 ** f[1] & mine), ...(kind === "S" ? { out: true } : off(2 ** f[1])) }));
-      return [...cls, ...n.LINEAGES.map((l) => ({ name: l[0], books: 0, first: kind === "S", ...(kind === "L" ? { out: true } : {}) }))];
+      // D298: the lineage traits too (the 0.9 form still reads, with W006); the block's own species' trait first.
+      const own = kind === "S" ? lc(sp.block?.name ?? "") : "";
+      const traits = [...new Set(n.LINEAGES.filter((l) => l[2]).map((l) => l[2] as string))].map((t) => ({
+        name: t, books: 0, first: n.LINEAGES.some((l) => l[2] === t && lc(l[0]) === own), ...(kind === "L" ? { out: true } : {}) }));
+      return [...cls, ...traits, ...n.SPECIES_FEATURES.map((l) => ({ name: l[0], books: 0, first: kind === "S", ...(kind === "L" ? { out: true } : {}) }))];
     }
     case "Species": return n.SPECIES.map((s) => ({ name: s[0], books: s[1], first: false }));
     case "Background": return n.BACKGROUNDS.map((s) => ({ name: s[0], books: s[1], first: false }));
@@ -386,6 +404,26 @@ function candidates(n: Names, sp: Spot): Cand[] {
     case "Tools": return tools();
     default: return [];
   }
+}
+
+/**
+ * The lineage row a species name takes (D280, D291): the printing its `|SOURCE` names (one of your books: your rows),
+ * else the `Rules:` edition's, else the newest (a bare name reads as the newest printing, as the checker reads it).
+ */
+export function lineageRow(n: Names, species: string, source: string | null, rules: Edition | null): Names["LINEAGES"][number] | undefined {
+  const rows = n.LINEAGES.filter((r) => lc(r[0]) === lc(species));
+  if (!rows.length) return undefined;
+  const code = source ? BOOKS.find((b) => b[0] && lc(b[0]) === lc(source)) : undefined;
+  const want = source ? (code ? code[1] : 16 | 32) : BOOKS.filter((b) => b[2] === rules).reduce((a, b) => a | b[1], 0);
+  if (want) return rows.find((r) => r[1] & want);
+  return rows.find((r) => r[1] & (2 | 8 | 32)) ?? rows[rows.length - 1];
+}
+
+/** A 0.9 lineage line's row (D298): the trait named `p` (lower case), the block's own species' row first. */
+function traitRow(n: Names, p: string, sp: Spot): Names["LINEAGES"][number] | undefined {
+  const rows = n.LINEAGES.filter((l) => l[2] && lc(l[2]) === p);
+  const own = sp.block?.kind === "S" ? lc(sp.block.name) : "";
+  return rows.find((l) => lc(l[0]) === own) ?? rows[0];
 }
 
 /** The short skill list a Skills line chooses from (D227), as bits over SKILLS: its species' list in a Species block,
@@ -493,6 +531,12 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
   });
 }
 
+/** The word for a species' defining pick (D163): its trait's last word, `subrace` for a 2014 one (D291). */
+export function lineageKind(trait: string): string {
+  const t = lc(trait);
+  return !t ? "subrace" : /ancestry$/.test(t) ? "ancestry" : /legacy$/.test(t) ? "legacy" : "lineage";
+}
+
 /** What goes in each `;` group of the `[ ]` the cursor is in, where the table knows (D163), the group it's in, and
  *  how many names each group takes (0: not counted). */
 export function slotHint(n: Names, sp: Spot): { slots: string[]; at: number; picks: number[] } | null {
@@ -512,18 +556,24 @@ export function slotHint(n: Names, sp: Spot): { slots: string[]; at: number; pic
         if (f[6]) slots.push(count(f[6], "1st-level spell", "1st-level spells"));
       }
     }
+  } else if (sp.key === "Species") {
+    // D163, D280: `Elf [` hints "lineage; ability"; a 2014 subrace says so.
+    const l = lineageRow(n, sp.parent, sp.parentSource ?? null, sp.rules);
+    if (l) {
+      slots.push([lineageKind(l[2]), 1]);
+      if (l[3]) slots.push(["ability", 1]);
+    }
   } else if (sp.key === "Feature") {
     const cf = pick(n.CLASS_FEATURES);
-    const l = pick(n.LINEAGES);
     if (p === "spellcasting") slots.push(["ability", 1]);
     else if (cf) {
       slots.push(["option", 1]);
       if ((sp.groups[0] ?? []).some((g) => cf[3].some((o) => lc(o) === lc(g)))) slots.push(["cantrip", 1]);
-    } else if (l) {
-      const kind = /ancestry/.test(p) ? "ancestry" : /legacy/.test(p) ? "legacy" : /lineage/.test(p) ? "lineage" : "choice";
-      if (l[1]) slots.push(["ability", 1]);
-      slots.push([kind, 1]);
-    }
+    } else if (traitRow(n, p, sp)) {
+      const lt = traitRow(n, p, sp)!;
+      if (lt[3]) slots.push(["ability", 1]);
+      slots.push([lineageKind(lt[2]), 1]);
+    } else if (n.SPECIES_FEATURES.some((r) => lc(r[0]) === p)) slots.push(["choice", 1]);
   } else if (keyGroup(sp.key) === "Options") {
     const o = pick(n.OPTIONS);
     if (o && o[4]) slots.push(count(o[4], "cantrip", "cantrips"));
@@ -552,11 +602,11 @@ export function written(sp: Spot, s: Suggestion): string {
 }
 
 /** Keys whose items never carry details (SPEC §5.3): a pick there is never written with brackets. */
-const NO_DETAILS = new Set(["Species", "Background", "Subclass", "Classes", "L"]);
+const NO_DETAILS = new Set(["Background", "Subclass", "Classes", "L"]);
 
 /**
  * A pick that asks a detail is written with its brackets, the cursor inside (D242): a feat with an ability, version
- * or spells to pick, an option with picks, a class feature's option, a lineage trait, a chosen form (D195). Which
+ * or spells to pick, an option with picks, a class feature's option, a species' lineage (D280), a chosen form (D195). Which
  * printing: the `|SOURCE` the pick writes, else the `Rules:` edition, else any. Never inside brackets (details don't
  * nest), never where brackets or a source already follow the name (`rest`: the line after the spot).
  */
@@ -619,15 +669,22 @@ const KIND: Record<string, string> = {
 /**
  * The ghost text at the cursor (D174): the kind of name a counted line still wants, when the cursor sits at an empty
  * name spot at the end of that line and its count (`short`: the lines whose chip reads under its count) is short.
- * Not inside `[ ]`. The word gets a space before it when the line doesn't end in one.
+ * Not inside `[ ]`. The word gets a space before it when the line doesn't end in one. A Species line whose species
+ * has lineages or 2014 subraces shows `[lineage]` / `[subrace]` after the name (D291, D296; `n`, the names, says which).
  */
-export function ghostWord(text: string, pos: number, short: ReadonlySet<number>): { line: number; word: string } | null {
+export function ghostWord(text: string, pos: number, short: ReadonlySet<number>, n: Names | null = null): { line: number; word: string } | null {
   const sp = spotAt(text, pos);
-  if (!sp || sp.parent !== null || sp.typed.trim() || !KIND[sp.key]) return null;
+  if (!sp || sp.parent !== null) return null;
   let le = text.indexOf("\n", pos);
   if (le < 0) le = text.length;
   if (text.slice(pos, le).trim()) return null;
   const line = text.slice(0, pos).split("\n").length;
+  // D291, D296: a species with lineages or subraces shows where they go: `Species: Elf [lineage]`, `Dwarf [subrace]`.
+  if (sp.key === "Species" && n) {
+    const l = sp.typed.trim() && n.SPECIES.some((r) => lc(r[0]) === lc(sp.typed.trim())) ? lineageRow(n, sp.typed.trim(), null, sp.rules) : undefined;
+    return l ? { line, word: `${/\s$/.test(sp.typed) ? "" : " "}[${lineageKind(l[2])}]` } : null;
+  }
+  if (sp.typed.trim() || !KIND[sp.key]) return null;
   if (!short.has(line)) return null;
   const end = text.slice(0, le).replace(/\r$/, "");
   return { line, word: (/\s$/.test(end) ? "" : " ") + KIND[sp.key] };

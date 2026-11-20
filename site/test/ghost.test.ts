@@ -299,7 +299,7 @@ Metamagic: Quickened Spell
 
 test("D178: the ghost text stands alone on a group's chipless line", async () => {
   const { ghostWordHtml } = await import("../src/ghost.ts");
-  assert.equal(ghostWordHtml(" spell"), `<span class="gh"><span class="gt"> spell</span></span>`);
+  assert.equal(ghostWordHtml(" spell"), `<span class="gh"><span class="gt"> spell</span>\u200b</span>`, "D296 review: a zero-width space keeps it on the line");
   const text = "Rules: 2024\nClasses: Warlock 11\n\nL11 Warlock\nSpells: Counterspell\nSpells (6th): ";
   const rows = highlightRows(text, [], new Map([[6, ghostWordHtml("spell")]]));
   assert.ok(rows[5].includes(`<span class="gt">spell</span>`));

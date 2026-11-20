@@ -45,7 +45,7 @@ export function guidePage(): string {
   const main = `<div class="prose gd"><h1>Format guide</h1>
 <p>A dndpaste is a character build written as plain text. Each line records a choice the player made. This page shows how the lines fit together, with one example build. The ${spec("", "specification")} has the full rules. Where this page and the specification differ, the specification is correct.</p>
 <h2 id="example">The example</h2>
-<p>Vesk is a level 5 character: one level in Fighter, then four in Warlock. To start your own, open a <a href="/">new paste</a> and use Start a build. It writes the lines your classes need, ready for you to fill in.</p>
+<p>Vesk is a level 5 character: one level in Fighter, then four in Warlock. To start your own, open <a href="/">New build</a> and use Start a build. It writes the lines your classes need, ready for you to fill in.</p>
 ${code(EXAMPLE, "The example build", true)}
 <h2 id="header">The header</h2>
 ${code(ex.header, "The header of the example")}
@@ -56,8 +56,9 @@ ${code(ex.header, "The header of the example")}
 <p>${c("Species:")} and ${c("Background:")} come last in the header, because each one opens a block. A header key written under them ends up in their block. The editor offers to move it above ${c("Species:")}, and Tidy moves it.</p>
 <h2 id="blocks">Species and background blocks</h2>
 ${code(ex.entities, "The species and background blocks of the example")}
-<p>${c("Species:")} and ${c("Background:")} each open a block. The lines under the key, up to the next block, are the choices that the species or background asks for. Here the tiefling has a legacy, and the soldier has score increases and a gaming set.</p>
-<p>When a choice asks for an ability, the ability comes first in the brackets: ${c("Fiendish Legacy [CHA; Infernal]")}. A ${c("Scores")} line with a plus sign is an increase, not a base score.</p>
+<p>${c("Species:")} and ${c("Background:")} each open a block. The lines under the key, up to the next block, are the choices that the species or background asks for. Here the soldier has score increases and a gaming set.</p>
+<p>A species with lineages takes its lineage in brackets on the ${c("Species")} line. An elf has a lineage, a tiefling a legacy, a dragonborn an ancestry. When the lineage asks for a spellcasting ability, the ability comes next, after a semicolon: ${c("Species: Tiefling|XPHB [Infernal; CHA]")}. A 2014 subrace goes the same way: ${c("Species: Elf|PHB [Wood]")}. In a feat's brackets, the ability comes first: ${c("Fey Pact|HB [CHA]")}.</p>
+<p>A ${c("Scores")} line with a plus sign is an increase, not a base score.</p>
 <p>An official background lists only the choices it asks for, as this one does. A custom or homebrew background lists everything it gives. Both blocks come before the first level block.</p>
 <h2 id="levels">Level blocks</h2>
 ${code(ex.levels, "The level blocks of the example")}
@@ -79,7 +80,7 @@ ${code("Classes: Paladin 9 / Rogue 1\n\nL9 Rogue\n\nL10 Paladin", "A build that 
 <li>${c("Magic Initiate [WIS; Druid; Guidance, Shillelagh; Goodberry]")}: the choices that a feat or feature asks for go in brackets. A semicolon separates one choice from the next. A comma separates the names inside one choice. Each key has a fixed order for these choices (${spec("#53-detail-slot-orders", "specification, section 5.3")}).</li>
 <li>${c(`"Bag of Tricks, Gray"`)}: a name that contains a comma, a semicolon, a colon or a bracket goes in double quotes.</li>
 <li>${c("Arrows (20) x2")}: a quantity of 2 or more, on ${c("Gear")} only. Write ${c("Shortsword x2")}, not the name twice. Brackets on gear hold a choice the item asks for, not a note: ${c("Headband of Intellect")} needs nothing after it.</li>
-<li>${c("Human (Mark of Making)|ERLW")}: parentheses in a name are part of the name. Under 2014 rules this dragonmark is a species. Under 2024 rules it is a feat: ${c("Feat (Dragonmark): Mark of Making|EFA")}. Parentheses after a key are different: they name a slot, such as ${c("Feat (Origin)")}.</li>
+<li>${c("Arrows (20)")}: parentheses in a name are part of the name. A species' lineage is not part of its name: write ${c("Human|ERLW [Mark of Making]")}, not ${c("Human (Mark of Making)")}. Under 2014 rules this dragonmark is a human's lineage. Under 2024 rules it is a feat: ${c("Feat (Dragonmark): Mark of Making|EFA")}. Parentheses after a key are different: they name a slot, such as ${c("Feat (Origin)")}.</li>
 </ul>
 <h3 id="homebrew">Unearthed Arcana and homebrew</h3>
 <p>Any name can come from Unearthed Arcana or from homebrew, and the build still saves.</p>

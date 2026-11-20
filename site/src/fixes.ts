@@ -21,14 +21,15 @@
  *
  * The library's fixes win over the site's own fix on a line (D225).
  */
-import { KEYS, applyFix, classSequence, emit, familyOf, keyGroup, parse, resolveKey } from "../../src/dndpaste.ts";
+import { KEYS, applyFix, classSequence, emit, familyOf, isAbilitySlot, keyGroup, parse, resolveKey } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { isWholeList, speciesPreset, tableFor, toPrepared } from "./ghost.ts";
+import { lineageRow } from "./client/complete.ts";
 import type { Ghost } from "./ghost.ts";
 import type { ClassPreset } from "./presets.ts";
 import type * as N from "./names.gen.ts";
 
-export type FixKind = "lib" | "prepared" | "move-up" | "move-level" | "level-lines" | "species-lines" | "family";
+export type FixKind = "lib" | "prepared" | "move-up" | "move-level" | "level-lines" | "species-lines" | "family" | "lineage";
 
 export interface Fix {
   /** 1-based line. */
@@ -215,7 +216,7 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
     if (to) add({ line: d.line, at: "key", kind: "move-level", why: `A subclass goes in the level where its class gains it: ${to}.`, act: `Move to ${to}`, apply: (x) => moveInto(x, d.line, to) });
   }
   const sp = paste.entities.find((e) => e.key === "Species");
-  const sd = sp?.item ? speciesPreset(sp.item.ref, rules) : undefined;
+  const sd = sp?.item ? speciesPreset(sp.item, rules) : undefined;
   if (sp?.item && sd) {
     const asks = new Set(sd.lines.map(([k]) => k));
     for (let i = 0; i < lines.length; i++) {
@@ -260,27 +261,34 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
     });
   }
 
-  // D211 (T11): a species whose block lacks a line it owes.
+  // D211 (T11): a species whose block lacks a line it owes. Its lineage (D280, D291) goes in the Species line's brackets:
+  // `Species: Elf []`, the cursor inside (D270), where the lineage list opens.
   if (sp?.item && sd) {
     const i = lines.findIndex((x, j) => w[j].region === "S" && w[j].opener === j);
     const feats = sp.lines.get("Feature");
     const featNames = feats?.type === "items" ? feats.items.map((it) => lc(it.ref.name)) : [];
-    const missing = sd.lines.filter(([k, v]) => (k === "Feature" ? !featNames.includes(lc(String(v))) : !sp.lines.has(k)));
+    const hasLineage = sp.item.details.some((g) => g.length && !isAbilitySlot(g));
+    const open = /\[/.test(lines[i] ?? "");
+    const missing = sd.lines.filter(([k, v]) => (k === "Species" ? !hasLineage && !open : k === "Feature" ? !featNames.includes(lc(String(v))) : !sp.lines.has(k)));
     if (i >= 0 && missing.length) {
-      const label = missing.map(([k, v]) => (k === "Feature" ? String(v) : k));
+      const label = missing.map(([k, v]) => (k === "Feature" || k === "Species" ? String(v) : k));
       add({
         line: i + 1, at: "key", kind: "species-lines", why: `${sd.name} asks for ${label.join(", ")}.`, act: `Add ${label.join(", ")}`,
         apply: (x) => {
           const xs = x.split("\n");
           if (resolveKey(keyOf(xs[i] ?? "") ?? "").def?.key !== "Species") return null;
+          if (missing.some(([k]) => k === "Species")) {
+            if (/\[/.test(xs[i])) return null;
+            xs[i] = `${xs[i].replace(/\s+$/, "")} []`;
+          }
           const traits = missing.filter(([k]) => k === "Feature").map(([, v]) => String(v));
           const [a, b] = blockRange(xs, i);
           const fl = traits.length ? xs.findIndex((y, j) => j > a && j <= b && resolveKey(keyOf(y) ?? "").def?.key === "Feature") : -1;
-          // Review: a trait comes with its brackets, ready for its picks (`Elven Lineage []`, as a pick writes them, D242).
+          // Review: a feature comes with its brackets, ready for its picks (`Specialized Design []`, as a pick writes them, D242).
           const bt = traits.map((x) => `${x} []`).join(", ");
           if (fl >= 0) xs[fl] = `${xs[fl].replace(/\s+$/, "")}${/:$/.test(xs[fl].trim()) ? " " : ", "}${bt}`;
-          const addLines = missing.filter(([k]) => k !== "Feature" || fl < 0).map(([k]) => (k === "Feature" ? `Feature: ${bt}` : `${k}:`));
-          return insertInBlock(xs.join("\n"), i, [...new Set(addLines)]);
+          const addLines = missing.filter(([k]) => k !== "Species" && (k !== "Feature" || fl < 0)).map(([k]) => (k === "Feature" ? `Feature: ${bt}` : `${k}:`));
+          return addLines.length ? insertInBlock(xs.join("\n"), i, [...new Set(addLines)]) : xs.join("\n");
         },
       });
     }
@@ -368,8 +376,50 @@ export function nameFixes(n: Names, text: string, paste: Paste, taken: ReadonlyS
         out.push({ line: i + 1, at: "key", kind: "family", why: `These are all ${key}.`, act: `${joins ? "Move" : "Change"} to ${key}`, apply: (x) => moveTo(x, i + 1, key) });
       }
     }
+    // D287, D291: `Species: Wood Elf` → `Species: Elf [Wood]`.
+    if (resolveKey(k).def?.key === "Species") {
+      const m = /^(\s*)([^|[\]"]+?)(\s*\|\s*[^\s[\]]+)?\s*(?:\[([^\]]*)\])?\s*$/.exec(value);
+      const split = m ? lineageSplit(n, m[2], m[3]?.replace(/[\s|]/g, "") ?? null, rules) : null;
+      if (m && split) {
+        const inner = m[4]?.trim();
+        const to = `${split.species}${m[3]?.trim() ?? ""} [${split.lineage}${inner ? `; ${inner}` : ""}]`;
+        const before = lines[i];
+        out.push({
+          line: i + 1, at: "key", kind: "lineage", why: `${m[2].trim()} is ${split.species} with its lineage in brackets.`, act: `Change to ${to}`,
+          apply: (x) => {
+            const xs = x.split("\n");
+            if (xs[i] !== before) return null;
+            xs[i] = `${before.slice(0, before.length - before.trimStart().length)}${k}: ${to}`;
+            return xs.join("\n");
+          },
+        });
+      }
+    }
   }
   return out;
+}
+
+/**
+ * D287, D291: a lineage written before the species' name (`Wood Elf`, `Black Dragonborn`, `Hill Dwarf`) as the names
+ * table's species and the lineage it offers, written short (D289). The site has no slot table: its lineage rows stand
+ * in for the checker's `speciesLineage`. Null when the name is a species, or no split fits.
+ */
+export function lineageSplit(n: Names, name: string, source: string | null, rules: string | null): { species: string; lineage: string } | null {
+  const ed = rules === "2014" || rules === "2024" ? rules : null;
+  if (n.SPECIES.some((r) => lc(r[0]) === lc(name))) return null;
+  const words = name.trim().split(/\s+/);
+  for (let i = 1; i < words.length; i++) {
+    const base = n.SPECIES.find((r) => lc(r[0]) === lc(words.slice(i).join(" ")))?.[0];
+    if (!base) continue;
+    const lin = lc(words.slice(0, i).join(" "));
+    const first = lineageRow(n, base, source, ed);
+    const rows = [...(first ? [first] : []), ...n.LINEAGES.filter((r) => lc(r[0]) === lc(base) && r !== first)];
+    for (const r of rows) {
+      const hit = r[4].find((o) => lc(o) === lin || lc(o) === `${lin} ${lc(base)}`);
+      if (hit) return { species: base, lineage: hit };
+    }
+  }
+  return null;
 }
 
 /** One change Tidy can make (D229): its line in the badge's list, and whether it's left out this time. */
@@ -418,7 +468,7 @@ export function tidyPlan(text: string, n: Names | null = null, skip: ReadonlySet
   }
   if (n) {
     for (let pass = 0; pass < 20; pass++) {
-      const fold = nameFixes(n, t, parse(t)).map((f) => ({ f, label: `Options: ${f.act}` }));
+      const fold = nameFixes(n, t, parse(t)).map((f) => ({ f, label: `${f.kind === "lineage" ? "Species" : "Options"}: ${f.act}` }));
       for (const x of fold) note(x.label, skip.has(x.label));
       const go = fold.find((x) => !skip.has(x.label));
       const next = go?.f.apply(t);

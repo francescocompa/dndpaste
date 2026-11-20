@@ -7,7 +7,7 @@
 import type { Paste, Item, Ref, Scope, Value, LevelBlock, Bonus, Detail } from "./dndpaste.js";
 // The one runtime import: the reading rule and the key helpers live in the data-free library (the UMD build inlines
 // both modules).
-import { classSequence, classTotals, isFeatKey, isAbilitySlot, abilityOf, splitMarker, keyGroup, levelCap, familyOf, familyKey, foldOptions, ASI_FEAT, KEYS } from "./dndpaste.js";
+import { classSequence, classTotals, isFeatKey, isAbilitySlot, abilityOf, splitMarker, keyGroup, levelCap, familyOf, familyKey, foldOptions, ASI_FEAT, KEYS, shortLineage } from "./dndpaste.js";
 import { UA_SOURCES } from "./sources.js";
 
 // ─── Slot table types (loose on purpose: the extract may grow fields) ────────
@@ -62,6 +62,8 @@ export interface Supplement {
   expertiseCount?: number;
   spellbook?: Record<string, { first: number; perLevel: number }>;
   lineageTrait?: Record<string, string | null>;
+  /** A species whose lineage asks a spellcasting ability the data doesn't model (D35): `Gnome|XPHB` → int, wis, cha. */
+  lineageAbility?: Record<string, string[]>;
   speciesFeatures?: Record<string, Record<string, string[]>>;
   optionPicks?: Record<string, number>;
   classFeaturePicks?: Record<string, Record<string, { levels: number[]; key: string; count: number }>>;
@@ -126,6 +128,8 @@ class Index<T extends { name: string; source: string; edition?: string | null; c
     }
     return c;
   }
+  /** Every printing of one name, as the table holds them. */
+  printings(name: string): readonly T[] { return this.byName.get(lc(name)) ?? []; }
   resolve(ref: Ref, rules: string | null, extra?: (t: T) => boolean, alias = true): { hit: T | null; status: "ok" | "none" | "ambiguous" | "alias" } {
     let c = this.byName.get(lc(ref.name)) ?? [];
     if (extra) c = c.filter(extra);
@@ -167,6 +171,68 @@ function buildIndexes(slots: Slots) {
   };
 }
 type Indexes = ReturnType<typeof buildIndexes>;
+
+/** The Species line's picks (D280, D281): `Elf [Drow; WIS]` → the lineage `Drow` and the ability group `[WIS]`. */
+export function speciesPicks(it: Item): { lineage: Detail | null; ability: Detail[] | null } {
+  const ability = it.details.find((g) => isAbilitySlot(g)) ?? null;
+  const lineage = it.details.find((g) => g !== ability && g.length)?.[0] ?? null;
+  return { lineage, ability };
+}
+/** A species' defining pick (D280, D35): the trait's name and its options, from the data's versions or the supplement. */
+function lineageOf(sd: SpeciesSlots, supplement: Supplement): { trait: string | null; options: string[] } {
+  const uid = `${sd.name}|${sd.source}`;
+  const trait = supplement.lineageTrait?.[uid] !== undefined ? supplement.lineageTrait[uid] : sd.versions.length ? `${sd.name} Lineage` : null;
+  const options = sd.versions.length ? sd.versions : trait ? supplement.speciesFeatures?.[uid]?.[trait] ?? [] : [];
+  return { trait, options };
+}
+/**
+ * The species entry a Species line means (D282): `Elf [Drow]` is the elf with the Drow lineage when the resolved elf
+ * offers it; otherwise `Elf|PHB [Wood]` is the data's 2014 subrace `Elf (Wood)|PHB`. `subrace`: the lineage named the entry.
+ */
+function speciesRef(index: Indexes["species"], supplement: Supplement, it: Item, rules: string | null): { ref: Ref; subrace: boolean } {
+  const { lineage } = speciesPicks(it);
+  if (!lineage) return { ref: it.ref, subrace: false };
+  const base = index.resolve(it.ref, rules).hit;
+  const offers = (t: SpeciesSlots) => lineageOf(t, supplement).options.some((v) => looseEq(v, lineage.ref.name));
+  if (base && offers(base)) return { ref: it.ref, subrace: false };
+  // A bare name whose newest printing lacks the lineage: the one printing that offers it (`Elf [Lorwyn]` → `Elf|LFL`).
+  const other = it.ref.source ? [] : index.printings(it.ref.name).filter(offers);
+  if (other.length === 1) return { ref: { name: it.ref.name, source: other[0].source }, subrace: false };
+  const sub = { name: `${it.ref.name} (${lineage.ref.name})`, source: it.ref.source };
+  return index.resolve(sub, rules).hit ? { ref: sub, subrace: true } : { ref: it.ref, subrace: false };
+}
+/**
+ * A lineage written before the species' name (D287): `Wood Elf` → `Elf [Wood]`, `Black Dragonborn` → `Dragonborn [Black]`,
+ * `Hill Dwarf` → `Dwarf [Hill]`. Only when the whole name is no species and the rest is one that offers that lineage (or
+ * prints it as a 2014 subrace). Null for anything else. Needs data, so it is the checker's and Tidy's with data, never the parser's.
+ */
+function lineageFirst(index: Indexes["species"], supplement: Supplement, it: Item, rules: string | null): Item | null {
+  if (speciesPicks(it).lineage || index.resolve(it.ref, rules, undefined, false).hit) return null;
+  const words = it.ref.name.split(" ");
+  for (let i = 1; i < words.length; i++) {
+    const ref = { name: words.slice(i).join(" "), source: it.ref.source };
+    const lin = words.slice(0, i).join(" ");
+    const hit = index.resolve(ref, rules, undefined, false).hit;
+    if (!hit) continue;
+    const offers = lineageOf(hit, supplement).options.some((v) => looseEq(v, lin)) || index.resolve({ name: `${ref.name} (${lin})`, source: ref.source }, rules, undefined, false).hit;
+    if (offers) return { ...it, ref, details: [[{ ref: { name: lin, source: null }, at: null }], ...it.details] };
+  }
+  return null;
+}
+/** The Species line with a lineage written first moved into its brackets (D287); null when there is none to move. For Tidy's `species` option. */
+export function speciesLineage(item: Item, slots: Slots, supplement: Supplement = {}, rules: string | null = null): Item | null {
+  return lineageFirst(buildIndexes(slots).species, supplement, item, rules);
+}
+/** The paste with its Species line's lineage moved into the brackets (D287), or the paste itself. */
+function withLineage(paste: Paste, index: Indexes["species"], supplement: Supplement, rules: string | null): { paste: Paste; from: Item | null; to: Item | null } {
+  const e = paste.entities.find((b) => b.key === "Species");
+  const to = e?.item ? lineageFirst(index, supplement, e.item, rules) : null;
+  if (!e?.item || !to) return { paste, from: null, to: null };
+  return { paste: { ...paste, entities: paste.entities.map((b) => (b === e ? { ...b, item: to } : b)) }, from: e.item, to };
+}
+
+/** A lineage as the editor writes it (D289); in the data-free library, so the site's editor has it without the checker. */
+export { shortLineage } from "./dndpaste.js";
 
 function items(scope: Scope, key: string): Item[] {
   const v = scope.get(key);
@@ -246,13 +312,17 @@ function slotView(paste: Paste): Paste {
 }
 
 export function check(input: Paste, slots: Slots, supplement: Supplement = {}): Finding[] {
-  const paste = slotView(input);
+  let paste = slotView(input);
   const F: Finding[] = [];
   const add = (kind: FindingKind, severity: "warning" | "info", where: string, message: string, key?: string, ref?: string, at?: Finding["at"]) => F.push({ kind, code: FINDING_CODES[kind], severity, where, key, ref, message, ...(at ? { at } : {}) });
   const rulesV = paste.header.get("Rules");
   const rules = rulesV && rulesV.type === "enum" ? rulesV.value : null;
 
   const ix = buildIndexes(slots);
+  // `Wood Elf` reads as `Elf [Wood]` (D287): the rest of the check sees the bracket form.
+  const wl = withLineage(paste, ix.species, supplement, rules);
+  paste = wl.paste;
+  if (wl.from && wl.to) add("unresolved", "info", "Species", `"${wl.from.ref.name}" reads as ${wl.to.ref.name} [${wl.to.details[0][0].ref.name}]; Tidy writes it that way`, "Species", wl.from.ref.name);
   // ── Source codes (D205): a code the table's entities carry resolves as usual. A homebrew (`HB`), Unearthed Arcana
   // or unknown code is accepted at info, so any element can be homebrew without breaking the build (D194); a book
   // the table lacks (the SRD subset) resolves as usual. ──
@@ -309,7 +379,7 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
     };
     const bgE = paste.entities.find((e) => e.key === "Background"), spE = paste.entities.find((e) => e.key === "Species");
     const bgD = bgE?.item ? ix.backgrounds.resolve(bgE.item.ref, rules).hit : null;
-    const spD = spE?.item ? ix.species.resolve(spE.item.ref, rules).hit : null;
+    const spD = spE?.item ? ix.species.resolve(speciesRef(ix.species, supplement, spE.item, rules).ref, rules).hit : null;
     if (bgE) take(adds(bgE.lines, "Languages").filter((it) => !bgD?.languages?.fixed.some((f) => lc(f) === lc(it.ref.name))), own(bgD?.languages));
     if (spE) take(adds(spE.lines, "Languages"), own(spD?.languages));
     take(adds(paste.header, "Languages"));
@@ -510,7 +580,7 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
   // A spell the build gets without choosing it: the subclass's always-prepared list, the species' spells, a fixed
   // spell of a feat it took. Not written by default; written, it highlights the level it arrives. Never counted
   // as a pick, never misplaced, never "beyond what the rules grant".
-  const spName = (() => { const e = paste.entities.find((b) => b.key === "Species"); return e?.item ? ix.species.resolve(e.item.ref, rules).hit : null; })();
+  const spName = (() => { const e = paste.entities.find((b) => b.key === "Species"); return e?.item ? ix.species.resolve(speciesRef(ix.species, supplement, e.item, rules).ref, rules).hit : null; })();
   const featGranted = new Set<string>();
   for (const sc of [paste.header, ...paste.entities.map((e) => e.lines), ...paste.levels.map((l) => l.lines)]) for (const { item } of featItems(sc)) {
     if (!item.drop) for (const g of ix.feats.resolve(item.ref, rules).hit?.grantedSpells ?? []) featGranted.add(lc(g));
@@ -675,7 +745,9 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
   const sp = paste.entities.find((e) => e.key === "Species");
   if (sp?.item) {
     const where = "Species";
-    const sd = resolveRef(ix.species, sp.item.ref, where, "Species");
+    const sr = speciesRef(ix.species, supplement, sp.item, rules);
+    const { lineage, ability } = speciesPicks(sp.item);
+    const sd = resolveRef(ix.species, sr.ref, where, "Species");
     if (sd) {
       const owe = (key: string, n: number, sev: "warning" | "info" = "warning", what = key, got = adds(sp.lines, key).length, extra = true) => {
         if (got < n) add("missing", sev, where, `${sd.name} asks for ${n - got} more ${what} pick(s)`, key);
@@ -686,21 +758,27 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
       owe("Languages", (sd.languages?.choose?.count ?? 0) + (sd.languages?.any ?? 0), "warning", "Languages", langAdds(sp.lines).length);
       owe("Feat", sd.feats.reduce((a, f) => a + (f.count ?? 0), 0), "warning", "Feat", featItems(sp.lines).filter(({ item }) => !item.drop).length);
       // The casting-ability pick is the first detail of the line that asks it (D107), or a 0.7 `Ability` line that stayed.
-      const abilityPicked = has(sp.lines, "Ability") || [...adds(sp.lines, "Feature"), ...featItems(sp.lines).map(({ item }) => item)].some((x) => isAbilitySlot(x.details[0]));
-      if (sd.spellAbility) owe("Feature", 1, "info", "casting-ability", abilityPicked ? 1 : 0, false);
+      const spellAbility = sd.spellAbility ?? supplement.lineageAbility?.[uidOf(sd)] ?? null;
+      if (ability && !spellAbility) add("extra", "info", where, `${sd.name} asks for no ability; "${ability[0].ref.name}" — accepted`, "Species", ability[0].ref.name);
+      else if (ability && spellAbility && !spellAbility.some((a) => lc(a) === lc(abilityOf(ability) ?? ""))) add("unresolved", "info", where, `${sd.name}'s spellcasting ability is one of ${spellAbility.map((a) => a.toUpperCase()).join(", ")}`, "Species", ability[0].ref.name);
+      const abilityPicked = Boolean(ability) || has(sp.lines, "Ability") || [...adds(sp.lines, "Feature"), ...featItems(sp.lines).map(({ item }) => item)].some((x) => isAbilitySlot(x.details[0]));
+      if (spellAbility && !abilityPicked) add("missing", "info", where, `${sd.name} asks for a spellcasting ability: ${sd.name} [${lineage ? `${lineage.ref.name}; ` : ""}${spellAbility.map((a) => a.toUpperCase()).join(" | ")}]`, "Species");
       if (sd.cantripChoose) owe("Cantrips", sd.cantripChoose, "info", "Cantrips", adds(sp.lines, "Cantrips").filter((it) => !sd.grantedSpells.some((g) => lc(g) === lc(it.ref.name))).length);
       if (sd.ability && rules !== "2024") owe("Scores", 1, "info", "ability-bonus", increaseOf(sp.lines) ? 1 : 0, false);
-      const trait = supplement.lineageTrait?.[uidOf(sd)] ?? (sd.versions.length ? `${sd.name} Lineage` : null);
+      const { trait, options } = sr.subrace ? { trait: null, options: [] } : lineageOf(sd, supplement);
+      const shortOpts = options.map((o) => shortLineage(o, sd.name, trait));
       const feats = adds(sp.lines, "Feature");
       const extraFeatures = new Set(Object.keys(supplement.speciesFeatures?.[uidOf(sd)] ?? {}).map(lc));
+      // The defining pick is the Species line's first group (D280); a Feature line naming the trait still counts
+      // (a paste the parser could not move, D283).
       if (trait) {
-        const f = feats.find((x) => lc(x.ref.name) === lc(trait)) ?? feats.find((x) => picks(x)[0]?.length && sd.versions.some((v) => looseEq(v, picks(x)[0][0].ref.name)));
+        const f = lineage ? null : feats.find((x) => lc(x.ref.name) === lc(trait)) ?? feats.find((x) => picks(x)[0]?.length && options.some((v) => looseEq(v, picks(x)[0][0].ref.name)));
         if (f) extraFeatures.add(lc(f.ref.name));
-        const fp = f ? picks(f)[0] : undefined;
-        if (!f) add("missing", "warning", where, `${sd.name} asks for a Feature: ${trait} [${sd.versions.join(" | ")}]`, "Feature", trait);
-        else if (fp?.length && sd.versions.length && !sd.versions.some((v) => looseEq(v, fp[0].ref.name))) add("unresolved", "info", where, `"${trait}" pick "${fp[0].ref.name}" is not one of: ${sd.versions.join(", ")}`, "Feature", trait);
+        const pick = lineage ?? (f ? picks(f)[0]?.[0] : undefined);
+        if (!lineage && !f) add("missing", "warning", where, `${sd.name} asks for a lineage (${trait}): ${sd.name} [${shortOpts.join(" | ")}]`, "Species", trait);
+        else if (pick && options.length && !options.some((v) => looseEq(v, pick.ref.name))) add("unresolved", "info", where, `"${trait}" pick "${pick.ref.name}" is not one of: ${shortOpts.join(", ")}`, "Species", trait);
         extraFeatures.add(lc(trait));
-      }
+      } else if (lineage && !sr.subrace) add("extra", "info", where, `${sd.name} has no lineage the data knows; "${lineage.ref.name}" — accepted`, "Species", lineage.ref.name);
       // Size: Medium is the silent default (D39); only an invalid explicit pick is reported.
       const sizeLine = feats.find((x) => lc(x.ref.name) === "size");
       if (sizeLine && sd.size && sizeLine.details[0]?.length && !sd.size.some((s) => lc(s) === lc(sizeLine.details[0][0].ref.name[0]))) add("unresolved", "info", where, `${sd.name} size must be one of ${sd.size.join("/")}`, "Feature", "Size");
@@ -968,6 +1046,7 @@ export function normalise(paste: Paste, slots: Slots, supplement: Supplement = {
   const rv = paste.header.get("Rules");
   const rules = rv && rv.type === "enum" ? rv.value : null;
   foldOptions(out, (ref) => ix.options.resolve(ref, rules).hit?.types[0] ?? null);
+  out.entities = withLineage(out, ix.species, supplement, rules).paste.entities;
   const redundant = findings.filter((f) => f.kind === "redundant" && f.key !== "Gear");
   const scopeFor = (where: string): Scope | null => {
     if (where === "header") return out.header;
@@ -1104,7 +1183,7 @@ function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, s
   // Species: fixed increments (automatic — never written, rule 0.1) + its own increase line (a 2014 choice among options).
   const sp = paste.entities.find((e) => e.key === "Species");
   if (sp) {
-    const hit = sp.item ? ix.species.resolve(sp.item.ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null : null;
+    const hit = sp.item ? ix.species.resolve(speciesRef(ix.species, supplement, sp.item, rules).ref, rules).hit as ({ ability?: AbilityGrant | null } & { name: string }) | null : null;
     if (hit?.ability?.fixed) for (const [ability, amount] of Object.entries(hit.ability.fixed)) bump(ability, amount, "Species");
     applyIncrease(increaseOf(sp.lines), "Species");
     applyFeatPicks(sp.lines, "Species");
