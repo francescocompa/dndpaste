@@ -99,6 +99,8 @@ const parts = (s: string, sep: string) => {
 };
 const unquote = (s: string) => s.trim().replace(/^"(.*)"$/, "$1").trim();
 
+const ABILITY_CODE = /^(str|dex|con|int|wis|cha)$/i;
+
 export interface Read { data: DataSet; features: Record<string, J>; skipped: number; format: "plain" | "json" }
 
 /**
@@ -108,7 +110,7 @@ export interface Read { data: DataSet; features: Record<string, J>; skipped: num
  *   Subclass: Oath of Ash|MYHB [Paladin]          its class
  *   Option: Ember Lance|MYHB [Eldritch Invocations] its family (name or code)
  *   Feature: Ember Gift|MYHB [Spark, Flare]        the options its `[ ]` offers
- *   Feat: Lucky Streak|MYHB [Origin]              its category
+ *   Feat: Lucky Streak|MYHB [Origin; INT, WIS]    its category, then the abilities its pick takes (D275)
  */
 export function readPlain(text: string, featCategories: Readonly<Record<string, string>> = {}): Read {
   const data: Record<string, J[]> = {};
@@ -142,7 +144,13 @@ export function readPlain(text: string, featCategories: Readonly<Record<string, 
       if (cls.length) e.classes = cls;
     } else if (kind === "subclass" && detail[0]?.[0]) { e.className = detail[0][0]; e.shortName = name; }
     else if (kind === "optionalfeature" && detail[0]?.[0]) e.featureType = [famCode(detail[0][0])];
-    else if (kind === "feat" && detail[0]?.[0]) e.category = catCode(detail[0][0]);
+    else if (kind === "feat") {
+      // A group of ability names is the feat's ability pick, before or after its category (D275).
+      const isAb = (g: string[] = []) => g.length > 0 && g.every((a) => ABILITY_CODE.test(a));
+      const [cat, ab] = isAb(detail[0]) ? [[], detail[0]] : [detail[0] ?? [], detail[1] ?? []];
+      if (cat[0]) e.category = catCode(cat[0]);
+      if (isAb(ab)) e.ability = [{ choose: { from: ab.map((a) => a.toLowerCase()) } }];
+    }
     if (kind === "feature") { features[`${name}|${source}`] = { name, source, options: detail.flat() }; continue; }
     (data[kind] ??= []).push(e);
   }

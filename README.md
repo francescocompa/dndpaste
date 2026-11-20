@@ -18,7 +18,7 @@ Scores: 8/13/14/12/10/15
 Classes: Fighter 1 / Warlock 5
 
 Species: Human
-Feat: Spellfire Spark|FRHoF
+Feat: Spellfire Spark|FRHoF [CHA]
 
 L1 Fighter
 Feat (Fighting Style): Archery
