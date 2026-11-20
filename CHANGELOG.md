@@ -3,6 +3,11 @@
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
 ## Unreleased
+- Library: the checker no longer counts 2024 origin languages as extras: Common is free and two more fill the origin,
+  written in the Background, Species, header or L1 block (D272).
+- Site only (T6.3): book titles read clean ("Project Lamordia", D273; saved shares re-render); `/codes` sorts at phone
+  width (D274); a plain names line can give a feat's ability pick, `Feat: Name|BOOK [General; INT, WIS, CHA]` (D275);
+  a `/sources` copy pass (D277). Fixtures `shigen` and `vice` write their feats' CHA picks (D276).
 - Library: `dndpaste/extract` (D246, D260): the slot extractor as a pure function (`extractSlots`, `mergeData`,
   `srdSubset`); `scripts/extract-slots.mjs` now runs on it, with the same output.
 - Site, deployed 2026-11-20 (1031bf4): `/sources`, your own sources (M6, D244–D270). A hand-written names file, a folder from this
