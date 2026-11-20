@@ -5,8 +5,8 @@
   (deploy fc111c84, `/version` commit e04074d, 2026-11-20): SPEC 0.9 family keys + level cap (D180–D186), SRD autocomplete
   (D151, D154–D164), editor polish (D170–D178, D190), wide user test fixes (D192–D229), copy pass (D230–D234), live-test
   editor bugs (D240–D243). Library 243 tests (with the full local table) + site 293 pass.
-- **Single next action:** T6.1 — scope "your own sources" (D160): connect your own names source and manage sources in the
-  app, to widen autocomplete and options. /interview first; read D160, D151, D66 and PLAN M6.
+- **Single next action:** T6.1b — /jam the `/sources` page (D247) in a fresh Mac session, then T6.2 (size L,
+  PLAN M6). T6.1 scoped 2026-11-20: D244–D251.
 - **Manual for Francesco:** ① push main (1 commit ahead: STATE) ② publish the GitHub release v0.9.0 with
   `.claude/drafts/release-v0.9.0.md` ③ post (T3.11): save a real build for `[BUILD LINK]` in `.claude/drafts/reddit-3d6.md`,
   not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions

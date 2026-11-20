@@ -202,7 +202,7 @@ Frames and build brief: `jams/2026-11-15-site-look/` (local only, `.git/info/exc
 
 ## Visitor data, safely (2026-11-19) — mechanism: overseer analysis, Francesco's "Yes, log it and fix the README line"
 
-- **D160 — The later visitor-data step (D66 step 2; D151's "your own data") is a file the visitor picks, read in their browser only, never uploaded, never fetched by the site, and never named or linked as 5etools. DECIDED (2026-11-19).** The importer keeps names, sources and counts only, and drops any text the file carries before anything is kept or shown. It accepts a plain documented names format anyone can write by hand, so it is a generic importer, not a door to one site. The UI says "your own data" or "a names file". The repo's public docs describe data inputs generically; citing 5etools source codes (`XPHB`) as a naming convention stays. Not built: planned for later (PLAN Later).
+- **D160 — The later visitor-data step (D66 step 2; D151's "your own data") is a file the visitor picks, read in their browser only, never uploaded, never fetched by the site, and never named or linked as 5etools. DECIDED (2026-11-19); AMENDED → D244 (generic JSON too), D248 (GitHub links, fetched browser-side).** The importer keeps names, sources and counts only, and drops any text the file carries before anything is kept or shown. It accepts a plain documented names format anyone can write by hand, so it is a generic importer, not a door to one site. The UI says "your own data" or "a names file". The repo's public docs describe data inputs generically; citing 5etools source codes (`XPHB`) as a naming convention stays. Not built: planned for later (PLAN Later).
   *Raw note:* "Is there any way that it's safe for me to suggest linking 5etools repo eventually? … I feel like just having a connection exposes me to legal issues" → "Yes, log it and fix the README line. We'll plan for later to try to implement the generic importer".
   *Why:* names and indexes carry little risk; a live connection to a mirror WotC has taken down points visitors at infringing material, and most D&D subreddits remove posts that promote it.
   *Rejected:* a "connect 5etools" button or a fetch from a mirror; naming 5etools as a supported source.
@@ -355,3 +355,29 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Raw note (round 2, Feature):* "I feel like if a feature header is inside a level block, it may grey out species options for example"
   *Rejected:* hiding another class's names (D199: a DM may allow them); dimming spells in a Species block (a species spell can come from any list).
   *Enforced by:* `site/test/complete.test.ts` ("D243…"; the D184 test now checks the cap on Warlock spells). *Landed:* 51b7a13. /ui-review: 3 rounds, all approved (`reviews/2026-11-20-editor-bugs`).
+
+## Your own sources scoping (2026-11-20) — mechanism: /interview, AskUserQuestion, 3 rounds (9 questions), overseer at /start; T6.1
+
+- **D244 — The importer reads two shapes: the plain dndpaste names format, and any JSON whose top-level arrays per kind hold entries with a `name` and a `source`. DECIDED (2026-11-20); amends D160 (which named the plain format only).** The JSON shape is described generically in the docs and never named after a site. Every other field is dropped on read, before anything is kept or shown (D160 still holds for text).
+  *Picked:* "Plain + generic JSON (Recommended)". *Rejected:* plain format only (almost nobody has such a file); plain format plus a converter script in the repo (a step most visitors won't take).
+
+- **D245 — Imported sources are kept in this browser (IndexedDB) until removed. DECIDED (2026-11-20).** Never uploaded; nothing about them goes into a share (D65: a share is paste, title, author). Clearing site data loses them, and the Sources page says so.
+  *Picked:* "Kept in this browser (Recommended)". *Rejected:* this tab only (tedious for regular use).
+
+- **D246 — Your sources feed names, feature options and counts, in one build (T6.2). DECIDED (2026-11-20).** Autocomplete names (D151 ranking, D219/D241 dimming apply the same way), the option lists inside `[ ]`, and counts for ghost pick counts (D129) and slot hints. This is D66's checker-data step on the visitor's data: the slot extractor becomes a pure library function run in the browser. Size L, not M.
+  *Picked:* "Names, options and counts"; then "One build". *Rejected:* names only; names + options with counts later; two builds (T6.2 names/options, T6.3 counts).
+
+- **D247 — Sources are managed on their own page, `/sources`: add (file or link), list with counts, turn on/off, remove; linked from the editor's menu and the autocomplete's empty state. DECIDED (2026-11-20).** It needs a clean, organized design that is easy to reach: a /jam on the page comes before the build. The names-format docs live there.
+  *Raw note:* "A sources page, we need a clean organized design for it to be easy to access." *Rejected:* a panel inside the editor.
+
+- **D248 — A source can also be a GitHub link, fetched by the visitor's browser straight from GitHub and checked again on each visit. DECIDED (2026-11-20); amends D160 ("never fetched by the site").** The site's server never sees the link or the data. CSP `connect-src` allows GitHub's raw and API hosts only. The site suggests no links, ships no presets and names no source; it works with any repo laid out by kind, including the 5etools one, without saying so.
+  *Raw note:* "If possible, we could also allow for live sync with a github source by pasting a link, but without reference to 5etools (although it works with it)." *Challenged:* one paste could load a whole mirror, so the site is no longer file-only; accepted with the browser-only, GitHub-only, no-presets limits. *Rejected:* files now and links later; any https URL (wide CSP, harder to keep the no-door promise).
+
+- **D249 — A link may point to a raw file or a folder; a folder's JSON files are listed through GitHub's API, cached with ETags. DECIDED (2026-11-20).** Unauthenticated API calls are limited to 60 an hour per IP, so a re-check sends conditional requests and a 304 costs nothing kept. A failed re-check keeps the stored copy and says so.
+  *Picked:* "Files and folders (Recommended)". *Rejected:* single files only.
+
+- **D250 — Names from your sources and the SRD names rank in one list by match, each of your rows showing its book. DECIDED (2026-11-20).** D219 dimming and D241 class-first apply to your names too.
+  *Picked:* "Mixed by match". *Rejected:* your names first on a tie.
+
+- **D251 — When your sources include a book, the bundled SRD names filed under that book are hidden: per book, not per edition. DECIDED (2026-11-20).** Importing XPHB hides the SRD names under XPHB, so no near-dupes (Hideous Laughter vs Tasha's Hideous Laughter); SRD names under XDMG stay until XDMG is imported. Turning the source off brings them back.
+  *Raw note:* "SRD is fully hidden if for example the XPHB is present for 2024 (want to avoid dupes or 'almost dupes' like tasha's hideous laughter and hideous laughter)"; then "Per book (Recommended)". *Rejected:* per edition (importing XPHB alone would lose the SRD magic items).

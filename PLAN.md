@@ -89,11 +89,16 @@ L<n> <Class>                   level block, n = character level
 ### M5 — my-spellbook import · size M in that repo
 - [ ] Paste → build, resolving refs against loaded sources; unresolved refs use the existing "not loaded" path (its D56).
 
-### M6 — Your own sources (D160) · next · size M
-- [ ] 🔶 T6.1 Scope: /interview Francesco on connecting your own names source (a file read in the browser, names, sources
-  and counts only, never fetched, never named 5etools, D160) and managing sources in the app (add, list, turn on/off,
-  remove), feeding autocomplete (D151, D219, D241) and options. · Opus@high · Done when: decisions logged, build brief written.
-- [ ] T6.2 Build per T6.1's brief · own worktree · /ui-review before commit.
+### M6 — Your own sources (D160, D244–D251) · next · size L
+- [x] T6.1 Scope: /interview done 2026-11-20 → D244–D251.
+- [ ] 🔍 T6.1b /jam the `/sources` page (D247): add by file or GitHub link, list with counts, on/off, remove, format docs;
+  desktop and phone. Fresh Mac session · Opus@high · Done when: a pick logged as a decision, artifact linked.
+- [ ] T6.2 Build per D244–D251 and the T6.1b pick · own worktree · Opus@high · size L. Importer (plain format + generic
+  JSON, text dropped on read) → IndexedDB store → extractor as a pure library function in the browser → names, `[ ]`
+  options and counts into autocomplete, ghost counts and slot hints; per-book SRD hiding (D251); GitHub file/folder links
+  fetched browser-side with ETags, CSP `connect-src` for GitHub hosts only (D248–D249); no source named anywhere.
+  /ui-review before commit · Done when: verify + site tests pass, a names file and a GitHub folder both load on
+  `/sources` and feed the editor, review approved, merged.
 
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
