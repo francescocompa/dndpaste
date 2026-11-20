@@ -688,6 +688,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .srcp .fin { padding: 0 0 6px 23px; }
 .srcp .fin .fold:last-child { border-bottom: 0; }
 .srcp .fb { padding: 0 0 16px 23px; display: grid; gap: 10px; font: 13.5px/1.55 var(--sans); }
+.srcp .fb .brk { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
 .srcp .fb p { margin: 0; }
 .srcp .fb code { font: 0.9em/1 var(--mono); }
 .srcp pre.code { margin: 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); font: 12.5px/1.6 var(--mono); white-space: pre; overflow-x: auto; }

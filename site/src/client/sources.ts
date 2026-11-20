@@ -218,7 +218,7 @@ function start(): void {
   void (async () => {
     v.works = await storageWorks();
     if (!v.works) {
-      say("This browser isn't keeping site data (a private window, or site data is blocked), so sources can't be added here.", true);
+      say("Sources can't be added here: this browser isn't keeping site data. A private window or blocked site data does this.", true);
       for (const b of add.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button, input")) b.disabled = true;
     }
     [v.sources, v.sw] = await Promise.all([listSources(), getSwitches()]);

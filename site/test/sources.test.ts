@@ -56,7 +56,7 @@ test("D275: a feat's ability pick, from a plain line or a JSON file, opens its a
   for (const read of [plain, json]) {
     const m = merge(N, [src(keepTable(read, {}, N.FEAT_CATEGORIES))], NO_SWITCHES);
     const abilityBits = (name: string) => m.names.FEATS.find((f) => f[0] === name)?.[3];
-    for (const f of read.data.feat ?? []) if (f.name !== "Lucky Streak") assert.ok(abilityBits(f.name), `${f.name} asks an ability`);
+    for (const f of (read.data.feat ?? []) as { name: string }[]) if (f.name !== "Lucky Streak") assert.ok(abilityBits(f.name), `${f.name} asks an ability`);
     if (read === plain) assert.equal(abilityBits("Lucky Streak"), 0);
   }
 });

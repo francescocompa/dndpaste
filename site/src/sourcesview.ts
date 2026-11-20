@@ -188,7 +188,7 @@ function empty(v: View): string {
     `<section class="sec"><div class="lh"><span class="lbl">SRD</span><span class="muted">Always here</span></div>` +
     `<div class="srow"><div class="nm">${icon("database")}<span class="t">SRD names</span></div><div class="act"></div><span></span>` +
     `<div class="meta"><span>Built-in · <b>${n(v.builtinNames)}</b> names</span></div>${books ? `<div class="bkst">${books}</div>` : ""}` +
-    `<p class="hint">Your names for a book and kind hide the SRD names for them.</p></div></section>`;
+    `<p class="hint">Your names for a book and kind replace its SRD names.</p></div></section>`;
 }
 
 export function listHtml(v: View): string {
