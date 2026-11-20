@@ -13,7 +13,7 @@
 
 Working set: none
 
-Spawned: none
+Spawned: lineage-0-10 · local_4030e56e-e94e-44db-bf8a-6d602f281d3d · T7.2 · running · next: overseer releases 0.10.0 (D57), deploys, then Francesco posts (D285)
 
 - **Library:** 0.9.0 on main (SPEC 0.9; 0.7 keys still read with W005). Releases per D57. The full slot table is
   gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
