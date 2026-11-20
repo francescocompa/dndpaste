@@ -210,9 +210,10 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
   for (const name of [...CLASS_FEATURES.map((f) => f[0]), ...SPECIES_FEATURES.map((f) => f[0])]) {
     if (!DETAILS.some((r) => r[0] === name)) DETAILS.push([name, 0]);
   }
-  // A species whose trait is owed (D280): a pick writes `Elf []` in those books, so its lineage list opens.
+  // A species with lineages (D280) or 2014 subraces (D296): a pick writes `Elf []` in those books, so its list opens.
   for (const l of LINEAGES) {
-    if (!l[2]) continue;
+    // D298: the trait itself (a 0.9 `Feature: Elven Lineage` line, read with W006) opens its brackets in every printing.
+    if (l[2] && !DETAILS.some((r) => r[0] === l[2])) DETAILS.push([l[2], 0]);
     const had = DETAILS.find((r) => r[0] === l[0]);
     if (had) { if (had[1]) had[1] |= l[1]; } else DETAILS.push([l[0], l[1]]);
   }

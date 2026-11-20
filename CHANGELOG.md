@@ -17,11 +17,13 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
   `tidy` given `TidyOptions.species` (the checker's new `speciesLineage`). New exports: `speciesPicks`,
   `shortLineage`, `speciesLineage` (D287).
 - Fixtures `druid-custom-background`, `mc-planned-20`, `mc-planned-20-families` are in 0.10 form.
-- Site (T7.2, D291–D294): the editor writes 0.10. `Species: Elf [` lists the lineages, then the abilities, with the
-  hint "lineage; ability"; picking a species that owes its lineage writes `Elf []` and opens the list; a Species line
-  shows `[lineage]` as ghost text; the missing-lineage fix writes the brackets. 2014 subraces and a source's species
-  variants (`Dragonborn (Black)`) are lineage options of their base, no longer species names. `Wood Elf` gets a
-  one-click fix and Tidy writes `Elf [Wood]`. `/guide` and its example use the bracket form; saved shares re-render
+- Site (T7.2, D291–D298): the editor writes 0.10. `Species: Elf [` lists the lineages, then the abilities, with the
+  hint "lineage; ability"; picking a species with lineages or 2014 subraces writes `Elf []` / `Dwarf []` and opens the list; a Species
+  line shows `[lineage]`, `[legacy]` or `[subrace]` as ghost text, and Tab writes the brackets; the missing-lineage
+  fix writes the brackets. A lineage keeps its species' skill list (`Elf [Drow]`). The 0.9 `Feature: Elven Lineage`
+  line is still offered (ability first, then lineage) and still warns. 2014 subraces and a source's species
+  variants (`Dragonborn (Black)`) are lineage options of their base, no longer species names. Tidy writes
+  `Wood Elf` as `Elf [Wood]`, and turns on when that is its only change. `/guide` and its example use the bracket form; saved shares re-render
   (`RENDER_VERSION` 8). `shortLineage` is now in the data-free library too.
 - Library: the checker no longer counts 2024 origin languages as extras: Common is free and two more fill the origin,
   written in the Background, Species, header or L1 block (D272).

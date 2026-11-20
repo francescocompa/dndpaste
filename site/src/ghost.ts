@@ -265,7 +265,9 @@ export function ghostHtml(g: Ghost, pad: number, word = ""): string {
 
 /** The ghost text alone (D174, D178), on a line of a counted group whose chip sits on the group's first line. */
 export function ghostWordHtml(word: string): string {
-  return `<span class="gh"><span class="gt">${esc(word)}</span></span>`;
+  // D296 review: a zero-width space keeps the box on its line's baseline; with only the out-of-flow word in it, the
+  // box sat on its bottom edge and the word showed a row low (a chip's padding spaces do this on counted lines).
+  return `<span class="gh"><span class="gt">${esc(word)}</span>\u200b</span>`;
 }
 
 /**

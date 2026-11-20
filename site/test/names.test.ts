@@ -47,10 +47,11 @@ test("D242: DETAILS names the picks that ask a detail, by printing", () => {
   assert.equal(books("Pact of the Tome"), 3);
   assert.equal(books("Pact of the Chain"), 3);
   assert.equal(books("Find Familiar"), 3);
-  assert.equal(books("Elven Lineage"), undefined, "D291: a lineage trait is no Feature pick");
-  assert.equal(books("Elf"), 2, "D291: the 2024 elf owes its lineage; the 2014 one doesn't");
+  assert.equal(books("Elven Lineage"), 0, "D298: a 0.9 lineage line opens its brackets in every printing");
+  assert.equal(books("Elf"), 3, "D291, D296: the 2024 elf's lineage and the 2014 one's subrace both open");
+  assert.equal(books("Dwarf"), 1, "D296: the 2014 dwarf's subraces; the 2024 dwarf has none");
   assert.equal(books("Dragonborn"), 2);
-  assert.equal(books("Human"), undefined);
+  assert.equal(books("Human"), 1, "D296: the 2014 human's Variant is a subrace; the 2024 human has none");
   assert.equal(books("Divine Order"), 0);
   for (const none of ["Alert", "Archery", "Magic Missile", "Devil's Sight", "Phantom Steed"]) assert.equal(books(none), undefined, none);
 });

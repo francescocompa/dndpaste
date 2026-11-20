@@ -166,6 +166,17 @@ const edHomebrew = async (x, name) => {
   try { localStorage.setItem(SRC_SUMMARY, JSON.stringify({ n: all.length + 1, on: all.length + 1 })) } catch { /* storage blocked */ }
   return !reloadOnce(name)
 }
+// T7.2 (D291): a JSON source of edition unknown with species variants, stored as /sources stores it, then one reload.
+const LIN_OWN = JSON.stringify({ race: [{ name: 'Dwarf (Deep)', source: 'MYHB' }, { name: 'Dragonborn (Gem)', source: 'MYHB' }] })
+const edLinOwn = async (x, name) => {
+  await x.waitFor('form.pform textarea.src')
+  if ((await srcIdb('readonly')).some((r) => r.name === 'lineage-own.json')) return true
+  const [{ fromFile }, n] = await Promise.all([import(`${location.origin}/assets/yours.js`), import(`${location.origin}/assets/names.js`)])
+  const rec = await fromFile(new File([LIN_OWN], 'lineage-own.json', { type: 'application/json' }), n.FEAT_CATEGORIES)
+  const all = await srcIdb('readwrite', (st) => st.put(rec))
+  try { localStorage.setItem(SRC_SUMMARY, JSON.stringify({ n: all.length + 1, on: all.length + 1 })) } catch { /* storage blocked */ }
+  return !reloadOnce(name)
+}
 
 uiReview.config({
   schema: 1,
@@ -494,7 +505,20 @@ uiReview.config({
       await acSetup(x, 'lin-old', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf|XPHB\nFeature: Elven Lineage [WIS; Wood Elf]\nSkills: Perception\n\nL1 Wizard\n')
       editor().blur(); await x.sleep(300)
     },
-    'ed-unknown-feature': (x) => acSetup(x, 'ed-unknown-feature', 'Rules: 2024\nSpecies: Elf\nFeature: Elf Lineage ['),
+    // Round 2 (D295, D296): the 2014 pick opens its subraces; a lineage keeps its species' skill list.
+    'lin-2014-pick': (x) => acSetup(x, 'lin-2014-pick', 'Rules: 2014\nClasses: Wizard 1\n\nSpecies: Dwa'),
+    'lin-2014-ghost': (x) => acSetup(x, 'lin-2014-ghost', 'Rules: 2014\nClasses: Wizard 1\n\nSpecies: Dwarf'),
+    'lin-skills': (x) => acSetup(x, 'lin-skills', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf [Drow; WIS]\nSkills: '),
+    'lin-wood-tidy': async (x) => {
+      await acSetup(x, 'lin-wood-tidy', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Wood Elf\nSkills: Perception\n\nL1 Wizard\n')
+      editor().blur(); await x.sleep(600)
+      if (document.querySelector('.tidypop')?.hidden) document.querySelector('.tbadge')?.click()
+      await x.sleep(200)
+    },
+    // Round 4 (D298): a 0.9 lineage Feature line offers its abilities, then the lineages.
+    'lin-feature-old': (x) => acSetup(x, 'lin-feature-old', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\nFeature: Elven Lineage ['),
+    'lin-own': async (x) => { if (await edLinOwn(x, 'lin-own')) await acSetup(x, 'lin-own', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Dwa') },
+    'ed-unknown-feature':(x) => acSetup(x, 'ed-unknown-feature', 'Rules: 2024\nSpecies: Elf\nFeature: Elf Lineage ['),
     // D268: needs a data folder with species variants added on /sources (his link).
     'ed-species': (x) => acSetup(x, 'ed-species', 'Rules: 2024\nSpecies: Drag'),
     'ed-nomatch': async (x) => {

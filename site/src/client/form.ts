@@ -243,16 +243,23 @@ function init(): void {
   let badgeTimer: ReturnType<typeof setTimeout> | undefined;
   /** Changes struck through in the badge's list (D229 review): Tidy leaves them out until they're clicked again. */
   const tidySkip = new Set<string>();
+  /** D295: a change only the names table finds (`Wood Elf` → `Elf [Wood]`, D293): the status has no names, so the
+   *  plan after the typing pause turns Tidy on. Kept until the next plan; a click plans again from the text. */
+  let tidyByName = false;
+  const canTidy = () => st.canTidy || (tidyByName && !st.empty && !st.held);
+  const setTidyBtn = () => { tidyBtn.disabled = !canTidy(); tidyBtn.classList.toggle("off", !canTidy()); };
   const setSaveState = () => {
     const on = (st.canSave || (st.held > 0 && !st.errors && !st.empty && !st.over)) && !saving && !(editId && !editKeys.length);
     for (const b of saves) { b.disabled = !on; b.classList.toggle("off", !on); }
-    tidyBtn.disabled = !st.canTidy;
-    tidyBtn.classList.toggle("off", !st.canTidy);
+    setTidyBtn();
     // The badge's count waits for a pause in typing: a plan reads the text several times.
     clearTimeout(badgeTimer);
-    if (!st.canTidy) { tidyBadge.hidden = true; return; }
+    if (st.empty || st.held || (!st.canTidy && !fixNames)) { tidyByName = false; setTidyBtn(); tidyBadge.hidden = true; return; }
     badgeTimer = setTimeout(() => {
-      const n = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip)?.changes.filter((c) => !c.off).length ?? 0 : 0;
+      const plan = tidyPlan(ta.value, fixNames, tidySkip);
+      tidyByName = !!plan;
+      setTidyBtn();
+      const n = canTidy() ? plan?.changes.filter((c) => !c.off).length ?? 0 : 0;
       tidyBadge.hidden = !n;
       tidyBadge.textContent = String(n);
       tidyBadge.setAttribute("aria-label", n === 1 ? "1 change Tidy will make" : `${n} changes Tidy will make`);
@@ -294,7 +301,8 @@ function init(): void {
     // A group's other line (D178) has no chip: its ghost text stands alone.
     if (w && !after.has(w.line)) after.set(w.line, ghostWordHtml(w.word));
     fixes = fixNames
-      ? [...st.fixes, ...nameFixes(fixNames, ta.value, st.paste, new Set(st.fixes.map((f) => f.line)))].sort((a, b) => a.line - b.line)
+      // D295: `Wood Elf` → `Elf [Wood]` (D293) is Tidy's alone: a valid name gets no mark on its line.
+      ? [...st.fixes, ...nameFixes(fixNames, ta.value, st.paste, new Set(st.fixes.map((f) => f.line))).filter((f) => f.kind !== "lineage")].sort((a, b) => a.line - b.line)
       : st.fixes;
     draw(markFixes(highlightRows(ta.value, st.diagnostics, after), fixes));
     placeNotes();
@@ -702,6 +710,20 @@ function init(): void {
     } else if (sep) complete(true);
   };
   ed.addEventListener("keydown", (e) => {
+    // D297: Tab on a Species line's ghost text (`Dwarf [subrace]`) writes the brackets and opens their list, when the
+    // list has no row to take.
+    if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && (ac.hidden || !acRows.length)) {
+      const w = wordNow();
+      if (w && /^\s*\[/.test(w.word)) {
+        e.preventDefault();
+        const at = ta.selectionStart;
+        const add = /\s$/.test(ta.value.slice(0, at)) ? "[]" : " []";
+        insert(add, at, at);
+        ta.setSelectionRange(at + add.length - 1, at + add.length - 1);
+        complete(true);
+        return;
+      }
+    }
     if (ac.hidden || e.isComposing || !acRows.length) {
       if (e.key === "Escape" && !ac.hidden) { e.preventDefault(); acClose(); }
       return;
@@ -933,13 +955,13 @@ function init(): void {
   const tidyClose = (back = false) => { tidyPop.hidden = true; if (back) tidyBadge.focus(); };
   tidyBtn.addEventListener("click", () => {
     tidyClose();
-    const next = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip)?.text : undefined;
+    const next = canTidy() ? tidyPlan(ta.value, fixNames, tidySkip)?.text : undefined;
     tidySkip.clear();
     if (next !== undefined && next !== ta.value) writeChange(next);
     else setSaveState();
   });
   const drawTidyList = (): boolean => {
-    const plan = st.canTidy ? tidyPlan(ta.value, fixNames, tidySkip) : null;
+    const plan = canTidy() ? tidyPlan(ta.value, fixNames, tidySkip) : null;
     if (!plan) return false;
     tidyPop.innerHTML = `<p class="tph">Tidy will:</p><ul class="tpl">${plan.changes.map((c) =>
       `<li><button type="button" class="tpi" aria-pressed="${!c.off}" data-label="${esc(c.label)}">${esc(c.label)}</button></li>`).join("")}</ul>` +
