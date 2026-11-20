@@ -3,6 +3,20 @@
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
 ## Unreleased
+- **SPEC 0.10: the lineage format** (D280–D287). A species' defining pick goes in brackets on the `Species` line,
+  then its spellcasting ability: `Species: Elf [Drow; WIS]`, `Species: Dragonborn [Black]`, `Species: Goliath [Fire]`.
+  2014 subraces use the same form, with the source after the name as on every item: `Species: Elf|PHB [Wood]`.
+  An `Ability: WIS` line in the Species block still reads, with no warning, and is written in the brackets.
+- Library: 0.9 pastes keep working. A lineage `Feature` line in the Species block (`Feature: Elven Lineage [WIS; Wood]`)
+  reads with `W006` and `Species: Elf (Wood)|PHB` with `W007`; both carry a safe fix, and Tidy and `emit` write the
+  bracket form. `Elf [Wood]|PHB` (the source after the brackets) is `E011` with a safe fix (D286).
+- Checker: lineage and ability slots on the `Species` line. `Elf|PHB [Wood]` maps to the data's `Elf (Wood)|PHB`;
+  `Elf [Lorwyn]` picks the printing that offers Lorwyn; a missing lineage names the bracket form
+  (`Elf [Drow | High | Wood]`); Gnomish Lineage's ability is in the supplement (`lineageAbility`). `Wood Elf` and
+  `Black Dragonborn` read as `Elf [Wood]` and `Dragonborn [Black]`, with an info; `normalise` writes them, and so does
+  `tidy` given `TidyOptions.species` (the checker's new `speciesLineage`). New exports: `speciesPicks`,
+  `shortLineage`, `speciesLineage` (D287).
+- Fixtures `druid-custom-background`, `mc-planned-20`, `mc-planned-20-families` are in 0.10 form.
 - Library: the checker no longer counts 2024 origin languages as extras: Common is free and two more fill the origin,
   written in the Background, Species, header or L1 block (D272).
 - Site only (T6.3): book titles read clean ("Project Lamordia", D273; saved shares re-render); `/codes` sorts at phone

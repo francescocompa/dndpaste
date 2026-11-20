@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.9 (2026-11-19) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10); 0.9 adds option family keys (`Invocations`, …), a family marker on `Options`, a level cap on `Spells` and `Prepared`, a free-text `Note` key, form details on summons and pact boons, and keeps a line with an error instead of dropping it (§11). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113, D180–D185, D200–D206, D220–D221.
+**Version:** 0.10 (2026-11-20) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10); 0.9 adds option family keys (`Invocations`, …), a family marker on `Options`, a level cap on `Spells` and `Prepared`, a free-text `Note` key, form details on summons and pact boons, and keeps a line with an error instead of dropping it (§11); 0.10 puts a species' lineage and its spellcasting ability in brackets on the `Species` line, `Species: Elf [Drow; WIS]` (§12). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113, D180–D185, D200–D206, D220–D221, D280–D287.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -177,8 +177,8 @@ A value that does not match its type is `E012`.
 | Part | Meaning |
 |---|---|
 | `-` | **Drop**: the item leaves the build at this level (a spell swap, a replaced optional feature). Valid only in a level scope on an `items` key (`E008`). |
-| `Name` | The entity's name as printed. Written bare when it contains none of `, ; : [ ]` and does not start with `-` or `"`; otherwise **quoted** with `"…"` (`"Bag of Tricks, Gray"`, `"Channel Divinity: Turn Undead"`). No name in the 5etools corpus contains `"` or `[` `]`; parentheses, apostrophes, `/` and `+` are ordinary characters (`Arrows (20)`, `Blindness/Deafness`, `+1 Longsword`, `Human (Mark of Making)`). Parentheses in a **key** are a marker (§2.4); in a **name** they are part of the name. |
-| `\|SOURCE` | Optional source code, 5etools convention (`XPHB`, `PHB`, `TCE`, `AAG`, …). Homebrew uses the code its file declares, or `HB` when it has none (D9). |
+| `Name` | The entity's name as printed. Written bare when it contains none of `, ; : [ ]` and does not start with `-` or `"`; otherwise **quoted** with `"…"` (`"Bag of Tricks, Gray"`, `"Channel Divinity: Turn Undead"`). No name in the 5etools corpus contains `"` or `[` `]`; parentheses, apostrophes, `/` and `+` are ordinary characters (`Arrows (20)`, `Blindness/Deafness`, `+1 Longsword`, `Vehicles (Land)`; on a `Species` line a last group is read as a 0.9 variant, §5.8). Parentheses in a **key** are a marker (§2.4); in a **name** they are part of the name. |
+| `\|SOURCE` | Optional source code, 5etools convention (`XPHB`, `PHB`, `TCE`, `AAG`, …). Homebrew uses the code its file declares, or `HB` when it has none (D9). It always follows the name, before the details: `Fey Touched|TCE [CHA]`, `Elf|PHB [Wood]` (D286). A source written after the brackets (`Elf [Wood]|PHB`) is `E011`, with a safe fix that puts it after the name. |
 | `[group; group]` | **Details**: the sub-choices this item asks for, in the **slot order the profile fixes for that key** (§5.3). Groups are `;`-separated, details inside a group `,`-separated. An empty group keeps its `;` so later groups keep their slot; trailing empty groups are dropped. A detail has no details of its own (no nested brackets, `E011`). |
 | `@<n>` | On a detail only (`E013`): the sub-choice is made at character level *n*, for an item gained earlier that asks again later. |
 | `x<qty>` | Quantity ≥ 2, `Gear` only (`E009`). |
@@ -266,7 +266,7 @@ an Unearthed Arcana one. A name that only Unearthed Arcana prints always carries
 | `Scores` | scores | H, S, B, L | **The `+` decides** (D108). Without `+`, the **base** scores, header only, once: all six in `STR/DEX/CON/INT/WIS/CHA` order, `8/13/14/12/10/15`, or the ones known, named: `DEX 15, CON 13` or `DEX 15/CON 13`. With `+`, an **increase**: `+2 CHA`, `+1 INT, +1 CON`; in S/B the species (2014) or background (2024) bonuses, elsewhere any other increase. A level's Ability Score Improvement is a `Feat` line, not an increase (D109). A base outside the header is `E005` (§5.2) |
 | `Classes` | classes | H | classes in the order taken, with levels **as played now**; `Fighter 1 / Warlock 5`. An interleaved multiclass may write **runs**: `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` (§5.2) |
 | `HP` | hp | H, L | **hit-point method**, optional (D59). In H: `Fixed` (the class's fixed value at each level after 1st) or `Rolled`. In L: that level's method, overriding H: `Fixed`, `Rolled`, or the **die result** rolled there (`HP: 7`). Level 1 always takes the die's maximum, so it has no line. Absent: no method stated, never assumed |
-| `Species` | item · **opens block** | H | the species; its picks are the block's lines. 2024 lineages are a `Feature` line in the block; 2014 subraces are part of the name, the 5etools way: `Species: Elf (Wood)|PHB`, `Species: Human (Variant)|PHB` |
+| `Species` | item · **opens block** | H | the species. Its **defining pick**, the lineage or ancestry that splits it (Elven Lineage, Gnomish Lineage, Fiendish Legacy, Draconic Ancestry, Giant Ancestry and their like), goes in its brackets, then that lineage's spellcasting ability when it asks one: `Species: Elf [Drow; WIS]`, `Species: Dragonborn [Black]`, `Species: Goliath [Fire]` (D280, D281). A 2014 subrace is the same form: `Species: Elf|PHB [Wood]`, `Species: Human|PHB [Variant]` (D282). Every other species pick (skills, size, an origin feat, a cantrip) is a line in the block. An `Ability: WIS` line in the block, after a `Species` line that names a lineage and no ability, is that ability: it reads with no warning and is written in the brackets (D281). The 0.9 forms read with a warning (§5.8) |
 | `Background` | item · **opens block** | H | the background; official: block holds only the picks it asks (2024: a `Scores` increase); custom/homebrew: the block holds everything (`Scores` increase, `Skills`, `Tools`, `Feat`, `Gear`) so the paste is complete without the homebrew file (D21, D26) |
 | `Subclass` | items¹ | H, L | the class's subclass. In L, the block where its class gains the subclass, and it belongs to the block's class (D220); in H, unplaced (a flat snapshot, or a subclass still to come) |
 | `Skills` | items | H, S, B, L | skill proficiencies **chosen** |
@@ -277,7 +277,7 @@ an Unearthed Arcana one. A name that only Unearthed Arcana prints always carries
 | `Masteries` | items | H, L | weapon-mastery loadout from that level on (a snapshot: masteries swap on long rests). An `Options` family (D182): `Options (Masteries)` reads as `Masteries` (§5.7) |
 | `Invocations` `Metamagic` `Maneuvers` `Infusions` `Arcane Shots` `Runes` `Disciplines` `Pact Boon` | items | H, L | **option family keys** (D180): an `Options` line that also names its family, one key per family, in this order. Same details and rules as `Options` (§5.3). §5.7 |
 | `Options` | items | H, L | **any optional feature**, of any family: a family key's options, or one whose family has no key. Takes an optional **family marker**, an open list (D181): `Options (Soul Techniques): …`; a marker that names a family key folds into it (§5.7). 5etools tags each option's family, so a new family needs no new key (D27). Details = the option's own picks |
-| `Feature` | items | H, S, B, L | a **named feature with a pick and no dedicated key**: `Feature: Divine Order [Warden]`, `Feature: Elven Lineage [INT; High]`, `Feature: Spellcasting [INT]`, `Feature: Draconic Ancestry [Red]`, `Feature: Size [Small]`; also an **optional class feature adopted** with no pick (`Feature: Favored Foe|TCE`). A feature the build gets anyway is not written; a build may still name one, bare, in the block where it arrives, to **highlight** it (`L2 Wizard` / `Feature: Portent`, D201). Details = the picks (§5.3). Placed in S/B/L it belongs to that entity; unplaced in H the consumer finds the owner (D28) |
+| `Feature` | items | H, S, B, L | a **named feature with a pick and no dedicated key**: `Feature: Divine Order [Warden]`, `Feature: Spellcasting [INT]`, `Feature: Size [Small]`, `Feature: Draconic Ancestry [Red]` for a Draconic Sorcerer; also an **optional class feature adopted** with no pick (`Feature: Favored Foe|TCE`). A feature the build gets anyway is not written; a build may still name one, bare, in the block where it arrives, to **highlight** it (`L2 Wizard` / `Feature: Portent`, D201). Details = the picks (§5.3). Placed in S/B/L it belongs to that entity; unplaced in H the consumer finds the owner (D28) |
 | `Cantrips` | items | H, S, B, L | cantrips chosen |
 | `Spells` | items | H, S, B, L | spells the build **adds to its repertoire** at that level: learned, scribed, or picked on level-up by a prepared-on-level-up caster. A caster that prepares from its whole list (2024 Cleric, Druid, Paladin) adds nothing, so it has no `Spells` lines — its default loadout is `Prepared`. Takes an optional **level cap** (D184): `Spells (6th): Mass Suggestion` (§5.7). A spell the build gets without choosing it (a domain's or patron's always-prepared spell, a species spell, Find Familiar from Pact of the Chain) is not written; written where it arrives, it is a **highlight** and fills no slot (D201) |
 | `Prepared` | items | H, L | default prepared loadout, **only** for casters whose repertoire exceeds the prepare count (a full-list preparer, a wizard's spellbook). The checker's normalise step removes it where `Spells` already says it (D23). Takes an optional level cap, as `Spells` |
@@ -319,7 +319,7 @@ Details are positional. The profile fixes the slot order per key; empty slots ke
 
 **One rule for `Feat`, `Feature` and `Options` (D107):** when the thing asks an ability, the
 ability is the **first slot**, then its picks in printed order: `Feat: Resilient [CON]`,
-`Feature: Spellcasting [INT]`, `Feature: Elven Lineage [INT; High]`. When it asks none, there is
+`Feature: Spellcasting [INT]`. When it asks none, there is
 **no leading slot**: `Feat: Skilled [Arcana, History, Insight]`, `Feature: Divine Order [Warden]`.
 A feat whose score increase also sets its casting ability writes the ability once
 (`Fey Touched [CHA; …]`). An ability slot is one bare ability name (`STR`…`CHA`); the parser keeps
@@ -341,13 +341,18 @@ fighting-style feat), `+1 CHA` is accepted as the same pick: `Grappler [+1 STR]`
   `Feat: Magic Initiate [CHA; Wizard; Mind Sliver, Ray of Frost; Chromatic Orb]`. That `Feat`
   line is the option's feat, not an ASI-slot feat.
 - **`Feature`**: the ability, if asked, then the feature's picks in printed order
-  (`Divine Order [Warden]`, `Elven Lineage [WIS; Wood]`).
+  (`Divine Order [Warden]`, `Spellcasting [INT]`).
 - **A chosen form** (D195): an option or spell that calls a creature or a pact weapon whose form the
   player picks names that form as its one detail: `Invocations: Pact of the Chain [Imp]`,
   `Invocations: Pact of the Blade [Glaive]`, `Spells: Find Familiar [Owl]`, `Prepared: Find Steed
   [Warhorse]`, `Spells: Summon Fey [Fuming]`. Optional; any other spell takes no details.
-- **`Subclass`**, **`Species`**, **`Background`** items carry **no details**: their picks are
-  lines (`Feature`, `Skills`, `Scores`, …) in the relevant block or level.
+- **`Species`**: `[<lineage>; <ability>]`, the one exception to ability-first (D281): the name part leads.
+  The lineage is written short, without the word that repeats the species or the trait (`Elf [Wood]`,
+  `Goliath [Fire]`, `Gnome [Rock]`); the checker also reads the data's long name (`Wood Elf`, `Fire Giant`).
+  No lineage asked, no brackets; a lineage with no ability asked, one group (`Dragonborn [Black]`).
+- **`Subclass`** and **`Background`** items carry **no details**: their picks are
+  lines (`Feature`, `Skills`, `Scores`, …) in the relevant block or level. So do every species pick
+  but the defining one (D280).
 
 ### 5.4 Placement and resolution
 
@@ -421,7 +426,7 @@ Read with `W005` in their 0.7 scopes (`E005` elsewhere), written in their 0.8 fo
 |---|---|
 | `ASI: +2 CHA` in S or B | `Scores: +2 CHA` |
 | `ASI: +2 CHA` in H or L | `Feat: Ability Score Improvement [+2 CHA]` (added to the scope's `Feat` line) |
-| `Ability: WIS` | the first detail of the scope's one `Feature` item (`Size` aside): `Feature: Elven Lineage [WIS; Wood]`. With no single owner the parser has no data to choose one, so the line **stays as written** and is emitted as `Ability: WIS` |
+| `Ability: WIS` | in the Species block after a `Species` line that names a lineage and no ability: that ability, in the brackets, with no warning (D281, §5.1). Otherwise the first detail of the scope's one `Feature` item (`Size` aside): `Feature: Spellcasting [WIS]`. With no single owner the parser has no data to choose one, so the line **stays as written** and is emitted as `Ability: WIS` |
 | `Fighting Style: Archery` | `Feat (Fighting Style): Archery` |
 | `Equipment: …`, `Items: …` | `Gear: …` (both merge into one `Gear` line) |
 
@@ -465,6 +470,20 @@ Anything else in the parentheses (`(3)`, `(cantrip)`, `(10th)`, `(3th)`) or a ca
 **Reading them.** A consumer that reads options reads `Options`, its marked lines and the family
 keys (the library's `keyGroup` gives `Options` for each); one that reads spells reads the capped
 lines too (`keyGroup` gives `Spells`, `levelCap` the cap).
+
+---
+
+### 5.8 0.9 lineage forms (0.10)
+
+Read with a warning, written in the bracket form (D282, D283); saved 0.9 pastes keep working:
+
+| 0.9 line | 0.10 form |
+|---|---|
+| `Feature: Elven Lineage [WIS; Wood]` in the Species block: a feature whose name ends in `Lineage`, `Legacy` or `Ancestry` (`W006`) | `Species: Elf [Wood; WIS]`: the lineage, then the ability, whichever order the feature had them. The parser moves it only when the `Species` line has no brackets yet; otherwise the line stays as written. In a level block or the header, such a feature is a class pick and stays (`Feature: Draconic Ancestry [Red]` for a Draconic Sorcerer) |
+| `Species: Elf (Wood)\|PHB`: one trailing parenthesised group, no brackets (`W007`) | `Species: Elf\|PHB [Wood]`. Only the last group moves: `Elf (Kaladesh) (Vahadar)\|PSK` → `Elf (Kaladesh)\|PSK [Vahadar]`; a quoted name with `;` or `,` inside stays |
+
+Both carry a safe fix; Tidy makes it by writing the canonical form. The checker maps `Elf|PHB [Wood]` back to
+the data's `Elf (Wood)|PHB` (§6).
 
 ---
 
@@ -583,6 +602,17 @@ never judged against what the class can cast.
 | C005 | unplaced |
 | C006 | extra |
 
+**0.10 additions** (D280–D283, D287). The `Species` line's first group is the lineage. The checker reads it
+against the species' lineage options: the data's versions, or the supplement's for a prose-only trait (D35).
+When the resolved printing doesn't offer it, a bare name takes the one printing that does (`Elf [Lorwyn]` is
+the Lorwyn elf), and otherwise `Base (Lineage)` names the data's 2014 subrace (`Elf|PHB [Wood]` is
+`Elf (Wood)|PHB`). A missing lineage is a warning that names the bracket form (`Elf [Drow | High | Wood]`); a
+missing spellcasting ability is info; a lineage or ability outside the options is info; a lineage on a species
+that has none, or an ability no lineage asks, is an accepted extra. A lineage written before the name
+(`Wood Elf`, `Black Dragonborn`, `Hill Dwarf`) reads as the bracket form, with an info, when the whole name is
+no species and the rest is one that offers that lineage (D287); `normalise` writes it, and the library's
+`tidy` does when the caller brings the species data (`TidyOptions.species`, the checker's `speciesLineage`).
+
 ---
 
 ## 7. Diagnostics
@@ -599,7 +629,7 @@ never judged against what the class can cast.
 | E008 | drop prefix outside a level scope or on a non-`items` key |
 | E009 | quantity on a key other than `Gear` |
 | E010 | reserved line `---` |
-| E011 | malformed item: unbalanced brackets or quotes, nested brackets, empty name |
+| E011 | malformed item: unbalanced brackets or quotes, nested brackets, empty name, a source after the brackets (D286) |
 | E012 | value does not match the key's type (`classes`, `scores`, `asi`, `enum`, `int`), including runs that do not strictly increase (§5.2) |
 | E013 | `@<n>` outside a detail |
 | E014 | entity block after a level block, or a second block for the same key |
@@ -610,6 +640,8 @@ never judged against what the class can cast.
 | W003 | a level header's class has no levels left in `Classes` at a played level (totals form, §5.4); the header still fixes its level |
 | W004 | no value yet: the key is "not chosen yet", parsed as empty, kept by emit (D112) |
 | W005 | renamed key: a 0.7 key read as its 0.8 form (§2.6, §5.6) |
+| W006 | a 0.9 defining-pick `Feature` line in the Species block, moved onto the `Species` line (§5.8, D283) |
+| W007 | a 0.9 species name with its variant in parentheses (`Elf (Wood)`), read as `Elf [Wood]` (§5.8, D282) |
 
 **Hints and fixes** (D192, D203). Every error and most warnings carry a `hint`: how to fix it, in a few
 words ("Move above Species", "Did you mean Classes?", "Join with commas", "Use / between classes"). When
@@ -659,9 +691,8 @@ Rules: 2024
 Scores: 10/14/13/8/16/12
 Classes: Druid 4
 
-Species: Elf
+Species: Elf [Wood; WIS]
 Skills: Perception
-Feature: Elven Lineage [WIS; Wood]
 
 Background: Custom
 Scores: +2 WIS, +1 DEX
@@ -736,11 +767,10 @@ L4 Fighter
 ASI: +2 STR
 ```
 
-reads with one `W005` per old line and emits as
+reads with one `W005` per renamed line and a `W006` for the lineage line (§5.8), and emits as
 
 ```
-Species: Elf
-Feature: Elven Lineage [WIS; Wood]
+Species: Elf [Wood; WIS]
 
 Background: Custom
 Scores: +2 WIS, +1 DEX
@@ -853,3 +883,22 @@ before, with no new warning (§2.6). The additions are minor-version.
   `tidy`, `foldOptions`, `familyKey` and `abilityOf`.
 - Checker: owed picks say where to add them, granted spells and bare features are silent, source codes
   outside the data are infos, repeated Gear names, finding codes (§6, D204, D205).
+
+---
+
+## 12. Changes from 0.9
+
+0.10 (D280–D287) moves one pick and renames no key. A 0.9 paste still reads: its lineage `Feature` line and an
+`Elf (Wood)` species name read with a warning (`W006`, `W007`) and `emit` writes the 0.10 form (§5.8).
+
+- **The defining pick goes on the `Species` line** (D280): `Species: Elf [Drow]`, `Dragonborn [Black]`,
+  `Goliath [Fire]`. Its `Feature` line goes. Amends D26 for that one pick.
+- **Then its spellcasting ability** (D281): `Species: Elf [Drow; WIS]`. An `Ability: WIS` line in the Species
+  block also reads, with no warning, and is written in the brackets.
+- **2014 subraces use the same form** (D282): `Species: Elf|PHB [Wood]`; `Elf (Wood)|PHB` reads with `W007`.
+- **The source goes after the name**, before the brackets, on every item, as before (D286); `Elf [Wood]|PHB`
+  is `E011` with a safe fix.
+- Checker: lineage and ability slots on the `Species` line, `Elf [Wood]` mapped to the data's `Elf (Wood)`,
+  `Wood Elf` read as `Elf [Wood]` (§6, D287). Supplement: `lineageAbility`.
+- Library: `W006`, `W007`; `speciesPicks`, `speciesLineage`, `shortLineage` (`dndpaste/check`);
+  `TidyOptions.species`.

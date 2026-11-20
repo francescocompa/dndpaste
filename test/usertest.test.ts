@@ -107,7 +107,7 @@ describe("D192: every error says how to fix it, in a few words", () => {
   test("T21: a message never doubles its key", () => {
     const f = check(parse("Rules: 2024\nClasses: Artificerz 1\n\nSpecies: Elf (Lorwyn)"), srd, supplement);
     for (const x of f) assert.ok(!x.message.startsWith(`${x.where}:`), x.message);
-    assert.ok(msgs(f).includes('"Elf (Lorwyn)" matches nothing in the loaded data'), JSON.stringify(f));
+    assert.ok(msgs(f).includes('"Elven Lineage" pick "Lorwyn" is not one of: Drow, High, Wood'), JSON.stringify(f));
   });
 });
 
@@ -163,8 +163,10 @@ describe("D194, D205: homebrew and Unearthed Arcana never break the build", () =
 
   test("T30: names may hold parentheses; T23: Options (<name>) stays free", () => {
     const p = parse("Rules: 2014\n\nSpecies: Human (Mark of Making)|ERLW\n\nL1 Psion\nOptions (Psionic Discipline): Telekinetic Propel");
-    assert.deepEqual(p.diagnostics, []);
-    assert.equal(p.entities[0].item?.ref.name, "Human (Mark of Making)");
+    assert.deepEqual(p.diagnostics.map((d) => d.code), ["W007"], "a 2014 subrace name reads as Human|ERLW [Mark of Making] (D282)");
+    assert.equal(p.entities[0].item?.ref.name, "Human");
+    assert.equal(emit(p).split("\n")[2], "Species: Human|ERLW [Mark of Making]");
+    assert.deepEqual(parse("Gear: Arrows (20) x2").diagnostics, [], "parentheses in other names are part of the name");
     assert.ok(p.levels[0].lines.has("Options (Psionic Discipline)"));
   });
 });

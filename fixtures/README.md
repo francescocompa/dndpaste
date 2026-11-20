@@ -10,7 +10,9 @@ its 0.8 sibling. `noncanonical/st-extension` and `noncanonical/st-quoting` are 0
 `mc-planned-20-families` is `mc-planned-20` in SPEC 0.9 form (family keys, `Spells (6th)` for
 Mystic Arcanum, D180–D184); `noncanonical/mc-planned-20-families` is its long form (`Options (invocation)`,
 `Options (Mastery)`, `Spells (6TH)`), which emits as the canonical file. A test checks both fixtures get the
-same checker findings as `mc-planned-20`.
+same checker findings as `mc-planned-20`. Since SPEC 0.10 (D280) the fixtures write the lineage on the `Species`
+line (`Species: Tiefling|XPHB [Infernal]`); `v0.7/druid-custom-background` and `noncanonical/mc-planned-20-families`
+keep the old `Feature` line and read with `W006`.
 
 Fidelity notes:
 - `vice`: the paper sheet lists three invocations at level 1; a 2024 Warlock has one at level 1 and

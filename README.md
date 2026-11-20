@@ -84,7 +84,10 @@ the two are not the same list. `Note` is free text for people and means nothing 
 | `isAbilitySlot(group)`, `abilityOf(group)` | Whether a detail group is an ability pick, and which ability (`[CHA]`, or `[+1 CHA]` on a 2024 half feat). |
 | `foldOptions(paste, family)` | Moves plain `Options` lines onto their family key, with family data you supply. |
 
-SPEC 0.7 keys still parse, with a `W005` warning, and emit in their 0.8 form (SPEC §2.6, §5.6).
+SPEC 0.7 keys still parse, with a `W005` warning, and emit in their 0.8 form (SPEC §2.6, §5.6). The 0.9 lineage forms
+(`Feature: Elven Lineage [WIS; Wood]`, `Species: Elf (Wood)|PHB`) parse with `W006`/`W007` and emit as
+`Species: Elf [Wood; WIS]` and `Species: Elf|PHB [Wood]` (SPEC §5.8). `tidy(text, { species })` also writes `Wood Elf` as
+`Elf [Wood]` when you pass the checker's `speciesLineage` with a slot table.
 
 ### The checker and the slot table
 

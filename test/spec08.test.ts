@@ -41,16 +41,16 @@ describe("D106: named scores take / too", () => {
 
 describe("D107: an ability pick is the first detail slot of the thing that asks it", () => {
   test("the parser keeps it as an ordinary first group; the checker reads past it", () => {
-    const p = parse("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf\nSkills: Perception\nFeature: Elven Lineage [INT; High Elf]");
+    const p = parse("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf [High Elf; INT]\nSkills: Perception");
     assert.deepEqual(codes(p), []);
     const f = check(p, srd, supplement);
-    assert.ok(!has(f, "missing", /casting-ability/), JSON.stringify(f));
+    assert.ok(!has(f, "missing", /spellcasting ability/), JSON.stringify(f));
     assert.ok(!has(f, "unresolved", /Elven Lineage/), "the lineage pick is read after the ability slot");
     assert.ok(!has(f, "missing", /Elven Lineage/), JSON.stringify(f));
   });
   test("a species that asks a casting ability with none written is missing/info", () => {
-    const f = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf\nSkills: Perception\nFeature: Elven Lineage [Wood]");
-    const m = f.find((x) => x.kind === "missing" && /casting-ability/.test(x.message));
+    const f = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf [Wood]\nSkills: Perception");
+    const m = f.find((x) => x.kind === "missing" && /spellcasting ability: Elf \[Wood; INT \| WIS \| CHA\]/.test(x.message));
     assert.ok(m && m.severity === "info", JSON.stringify(f));
   });
   test("a feat that asks no ability has no leading slot; a 0.7 empty leading slot still reads", () => {
@@ -209,13 +209,13 @@ describe("D112: an empty value means not chosen yet", () => {
 });
 
 describe("D113: 0.8 reads 0.7 keys with a renamed-key warning and writes the 0.8 form", () => {
-  test("the 0.7 fixtures canonicalise to their 0.8 siblings with W005 only", () => {
+  test("the 0.7 fixtures canonicalise to their 0.10 siblings with W005 (and W006 for the lineage line) only", () => {
     const dir = join(fixtures, "v0.7");
     const files = readdirSync(dir).filter((n) => n.endsWith(".dndpaste"));
     assert.ok(files.length >= 1);
     for (const f of files) {
       const p = parse(readFileSync(join(dir, f), "utf8"));
-      assert.ok(codes(p).length > 0 && codes(p).every((c) => c === "W005"), `${f}: ${JSON.stringify(p.diagnostics)}`);
+      assert.ok(codes(p).length > 0 && codes(p).every((c) => c === "W005" || c === "W006"), `${f}: ${JSON.stringify(p.diagnostics)}`);
       assert.equal(emit(p), readFileSync(join(fixtures, f), "utf8"), f);
     }
   });
@@ -228,20 +228,20 @@ describe("D113: 0.8 reads 0.7 keys with a renamed-key warning and writes the 0.8
       "L4 Fighter", "ASI: +1 STR, +1 CON",
     ].join("\n");
     const p = parse(text);
-    assert.deepEqual(codes(p), ["W005", "W005", "W005", "W005", "W005", "W005", "W005"]);
+    assert.deepEqual(codes(p), ["W005", "W006", "W005", "W005", "W005", "W005", "W005"], "the Ability line folds into the Species line silently (D281)");
     assert.equal(emit(p), [
       "Classes: Fighter 4", "Feat (Fighting Style): Archery", "",
-      "Species: Elf", "Scores: +2 DEX", "Feature: Elven Lineage [WIS; Wood]", "",
+      "Species: Elf [Wood; WIS]", "Scores: +2 DEX", "",
       "Background: Soldier", "Gear: A", "",
       "L1 Fighter", "Gear: B, Rope x2", "",
       "L4 Fighter", "Feat: Ability Score Improvement [+1 STR, +1 CON]", "",
     ].join("\n"));
   });
   test("an Ability line with no single owner stays as written, with the warning", () => {
-    const p = parse("Species: Elf\nAbility: WIS\nFeature: Elven Lineage [Wood], Keen Senses [Perception]");
+    const p = parse("Species: Elf\nAbility: WIS\nFeature: Keen Senses [Perception], Fey Step [Taunting]");
     assert.deepEqual(codes(p), ["W005"]);
     assert.match(p.diagnostics[0].message, /kept as written/);
-    assert.equal(emit(p), "Species: Elf\nFeature: Elven Lineage [Wood], Keen Senses [Perception]\nAbility: WIS\n");
+    assert.equal(emit(p), "Species: Elf\nFeature: Keen Senses [Perception], Fey Step [Taunting]\nAbility: WIS\n");
     assert.deepEqual(codes(parse(emit(p))), ["W005"], "it round-trips");
   });
   test("an alias outside its 0.7 scopes is still E005; 0.8 KEYS list no alias", () => {

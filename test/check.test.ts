@@ -115,7 +115,7 @@ test("species block: lineage, skill, ability", () => {
   const f = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf");
   assert.ok(has(f, "missing", /Elven Lineage/), JSON.stringify(f));
   assert.ok(has(f, "missing", /Skills/));
-  const g = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf\nSkills: Perception\nFeature: Elven Lineage [WIS; Wood]");
+  const g = run("Rules: 2024\nClasses: Druid 1\n\nSpecies: Elf [Wood; WIS]\nSkills: Perception");
   assert.equal(g.filter((x) => x.where === "Species" && x.severity === "warning").length, 0, JSON.stringify(g));
 });
 

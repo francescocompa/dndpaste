@@ -71,7 +71,7 @@ describe("D181: Options takes a family marker; a family's name folds into its ke
   });
   test("the long-form fixture emits as its canonical sibling, with no diagnostics", () => {
     const p = parse(read("noncanonical/mc-planned-20-families.dndpaste"));
-    assert.deepEqual(codes(p), []);
+    assert.deepEqual(codes(p), ["W006"], "its 0.9 lineage line moves onto the Species line (D283)");
     assert.equal(emit(p), read("mc-planned-20-families.dndpaste"));
   });
   test("any other marker is an open list, kept as written and sorted after Options", () => {

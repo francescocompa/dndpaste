@@ -417,3 +417,19 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Raw note:* "After the name (Recommended)"; then "Actually, maybe the source should always come last" and a pick of "Last, everywhere"; then "I'm still debating. Perhaps for now let's keep it as we always did it for everything, I may open this up for revision later."
   *Rejected for now (open for a later revision, owner Francesco):* the source last on every item (`Spellfire Spark [CHA]|FRHoF`), with the old order read with a warning (it changes every sourced item with details and makes saved builds warn); the source last on Species only (a Species-only exception to the item grammar); both orders read silently (two canonical forms, against D283).
   *Enforced by:* SPEC §3.1 and §5.1 (0.10), `test/` once T7.2 lands.
+
+- **D287 — A lineage written before the species' name reads as the bracket form when data says so: `Wood Elf` → `Elf [Wood]`, `Black Dragonborn` → `Dragonborn [Black]`, `Hill Dwarf` → `Dwarf [Hill]`. DECIDED (2026-11-20).** Only when the whole name is no species and the rest is one that offers that lineage (or prints it as a 2014 subrace). The parser has no species list, so it keeps the name: the checker reads it with an info, `normalise` writes it, and `tidy` does when the caller passes `TidyOptions.species` (the checker's `speciesLineage`). The site's Tidy wires it (site worker).
+  *Raw note:* "A note: the parser could also accept but tidy a format like Wood Elf, or Black Dragonborn".
+  *Rejected:* a data-free split in the parser (it can't tell `Wood Elf` from `Simic Hybrid` or `Custom Lineage`).
+  *Enforced by:* `test/spec10.test.ts` ("D287").
+
+- **D288 — The data-free rules for the 0.9 forms: a Species-block `Feature` whose name ends in Lineage, Legacy or Ancestry is the defining pick (W006); a Species name's one trailing parenthesised group is the variant (W007). DECIDED (2026-11-20), worker's call.** W006 moves the pick only when the `Species` line has no brackets yet, and never from a level block or the header (`Feature: Draconic Ancestry [Red]` is a Draconic Sorcerer's pick there). W007 moves only the last group (`Elf (Kaladesh) (Vahadar)|PSK` → `Elf (Kaladesh)|PSK [Vahadar]`) and leaves quoted names with `;` or `,`; it covers every 2014 subrace, `Human (Mark of Making)|ERLW` → `Human|ERLW [Mark of Making]` included (the guide's example of parentheses in a name changes, site worker). Both are W-codes with a safe fix, as W005 (D113): the AST holds the new form.
+  *Rejected:* a fixed list of trait names (misses other books' and homebrew lineages); moving header-scope lineage features (ambiguous with class picks).
+  *Enforced by:* `test/spec10.test.ts` ("D283", "D282").
+
+- **D289 — The editor and the checker's messages write a lineage short; the checker reads short or long. DECIDED (2026-11-20), worker's call, from D280's examples.** `Elf [Wood]`, `Goliath [Fire]`, `Gnome [Rock]`: the option's last word goes when it repeats the species or the trait's first word (`shortLineage`). The data's `Wood Elf`, `Fire Giant` still match.
+  *Rejected:* the data's long names as canonical (`Elf [Wood Elf]` repeats the species).
+  *Enforced by:* `test/spec10.test.ts` ("shortLineage", "a missing lineage names the bracket form").
+
+- **D290 — The supplement gives Gnomish Lineage's spellcasting ability (INT, WIS or CHA): `lineageAbility` (D35). DECIDED (2026-11-20), worker's call.** The slot table has no `spellAbility` for `Gnome|XPHB`, so `Gnome [Rock]` never asked for one. Names only, no rules text.
+  *Enforced by:* `test/spec10.test.ts` ("a missing ability is info").
