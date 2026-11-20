@@ -47,11 +47,12 @@ export const linkName = (l: Link): string => `${l.owner}/${l.repo}${l.path ? `/$
 const KIND_WORDS = /class|race|species|background|feat|spell|item|option/i;
 /** Companion files of descriptions only: no names the editor reads. */
 const SKIP = /fluff/i;
-/** Limits for one source: files, bytes. */
-export const MAX_FILES = 400;
+/** Files a GitHub folder reads, each one download (D261; D270: 1,000, a folder from this computer has no file cap). */
+export const MAX_FILES = 1000;
 /** A file inside a folder, by its path from the folder (D261, D269): a .json file at the top, or one whose path names a
  *  kind deeper down; description companions never. The same rule for a GitHub folder and a folder from this computer. */
 export const folderFile = (rel: string): boolean => /\.json$/i.test(rel) && !SKIP.test(rel) && (!rel.includes("/") || KIND_WORDS.test(rel));
+/** Bytes one source reads, from GitHub or from this computer. */
 export const MAX_BYTES = 80 * 1024 * 1024;
 
 export class LinkError extends Error {}
@@ -156,7 +157,7 @@ export async function fetchLink(l: Link, prev: Partial<LinkState> | null, onProg
     want.push(...(files ?? []));
   }
   if (!want.length) throw new LinkError("This folder has no .json files to read.");
-  if (want.length > MAX_FILES) throw new LinkError(`This folder has ${want.length} files; a source reads up to ${MAX_FILES}. Link a smaller folder.`);
+  if (want.length > MAX_FILES) throw new LinkError(`This folder has ${want.length.toLocaleString("en")} files to read; a GitHub folder reads up to ${MAX_FILES.toLocaleString("en")}. Link a subfolder.`);
   if (want.reduce((a, f) => a + f.size, 0) > MAX_BYTES) throw new LinkError("This folder is too large to read here. Link a smaller folder.");
   const shas = Object.fromEntries(want.map((f) => [f.path, f.sha]));
   const same = prev?.shas && Object.keys(prev.shas).length === want.length && want.every((f) => prev.shas?.[f.path] === f.sha);

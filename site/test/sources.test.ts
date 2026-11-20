@@ -164,6 +164,9 @@ test("D252, D254, D266, D267: the empty state, Group by book or source, Kinds, a
   assert.match(bySource, /GitHub folder · 3 files/);
   assert.match(bySource, /SRD names/);
   assert.match(bySource, /1 line not read/, "lines not read: a quiet alert with its reason");
+  assert.match(listHtml(view({ sources: s, lens: "source" })), /<summary aria-label="1 line not read" title="1 line not read"><svg[^]*?<\/svg><\/summary>/, "D270: only the icon in the meta line");
+  assert.doesNotMatch(listHtml(view({ sources: s, lens: "source" })), /class="pop"/, "D270: not the menus' .pop, whose overflow clipped the popover");
+  assert.match(bySource, /Built-in · [\d,]+ names/, "D270: the SRD row says built-in");
 });
 
 test("D248: GitHub links: files, folders, raw files; nothing else", () => {

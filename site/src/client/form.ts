@@ -10,7 +10,7 @@ import { highlightRows } from "./highlight.ts";
 import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, useYourPresets } from "../ghost.ts";
 import { readSummary } from "./summary.ts";
 import type * as Yours from "./sync.ts";
-import { markFixes, nameFixes, tidyPlan } from "../fixes.ts";
+import { fixCursor, markFixes, nameFixes, tidyPlan } from "../fixes.ts";
 import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
@@ -366,6 +366,9 @@ function init(): void {
     wlClose();
     if (next === null || next === before) return;
     writeChange(next);
+    // D270: a fix that writes empty brackets leaves the cursor inside the first ones, their list open.
+    const at = fixCursor(before, next);
+    if (at !== null) { ta.focus(); ta.setSelectionRange(at, at); complete(true); }
   });
   document.addEventListener("pointerdown", (e) => {
     if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb")) wlClose();
@@ -594,7 +597,7 @@ function init(): void {
     const hint = !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
-    // D266: two quiet rows, since it mostly follows a typo.
+    // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
     ac.innerHTML = (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
       hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
       `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +

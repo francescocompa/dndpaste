@@ -36,7 +36,7 @@ export function namesFormatHtml(): string {
       pre(JSON_EXAMPLE, "A names file in JSON") +
       `<p>The arrays are ${["class", "subclass", "race", "background", "feat", "spell", "item", "baseitem", "magicvariant", "optionalfeature"].map(c).join(", ")}. A ${c("race")} is a species, and an ${c("optionalfeature")} is an option.</p>`) +
     fold("format-more", "Feature options and folders", "What else is read", `<p>A class with its features also gives the options a feature offers inside ${c("[ ]")}, and the counts behind the editor's pick counts, such as cantrips and spells at each level. In the plain format, write a feature with its options: ${c("Feature: Ember Gift|MYHB [Spark, Flare]")}.</p>` +
-      `<p>A folder, from this computer or a GitHub link, gives every .json file at its top, and the .json files in its subfolders whose path names a kind, such as ${c("spells/")} or ${c("class/")}. A source reads up to 400 files.</p>` +
+      `<p>A folder, from this computer or a GitHub link, gives every .json file at its top, and the .json files in its subfolders whose path names a kind, such as ${c("spells/")} or ${c("class/")}. A GitHub folder reads up to 1,000 files; a folder from this computer, any number. Either reads up to 80 MB.</p>` +
       `<p>A species written as ${c("Dragonborn (Black)")} is left out when ${c("Dragonborn")} is there too.</p>` +
       `<p>Everything else in a file is dropped as it is read. No descriptions or rules text are kept.</p>`) +
     `</div></details>`;

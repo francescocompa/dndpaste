@@ -641,13 +641,14 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .srcp .stat .ok { display: inline-flex; color: var(--ok, var(--ab-wis)); }
 .srcp .act { display: flex; gap: 2px; align-items: center; }
 .srcp .srow.off > :not(.tgb):not(.act) { opacity: 0.5; }
-/* D266: lines not read, a quiet alert in the meta line that opens its reason. */
-.srcp .pop { position: relative; }
-.srcp .pop > summary { list-style: none; display: inline-flex; align-items: center; gap: 4px; color: var(--err); cursor: pointer; border-radius: 4px; }
-.srcp .pop > summary::-webkit-details-marker { display: none; }
-.srcp .pop > summary svg.i { width: 13px; height: 13px; }
-.srcp .pop .popb { position: absolute; z-index: 5; top: calc(100% + 6px); left: 0; width: min(300px, 80vw); padding: 9px 11px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--fg); font: 12.5px/1.5 var(--sans); box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); }
-.srcp .pop .popb code { font: 0.92em/1 var(--mono); }
+/* D266, D270: lines not read, an alert icon in the meta line that opens its count and reason. */
+.srcp .upop { position: relative; }
+.srcp .upop > summary { list-style: none; display: inline-flex; align-items: center; padding: 2px; margin: -2px 0; color: var(--err); opacity: 0.8; cursor: pointer; border-radius: 4px; }
+.srcp .upop > summary:hover, .srcp .upop[open] > summary { opacity: 1; }
+.srcp .upop > summary::-webkit-details-marker { display: none; }
+.srcp .upop > summary svg.i { width: 13px; height: 13px; }
+.srcp .upop .popb { position: absolute; z-index: 5; top: calc(100% + 6px); left: 0; width: min(300px, 80vw); padding: 9px 11px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--fg); font: 12.5px/1.5 var(--sans); box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); }
+.srcp .upop .popb code { font: 0.92em/1 var(--mono); }
 /* D267: a row's kinds, each with its switch. */
 .srcp .kds { display: grid; padding: 4px 0 0 0; }
 .srcp .kd { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 5px 0 5px 14px; border-top: 1px dashed var(--rule); font: 13px/1.4 var(--sans); }
@@ -693,8 +694,9 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .dmenu .srcrow .cnt { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--chip); color: var(--fg); font: 600 11px/18px var(--sans); text-align: center; }
 .dmenu .srcrow svg.i { color: var(--mute); }
 /* The autocomplete's no-match line while no source is added (D256). */
-.ac .ae { display: grid; gap: 2px; padding: 5px 8px; font: 12px/1.4 var(--sans); color: var(--mute); white-space: normal; }
-.ac .ae a { display: inline-flex; align-items: center; gap: 4px; justify-self: start; color: var(--mute); text-decoration: none; padding: 2px 0; }
+.ac .ae { display: grid; font: 12px/1.4 var(--sans); color: var(--mute); white-space: normal; }
+.ac .ae > span { padding: 6px 8px; }
+.ac .ae a { display: flex; align-items: center; gap: 4px; color: var(--mute); text-decoration: none; padding: 6px 8px; border-top: 1px solid var(--rule); }
 .ac .ae a:hover { color: var(--fg); }
 .ac .ae a svg.i { width: 12px; height: 12px; }
 /* A name of yours shows its book (D250). */

@@ -131,11 +131,12 @@ function byBook(v: View): string {
   return lensHead(v, "Books") + `<div class="c3">${body}</div>`;
 }
 
-/** A row's lines not read (D266): a quiet alert in the meta line that opens the reason. */
+/** A row's lines not read (D266, D270): only an alert icon in the meta line; the count and reason are in its popover. */
 function unread(k: number, id: string): string {
   if (!k) return "";
-  return `<details class="pop" data-pop="${esc(id)}"><summary>${icon("warning")}${plural(k, "line")} not read</summary>` +
-    `<div class="popb">${k === 1 ? "This line doesn't" : "These lines don't"} start with a kind, such as <code>Spell:</code> or <code>Feat:</code>. Fix the file and add it again.</div></details>`;
+  const said = `${plural(k, "line")} not read`;
+  return `<details class="upop" data-pop="${esc(id)}"><summary aria-label="${said}" title="${said}">${icon("warning")}</summary>` +
+    `<div class="popb"><b>${said}.</b> ${k === 1 ? "It doesn't" : "They don't"} start with a kind, such as <code>Spell:</code> or <code>Feat:</code>. Fix the file and add it again.</div></details>`;
 }
 
 function sourceRow(v: View, s: SourceRec): string {
@@ -173,7 +174,7 @@ function bySource(v: View): string {
   const mine = bookKinds(v.sources.filter((s) => s.on).map((s) => s.table));
   const partly = BUILTIN_BOOKS.some(([code]) => [...(v.builtin?.get(code)?.keys() ?? [])].some((k) => mine.get(code)?.has(k)));
   const srd = `<div class="srow${v.sw.builtin ? "" : " off"}"><div class="nm">${icon("database")}<span class="t">SRD names</span></div><div class="act"></div>` +
-    `${sw(`data-builtin="1"`, v.sw.builtin, "SRD names")}<div class="meta"><span>Comes with the site · <b>${n(v.builtinNames)}</b> names${partly && v.sw.builtin ? " · partly replaced by yours" : ""}</span></div>` +
+    `${sw(`data-builtin="1"`, v.sw.builtin, "SRD names")}<div class="meta"><span>Built-in · <b>${n(v.builtinNames)}</b> names${partly && v.sw.builtin ? " · partly replaced by yours" : ""}</span></div>` +
     `${v.split && v.sw.builtin ? kindRows(srdKinds(v), (k) => srcPair("srd", k), v.sw, "the SRD names") : ""}</div>`;
   return lensHead(v, "Sources") + v.sources.map((s) => sourceRow(v, s)).join("") + srd;
 }
@@ -186,7 +187,7 @@ function empty(v: View): string {
     `<div class="empty"><b>No sources yet.</b> Add a file, a folder or a GitHub link above.</div></section>` +
     `<section class="sec"><div class="lh"><span class="lbl">SRD</span><span class="muted">Always here</span></div>` +
     `<div class="srow"><div class="nm">${icon("database")}<span class="t">SRD names</span></div><div class="act"></div><span></span>` +
-    `<div class="meta"><span><b>${n(v.builtinNames)} names</b> · comes with the site</span></div>${books ? `<div class="bkst">${books}</div>` : ""}` +
+    `<div class="meta"><span>Built-in · <b>${n(v.builtinNames)}</b> names</span></div>${books ? `<div class="bkst">${books}</div>` : ""}` +
     `<p class="hint">Your names for a book and kind hide the SRD names for them.</p></div></section>`;
 }
 

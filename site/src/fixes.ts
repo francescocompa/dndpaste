@@ -276,8 +276,8 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
           const traits = missing.filter(([k]) => k === "Feature").map(([, v]) => String(v));
           const [a, b] = blockRange(xs, i);
           const fl = traits.length ? xs.findIndex((y, j) => j > a && j <= b && resolveKey(keyOf(y) ?? "").def?.key === "Feature") : -1;
-          // Review: a trait comes with its brackets, ready for its picks (`Elven Lineage [ ]`).
-          const bt = traits.map((x) => `${x} [ ]`).join(", ");
+          // Review: a trait comes with its brackets, ready for its picks (`Elven Lineage []`, as a pick writes them, D242).
+          const bt = traits.map((x) => `${x} []`).join(", ");
           if (fl >= 0) xs[fl] = `${xs[fl].replace(/\s+$/, "")}${/:$/.test(xs[fl].trim()) ? " " : ", "}${bt}`;
           const addLines = missing.filter(([k]) => k !== "Feature" || fl < 0).map(([k]) => (k === "Feature" ? `Feature: ${bt}` : `${k}:`));
           return insertInBlock(xs.join("\n"), i, [...new Set(addLines)]);
@@ -433,4 +433,17 @@ export function tidyPlan(text: string, n: Names | null = null, skip: ReadonlySet
   }
   if (!changes.length) return null;
   return { text: t, changes };
+}
+
+/**
+ * Where the cursor goes after a fix (D270): inside the first empty `[]` the fix wrote, so its list opens there, as
+ * after a pick (D242); null when the fix wrote none (the cursor stays after the change).
+ */
+export function fixCursor(before: string, next: string): number | null {
+  let a = 0;
+  while (a < before.length && a < next.length && before[a] === next[a]) a++;
+  let b = 0;
+  while (b < before.length - a && b < next.length - a && before[before.length - 1 - b] === next[next.length - 1 - b]) b++;
+  const i = next.slice(0, next.length - b).indexOf("[]", Math.max(0, a - 1));
+  return i < 0 ? null : i + 1;
 }

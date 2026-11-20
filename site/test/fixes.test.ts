@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parse } from "../../src/dndpaste.ts";
 import { ghostCounts } from "../src/ghost.ts";
-import { CANONICAL, lineFixes, markFixes, nameFixes, tidyPlan } from "../src/fixes.ts";
+import { CANONICAL, fixCursor, lineFixes, markFixes, nameFixes, tidyPlan } from "../src/fixes.ts";
 import type { Fix } from "../src/fixes.ts";
 import { highlightRows } from "../src/client/highlight.ts";
 import * as N from "../src/names.gen.ts";
@@ -63,9 +63,12 @@ test("D211 (T11): a species lays out its owed lines; a Feature line takes the tr
   const text = "Rules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\n\nL1 Warlock\n";
   const f = at(text, 4, "species-lines");
   assert.equal(f?.act, "Add Skills, Elven Lineage");
-  assert.equal(f?.apply(text), "Rules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\nSkills:\nFeature: Elven Lineage [ ]\n\nL1 Warlock\n", "review: with its brackets");
+  assert.equal(f?.apply(text), "Rules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\nSkills:\nFeature: Elven Lineage []\n\nL1 Warlock\n", "review: with its brackets");
+  const after = f?.apply(text) ?? "";
+  assert.equal(fixCursor(text, after), after.indexOf("[]") + 1, "D270: the cursor goes inside the brackets");
+  assert.equal(fixCursor("Skills:\n", "Skills:\nGear:\n"), null, "no brackets written, no move");
   const feat = "Rules: 2024\n\nSpecies: Elf\nFeature: Size [Medium]\nSkills: Insight\n";
-  assert.equal(at(feat, 3)?.apply(feat), "Rules: 2024\n\nSpecies: Elf\nFeature: Size [Medium], Elven Lineage [ ]\nSkills: Insight\n");
+  assert.equal(at(feat, 3)?.apply(feat), "Rules: 2024\n\nSpecies: Elf\nFeature: Size [Medium], Elven Lineage []\nSkills: Insight\n");
   assert.equal(at("Rules: 2024\n\nSpecies: Elf\nSkills: Insight\nFeature: Elven Lineage [INT; High Elf]\n", 3), undefined);
   assert.equal(at("Rules: 2024\n\nSpecies: Human\n", 3)?.act, "Add Skills, Feat", "Skillful and the Origin feat");
   // The species' Skills line counts its picks.

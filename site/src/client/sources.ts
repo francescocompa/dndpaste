@@ -62,9 +62,9 @@ function start(): void {
     const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("[data-lens],[data-split],[data-cat],[data-catsw],[data-book],[data-pair],[data-source],[data-builtin],[data-check],[data-remove],[data-remove-no],[data-remove-yes]");
     const sel = focused ? [...focused.attributes].find((a) => a.name.startsWith("data-")) : null;
     // A redraw (a visit's link check ending) keeps an open "not read" popover open.
-    const pops = [...list.querySelectorAll<HTMLDetailsElement>("details.pop[open]")].map((d) => d.dataset.pop ?? "");
+    const pops = [...list.querySelectorAll<HTMLDetailsElement>("details.upop[open]")].map((d) => d.dataset.pop ?? "");
     list.innerHTML = listHtml(view);
-    for (const id of pops) { const d = list.querySelector<HTMLDetailsElement>(`details.pop[data-pop="${CSS.escape(id)}"]`); if (d) d.open = true; }
+    for (const id of pops) { const d = list.querySelector<HTMLDetailsElement>(`details.upop[data-pop="${CSS.escape(id)}"]`); if (d) d.open = true; }
     if (sel) list.querySelector<HTMLElement>(`[${sel.name}="${CSS.escape(sel.value)}"]`)?.focus({ preventScroll: true });
     // The names format is open while there is nothing else to read (the empty frame), folded once sources exist.
     if (docs && !docs.dataset.touched) docs.open = !v.sources.length;

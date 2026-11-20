@@ -6,7 +6,7 @@
 import { allCodes } from "../codelist.ts";
 import { joinReads, keepTable, merge, readText } from "../yours.ts";
 import type { Merged, Names, SourceRec, Switches } from "../yours.ts";
-import { fetchLink, folderFile, LinkError, linkName, MAX_BYTES, MAX_FILES, parseLink } from "./github.ts";
+import { fetchLink, folderFile, LinkError, linkName, MAX_BYTES, parseLink } from "./github.ts";
 import { getSwitches, listSources, putSource } from "./sourcestore.ts";
 
 /** Book code → publication date, so a book from 2024 on reads as 2024 (books.ts and the playtest codes, D228). */
@@ -40,13 +40,13 @@ export async function fromFile(file: File, featCategories: Readonly<Record<strin
 
 /**
  * A folder from this computer, picked or dropped (D269) → a new source (not yet saved), read once like a file. `files`
- * carry their path from the folder; the folder's .json files are read by the GitHub folder rule (github.ts `folderFile`).
+ * carry their path from the folder; the folder's .json files are read by the GitHub folder rule (github.ts `folderFile`),
+ * with no file cap, only the size cap (D270).
  */
 export async function fromFolder(name: string, files: readonly { path: string; file: File }[], featCategories: Readonly<Record<string, string>> = {},
   onProgress?: (done: number, all: number) => void): Promise<SourceRec> {
   const want = files.filter((f) => folderFile(f.path));
   if (!want.length) throw new AddError("This folder has no .json files to read.");
-  if (want.length > MAX_FILES) throw new AddError(`This folder has ${want.length} files; a source reads up to ${MAX_FILES}. Pick a smaller folder.`);
   if (want.reduce((a, f) => a + f.file.size, 0) > MAX_BYTES) throw new AddError("This folder is too large to read here. Pick a smaller folder.");
   const reads = [];
   for (const [i, f] of want.entries()) {
