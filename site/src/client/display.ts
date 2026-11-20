@@ -89,7 +89,7 @@ export function displayMenuHtml(d: Display, persistent = true, suggest = true, s
     // D173 (review): the editor's name and key lists, beside the display settings.
     `<hr>` + sw("suggest", "Suggestions", "Name and key lists in the editor") +
     // D256: the way to /sources, at the menu's foot.
-    (sources ? `<hr><a class="srcrow" href="/sources">${icon("database")}<span class="grow">Your sources</span><span class="muted">${sources.n ? `${sources.on} on` : "None yet"}</span>${icon("chevron-right")}</a>` : "") +
+    (sources ? `<hr><a class="srcrow" href="/sources">${icon("database")}<span class="grow">Your sources</span>${sources.n ? `<span class="cnt" aria-label="${sources.n} ${sources.n === 1 ? "source" : "sources"}">${sources.n}</span>` : ""}${icon("chevron-right")}</a>` : "") +
     // Round 2: no "Saved in this browser." line; only blocked storage says something.
     (persistent ? "" : `<small class="saved">This browser blocks storage, so these settings last for this visit only.</small>`);
 }

@@ -333,6 +333,8 @@ function candidates(n: Names, sp: Spot): Cand[] {
         const slots = l[1] ? [abilities(l[1]), plain(l[2])] : [plain(l[2])];
         if (slots[sp.slot]) return slots[sp.slot];
       }
+      // D266: a feature no list knows offers nothing inside its brackets (the name itself is the thing to fix).
+      if (!l && !n.DETAILS.some((r) => lc(r[0]) === p)) return [];
     } else if (keyGroup(sp.key) === "Options") {
       const o = pick(n.OPTIONS);
       if (o && o[4] && sp.slot === 0) return spells((l) => l === 0);

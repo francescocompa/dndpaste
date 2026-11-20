@@ -590,10 +590,12 @@ function init(): void {
     // Desktop: every group, the cursor's in bold. Phone: only the cursor's group and where it is (round 3: the full
     // line was cut and read as stale once a group was filled).
     const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
-    const hint = !acHint ? "" : onPhone
+    // D266: the slot title only where the brackets take two picks or more; one slot needs no title.
+    const hint = !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
-    ac.innerHTML = (acEmpty ? `<div class="ae">No matches. <a href="/sources">Add your own sources</a> to suggest more books.</div>` : "") +
+    // D266: two quiet rows, since it mostly follows a typo.
+    ac.innerHTML = (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
       hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
       `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
@@ -605,7 +607,7 @@ function init(): void {
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : "name";
-      acSays.textContent = acEmpty ? "No matches. Add your own sources to suggest more books." : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
     ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
     ac.hidden = false;

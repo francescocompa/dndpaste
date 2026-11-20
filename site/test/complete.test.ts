@@ -136,11 +136,13 @@ test("D156: inside [ ] the list follows the slot the table knows", () => {
   assert.deepEqual(spot("Species: Elf [hi¦") && names("Species: Elf [hi¦"), [], "Species carries no details");
 });
 
-test("D156: an unknown slot gets the general list: abilities, skills and spells", () => {
-  const g = names("Feature: Homebrew Gift [ar¦", 20) ?? [];
+test("D156, D266: an unknown feat's slot gets the general list; an unknown feature's brackets offer nothing", () => {
+  assert.deepEqual(names("Feat: Homebrew Thing [co¦")?.slice(0, 1), ["CON"]);
+  const g = names("Feat: Homebrew Thing [ar¦", 20) ?? [];
   assert.ok(g.includes("Arcana"));
   assert.ok(g.includes("Arcane Eye") || g.includes("Arcane Lock"));
-  assert.deepEqual(names("Feat: Homebrew Thing [co¦")?.slice(0, 1), ["CON"]);
+  assert.deepEqual(names("Feature: Homebrew Gift [ar¦", 20) ?? [], []);
+  assert.deepEqual(names("Feature: Elf Lineage [¦", 20) ?? [], [], "the trait is Elven Lineage");
 });
 
 test("D155: sources follow Rules", () => {

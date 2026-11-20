@@ -36,22 +36,23 @@ export function namesFormatHtml(): string {
       pre(JSON_EXAMPLE, "A names file in JSON") +
       `<p>The arrays are ${["class", "subclass", "race", "background", "feat", "spell", "item", "baseitem", "magicvariant", "optionalfeature"].map(c).join(", ")}. A ${c("race")} is a species, and an ${c("optionalfeature")} is an option.</p>`) +
     fold("format-more", "Feature options and folders", "What else is read", `<p>A class with its features also gives the options a feature offers inside ${c("[ ]")}, and the counts behind the editor's pick counts, such as cantrips and spells at each level. In the plain format, write a feature with its options: ${c("Feature: Ember Gift|MYHB [Spark, Flare]")}.</p>` +
-      `<p>A GitHub folder link reads every .json file in the folder, and the .json files in its subfolders whose path names a kind, such as ${c("spells/")} or ${c("class/")}. A source reads up to 400 files.</p>` +
+      `<p>A folder, from this computer or a GitHub link, gives every .json file at its top, and the .json files in its subfolders whose path names a kind, such as ${c("spells/")} or ${c("class/")}. A source reads up to 400 files.</p>` +
+      `<p>A species written as ${c("Dragonborn (Black)")} is left out when ${c("Dragonborn")} is there too.</p>` +
       `<p>Everything else in a file is dropped as it is read. No descriptions or rules text are kept.</p>`) +
     `</div></details>`;
 }
 
 export function sourcesPage(): string {
   const main = `<div class="srcp">
-<div class="prose intro"><h1>Your sources</h1><p>Add names from more books, so the editor's autocomplete suggests them. A source is a file or a GitHub link. Only names, book codes and counts are kept. Any other text is dropped.</p></div>
+<div class="prose intro"><h1>Your sources</h1><p>Add names from more books to the editor's suggestions. A source is a file, a folder or a GitHub link. Only names, book codes and counts are kept.</p></div>
 <p class="store">${icon("info")}<span>Kept in this browser only, never uploaded. Clearing site data removes them.</span></p>
 <noscript><p class="ferr">This page needs JavaScript: your sources are read and kept by this browser.</p></noscript>
 <section class="add njs" aria-labelledby="add-h">
 <div class="addh"><span class="lbl" id="add-h">Add a source</span><div class="seg" role="radiogroup" aria-label="Add a source from"><button type="button" role="radio" aria-checked="true" class="on" data-way="file">${icon("upload")}File</button><button type="button" role="radio" aria-checked="false" data-way="link">${icon("link")}GitHub link</button></div></div>
-<div class="way-file"><div class="drop">${icon("upload")}<span class="grow">Drop a names file here (.txt or .json), or pick one.</span><button type="button" class="bt pick">${icon("file")}Choose a file</button><input type="file" class="vh" accept=".txt,.json,text/plain,application/json" tabindex="-1" aria-hidden="true"></div>
-<p class="hint">Not sure what goes in the file? See <a class="lk" href="#names-format">Names format</a> below.</p></div>
+<div class="way-file"><div class="drop">${icon("upload")}<span class="grow">Drop a names file or a folder here.</span><button type="button" class="bt pick">${icon("file")}Choose a file</button><button type="button" class="bt pickdir">${icon("folder")}Choose a folder</button><input type="file" class="vh" accept=".txt,.json,text/plain,application/json" tabindex="-1" aria-hidden="true"><input type="file" class="vh dir" webkitdirectory tabindex="-1" aria-hidden="true"></div>
+<p class="hint">A file is .txt or .json; a folder is read for its .json files. See <a class="lk" href="#names-format">Names format</a>.</p></div>
 <form class="way-link" hidden><div class="lrow"><label class="vh" for="src-link">GitHub link</label><input class="in mono" id="src-link" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Paste a GitHub link to a file or a folder"><button type="submit" class="bt pri">${icon("plus")}Add link</button></div>
-<p class="hint">This browser fetches it from GitHub and checks it again on each visit. A folder link reads every .json file in it.</p></form>
+<p class="hint">This browser reads it from GitHub and checks it again on later visits.</p></form>
 <div class="addout" aria-live="polite"></div>
 </section>
 <div class="list njs" aria-live="polite"></div>

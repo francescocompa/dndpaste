@@ -6,7 +6,7 @@
 import { allCodes } from "../codelist.ts";
 import { joinReads, keepTable, merge, readText } from "../yours.ts";
 import type { Merged, Names, SourceRec, Switches } from "../yours.ts";
-import { fetchLink, LinkError, linkName, parseLink } from "./github.ts";
+import { fetchLink, folderFile, LinkError, linkName, MAX_BYTES, MAX_FILES, parseLink } from "./github.ts";
 import { getSwitches, listSources, putSource } from "./sourcestore.ts";
 
 /** Book code → publication date, so a book from 2024 on reads as 2024 (books.ts and the playtest codes, D228). */
@@ -35,6 +35,28 @@ export async function fromFile(file: File, featCategories: Readonly<Record<strin
   const read = readText(text, featCategories);
   const rec: SourceRec = { id: newId(), name: file.name, type: "file", on: true, added: now(), files: 1, skipped: read.skipped, table: keepTable(read, DATES(), featCategories) };
   if (!hasNames(rec)) throw new AddError(read.format === "json" ? "No names found. Each entry needs a name and a source." : "No names found. Start each line with a kind, such as Spell: Name|BOOK.");
+  return rec;
+}
+
+/**
+ * A folder from this computer, picked or dropped (D269) → a new source (not yet saved), read once like a file. `files`
+ * carry their path from the folder; the folder's .json files are read by the GitHub folder rule (github.ts `folderFile`).
+ */
+export async function fromFolder(name: string, files: readonly { path: string; file: File }[], featCategories: Readonly<Record<string, string>> = {},
+  onProgress?: (done: number, all: number) => void): Promise<SourceRec> {
+  const want = files.filter((f) => folderFile(f.path));
+  if (!want.length) throw new AddError("This folder has no .json files to read.");
+  if (want.length > MAX_FILES) throw new AddError(`This folder has ${want.length} files; a source reads up to ${MAX_FILES}. Pick a smaller folder.`);
+  if (want.reduce((a, f) => a + f.file.size, 0) > MAX_BYTES) throw new AddError("This folder is too large to read here. Pick a smaller folder.");
+  const reads = [];
+  for (const [i, f] of want.entries()) {
+    onProgress?.(i, want.length);
+    try { reads.push(readText(await f.file.text(), featCategories)); } catch { throw new AddError(`This browser could not read ${f.path}.`); }
+  }
+  onProgress?.(want.length, want.length);
+  const read = joinReads(reads);
+  const rec: SourceRec = { id: newId(), name, type: "folder", on: true, added: now(), files: want.length, skipped: read.skipped, table: keepTable(read, DATES(), featCategories) };
+  if (!hasNames(rec)) throw new AddError("No names found in this folder's .json files.");
   return rec;
 }
 
@@ -97,7 +119,7 @@ export async function editorNames(n: Names): Promise<Merged | null> {
 
 /** The merge, or null when nothing differs from the built-in names (no sources, every switch on). */
 export function mergeOrNull(n: Names, sources: readonly SourceRec[], sw: Switches): Merged | null {
-  const plain = sw.builtin && !sw.offBooks.length && !sw.offKinds.length && !sources.some((s) => s.on);
+  const plain = sw.builtin && !sw.offBooks.length && !sw.offPairs.length && !sources.some((s) => s.on);
   return plain ? null : merge(n, sources, sw);
 }
 

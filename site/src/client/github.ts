@@ -49,6 +49,9 @@ const KIND_WORDS = /class|race|species|background|feat|spell|item|option/i;
 const SKIP = /fluff/i;
 /** Limits for one source: files, bytes. */
 export const MAX_FILES = 400;
+/** A file inside a folder, by its path from the folder (D261, D269): a .json file at the top, or one whose path names a
+ *  kind deeper down; description companions never. The same rule for a GitHub folder and a folder from this computer. */
+export const folderFile = (rel: string): boolean => /\.json$/i.test(rel) && !SKIP.test(rel) && (!rel.includes("/") || KIND_WORDS.test(rel));
 export const MAX_BYTES = 80 * 1024 * 1024;
 
 export class LinkError extends Error {}

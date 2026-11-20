@@ -3,11 +3,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import * as N from "../src/names.gen.ts";
-import { counts, keepTable, merge, readPlain, readText, NO_SWITCHES, OWN_2014, OWN_2024 } from "../src/yours.ts";
+import { bookPair, counts, dropVariants, keepTable, merge, readPlain, readText, srcPair, NO_SWITCHES, OWN_2014, OWN_2024 } from "../src/yours.ts";
 import type { SourceRec, Switches } from "../src/yours.ts";
 import { categoryToggle, listHtml } from "../src/sourcesview.ts";
 import type { View } from "../src/sourcesview.ts";
-import { fetchLink, parseLink } from "../src/client/github.ts";
+import { fetchLink, folderFile, parseLink } from "../src/client/github.ts";
 import { spotAt, suggest, sourceFor } from "../src/client/complete.ts";
 import type { Names } from "../src/client/complete.ts";
 import { tableFor, useYourPresets } from "../src/ghost.ts";
@@ -80,15 +80,18 @@ test("D255: your XPHB spells hide the built-in XPHB spells only; built-in XPHB c
   assert.ok(!off.SPELLS.some((s) => s[0] === "Ember Ward"));
 });
 
-test("D253: books, kinds and the built-in names switch for every source at once", () => {
+test("D253, D267: books for every source, kinds inside a book or a source, and the SRD names switch", () => {
   const n = N as unknown as Names;
   const sw = (o: Partial<Switches>): Switches => ({ ...NO_SWITCHES, ...o });
   const t = plainTable();
   const a = merge(n, [src(t)], sw({ offBooks: ["MYHB"] })).names;
   assert.ok(!a.SPELLS.some((s) => s[0] === "Moonbeam Lance") && a.CLASS_ROWS.some((c) => c[0] === "Gunslinger"));
-  const b = merge(n, [src(t)], sw({ offKinds: ["spells"] })).names;
-  assert.ok(!b.SPELLS.length, "spells off: neither yours nor the built-in ones");
+  const b = merge(n, [src(t)], sw({ offPairs: [srcPair("s1", "spells")] })).names;
+  assert.ok(!b.SPELLS.some((s) => s[0] === "Moonbeam Lance") && b.SPELLS.some((s) => s[0] === "Fireball"), "spells off in one source: the SRD's stay");
   assert.ok(b.FEATS.some((f) => f[0] === "Lucky Streak"));
+  const e = merge(n, [src(t)], sw({ offPairs: [bookPair("XPHB", "spells"), srcPair("srd", "feats")] })).names;
+  assert.ok(!e.SPELLS.some((s) => s[1] === 2) && e.SPELLS.some((s) => s[0] === "Moonbeam Lance"), "XPHB spells off: other books' stay");
+  assert.ok(!e.FEATS.some((f) => f[1] & 3) && e.FEATS.some((f) => f[0] === "Lucky Streak"), "SRD feats off: yours stay");
   const c = merge(n, [src(t)], sw({ offBooks: ["XDMG"] })).names;
   assert.ok(!c.ITEMS.some((i) => i[1] & 8), "turning XDMG off hides the built-in XDMG names");
   const d = merge(n, [src(t)], sw({ builtin: false })).names;
@@ -132,32 +135,35 @@ test("D246: your classes give ghost counts; a built-in table wins over yours", (
   } finally { useYourPresets([], []); }
 });
 
-const view = (o: Partial<View>): View => ({ sources: [], sw: NO_SWITCHES, lens: "book", builtin: new Map([["XPHB", new Map([["spells", 300], ["classes", 12]])]]),
+const view = (o: Partial<View>): View => ({ sources: [], sw: NO_SWITCHES, lens: "book", split: false, builtin: new Map([["XPHB", new Map([["spells", 300], ["classes", 12]])]]),
   builtinNames: 1103, open: new Set(), busy: new Set(), confirm: null, now: new Date("2026-11-20T12:00:00"), ...o } as View);
 
-test("D252, D254: the list's empty state, its three lenses and the mixed category switch", () => {
+test("D252, D254, D266, D267: the empty state, Group by book or source, Kinds, and the mixed category switch", () => {
   const empty = textOf(listHtml(view({})));
   assert.match(empty, /No sources yet\./);
   assert.match(empty, /1,103 names/);
-  const s = [src(plainTable()), src(xphbSpells(), { id: "s2", name: "owner/repo/data", type: "link", files: 3,
+  const s = [src(plainTable(), { skipped: 1 }), src(xphbSpells(), { id: "s2", name: "owner/repo/data", type: "link", files: 3,
     link: { url: "https://github.com/owner/repo/tree/main/data", kind: "folder", path: "data", checked: "2026-11-20T10:15:00", copy: "2026-11-18T09:00:00", failed: { at: "2026-11-20T10:15:00", message: "GitHub didn't answer." } } })];
   const book = listHtml(view({ sources: s, open: new Set(["Core"]) }));
   assert.match(textOf(book), /Core.*1 book/);
-  assert.match(textOf(book), /XPHB · replaces the built-in spells/);
-  assert.match(book, /class="wdot"/, "a failed check marks By source");
-  assert.match(textOf(book), /1 source needs attention/);
+  assert.match(textOf(book), /XPHB · yours replace the SRD spells/);
+  assert.match(book, /class="wdot"/, "a failed check marks Group by Source");
   const mix = listHtml(view({ sources: s, sw: { ...NO_SWITCHES, offBooks: ["MYHB"] } }));
-  assert.match(mix, /data-catsw="Your own codes"[^>]*>|aria-checked="mixed"/);
+  assert.match(mix, /data-catsw="Other books"/);
   assert.match(mix, /aria-checked="mixed"/);
-  const toggled = categoryToggle(view({ sources: s, sw: { ...NO_SWITCHES, offBooks: ["MYHB"] } }), "Your own codes");
+  const toggled = categoryToggle(view({ sources: s, sw: { ...NO_SWITCHES, offBooks: ["MYHB"] } }), "Other books");
   assert.deepEqual(toggled.offBooks, [], "a partly-on category turns all on");
-  const kind = textOf(listHtml(view({ sources: s, lens: "kind", sw: { ...NO_SWITCHES, offKinds: ["items"] } })));
-  assert.match(kind, /8 kinds, 7 on/);
-  assert.match(kind, /off in every book/);
+  const split = listHtml(view({ sources: s, lens: "source", split: true, sw: { ...NO_SWITCHES, offPairs: [srcPair("s1", "items")] } }));
+  assert.match(split, /data-pair="@s1\|items" aria-checked|data-pair="@s1\|items"/);
+  assert.match(split, /role="switch" aria-checked="false"[^>]*data-pair="@s1\|items"/, "the off kind's switch is off");
+  assert.match(split, /data-pair="@srd\|spells"/, "the SRD names split too");
+  const splitBook = listHtml(view({ sources: s, split: true, open: new Set(["Core"]) }));
+  assert.match(splitBook, /data-pair="XPHB\|spells"/);
   const bySource = textOf(listHtml(view({ sources: s, lens: "source" })));
   assert.match(bySource, /Check failed today 10:15: GitHub didn't answer\. Still using the copy from 18 Nov\./);
   assert.match(bySource, /GitHub folder · 3 files/);
-  assert.match(bySource, /Built-in names/);
+  assert.match(bySource, /SRD names/);
+  assert.match(bySource, /1 line not read/, "lines not read: a quiet alert with its reason");
 });
 
 test("D248: GitHub links: files, folders, raw files; nothing else", () => {
@@ -225,4 +231,16 @@ test("D160, D248: the sources code and page name, link and suggest no data sourc
   const files = ["../src/yours.ts", "../src/sourcesview.ts", "../src/sourcespage.ts", "../src/namerows.ts", "../src/presetrows.ts", "../../src/extract.ts",
     ...readdirSync(new URL("../src/client/", import.meta.url)).filter((f) => /^(sources|sync|github|sourcestore|summary)\.ts$/.test(f)).map((f) => `../src/client/${f}`)];
   for (const f of files) assert.ok(!/5e\s*tools|5etools/i.test(readFileSync(new URL(f, import.meta.url), "utf8")), f);
+});
+
+test("D268: a species variant is left out when its plain name is there", () => {
+  const sp = { "Dragonborn|XPHB": { name: "Dragonborn", source: "XPHB" }, "Dragonborn (Black)|XPHB": { name: "Dragonborn (Black)", source: "XPHB" },
+    "Elf (Drow)|PHB": { name: "Elf (Drow)", source: "PHB" }, "Vedalken (Kaladesh)|PSK": { name: "Vedalken (Kaladesh)", source: "PSK" } };
+  assert.deepEqual(Object.keys(dropVariants(sp)), ["Dragonborn|XPHB", "Elf (Drow)|PHB", "Vedalken (Kaladesh)|PSK"]);
+  assert.deepEqual(Object.keys(dropVariants(sp, ["Elf"])), ["Dragonborn|XPHB", "Vedalken (Kaladesh)|PSK"], "the SRD's Elf counts as the plain name");
+});
+
+test("D261, D269: a folder's files: .json at the top, or a path that names a kind; never descriptions", () => {
+  for (const ok of ["spells.json", "class/class-wizard.json", "data/spells/spells-phb.json"]) assert.ok(folderFile(ok), ok);
+  for (const no of ["readme.md", "fluff-spells.json", "bestiary/bestiary-mm.json", "class/fluff-class-wizard.json"]) assert.ok(!folderFile(no), no);
 });

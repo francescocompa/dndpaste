@@ -299,8 +299,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 /* D163: inside [ ], what goes in each ; group, the cursor's group in bold. */
 .ac .ah { font: 12px/1.3 var(--sans); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ac .ah b { color: var(--fg); font-weight: 600; }
-.ed .ac .ah { padding: 3px 8px 5px; }
-.ed .ac .ah + .ao { border-top: 1px solid var(--rule); margin-top: 1px; padding-top: 4px; }
+.ed .ac .ah { margin: 0 -4px 4px; padding: 3px 12px 6px; border-bottom: 1px solid var(--rule); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ed .lvh { font-weight: 600; } .ed .lvh .lvn { color: var(--acc); }
 .ed > .src { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 8px 10px 8px var(--gw); font: inherit;
@@ -596,7 +595,18 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .srcp .drop .grow { min-width: 0; }
 .srcp .lrow { display: flex; gap: 8px; }
 .srcp .addout:empty { display: none; }
-.srcp .addout .said { margin: 0; font: 13px/1.45 var(--sans); color: var(--mute); }
+.srcp .addout .said { margin: 0; font: 13px/1.45 var(--sans); color: var(--mute); display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.srcp .addout .said b { color: var(--fg); font-weight: 600; }
+.srcp .addout .said .ok { display: inline-flex; color: var(--ok, var(--ab-wis)); margin-right: -4px; }
+.srcp .addout .said .warn { display: inline-flex; align-items: center; gap: 4px; color: var(--err); }
+.srcp .addout .busy svg.i { animation: srcspin 1s linear infinite; }
+@keyframes srcspin { to { transform: rotate(360deg); } }
+/* D266: a thin bar under the line while files are read; it slides when the count isn't known yet. */
+.srcp .addout .bar { height: 3px; margin-top: 8px; border-radius: 2px; background: var(--chip); overflow: hidden; }
+.srcp .addout .bar span { display: block; height: 100%; background: var(--acc); transition: width 0.2s; }
+.srcp .addout .bar span.ind { width: 30%; animation: srcslide 1.2s ease-in-out infinite; }
+@keyframes srcslide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .srcp .addout .busy svg.i, .srcp .addout .bar span.ind { animation: none; } }
 .srcp .ferr { font-size: 12.5px; align-items: flex-start; padding: 6px 9px; }
 .srcp .ferr svg.i { margin-top: 1px; }
 
@@ -604,7 +614,10 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .srcp .sh { display: flex; align-items: center; gap: 12px; padding: 22px 0 8px; border-bottom: 1px solid var(--rule); }
 .srcp .sh h2 { font: 600 15px/1.3 var(--sans); margin: 0; }
 .srcp .sh .grow { flex: 1; }
-.srcp .lens { padding: 8px 0 4px; }
+.srcp .sh .gby { font: 12.5px/1 var(--sans); color: var(--mute); }
+/* D267: Kinds splits every row by kind; a pressed chip like the segments' on state. */
+.srcp .kbtn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 7px; background: none; color: var(--mute); font: 13px/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.srcp .kbtn.on { background: var(--chip); color: var(--fg); font-weight: 600; border-color: transparent; }
 .srcp .wdot { width: 6px; height: 6px; border-radius: 50%; background: var(--err); margin-left: 2px; display: inline-block; }
 .srcp .lh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0 8px; border-bottom: 1px solid var(--rule); }
 .srcp .lh .muted { font-size: 12.5px; }
@@ -615,23 +628,35 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .srcp .bkst .hc { cursor: default; }
 .srcp .bkst .hc:hover { background: var(--chip); }
 
-/* By source: a row per source, the built-in names last. */
-.srcp .srow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 0 14px; padding: 12px 10px 12px 0; border-bottom: 1px solid var(--rule); align-items: start; }
-.srcp .srow > .tgb, .srcp .srow > .gi { margin-top: 1px; }
-.srcp .srow > .gi { width: 34px; display: flex; justify-content: center; color: var(--mute); }
-.srcp .body { display: grid; gap: 4px; min-width: 0; }
+/* Group by Source: a row per source, the SRD names last. Same build as a book row: name, then the switch on the right,
+   the small lines under it (his pin, D266). */
+.srcp .srow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 12px; padding: 12px 10px 12px 0; border-bottom: 1px solid var(--rule); align-items: center; }
+.srcp .srow > .meta, .srcp .srow > .stat, .srcp .srow > .ferr, .srcp .srow > .kds, .srcp .srow > .bkst, .srcp .srow > .hint { grid-column: 1 / -1; }
 .srcp .nm { display: flex; align-items: center; gap: 7px; font: 600 13.5px/1.3 var(--mono); min-width: 0; }
 .srcp .nm svg.i { color: var(--mute); }
 .srcp .nm .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.srcp .meta { padding: 0; font: 12.5px/1.45 var(--sans); color: var(--mute); }
+.srcp .meta { padding: 0; font: 12.5px/1.45 var(--sans); color: var(--mute); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .srcp .meta b { font-weight: 600; color: var(--fg); }
 .srcp .stat { display: flex; align-items: center; gap: 6px; font: 12.5px/1.45 var(--sans); color: var(--mute); }
 .srcp .stat .ok { display: inline-flex; color: var(--ok, var(--ab-wis)); }
 .srcp .act { display: flex; gap: 2px; align-items: center; }
-.srcp .srow.off .body { opacity: 0.5; }
+.srcp .srow.off > :not(.tgb):not(.act) { opacity: 0.5; }
+/* D266: lines not read, a quiet alert in the meta line that opens its reason. */
+.srcp .pop { position: relative; }
+.srcp .pop > summary { list-style: none; display: inline-flex; align-items: center; gap: 4px; color: var(--err); cursor: pointer; border-radius: 4px; }
+.srcp .pop > summary::-webkit-details-marker { display: none; }
+.srcp .pop > summary svg.i { width: 13px; height: 13px; }
+.srcp .pop .popb { position: absolute; z-index: 5; top: calc(100% + 6px); left: 0; width: min(300px, 80vw); padding: 9px 11px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--fg); font: 12.5px/1.5 var(--sans); box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); }
+.srcp .pop .popb code { font: 0.92em/1 var(--mono); }
+/* D267: a row's kinds, each with its switch. */
+.srcp .kds { display: grid; padding: 4px 0 0 0; }
+.srcp .kd { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 5px 0 5px 14px; border-top: 1px dashed var(--rule); font: 13px/1.4 var(--sans); }
+.srcp .kd small { color: var(--mute); font: 12px/1.4 var(--mono); }
+.srcp .kd.off .t, .srcp .kd.off small { color: var(--mute); opacity: 0.6; }
+.srcp .c3 .brow > .kds { grid-column: 1 / -1; }
 
-/* By book and By kind: switches keep clear of the column edge (his spacing pin, D254). */
-.srcp .c3 .grp { border-bottom: 1px solid var(--rule); }
+/* Group by Book: switches keep clear of the column edge (his spacing pin, D254). */
+.srcp .c3 .bgrp { border-bottom: 1px solid var(--rule); }
 .srcp .c3 .gh { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px 10px 12px 0; font: 13.5px/1.4 var(--sans); }
 .srcp .c3 .ghb { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
 .srcp .c3 .gh .chev { color: var(--mute); display: inline-flex; }
@@ -644,11 +669,6 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .srcp .c3 .brow small { color: var(--mute); font: 12px/1.4 var(--mono); }
 .srcp .c3 .brow > .tgb { grid-row: 1 / span 2; grid-column: 2; }
 .srcp .c3 .brow.off .t { color: var(--mute); }
-.srcp .c3 .krow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 12px 10px 12px 0; border-bottom: 1px solid var(--rule); font: 13.5px/1.4 var(--sans); }
-.srcp .c3 .krow b { font-weight: 600; }
-.srcp .c3 .krow small { color: var(--mute); font: 12px/1.4 var(--sans); }
-.srcp .c3 .krow > .tgb { grid-row: 1 / span 2; grid-column: 2; }
-.srcp .c3 .krow.off b { color: var(--mute); }
 
 /* The names format, folded at the bottom (D247, D252). */
 .srcp .docs { padding-top: 22px; }
@@ -670,22 +690,26 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 /* The Settings menu's link row (D256). */
 .dmenu .srcrow { display: flex; align-items: center; gap: 8px; color: var(--fg); text-decoration: none; }
 .dmenu .srcrow .grow { flex: 1; }
-.dmenu .srcrow .muted { font-size: 12.5px; }
+.dmenu .srcrow .cnt { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--chip); color: var(--fg); font: 600 11px/18px var(--sans); text-align: center; }
 .dmenu .srcrow svg.i { color: var(--mute); }
 /* The autocomplete's no-match line while no source is added (D256). */
-.ac .ae { padding: 6px 8px; font: 12.5px/1.45 var(--sans); color: var(--mute); white-space: normal; }
-.ac .ae a { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+.ac .ae { display: grid; gap: 2px; padding: 5px 8px; font: 12px/1.4 var(--sans); color: var(--mute); white-space: normal; }
+.ac .ae a { display: inline-flex; align-items: center; gap: 4px; justify-self: start; color: var(--mute); text-decoration: none; padding: 2px 0; }
+.ac .ae a:hover { color: var(--fg); }
+.ac .ae a svg.i { width: 12px; height: 12px; }
 /* A name of yours shows its book (D250). */
 .ac .abk { color: var(--src); font-size: 11.5px; }
 
 @media (max-width: 600px) {
-  .srcp .srow { grid-template-columns: auto minmax(0, 1fr); }
-  .srcp .srow > .act { grid-column: 2; padding-top: 6px; }
+  .srcp .srow { grid-template-columns: minmax(0, 1fr) auto; }
+  .srcp .srow > .act { grid-column: 1 / -1; grid-row: 3; }
   .srcp .lrow { flex-direction: column; }
   .srcp .addh .seg { width: 100%; }
   .srcp .drop { flex-direction: column; align-items: stretch; text-align: left; }
   .srcp .sh { flex-wrap: wrap; }
-  .srcp .sh .seg { width: 100%; }
+  .srcp .sh h2 { flex-basis: 100%; }
+  .srcp .sh .grow, .srcp .sh .gby { display: none; }
+  .srcp .sh .seg { flex: 1; }
   .srcp .c3 .bks { padding-left: 0; }
   .srcp .fb, .srcp .fin { padding-left: 0; }
 }

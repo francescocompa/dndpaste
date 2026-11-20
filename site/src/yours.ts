@@ -39,13 +39,14 @@ export interface SourceRec {
   id: string;
   /** A file's name, or a link's `owner/repo` (and path). */
   name: string;
-  type: "file" | "link";
+  /** D269: a folder from this computer, read once like a file. */
+  type: "file" | "folder" | "link";
   on: boolean;
   /** ISO date-time the source was added. */
   added: string;
   /** A link source: the address and what its last check saw (D248, D249). */
   link?: LinkState;
-  /** Files read: 1 for a file. */
+  /** Files read: 1 for a file, the .json files read for a folder. */
   files: number;
   /** Lines or entries the reader could not use. */
   skipped: number;
@@ -66,9 +67,15 @@ export interface LinkState {
   shas?: Record<string, string>;
   trees?: Record<string, { sha: string; files: { path: string; sha: string; size: number }[] }>;
 }
-/** The switches (D253): books and kinds for all sources at once, and the built-in names. */
-export interface Switches { builtin: boolean; offBooks: string[]; offKinds: Kind[] }
-export const NO_SWITCHES: Switches = { builtin: true, offBooks: [], offKinds: [] };
+/**
+ * The switches (D253, D267): books for all sources at once, the SRD names, and kinds inside one book or one source.
+ * `offPairs` holds `BOOK|kind` (that kind in that book), `@id|kind` (that kind in that source) and `@srd|kind`.
+ */
+export interface Switches { builtin: boolean; offBooks: string[]; offPairs: string[] }
+export const NO_SWITCHES: Switches = { builtin: true, offBooks: [], offPairs: [] };
+/** The `offPairs` key of a source (its id, or `srd` for the SRD names) and a kind. */
+export const srcPair = (id: string, kind: Kind): string => `@${id}|${kind}`;
+export const bookPair = (code: string, kind: Kind): string => `${code}|${kind}`;
 
 // ---- reading (D244) ----
 
@@ -203,10 +210,26 @@ export function keepTable(read: Read, sourceDates: Readonly<Record<string, strin
     }
     out[t] = kept;
   }
+  out.species = dropVariants(out.species ?? {});
   return out;
 }
 
+/**
+ * D268: a species named `Base (Variant)` is left out when `Base` is a species too (here, or in `more`), so a full data
+ * folder adds Dragonborn once, not once per colour. Lineages inside a species wait for the format (PLAN follow-up).
+ */
+export function dropVariants(species: Record<string, J>, more: Iterable<string> = []): Record<string, J> {
+  const bases = new Set([...Object.values(species).map((e: J) => String(e.name).toLowerCase()), ...[...more].map((x) => x.toLowerCase())]);
+  return Object.fromEntries(Object.entries(species).filter(([, e]: [string, J]) => {
+    const m = /^(.+?)\s*\([^()]+\)$/.exec(String(e.name));
+    return !m || !bases.has(m[1].toLowerCase());
+  }));
+}
+
 // ---- counting ----
+
+/** A table's entries of one kind; species variants left out (D268) also from copies kept before that rule. */
+const kept = (table: SlotTable, t: string): Record<string, J> => (t === "species" ? dropVariants(table.species ?? {}) : table[t] ?? {});
 
 /** Names per kind, the options their `[ ]` offer, and names per book. */
 export function counts(table: SlotTable): { kinds: Record<Kind, number>; names: number; options: number; books: Map<string, number> } {
@@ -214,7 +237,7 @@ export function counts(table: SlotTable): { kinds: Record<Kind, number>; names: 
   const books = new Map<string, number>();
   let options = 0;
   for (const t of TABLES) {
-    for (const e of Object.values(table[t] ?? {}) as J[]) {
+    for (const e of Object.values(kept(table, t)) as J[]) {
       kinds[TABLE_KIND[t]]++;
       books.set(e.source, (books.get(e.source) ?? 0) + 1);
       if (t === "features") options += e.options?.length ?? 0;
@@ -227,7 +250,7 @@ export function counts(table: SlotTable): { kinds: Record<Kind, number>; names: 
 /** Names per (book, kind) across the tables given. */
 export function bookKinds(tables: readonly SlotTable[]): Map<string, Map<Kind, number>> {
   const out = new Map<string, Map<Kind, number>>();
-  for (const table of tables) for (const t of TABLES) for (const e of Object.values(table[t] ?? {}) as J[]) {
+  for (const table of tables) for (const t of TABLES) for (const e of Object.values(kept(table, t)) as J[]) {
     const m = out.get(e.source) ?? new Map<Kind, number>();
     m.set(TABLE_KIND[t], (m.get(TABLE_KIND[t]) ?? 0) + 1);
     out.set(e.source, m);
@@ -240,7 +263,7 @@ export function bookKinds(tables: readonly SlotTable[]): Map<string, Map<Kind, n
 /** The names of the sources that are on, with their off books and kinds left out: what feeds the editor. */
 export function visible(sources: readonly SourceRec[], sw: Switches): SlotTable {
   const off = new Set(sw.offBooks);
-  const offKinds = new Set<string>(sw.offKinds);
+  const pairs = new Set(sw.offPairs);
   const out: SlotTable = { families: { ...FAMILIES }, featCategories: {} };
   for (const t of TABLES) out[t] = {};
   for (const s of sources) {
@@ -248,8 +271,11 @@ export function visible(sources: readonly SourceRec[], sw: Switches): SlotTable 
     Object.assign(out.families, s.table.families ?? {});
     Object.assign(out.featCategories, s.table.featCategories ?? {});
     for (const t of TABLES) {
-      if (offKinds.has(TABLE_KIND[t])) continue;
-      for (const [k, e] of Object.entries(s.table[t] ?? {}) as [string, J][]) if (!off.has(e.source)) out[t][k] = e;
+      const kind = TABLE_KIND[t];
+      if (pairs.has(srcPair(s.id, kind))) continue;
+      for (const [k, e] of Object.entries(kept(s.table, t)) as [string, J][]) {
+        if (!off.has(e.source) && !pairs.has(bookPair(e.source, kind))) out[t][k] = e;
+      }
     }
   }
   return out;
@@ -303,18 +329,20 @@ export interface Merged { names: Names; presets: ClassPreset[]; species: Species
  */
 export function merge(n: Names, sources: readonly SourceRec[], sw: Switches): Merged {
   const vis = visible(sources, sw);
+  vis.species = dropVariants(vis.species ?? {}, n.SPECIES.map((r) => r[0]));
   const hide = covered(vis);
-  const offKinds = new Set<string>(sw.offKinds);
+  const pairs = new Set(sw.offPairs);
   const offBooks = new Set(sw.offBooks);
+  const srdOff = (kind: Kind) => !sw.builtin || pairs.has(srcPair("srd", kind));
   const mask = (kind: Kind) => BUILTIN_BOOKS.reduce((a, [code, bit]) =>
-    (!sw.builtin || offKinds.has(kind) || offBooks.has(code) || hide.has(`${kind}|${code}`) ? a | bit : a), 0);
+    (srdOff(kind) || offBooks.has(code) || pairs.has(bookPair(code, kind)) || hide.has(`${kind}|${code}`) ? a | bit : a), 0);
   const out: J = { ...n };
   for (const [arr, kind] of BOOK_ROWS) {
     const m = mask(kind);
     out[arr] = m ? (n[arr] as readonly J[]).flatMap((r) => (r[1] & ~m ? [[r[0], r[1] & ~m, ...r.slice(2)]] : [])) : [...(n[arr] as readonly J[])];
   }
-  if (!sw.builtin || offKinds.has("classes")) out.CLASS_FEATURES = [];
-  if (!sw.builtin || offKinds.has("species")) out.LINEAGES = [];
+  if (srdOff("classes")) out.CLASS_FEATURES = [];
+  if (srdOff("species")) out.LINEAGES = [];
 
   const yours = nameRows(vis, {}, { bookOf: ownBits, classes: n.CLASSES, skills: n.SKILLS, featCategories: n.FEAT_CATEGORIES });
   out.CLASSES = yours.CLASSES;
