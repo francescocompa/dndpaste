@@ -439,3 +439,20 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
 
 - **O6 — Tidy fixes the case of known names. OPEN (2026-11-20; from the parked ⚑ of 2026-11-16).** Now that a names list ships (D151, D158) and visitors add their own (M6), Tidy could correct `fireball` → `Fireball`. Not scheduled.
 
+## Lineage format, SPEC 0.10 (2026-11-20) — mechanism: /interview, AskUserQuestion, 2 rounds (6 questions), overseer; T7.1
+
+- **D280 — A species' defining pick goes in brackets on the `Species` line. DECIDED (2026-11-20); amends SPEC §5.1 ("`Subclass`, `Species`, `Background` items carry no details", the `Species` row's "2024 lineages are a `Feature` line in the block") and D26 for that one pick.** The defining pick is the species feature that splits it into lineages or ancestries: Elven Lineage, Gnomish Lineage, Fiendish Legacy, Draconic Ancestry, Giant Ancestry, and their like in other books or homebrew. `Species: Elf [Drow]`, `Species: Dragonborn [Black]`, `Species: Goliath [Fire]`. Its `Feature` line goes away. Every other species pick (skills, Size, origin feat, a species spell) stays a block line.
+  *Raw note:* "we could update the dndpaste format in general to allow for Elf [Drow] or Dragonborn [Black], with lineage-like variants folded inside the name instead of Feature. We still need a place for other related choices, ex. spellcast ability" (⚑ under D268); then "The defining pick (Recommended)". *Rejected:* lineages only, with ancestries left as `Feature` lines.
+
+- **D281 — The lineage's spellcasting ability is canonical inside the same brackets, after the lineage: `Species: Elf [Drow; WIS]`. DECIDED (2026-11-20).** Three forms read: the brackets; `Species: Elf [Drow]` with an `Ability: WIS` block line (silent, no warning); the 0.9 `Feature` line (D283). Emit and Tidy write the brackets. Lineage first, then ability: the name part leads, unlike feats (ability first, O4).
+  *Raw note:* "Both accepted. Current format also accepted"; then "In the brackets (Recommended)". *Rejected:* the `Ability:` line as the canonical form.
+
+- **D282 — 2014 subraces use the same form: `Species: Elf [Wood]|PHB`. DECIDED (2026-11-20); amends D38.** `Elf (Wood)|PHB`, the data's own name, still reads with a warning, and Tidy rewrites it. The checker maps `Elf [Wood]` to the data's `Elf (Wood)`. One canonical form for both editions.
+  *Picked:* "One form for both (Recommended)". *Rejected:* keeping 2014 names as they are (each edition written its own way).
+
+- **D283 — 0.9 pastes with `Feature: Elven Lineage [WIS; Wood]` (or any defining-pick `Feature` line) read with a W-code, and Tidy moves the pick onto the `Species` line. DECIDED (2026-11-20).** As the 0.7 keys did (W005). Saved shares keep working and render as written.
+  *Picked:* "Read, warn, Tidy fixes (Recommended)". *Rejected:* both forms valid with no warning (breaks one canonical form).
+
+- **D284 — T7.2 (SPEC 0.10, library, site) starts after T6.3 merges. DECIDED (2026-11-20).** One writer on `src/check.ts` at a time; T7.2 branches from a main that holds T6.3. Then /ui-review, release 0.10.0 per D57, deploy.
+  *Picked:* "After T6.3 merges (Recommended)". *Rejected:* both in parallel (a likely conflict in the checker and the site's autocomplete).
+

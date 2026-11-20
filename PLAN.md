@@ -107,10 +107,14 @@ L<n> <Class>                   level block, n = character level
   /ui-review · Done when: verify + site tests pass, review approved, merged, deployed (no release).
 
 ### M7 — 0.10: lineage format (D271) · next · size L
-- [ ] 🔶 T7.1 Scope: /interview on lineage in brackets (`Elf [Drow]`, `Dragonborn [Black]`), species suggesting their
-  lineage feature, a place for related choices (spellcasting ability); 2014 `Elf (High)` names and old pastes. ·
-  Opus@high · Done when: decisions logged (from D280), SPEC 0.10 brief written.
-- [ ] T7.2 SPEC 0.10 + library + site per T7.1 · own worktree · /ui-review · then release 0.10.0 per D57 and deploy.
+- [x] T7.1 Scope: /interview done 2026-11-20 → D280–D284.
+- [ ] T7.2 SPEC 0.10 + library + site per D280–D284 · after T6.3 merges (D284) · own worktree · Opus@high · size L.
+  SPEC: §5.1 `Species` row and the "no details" rule, the `Ability` line (§5.3), §8.4 examples, a W-code for the 0.9
+  `Feature` form and for `Elf (Wood)`. Library: parse/emit/normalise (Tidy folds `Ability:` and old `Feature` lines into
+  the brackets, rewrites `Elf (Wood)` → `Elf [Wood]`), checker slots for the defining pick (supplement for prose-only
+  ones, D35), tests and fixtures. Site: `Species: Elf [` opens the lineage list then the ability (D163), ghost text and
+  key hints; check D268's dropped `Base (Variant)` names against the new form (they may become lineage options). /ui-review
+  · Done when: verify + site pass, review approved, merged; then the overseer releases 0.10.0 (D57) and deploys.
 
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).

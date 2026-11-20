@@ -5,8 +5,8 @@
   live at `https://dndpaste.fcomfy.workers.dev` (deploy 1d8d0b13, `/version` commit 1031bf4, still reports 0.9.0):
   `/sources` adds names from a file, a local folder or a GitHub link (browser-only, IndexedDB), feeding autocomplete,
   `[ ]` options and ghost counts; built-in SRD names hidden per book and kind. Library 245 + site 306 pass.
-- **Single next action:** T7.1 — /interview on the lineage format, the 0.10 headline (D271). In parallel T6.3, small
-  fixes after M6, runs in its own worktree (site deploy, no release).
+- **Single next action:** T6.3 small fixes run in their own session (merge to main by the worker, then the overseer
+  deploys). When T6.3 has merged, start T7.2 — SPEC 0.10 lineage format (D280–D284), then release 0.10.0 and deploy.
 - **Manual for Francesco:** ① push main (several commits ahead: /clean, T6.1, T6.1b, T6.2 merge) ② publish the GitHub release v0.9.0 with
   `.claude/drafts/release-v0.9.0.md` ③ post (T3.11): save a real build for `[BUILD LINK]` in `.claude/drafts/reddit-3d6.md`,
   not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions, and the M6 ones (decisions split, sources jam, sources build, both reviews); remove the `data-fixes-208994` worktree
@@ -17,7 +17,7 @@
 
 Working set: none
 
-Spawned: none
+Spawned: small-fixes (T6.3) local_5ae762cf-9988-48da-af2b-5cc57f4821e0 · running · next: overseer deploys, then starts T7.2
 
 - **Library:** 0.9.0 on main (SPEC 0.9; 0.7 keys still read with W005). Releases per D57. The full slot table is
   gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
