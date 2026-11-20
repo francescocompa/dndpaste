@@ -5,8 +5,8 @@
   live at `https://dndpaste.fcomfy.workers.dev` (deploy 1d8d0b13, `/version` commit 1031bf4, still reports 0.9.0):
   `/sources` adds names from a file, a local folder or a GitHub link (browser-only, IndexedDB), feeding autocomplete,
   `[ ]` options and ghost counts; built-in SRD names hidden per book and kind. Library 245 + site 306 pass.
-- **Single next action:** scope 0.10 — Francesco: "check if we need other changes to dndpaste before 0.10". Review the
-  queue (PLAN Later, post-launch follow-ups below, open O1/O4/O5 and the format-update ⚑) with him, then release per D57.
+- **Single next action:** T7.1 — /interview on the lineage format, the 0.10 headline (D271). In parallel T6.3, small
+  fixes after M6, runs in its own worktree (site deploy, no release).
 - **Manual for Francesco:** ① push main (several commits ahead: /clean, T6.1, T6.1b, T6.2 merge) ② publish the GitHub release v0.9.0 with
   `.claude/drafts/release-v0.9.0.md` ③ post (T3.11): save a real build for `[BUILD LINK]` in `.claude/drafts/reddit-3d6.md`,
   not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions, and the M6 ones (decisions split, sources jam, sources build, both reviews); remove the `data-fixes-208994` worktree

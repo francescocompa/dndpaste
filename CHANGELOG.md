@@ -5,7 +5,7 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
 ## Unreleased
 - Library: `dndpaste/extract` (D246, D260): the slot extractor as a pure function (`extractSlots`, `mergeData`,
   `srdSubset`); `scripts/extract-slots.mjs` now runs on it, with the same output.
-- Site, not deployed: `/sources`, your own sources (M6, D244–D269). A hand-written names file, a folder from this
+- Site, deployed 2026-11-20 (1031bf4): `/sources`, your own sources (M6, D244–D270). A hand-written names file, a folder from this
   computer or a GitHub file or folder link adds names to the editor's autocomplete, the options inside `[ ]` and the ghost pick counts. Kept in this
   browser only; GitHub is fetched by the browser and checked again on each visit (CSP `connect-src` allows GitHub's
   API and raw hosts only). SRD names are hidden per book and kind where yours stand in (D255); the list groups by book or

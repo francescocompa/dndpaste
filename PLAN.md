@@ -101,6 +101,17 @@ L<n> <Class>                   level block, n = character level
   /ui-review before commit · Done when: verify + site tests pass, a names file and a GitHub folder both load on
   `/sources` and feed the editor, review approved, merged.
 
+- [ ] T6.3 Small fixes after M6 (D271, ids D272–D279) · own worktree · Opus@high · size S–M: checker counts 2024 origin
+  languages as extras; raw book titles from data; sort by Type at phone width; Psion UA and Arcane Shots in the names
+  list; Spellfire Spark / Fey Sentinel ability pick checked with a homebrew file on `/sources`; `/sources` copy pass.
+  /ui-review · Done when: verify + site tests pass, review approved, merged, deployed (no release).
+
+### M7 — 0.10: lineage format (D271) · next · size L
+- [ ] 🔶 T7.1 Scope: /interview on lineage in brackets (`Elf [Drow]`, `Dragonborn [Black]`), species suggesting their
+  lineage feature, a place for related choices (spellcasting ability); 2014 `Elf (High)` names and old pastes. ·
+  Opus@high · Done when: decisions logged (from D280), SPEC 0.10 brief written.
+- [ ] T7.2 SPEC 0.10 + library + site per T7.1 · own worktree · /ui-review · then release 0.10.0 per D57 and deploy.
+
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
 - Community showcase (O5): opt-in public list, likes, filters by build element; D1 index. Revisit after a few hundred shares.
