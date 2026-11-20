@@ -89,8 +89,14 @@ L<n> <Class>                   level block, n = character level
 ### M5 — my-spellbook import · size M in that repo
 - [ ] Paste → build, resolving refs against loaded sources; unresolved refs use the existing "not loaded" path (its D56).
 
+### M6 — Your own sources (D160) · next · size M
+- [ ] 🔶 T6.1 Scope: /interview Francesco on connecting your own names source (a file read in the browser, names, sources
+  and counts only, never fetched, never named 5etools, D160) and managing sources in the app (add, list, turn on/off,
+  remove), feeding autocomplete (D151, D219, D241) and options. · Opus@high · Done when: decisions logged, build brief written.
+- [ ] T6.2 Build per T6.1's brief · own worktree · /ui-review before commit.
+
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
 - Community showcase (O5): opt-in public list, likes, filters by build element; D1 index. Revisit after a few hundred shares.
-- Generic names importer (D160): load your own names file in the browser, names, sources and counts only; a plain documented format. Plugs into autocomplete (D151) and the later visitor-data checker (D66).
+- ~~Generic names importer (D160)~~ → promoted to M6 (2026-11-20).
 - Variants / party blocks (D6). `Game:` header and a second profile (O1). Python port only if extract.py needs it.

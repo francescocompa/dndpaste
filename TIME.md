@@ -1,7 +1,7 @@
 # Time log
 
 ## 2026-11-17
-- 13:23–15:59 (Nov 18) — Launch readiness, format policy and temp logo ⚑ spans Nov 18, not counted in day total
+- 13:23–11:02 (Nov 20) — Launch readiness, then the 0.9 release (autocomplete, user test, fixes, deploy) ⚑ spans Nov 20, not counted in day total
 - 09:56–12:29 (2h33m) — Class presets, ghost counts and naming panel
 
 **Day total: 2h33m**

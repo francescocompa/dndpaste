@@ -1,32 +1,32 @@
 # STATE — dndpaste
 
-## TL;DR (2026-11-18 · main d9bf405 + this commit · read 131k)
-- **State:** M3 live at `https://dndpaste.fcomfy.workers.dev` (D117, D118). Launch prep for a
-  community feedback round is done and **deployed** (2381df0, version c5b4ebca, 2026-11-18; favicon URL versioned `?v=2`, with the temp logo in the header
-  and as the favicon, D148): SRD licence check closed (D141), aliases never retire
-  within `Paste: 1` and `FORMAT-UPDATES.md` decided (D142–D145), feedback via GitHub Issues + "Send feedback" on
-  `/about` and `/guide` (D146, D147). Library 179 + site 214 tests pass. Showcase idea logged as O5.
-  GitHub: main, `v0.7.0`, `v0.8.0` pushed; release v0.8.0 published (2026-11-18); repo description, homepage, topics set.
-- **Single next action:** the launch: a soft round with his table, then r/3d6, then r/onednd (check each
-  sub's self-promotion rule; skip r/dnd).
-- **Manual for Francesco:** ① save a real build on the site for the r/3d6 draft (`.claude/drafts/reddit-3d6.md`, `[BUILD LINK]`); check the sub's rules; ② archive the feedback-plumbing,
-  logo-deploy, T3.9 and build-stamp sessions (all merged); ③ point the Zen Browser backup outside Google Drive (it refilled the
-  disk via Drive's lost_and_found; memory `mac-disk-worktrees`); ④ the Notion "Character Ideas" defects, if you care
-  to; ⑤ ⚑ Spellfire Spark / Fey Sentinel ability pick (homebrew); ⑥ the homebrew merge needs a real homebrew file.
+## TL;DR (2026-11-20 · main 9a1ce7c + this commit · read 219k, overdue: DECISIONS.md is 86%)
+- **State:** 0.9.0 released (tag `v0.9.0` on 273ff8b, pushed) and live at `https://dndpaste.fcomfy.workers.dev`
+  (deploy fc111c84, `/version` commit e04074d, 2026-11-20): SPEC 0.9 family keys + level cap (D180–D186), SRD autocomplete
+  (D151, D154–D164), editor polish (D170–D178, D190), wide user test fixes (D192–D229), copy pass (D230–D234), live-test
+  editor bugs (D240–D243). Library 243 tests (with the full local table) + site 293 pass.
+- **Single next action:** T6.1 — scope "your own sources" (D160): connect your own names source and manage sources in the
+  app, to widen autocomplete and options. /interview first; read D160, D151, D66 and PLAN M6.
+- **Manual for Francesco:** ① push main (1 commit ahead: STATE) ② publish the GitHub release v0.9.0 with
+  `.claude/drafts/release-v0.9.0.md` ③ post (T3.11): save a real build for `[BUILD LINK]` in `.claude/drafts/reddit-3d6.md`,
+  not Mon/Sat; rewrite by hand for r/onednd, r/dndnext ④ archive the copy-pass and editor-fixes-after-0.9 sessions
+  ⑤ point the Zen Browser backup outside Google Drive (memory `mac-disk-worktrees`) ⑥ ⚑ Spellfire Spark / Fey Sentinel
+  ability pick (homebrew); the homebrew merge needs a real homebrew file.
+- **Before T6.1:** `/clean` — DECISIONS.md is 190k (86% of the cold read) with no settled split; /start reads it whole.
 
 Working set: none
 
-Spawned: none running. 0.9.0 released and deployed (tag v0.9.0 on 273ff8b). Editor bugs from the live test fixed (D240–D243), merged e04074d, deployed 2026-11-20 (version fc111c84, /version commit e04074d), smoke-tested live · main not pushed since the merge (push is Francesco's) · next: GitHub release v0.9.0 notes (draft `.claude/drafts/release-v0.9.0.md`) → post (r/3d6 draft) · archive: copy-pass, editor-fixes-after-0-9 sessions
+Spawned: none
 
-- **Library:** 0.8.0 on main (SPEC 0.8, D106–D113; 0.7 keys read with a warning). Releases per D57.
-  The full slot table is gitignored (`data/slots.json`); the SRD subset is committed.
-- **Site:** scope D65–D74, D90–D116, look D80–D89, brief `SITE.md`. Free workers.dev with a canonical-origin redirect
-  (D70); no checker in v1 (D66). Book codes: `node site/scripts/books.mjs` by hand (D115).
-- **Follow-ups (post-launch):** a real logo to replace the temp one (D148); checker counts 2024 origin languages as extras; some book titles raw from data
-  ("Project_Lamordia"); no sort by Type at phone width.
-- **Gotchas:** On a turn a child's report started, the app
-  refuses `start_session`: propose a card; briefs `cd` into the worktree. Handover notes:
-  `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`. Google Drive hung reading
-  `ClaudeConfig/bin` (review server script) on 2026-11-16; the review ran a connector-fetched copy.
+- **Library:** 0.9.0 on main (SPEC 0.9; 0.7 keys still read with W005). Releases per D57. The full slot table is
+  gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
+  when a test fails on a missing `meta` field); the SRD subset is committed.
+- **Site:** scope D65–D74, D90–D116, look D80–D89, brief `SITE.md`. Deploy: `cd site && npm run build && npx wrangler deploy`
+  (a push does not deploy). The live CSP drops inline `style=` attributes: set positions through CSSOM (D240).
+- **Follow-ups (post-launch):** a real logo (D148); checker counts 2024 origin languages as extras; some book titles raw
+  from data ("Project_Lamordia"); no sort by Type at phone width; Psion UA and Arcane Shots missing from the SRD names list.
+- **Gotchas:** On a turn a child's report started, the app refuses `start_session`: propose a card; briefs `cd` into the
+  worktree. Workers past ~300k hand off with a brief in `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`.
+  Reserve a decision-id range per parallel worker. Merges into one release branch conflict only in DECISIONS.md.
 
-⟳ Rename previous session → "Launch readiness, format policy and temp logo"  · session: local_fca37e60-edcc-4a35-90aa-22609d4b288b
+⟳ Rename previous session → "0.9 release: autocomplete, user test and fixes"  · session: local_fca37e60-edcc-4a35-90aa-22609d4b288b

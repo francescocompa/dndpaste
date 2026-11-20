@@ -2,6 +2,10 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- Site only, deployed 2026-11-20 (e04074d): one-click fix buttons survive the live CSP (D240); name lists put the
+  line's class first and dim the rest (D241, D243); a pick that asks a detail opens its brackets (D242).
+
 ## 0.9.0 — 2026-11-19
 - **SPEC 0.9** (D180–D185, additions only; a minor version per FORMAT-UPDATES §1). Every 0.8 paste reads
   and emits as before, with no new warning: nothing renames, so there is no alias and no `W005`.
