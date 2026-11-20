@@ -50,7 +50,8 @@ export const PRESETS: readonly ClassPreset[] = [
 ${rows.map((r) => `  { name: ${q(r.name)}, source: ${q(r.source)}, first: ${q(r.first)}, multi: ${q(r.multi)},\n    owes: ${q(r.owes)},\n    counted: ${q(r.counted)}, skills: ${q(r.skills)},\n    counts: ${q(r.counts)} },`).join("\n")}
 ];
 
-/** D211: the lines a species owes: [key, picks] for a counted key, [\`Feature\`, trait name] for its lineage trait. */
+/** D211: the lines a species owes: [key, picks] for a counted key, [\`Species\`, trait name] for its lineage (in the Species
+ *  line's brackets, D291), [\`Feature\`, name] for another species feature with picks. */
 export interface SpeciesPreset { name: string; source: string; edition?: Edition; lines: readonly (readonly [string, number | string])[] }
 
 export const SPECIES_PRESETS: readonly SpeciesPreset[] = [

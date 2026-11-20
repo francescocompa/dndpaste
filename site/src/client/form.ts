@@ -279,7 +279,7 @@ function init(): void {
   };
   /** The ghost text at the cursor (D174): the kind of name its short counted line still wants. */
   const wordNow = () => document.activeElement === ta && ta.selectionStart === ta.selectionEnd
-    ? ghostWord(ta.value, ta.selectionStart, new Set(st.ghosts.filter((g) => g.have < g.of).flatMap((g) => [g.line, ...(g.also ?? [])])))
+    ? ghostWord(ta.value, ta.selectionStart, new Set(st.ghosts.filter((g) => g.have < g.of).flatMap((g) => [g.line, ...(g.also ?? [])])), names)
     : null;
   let wordShown = "";
   /** The highlight rows, with the ghost pick counts after their lines (D130): display only, never in the text. */

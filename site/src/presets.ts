@@ -124,21 +124,22 @@ export const PRESETS: readonly ClassPreset[] = [
     counts: [{"Cantrips":3,"Spells":6,"Prepared":4},{"Expertise":1,"Spells":2,"Prepared":5},{"Spells":2,"Prepared":6},{"Cantrips":1,"Spells":2,"Prepared":7},{"Spells":2,"Prepared":9},{"Spells":2,"Prepared":10},{"Spells":2,"Prepared":11},{"Spells":2,"Prepared":12},{"Spells":2,"Prepared":14},{"Cantrips":1,"Spells":2,"Prepared":15},{"Spells":2,"Prepared":16},{"Spells":2,"Prepared":16},{"Spells":2,"Prepared":17},{"Spells":2,"Prepared":18},{"Spells":2,"Prepared":19},{"Spells":2,"Prepared":21},{"Spells":2,"Prepared":22},{"Spells":2,"Prepared":23},{"Spells":2,"Prepared":24},{"Spells":2,"Prepared":25}] },
 ];
 
-/** D211: the lines a species owes: [key, picks] for a counted key, [`Feature`, trait name] for its lineage trait. */
+/** D211: the lines a species owes: [key, picks] for a counted key, [`Species`, trait name] for its lineage (in the Species
+ *  line's brackets, D291), [`Feature`, name] for another species feature with picks. */
 export interface SpeciesPreset { name: string; source: string; edition?: Edition; lines: readonly (readonly [string, number | string])[] }
 
 export const SPECIES_PRESETS: readonly SpeciesPreset[] = [
-  { name: "Dragonborn", source: "XPHB", lines: [["Feature","Draconic Ancestry"]] },
+  { name: "Dragonborn", source: "XPHB", lines: [["Species","Draconic Ancestry"]] },
   { name: "Dwarf", source: "PHB", lines: [["Tools",1]] },
   { name: "Dwarf (Hill)", source: "PHB", lines: [["Tools",1]] },
   { name: "Dwarf (Mountain)", source: "PHB", lines: [["Tools",1]] },
-  { name: "Elf", source: "XPHB", lines: [["Skills",1],["Feature","Elven Lineage"]] },
+  { name: "Elf", source: "XPHB", lines: [["Skills",1],["Species","Elven Lineage"]] },
   { name: "Elf (High)", source: "PHB", lines: [["Languages",1]] },
-  { name: "Gnome", source: "XPHB", lines: [["Feature","Gnomish Lineage"]] },
-  { name: "Goliath", source: "XPHB", lines: [["Feature","Giant Ancestry"]] },
+  { name: "Gnome", source: "XPHB", lines: [["Species","Gnomish Lineage"]] },
+  { name: "Goliath", source: "XPHB", lines: [["Species","Giant Ancestry"]] },
   { name: "Half-Elf", source: "PHB", lines: [["Skills",2],["Languages",1]] },
   { name: "Human", source: "PHB", lines: [["Languages",1]] },
   { name: "Human", source: "XPHB", lines: [["Skills",1],["Feat",1]] },
   { name: "Human (Variant)", source: "PHB", lines: [["Skills",1],["Languages",1]] },
-  { name: "Tiefling", source: "XPHB", lines: [["Feature","Fiendish Legacy"]] },
+  { name: "Tiefling", source: "XPHB", lines: [["Species","Fiendish Legacy"]] },
 ];

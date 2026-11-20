@@ -7,7 +7,7 @@
 import type { Paste, Item, Ref, Scope, Value, LevelBlock, Bonus, Detail } from "./dndpaste.js";
 // The one runtime import: the reading rule and the key helpers live in the data-free library (the UMD build inlines
 // both modules).
-import { classSequence, classTotals, isFeatKey, isAbilitySlot, abilityOf, splitMarker, keyGroup, levelCap, familyOf, familyKey, foldOptions, ASI_FEAT, KEYS } from "./dndpaste.js";
+import { classSequence, classTotals, isFeatKey, isAbilitySlot, abilityOf, splitMarker, keyGroup, levelCap, familyOf, familyKey, foldOptions, ASI_FEAT, KEYS, shortLineage } from "./dndpaste.js";
 import { UA_SOURCES } from "./sources.js";
 
 // ─── Slot table types (loose on purpose: the extract may grow fields) ────────
@@ -231,12 +231,8 @@ function withLineage(paste: Paste, index: Indexes["species"], supplement: Supple
   return { paste: { ...paste, entities: paste.entities.map((b) => (b === e ? { ...b, item: to } : b)) }, from: e.item, to };
 }
 
-/** A lineage as the editor writes it (D280): the option's last word goes when it repeats the species or the trait (`High Elf` → `High`, `Fire Giant` → `Fire`). */
-export function shortLineage(option: string, species: string, trait: string | null): string {
-  const words = option.split(" ");
-  const last = lc(words[words.length - 1]);
-  return words.length > 1 && (last === lc(species) || (trait && last === lc(trait.split(" ")[0]))) ? words.slice(0, -1).join(" ") : option;
-}
+/** A lineage as the editor writes it (D289); in the data-free library, so the site's editor has it without the checker. */
+export { shortLineage } from "./dndpaste.js";
 
 function items(scope: Scope, key: string): Item[] {
   const v = scope.get(key);

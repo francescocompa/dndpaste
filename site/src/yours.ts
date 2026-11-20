@@ -218,13 +218,13 @@ export function keepTable(read: Read, sourceDates: Readonly<Record<string, strin
     }
     out[t] = kept;
   }
-  out.species = dropVariants(out.species ?? {});
+  // D268, D291: a species variant `Base (Variant)` stays in the table: the editor offers it as a lineage of its base.
   return out;
 }
 
 /**
  * D268: a species named `Base (Variant)` is left out when `Base` is a species too (here, or in `more`), so a full data
- * folder adds Dragonborn once, not once per colour. Lineages inside a species wait for the format (PLAN follow-up).
+ * folder adds Dragonborn once, not once per colour. Since 0.10 the variant is a lineage of its base (D291, namerows.ts).
  */
 export function dropVariants(species: Record<string, J>, more: Iterable<string> = []): Record<string, J> {
   const bases = new Set([...Object.values(species).map((e: J) => String(e.name).toLowerCase()), ...[...more].map((x) => x.toLowerCase())]);
@@ -281,7 +281,8 @@ export function visible(sources: readonly SourceRec[], sw: Switches): SlotTable 
     for (const t of TABLES) {
       const kind = TABLE_KIND[t];
       if (pairs.has(srcPair(s.id, kind))) continue;
-      for (const [k, e] of Object.entries(kept(s.table, t)) as [string, J][]) {
+      // D291: variants too; merge drops them from the species and folds them into their base's lineages.
+      for (const [k, e] of Object.entries(s.table[t] ?? {}) as [string, J][]) {
         if (!off.has(e.source) && !pairs.has(bookPair(e.source, kind))) out[t][k] = e;
       }
     }
@@ -337,7 +338,8 @@ export interface Merged { names: Names; presets: ClassPreset[]; species: Species
  */
 export function merge(n: Names, sources: readonly SourceRec[], sw: Switches): Merged {
   const vis = visible(sources, sw);
-  vis.species = dropVariants(vis.species ?? {}, n.SPECIES.map((r) => r[0]));
+  const allSpecies = vis.species ?? {};
+  vis.species = dropVariants(allSpecies, n.SPECIES.map((r) => r[0]));
   const hide = covered(vis);
   const pairs = new Set(sw.offPairs);
   const offBooks = new Set(sw.offBooks);
@@ -350,12 +352,17 @@ export function merge(n: Names, sources: readonly SourceRec[], sw: Switches): Me
     out[arr] = m ? (n[arr] as readonly J[]).flatMap((r) => (r[1] & ~m ? [[r[0], r[1] & ~m, ...r.slice(2)]] : [])) : [...(n[arr] as readonly J[])];
   }
   if (srdOff("classes")) out.CLASS_FEATURES = [];
-  if (srdOff("species")) out.LINEAGES = [];
+  if (srdOff("species")) { out.LINEAGES = []; out.SPECIES_FEATURES = []; }
+  // A built-in species book that is off (or that your sources bring) takes its lineage rows with it (D291).
+  const sm = mask("species");
+  if (sm) out.LINEAGES = (out.LINEAGES as readonly J[]).flatMap((r) => (r[1] & ~sm ? [[r[0], r[1] & ~sm, ...r.slice(2)]] : []));
 
-  const yours = nameRows(vis, {}, { bookOf: ownBits, classes: n.CLASSES, skills: n.SKILLS, featCategories: n.FEAT_CATEGORIES });
+  // D291: the variants left out of the species are lineage options of their base (`Elf (Drow)` → `Elf [Drow]`).
+  const withVariants = { ...vis, species: allSpecies };
+  const yours = nameRows(withVariants, {}, { bookOf: ownBits, classes: n.CLASSES, skills: n.SKILLS, featCategories: n.FEAT_CATEGORIES, bases: n.SPECIES.map((r) => r[0]) });
   out.CLASSES = yours.CLASSES;
   for (const [arr] of BOOK_ROWS) out[arr] = [...out[arr], ...(yours[arr as keyof typeof yours] as J[])];
-  for (const k of ["CLASS_FEATURES", "LINEAGES", "DETAILS", "CASTERS", "SKILL_LISTS"] as const) out[k] = [...out[k], ...yours[k]];
+  for (const k of ["CLASS_FEATURES", "LINEAGES", "SPECIES_FEATURES", "DETAILS", "CASTERS", "SKILL_LISTS"] as const) out[k] = [...out[k], ...yours[k]];
   const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])].sort();
   out.LANGUAGES = union(n.LANGUAGES, yours.LANGUAGES);
   out.TOOLS = union(n.TOOLS, yours.TOOLS);
@@ -369,7 +376,7 @@ export function merge(n: Names, sources: readonly SourceRec[], sw: Switches): Me
   }
   out.OWN = own;
 
-  const p = presetRows(vis, {}, () => true);
+  const p = presetRows(withVariants, {}, () => true);
   const edition = (name: string, source: string, tbl: string) => vis[tbl]?.[`${name}|${source}`]?.edition ?? undefined;
   const real = (r: J) => r.owes.some((o: string[]) => o.length) || r.counts.some((c: J) => Object.keys(c).length) || r.first.length;
   return {

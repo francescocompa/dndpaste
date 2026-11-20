@@ -87,8 +87,9 @@ for (const cd of Object.values(slots.classes ?? {}) as J[]) {
 rows.sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source));
 
 // D211: the lines a species owes, the way the checker's Species block counts them (warnings only, not its infos):
-// Skills, Tools and Languages to choose, an Origin feat, and the lineage trait's `Feature` (the supplement's name, or
-// `<Species> Lineage` for a species with versions). Key names, counts and the trait's name only.
+// Skills, Tools and Languages to choose, an Origin feat, and the lineage trait, `["Species", trait]`: its pick goes in the
+// Species line's brackets since 0.10 (D280, D291; the supplement's name, or `<Species> Lineage` for a species with
+// versions). Other species features with picks stay `Feature` lines. Key names, counts and the trait's name only.
 const species: J[] = [];
 for (const sd of Object.values(slots.species ?? {}) as J[]) {
   if (!keep(sd)) continue;
@@ -96,8 +97,8 @@ for (const sd of Object.values(slots.species ?? {}) as J[]) {
   const lines: [string, number | string][] = [];
   for (const [key, n] of [["Skills", count(sd.skills)], ["Tools", count(sd.tools)], ["Languages", count(sd.languages)],
     ["Feat", sum((sd.feats ?? []).map((f: J) => f.count ?? 0))]] as [string, number][]) if (n > 0) lines.push([key, n]);
-  const trait = sup.lineageTrait?.[uid] ?? (sd.versions?.length ? `${sd.name} Lineage` : null);
-  if (trait) lines.push(["Feature", trait]);
+  const trait = sup.lineageTrait?.[uid] !== undefined ? sup.lineageTrait[uid] : sd.versions?.length ? `${sd.name} Lineage` : null;
+  if (trait) lines.push(["Species", trait]);
   for (const f of Object.keys(sup.speciesFeatures?.[uid] ?? {})) if (f !== trait) lines.push(["Feature", f]);
   if (lines.length) species.push({ name: sd.name, source: sd.source, lines });
 }

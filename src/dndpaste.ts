@@ -226,6 +226,12 @@ export function abilityOf(group: readonly Detail[] | undefined): Ability | null 
   const name = group[0].ref.name.replace(/^\+1\s+/, "").toUpperCase() as Ability;
   return ABILITIES.includes(name) ? name : null;
 }
+/** A lineage as the editor writes it (D280): the option's last word goes when it repeats the species or the trait (`High Elf` → `High`, `Fire Giant` → `Fire`). */
+export function shortLineage(option: string, species: string, trait: string | null): string {
+  const words = option.split(" ");
+  const last = words[words.length - 1].toLowerCase();
+  return words.length > 1 && (last === species.toLowerCase() || (trait && last === trait.split(" ")[0].toLowerCase())) ? words.slice(0, -1).join(" ") : option;
+}
 /** True when the detail group is an ability pick (see `abilityOf`). */
 export function isAbilitySlot(group: readonly Detail[] | undefined): boolean {
   return abilityOf(group) !== null;

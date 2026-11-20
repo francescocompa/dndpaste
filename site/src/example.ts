@@ -3,7 +3,7 @@ export const GUIDE_LINK = `<p class="muted glink"><a href="/guide">Format guide<
 
 /**
  * The one example build (D99, D104: a multiclass with an option line, a marked feat and an inline ability, in 0.8
- * keys): `/guide` walks it. The empty paste form offers "Start a build" instead (D121).
+ * keys; the 0.10 Species line with its lineage and ability, D280, D281): `/guide` walks it. The empty paste form offers "Start a build" instead (D121).
  * Names only, never rules text (content boundary). It must parse with no diagnostics and already be in canonical
  * form, so Tidy leaves it as it is (test/guide.test.ts).
  */
@@ -12,8 +12,7 @@ Rules: 2024
 Scores: 15/10/13/8/10/15
 Classes: Fighter 1 / Warlock 4
 
-Species: Tiefling|XPHB
-Feature: Fiendish Legacy [CHA; Infernal]
+Species: Tiefling|XPHB [Infernal; CHA]
 
 Background: Soldier|XPHB
 Scores: +2 STR, +1 CON

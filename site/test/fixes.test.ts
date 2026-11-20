@@ -59,17 +59,19 @@ test("D215 (T10): a level header whose block lacks owed keys offers them, laid o
   assert.equal(at("Classes: Fighter 3\n\nL3 Fighter\n", 3), undefined, "no edition, no table");
 });
 
-test("D211 (T11): a species lays out its owed lines; a Feature line takes the trait", () => {
+test("D211 (T11), D291: a species lays out its owed lines; its lineage goes in the Species line's brackets", () => {
   const text = "Rules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\n\nL1 Warlock\n";
   const f = at(text, 4, "species-lines");
   assert.equal(f?.act, "Add Skills, Elven Lineage");
-  assert.equal(f?.apply(text), "Rules: 2024\nClasses: Warlock 1\n\nSpecies: Elf\nSkills:\nFeature: Elven Lineage []\n\nL1 Warlock\n", "review: with its brackets");
+  assert.equal(f?.apply(text), "Rules: 2024\nClasses: Warlock 1\n\nSpecies: Elf []\nSkills:\n\nL1 Warlock\n", "D291: the brackets on the Species line");
   const after = f?.apply(text) ?? "";
   assert.equal(fixCursor(text, after), after.indexOf("[]") + 1, "D270: the cursor goes inside the brackets");
   assert.equal(fixCursor("Skills:\n", "Skills:\nGear:\n"), null, "no brackets written, no move");
   const feat = "Rules: 2024\n\nSpecies: Elf\nFeature: Size [Medium]\nSkills: Insight\n";
-  assert.equal(at(feat, 3)?.apply(feat), "Rules: 2024\n\nSpecies: Elf\nFeature: Size [Medium], Elven Lineage []\nSkills: Insight\n");
-  assert.equal(at("Rules: 2024\n\nSpecies: Elf\nSkills: Insight\nFeature: Elven Lineage [INT; High Elf]\n", 3), undefined);
+  assert.equal(at(feat, 3)?.apply(feat), "Rules: 2024\n\nSpecies: Elf []\nFeature: Size [Medium]\nSkills: Insight\n");
+  assert.equal(at("Rules: 2024\n\nSpecies: Elf [Drow; WIS]\nSkills: Insight\n", 3), undefined, "0.10: the lineage is written");
+  assert.equal(at("Rules: 2024\n\nSpecies: Elf\nSkills: Insight\nFeature: Elven Lineage [INT; High Elf]\n", 3), undefined, "0.9: W006 reads it");
+  assert.equal(at("Rules: 2014\n\nSpecies: Elf|PHB [High]\n", 3)?.act, "Add Languages", "D291: a 2014 subrace takes its own row");
   assert.equal(at("Rules: 2024\n\nSpecies: Human\n", 3)?.act, "Add Skills, Feat", "Skillful and the Origin feat");
   // The species' Skills line counts its picks.
   const g = ghostCounts(parse(feat), feat).find((x) => x.line === 5);
@@ -126,4 +128,24 @@ test("D229: Tidy's plan lists each change; a Subclass goes to its level; a struc
   assert.match(left?.text ?? "", /L1 Warlock\nInvocations: Agonizing Blast/, "the rest still made");
   assert.equal(tidyPlan("   \n"), null);
   assert.equal(tidyPlan("Rules: 2024\nClasses: Fighter 1\nZzz\n"), null, "an error it can't fix stays; nothing else to do");
+});
+
+test("D287, D291: a lineage written before the species' name gets a fix, and Tidy writes the bracket form", () => {
+  const fix = (text: string) => nameFixes(N, text, parse(text)).find((f) => f.kind === "lineage");
+  const wood = "Rules: 2024\n\nSpecies: Wood Elf\nSkills: Insight\n";
+  assert.equal(fix(wood)?.act, "Change to Elf [Wood]");
+  assert.equal(fix(wood)?.apply(wood), "Rules: 2024\n\nSpecies: Elf [Wood]\nSkills: Insight\n");
+  const black = "Rules: 2024\n\nSpecies: Black Dragonborn\n";
+  assert.equal(fix(black)?.apply(black), "Rules: 2024\n\nSpecies: Dragonborn [Black]\n");
+  const hill = "Rules: 2014\n\nSpecies: Hill Dwarf|PHB\n";
+  assert.equal(fix(hill)?.apply(hill), "Rules: 2014\n\nSpecies: Dwarf|PHB [Hill]\n", "a 2014 subrace, its source kept");
+  const ab = "Rules: 2024\n\nSpecies: High Elf [INT]\n";
+  assert.equal(fix(ab)?.apply(ab), "Rules: 2024\n\nSpecies: Elf [High; INT]\n", "lineage first, then the ability (D281)");
+  for (const none of ["Species: Elf\n", "Species: Half-Elf\n", "Species: Simic Hybrid\n", "Species: Purple Elf\n"]) assert.equal(fix(none), undefined, none);
+  const p = tidyPlan(wood, N);
+  assert.equal(p?.text, "Rules: 2024\n\nSpecies: Elf [Wood]\nSkills: Insight\n");
+  assert.ok(p?.changes.some((c) => c.label === "Species: Change to Elf [Wood]"));
+  assert.equal(tidyPlan(wood)?.text ?? wood, wood, "no names table: the name stays");
+  const old = "Rules: 2024\n\nSpecies: Elf|XPHB\nFeature: Elven Lineage [WIS; Wood Elf]\n";
+  assert.equal(tidyPlan(old, N)?.text, "Rules: 2024\n\nSpecies: Elf|XPHB [Wood Elf; WIS]\n", "W006: the 0.9 line moves onto the Species line");
 });

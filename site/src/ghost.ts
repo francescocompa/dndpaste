@@ -9,8 +9,8 @@
  * Skills, Expertise, Cantrips, Spells and Options (a `-` drop lets one more pick in, as the checker's owed + dropped);
  * the loadout total for Masteries and Prepared (SPEC: "the default loadout from that level").
  */
-import { classSequence, keyGroup, resolveKey } from "../../src/dndpaste.ts";
-import type { Paste, Ref } from "../../src/dndpaste.ts";
+import { classSequence, isAbilitySlot, keyGroup, resolveKey } from "../../src/dndpaste.ts";
+import type { Item, Paste, Ref } from "../../src/dndpaste.ts";
 import { PRESETS, SPECIES_PRESETS } from "./presets.ts";
 import { esc, icon } from "./render.ts";
 import type { ClassPreset, SpeciesPreset } from "./presets.ts";
@@ -200,7 +200,7 @@ export function ghostCounts(paste: Paste, text: string): Ghost[] {
 /** D211 (T11): the species block's Skills count, from the species table (SPECIES_PRESETS); n is 0, its own column. */
 function speciesGhosts(paste: Paste, lines: readonly string[], rules: string | null): Ghost[] {
   const sp = paste.entities.find((e) => e.key === "Species");
-  const sd = sp?.item ? speciesPreset(sp.item.ref, rules) : undefined;
+  const sd = sp?.item ? speciesPreset(sp.item, rules) : undefined;
   if (!sp || !sd) return [];
   const want = new Map(sd.lines.filter(([, v]) => typeof v === "number").map(([k, v]) => [k, v as number]));
   const out: Ghost[] = [];
@@ -216,9 +216,12 @@ function speciesGhosts(paste: Paste, lines: readonly string[], rules: string | n
   return out;
 }
 
-/** The species table row for a written species: its own source, else the `Rules:` edition's. */
-export function speciesPreset(ref: Ref, rules: string | null) {
-  return findRow(SPECIES_PRESETS, yours.species, ref, rules);
+/** The species table row for a written species: its own source, else the `Rules:` edition's. A 2014 subrace in the
+ *  brackets (`Elf|PHB [High]`, D282) takes the data's `Elf (High)` row first, else its base's. */
+export function speciesPreset(it: Item, rules: string | null) {
+  const lin = it.details.find((g) => g.length && !isAbilitySlot(g))?.[0]?.ref.name;
+  const sub = lin ? findRow(SPECIES_PRESETS, yours.species, { ...it.ref, name: `${it.ref.name} (${lin})` }, rules) : undefined;
+  return sub ?? findRow(SPECIES_PRESETS, yours.species, it.ref, rules);
 }
 
 /** The 1-based line of `key` inside the block that `opener:` opens (a header block), else 0. */
