@@ -7,6 +7,8 @@ public/assets/form.js
 public/assets/site.js
 public/assets/share.js
 public/assets/names.js
+public/assets/sources.js
+public/assets/yours.js
 
 # The build stamp (scripts/stamp.mjs), written by the client build
 src/build.gen.ts

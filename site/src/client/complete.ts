@@ -12,8 +12,9 @@ import { keyHints } from "./hints.ts";
 import { MARKED_FEAT } from "../keydocs.ts";
 import type * as N from "../names.gen.ts";
 
-/** The generated names module (/assets/names.js, D158). */
-export type Names = typeof N;
+/** The generated names module (/assets/names.js, D158), with your own sources merged in (yours.ts `merge`): `OWN`
+ *  maps each of your names, lower case, to its books (D250). */
+export type Names = typeof N & { OWN?: ReadonlyMap<string, readonly string[]> };
 export type Edition = "2014" | "2024";
 
 /** Where the cursor is typing a name, and what kind of name fits there. */
@@ -56,6 +57,8 @@ export interface Suggestion {
   source: string | null;
   /** A spell's level, as the row shows it: `3rd`, `cantrip` (D162). */
   tag?: string;
+  /** A name from your own sources: its book, shown on the row when no `|SOURCE` is written (D250). */
+  book?: string;
   /** Above the highest level the spot's class can pick yet (D162), or outside the short list the spot's species or
    *  class chooses from (D227): shown, ranked last, dimmed. */
   dim?: boolean;
@@ -69,7 +72,9 @@ export function minTyped(pool: number, everySpot = OPEN_EVERY_SPOT): number {
   if (everySpot) return 0;
   return pool <= 12 ? 0 : pool <= 40 ? 1 : 2;
 }
-const BOOKS: readonly [string, number, Edition][] = [["PHB", 1, "2014"], ["DMG", 4, "2014"], ["XPHB", 2, "2024"], ["XDMG", 8, "2024"]];
+/** Book bits: the four built-in books, then "a 2014 book" and "a 2024 book" of your own sources (yours.ts, D259),
+ *  whose code the row takes from `OWN`. */
+const BOOKS: readonly [string, number, Edition][] = [["PHB", 1, "2014"], ["DMG", 4, "2014"], ["XPHB", 2, "2024"], ["XDMG", 8, "2024"], ["", 16, "2014"], ["", 32, "2024"]];
 const ABILITY_NAMES = ["Strength", "Dexterity", "Constitution", "Intelligence", "Wisdom", "Charisma"];
 const lc = (s: string) => s.toLowerCase();
 const clean = (s: string) => s.trim().replace(/^-/, "").trim().replace(/^"|"$/g, "").replace(/\|.*$/, "").trim();
@@ -328,6 +333,8 @@ function candidates(n: Names, sp: Spot): Cand[] {
         const slots = l[1] ? [abilities(l[1]), plain(l[2])] : [plain(l[2])];
         if (slots[sp.slot]) return slots[sp.slot];
       }
+      // D266: a feature no list knows offers nothing inside its brackets (the name itself is the thing to fix).
+      if (!l && !n.DETAILS.some((r) => lc(r[0]) === p)) return [];
     } else if (keyGroup(sp.key) === "Options") {
       const o = pick(n.OPTIONS);
       if (o && o[4] && sp.slot === 0) return spells((l) => l === 0);
@@ -341,8 +348,9 @@ function candidates(n: Names, sp: Spot): Cand[] {
     return rows.map((o) => ({ name: o[0], books: o[1], first: Boolean(o[2] & mine), ...(codes.length ? {} : off(o[2])) }));
   }
   switch (sp.key) {
-    case "Spells": case "Prepared": return spells((l) => l > 0).map((c) => (c.first ? c : { ...c, ...off(0) }));
-    case "Cantrips": return spells((l) => l === 0).map((c) => (c.first ? c : { ...c, ...off(0) }));
+    // A spell of yours with no level (-1) goes on both kinds of line.
+    case "Spells": case "Prepared": return spells((l) => l > 0 || l < 0).map((c) => (c.first ? c : { ...c, ...off(0) }));
+    case "Cantrips": return spells((l) => l <= 0).map((c) => (c.first ? c : { ...c, ...off(0) }));
     case "Feat": {
       const fs = sp.marker === "fighting style";
       const feats = n.FEATS.filter((f) => !sp.marker || lc(f[2]) === sp.marker || (fs && lc(f[2]).startsWith("fighting style")));
@@ -403,18 +411,19 @@ function tier(name: string, q: string): number {
   return q.length >= 3 && x.includes(q) ? 2 : -1;
 }
 
-/** The `|SOURCE` a pick writes (D155): none without `Rules:`, none when the name is in that edition, else its book. */
-export function sourceFor(books: number, rules: Edition | null): string | null {
+/** The `|SOURCE` a pick writes (D155): none without `Rules:`, none when the name is in that edition, else its book:
+ *  a built-in one, else the first of your books for it (`own`). */
+export function sourceFor(books: number, rules: Edition | null, own: readonly string[] = []): string | null {
   if (!rules || !books) return null;
   if (BOOKS.some(([, bit, ed]) => ed === rules && books & bit)) return null;
-  return BOOKS.find(([, bit]) => books & bit)?.[0] ?? null;
+  return BOOKS.find(([code, bit]) => code && books & bit)?.[0] ?? own[0] ?? null;
 }
 
 const ORD = ["cantrip", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"];
 
 /** The highest spell level the spot's classes can pick at their level there (D162); null when no table says. */
 export function spellCap(n: Names, sp: Spot): number | null {
-  const want = sp.rules === "2014" ? 1 : sp.rules === "2024" ? 2 : 3;
+  const want = sp.rules === "2014" ? 1 | 16 : sp.rules === "2024" ? 2 | 32 : 63;
   let cap: number | null = null;
   for (const [cls, k] of sp.levels) {
     for (const c of n.CASTERS) {
@@ -432,6 +441,7 @@ export function spellCap(n: Names, sp: Spot): number | null {
  * the spot's list size asks (D164; none while the D172 trial is on), or when the typed name is already exactly one.
  */
 export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SPOT): Suggestion[] {
+  const own = (name: string): readonly string[] => n.OWN?.get(lc(name)) ?? [];
   const q = norm(sp.typed);
   const cands = candidates(n, sp).filter((c) => !sp.taken.has(lc(c.name)));
   const pool = new Set(cands.map((c) => lc(c.name))).size;
@@ -458,7 +468,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
     // by default; its `|SOURCE` (the book a pick writes, D155) says which.
     const other = other0;
     return {
-      name: c.name, source: sp.hasSource ? null : sourceFor(c.books, sp.rules), level: c.level, dim, other,
+      name: c.name, source: sp.hasSource ? null : sourceFor(c.books, sp.rules, own(c.name)), level: c.level, dim, other,
       grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over,
     };
   });
@@ -474,7 +484,10 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
   const mixed = top.some((r) => r.level !== 0);
   return top.map(({ name, source, level, dim }) => {
     const s: Suggestion = { name, source };
-    if (level !== undefined && (level > 0 || mixed)) s.tag = ORD[level];
+    if (level !== undefined && (level > 0 || (mixed && level === 0))) s.tag = ORD[level];
+    // D250: a name of yours shows its book, unless the row already shows the one a pick writes.
+    const books = own(name);
+    if (books.length && !source) s.book = books.find((b) => BOOKS.some(([c, , ed]) => c === b && ed === sp.rules)) ?? books[0];
     if (dim) s.dim = true;
     return s;
   });

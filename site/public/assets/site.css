@@ -299,8 +299,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 /* D163: inside [ ], what goes in each ; group, the cursor's group in bold. */
 .ac .ah { font: 12px/1.3 var(--sans); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ac .ah b { color: var(--fg); font-weight: 600; }
-.ed .ac .ah { padding: 3px 8px 5px; }
-.ed .ac .ah + .ao { border-top: 1px solid var(--rule); margin-top: 1px; padding-top: 4px; }
+.ed .ac .ah { margin: 0 -4px 4px; padding: 3px 12px 6px; border-bottom: 1px solid var(--rule); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ed .lvh { font-weight: 600; } .ed .lvh .lvn { color: var(--acc); }
 .ed > .src { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 8px 10px 8px var(--gw); font: inherit;
@@ -564,3 +563,155 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .tidypop .tpi:hover { background: var(--chip); }
 .tidypop .tpi[aria-pressed=false] { color: var(--mute); text-decoration: line-through; }
 .tidypop .tpu { margin: 6px 0 0; font-size: 12px; }
+
+/* ---- /sources (D252–D257): one column, like /guide; built from the jam's build frames (.claude/mockups/sources) ---- */
+.srcp { max-width: 760px; }
+.srcp .intro { padding-bottom: 2px; }
+.srcp .store { display: flex; gap: 8px; align-items: flex-start; font: 13px/1.45 var(--sans); color: var(--mute); margin: 0 0 18px; }
+.srcp .store svg.i { margin-top: 2px; }
+.srcp .hint { font: 12.5px/1.45 var(--sans); color: var(--mute); margin: 0; }
+.srcp a.lk { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+.srcp .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--chip); border-radius: 7px; padding: 2px; font: 13px/1 var(--sans); }
+.srcp .seg button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 12px; border: 0; border-radius: 5px; background: none; color: var(--mute); font: inherit; cursor: pointer; white-space: nowrap; }
+.srcp .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+.srcp .seg button:disabled { cursor: default; opacity: 0.6; }
+/* The switch (D82's pattern) as a button of its own; the mixed state is a partly-on category (D253). */
+.srcp .tgb { padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; border-radius: 10px; }
+.srcp .tog { display: inline-block; width: 34px; height: 20px; border-radius: 10px; background: var(--tog); position: relative; flex: none; }
+.srcp .tog::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--bg); transition: left 0.12s; }
+.srcp .tog.on { background: var(--acc); } .srcp .tog.on::after { left: 16px; }
+.srcp .tog.on.mix { background: color-mix(in srgb, var(--acc) 45%, var(--tog)); } .srcp .tog.on.mix::after { left: 9px; }
+.srcp .bt.sm { padding: 5px 8px; font-size: 12px; }
+.srcp .bt.warn { background: var(--errbg); color: var(--err); }
+.srcp .bt svg.i { width: 14px; height: 14px; }
+
+/* Add a source: File | GitHub link, the drop zone (D252). */
+.srcp .add { display: grid; gap: 10px; padding: 14px 0 18px; border-top: 1px solid var(--rule); }
+.srcp .addh { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.srcp .way-file, .srcp .way-link { display: grid; gap: 10px; }
+.srcp [hidden] { display: none !important; }
+.srcp .drop { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px dashed var(--rule); border-radius: 8px; font: 13px/1.45 var(--sans); color: var(--mute); }
+.srcp .drop.over { border-color: var(--acc); background: color-mix(in srgb, var(--acc) 6%, transparent); }
+.srcp .drop .grow { min-width: 0; }
+.srcp .lrow { display: flex; gap: 8px; }
+.srcp .addout:empty { display: none; }
+.srcp .addout .said { margin: 0; font: 13px/1.45 var(--sans); color: var(--mute); display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.srcp .addout .said b { color: var(--fg); font-weight: 600; }
+.srcp .addout .said .ok { display: inline-flex; color: var(--ok, var(--ab-wis)); margin-right: -4px; }
+.srcp .addout .said .warn { display: inline-flex; align-items: center; gap: 4px; color: var(--err); }
+.srcp .addout .busy svg.i { animation: srcspin 1s linear infinite; }
+@keyframes srcspin { to { transform: rotate(360deg); } }
+/* D266: a thin bar under the line while files are read; it slides when the count isn't known yet. */
+.srcp .addout .bar { height: 3px; margin-top: 8px; border-radius: 2px; background: var(--chip); overflow: hidden; }
+.srcp .addout .bar span { display: block; height: 100%; background: var(--acc); transition: width 0.2s; }
+.srcp .addout .bar span.ind { width: 30%; animation: srcslide 1.2s ease-in-out infinite; }
+@keyframes srcslide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .srcp .addout .busy svg.i, .srcp .addout .bar span.ind { animation: none; } }
+.srcp .ferr { font-size: 12.5px; align-items: flex-start; padding: 6px 9px; }
+.srcp .ferr svg.i { margin-top: 1px; }
+
+/* The list: a head with the lens switch (D254), then the rows. */
+.srcp .sh { display: flex; align-items: center; gap: 12px; padding: 22px 0 8px; border-bottom: 1px solid var(--rule); }
+.srcp .sh h2 { font: 600 15px/1.3 var(--sans); margin: 0; }
+.srcp .sh .grow { flex: 1; }
+.srcp .sh .gby { font: 12.5px/1 var(--sans); color: var(--mute); }
+/* D267: Kinds splits every row by kind; a pressed chip like the segments' on state. */
+.srcp .kbtn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 7px; background: none; color: var(--mute); font: 13px/1 var(--sans); cursor: pointer; white-space: nowrap; }
+.srcp .kbtn.on { background: var(--chip); color: var(--fg); font-weight: 600; border-color: transparent; }
+.srcp .wdot { width: 6px; height: 6px; border-radius: 50%; background: var(--err); margin-left: 2px; display: inline-block; }
+.srcp .lh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0 8px; border-bottom: 1px solid var(--rule); }
+.srcp .lh .muted { font-size: 12.5px; }
+.srcp .empty { padding: 18px 0; border-bottom: 1px solid var(--rule); font: 13.5px/1.55 var(--sans); color: var(--mute); }
+.srcp .empty b { color: var(--fg); font-weight: 600; }
+.srcp .sec { padding-top: 26px; }
+.srcp .bkst { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 10px; align-items: center; font: 12.5px/1.4 var(--sans); color: var(--mute); justify-items: start; }
+.srcp .bkst .hc { cursor: default; }
+.srcp .bkst .hc:hover { background: var(--chip); }
+
+/* Group by Source: a row per source, the SRD names last. Same build as a book row: name, then the switch on the right,
+   the small lines under it (his pin, D266). */
+.srcp .srow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 12px; padding: 12px 10px 12px 0; border-bottom: 1px solid var(--rule); align-items: center; }
+.srcp .srow > .meta, .srcp .srow > .stat, .srcp .srow > .ferr, .srcp .srow > .kds, .srcp .srow > .bkst, .srcp .srow > .hint { grid-column: 1 / -1; }
+.srcp .nm { display: flex; align-items: center; gap: 7px; font: 600 13.5px/1.3 var(--mono); min-width: 0; }
+.srcp .nm svg.i { color: var(--mute); }
+.srcp .nm .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srcp .meta { padding: 0; font: 12.5px/1.45 var(--sans); color: var(--mute); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.srcp .meta b { font-weight: 600; color: var(--fg); }
+.srcp .stat { display: flex; align-items: center; gap: 6px; font: 12.5px/1.45 var(--sans); color: var(--mute); }
+.srcp .stat .ok { display: inline-flex; color: var(--ok, var(--ab-wis)); }
+.srcp .act { display: flex; gap: 2px; align-items: center; }
+.srcp .srow.off > :not(.tgb):not(.act) { opacity: 0.5; }
+/* D266, D270: lines not read, an alert icon in the meta line that opens its count and reason. */
+.srcp .upop { position: relative; }
+.srcp .upop > summary { list-style: none; display: inline-flex; align-items: center; padding: 2px; margin: -2px 0; color: var(--err); opacity: 0.8; cursor: pointer; border-radius: 4px; }
+.srcp .upop > summary:hover, .srcp .upop[open] > summary { opacity: 1; }
+.srcp .upop > summary::-webkit-details-marker { display: none; }
+.srcp .upop > summary svg.i { width: 13px; height: 13px; }
+.srcp .upop .popb { position: absolute; z-index: 5; top: calc(100% + 6px); left: 0; width: min(300px, 80vw); padding: 9px 11px; border: 1px solid var(--rule); border-radius: 8px; background: var(--bg); color: var(--fg); font: 12.5px/1.5 var(--sans); box-shadow: 0 6px 18px rgb(0 0 0 / 0.18); }
+.srcp .upop .popb code { font: 0.92em/1 var(--mono); }
+/* D267: a row's kinds, each with its switch. */
+.srcp .kds { display: grid; padding: 4px 0 0 0; }
+.srcp .kd { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 5px 0 5px 14px; border-top: 1px dashed var(--rule); font: 13px/1.4 var(--sans); }
+.srcp .kd small { color: var(--mute); font: 12px/1.4 var(--mono); }
+.srcp .kd.off .t, .srcp .kd.off small { color: var(--mute); opacity: 0.6; }
+.srcp .c3 .brow > .kds { grid-column: 1 / -1; }
+
+/* Group by Book: switches keep clear of the column edge (his spacing pin, D254). */
+.srcp .c3 .bgrp { border-bottom: 1px solid var(--rule); }
+.srcp .c3 .gh { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 12px 10px 12px 0; font: 13.5px/1.4 var(--sans); }
+.srcp .c3 .ghb { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.srcp .c3 .gh .chev { color: var(--mute); display: inline-flex; }
+.srcp .c3 .gh b { font-weight: 600; }
+.srcp .c3 .gh .st { font: 12.5px/1.4 var(--sans); color: var(--mute); margin-left: 8px; }
+.srcp .c3 .gh > .tgb { grid-row: 1 / span 2; grid-column: 2; }
+.srcp .c3 .gh small { grid-column: 1; padding-left: 27px; font: 12px/1.4 var(--mono); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srcp .c3 .bks { padding: 0 0 10px 28px; }
+.srcp .c3 .brow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 7px 10px 7px 0; border-top: 1px solid var(--rule); font: 13.5px/1.4 var(--sans); }
+.srcp .c3 .brow small { color: var(--mute); font: 12px/1.4 var(--mono); }
+.srcp .c3 .brow > .tgb { grid-row: 1 / span 2; grid-column: 2; }
+.srcp .c3 .brow.off .t { color: var(--mute); }
+
+/* The names format, folded at the bottom (D247, D252). */
+.srcp .docs { padding-top: 22px; }
+.srcp .fold { border-bottom: 1px solid var(--rule); }
+.srcp .fold > summary { list-style: none; cursor: pointer; }
+.srcp .fold > summary::-webkit-details-marker { display: none; }
+.srcp .fh { display: flex; align-items: center; gap: 8px; padding: 11px 0; font: 13.5px/1.4 var(--sans); flex-wrap: wrap; }
+.srcp .fh b { font-weight: 600; }
+.srcp .fh .muted { font-size: 12.5px; }
+.srcp .fh svg.i { color: var(--mute); transition: transform 0.12s; }
+.srcp .fold[open] > .fh > svg.i { transform: rotate(90deg); }
+.srcp .fin { padding: 0 0 6px 23px; }
+.srcp .fin .fold:last-child { border-bottom: 0; }
+.srcp .fb { padding: 0 0 16px 23px; display: grid; gap: 10px; font: 13.5px/1.55 var(--sans); }
+.srcp .fb p { margin: 0; }
+.srcp .fb code { font: 0.9em/1 var(--mono); }
+.srcp pre.code { margin: 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); font: 12.5px/1.6 var(--mono); white-space: pre; overflow-x: auto; }
+
+/* The Settings menu's link row (D256). */
+.dmenu .srcrow { display: flex; align-items: center; gap: 8px; color: var(--fg); text-decoration: none; }
+.dmenu .srcrow .grow { flex: 1; }
+.dmenu .srcrow .cnt { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--chip); color: var(--fg); font: 600 11px/18px var(--sans); text-align: center; }
+.dmenu .srcrow svg.i { color: var(--mute); }
+/* The autocomplete's no-match line while no source is added (D256). */
+.ac .ae { display: grid; font: 12px/1.4 var(--sans); color: var(--mute); white-space: normal; }
+.ac .ae > span { padding: 6px 8px; }
+.ac .ae a { display: flex; align-items: center; gap: 4px; color: var(--mute); text-decoration: none; padding: 6px 8px; border-top: 1px solid var(--rule); }
+.ac .ae a:hover { color: var(--fg); }
+.ac .ae a svg.i { width: 12px; height: 12px; }
+/* A name of yours shows its book (D250). */
+.ac .abk { color: var(--src); font-size: 11.5px; }
+
+@media (max-width: 600px) {
+  .srcp .srow { grid-template-columns: minmax(0, 1fr) auto; }
+  .srcp .srow > .act { grid-column: 1 / -1; grid-row: 3; }
+  .srcp .lrow { flex-direction: column; }
+  .srcp .addh .seg { width: 100%; }
+  .srcp .drop { flex-direction: column; align-items: stretch; text-align: left; }
+  .srcp .sh { flex-wrap: wrap; }
+  .srcp .sh h2 { flex-basis: 100%; }
+  .srcp .sh .grow, .srcp .sh .gby { display: none; }
+  .srcp .sh .seg { flex: 1; }
+  .srcp .c3 .bks { padding-left: 0; }
+  .srcp .fb, .srcp .fin { padding-left: 0; }
+}

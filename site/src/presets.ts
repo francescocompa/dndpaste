@@ -7,8 +7,10 @@
 export type Edition = "2014" | "2024";
 export interface ClassPreset {
   name: string;
-  /** PHB for 2014, XPHB for 2024. */
-  source: "PHB" | "XPHB";
+  /** PHB for 2014, XPHB for 2024; a class from your own sources keeps its book (D246). */
+  source: string;
+  /** A class from your own sources: its edition, when known. */
+  edition?: Edition;
   /** Extra keys at class level 1 when this is the build's first class (skills, starting gear). */
   first: readonly string[];
   /** Extra keys at class level 1 when the class is taken later (multiclass skills). */
@@ -123,7 +125,7 @@ export const PRESETS: readonly ClassPreset[] = [
 ];
 
 /** D211: the lines a species owes: [key, picks] for a counted key, [`Feature`, trait name] for its lineage trait. */
-export interface SpeciesPreset { name: string; source: "PHB" | "XPHB"; lines: readonly (readonly [string, number | string])[] }
+export interface SpeciesPreset { name: string; source: string; edition?: Edition; lines: readonly (readonly [string, number | string])[] }
 
 export const SPECIES_PRESETS: readonly SpeciesPreset[] = [
   { name: "Dragonborn", source: "XPHB", lines: [["Feature","Draconic Ancestry"]] },

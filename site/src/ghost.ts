@@ -13,7 +13,7 @@ import { classSequence, keyGroup, resolveKey } from "../../src/dndpaste.ts";
 import type { Paste, Ref } from "../../src/dndpaste.ts";
 import { PRESETS, SPECIES_PRESETS } from "./presets.ts";
 import { esc, icon } from "./render.ts";
-import type { ClassPreset } from "./presets.ts";
+import type { ClassPreset, SpeciesPreset } from "./presets.ts";
 
 export interface Ghost {
   /** 1-based line of the text. */
@@ -37,12 +37,25 @@ const COUNTED = new Map(["Skills", "Expertise", "Cantrips", "Spells", "Options",
 const LEVEL_RE = /^L([1-9]\d*)\s+(.+)$/i;
 const EDITION_SOURCE: Record<string, ClassPreset["source"]> = { "2014": "PHB", "2024": "XPHB" };
 
-/** The table for a level's class: its own source, else the `Rules:` edition; none for a class not in the table. */
-function tableFor(ref: Ref, rules: string | null): ClassPreset | undefined {
+/** Classes and species from your own sources (D246), set by the editor once it has read them; none until then. */
+let yours: { presets: readonly ClassPreset[]; species: readonly SpeciesPreset[] } = { presets: [], species: [] };
+export function useYourPresets(presets: readonly ClassPreset[], species: readonly SpeciesPreset[]): void { yours = { presets, species }; }
+
+/** A row for a written name: the bundled one (its own source, else the `Rules:` edition's), else one of yours: its own
+ *  source, else the `Rules:` edition's, else its only printing. */
+function findRow<T extends { name: string; source: string; edition?: string }>(built: readonly T[], own: readonly T[], ref: Ref, rules: string | null): T | undefined {
   const src = ref.source ? ref.source.toUpperCase() : rules ? EDITION_SOURCE[rules] : undefined;
-  if (!src) return undefined;
   const name = ref.name.toLowerCase();
-  return PRESETS.find((p) => p.source === src && p.name.toLowerCase() === name);
+  const hit = src ? built.find((p) => p.source === src && p.name.toLowerCase() === name) : undefined;
+  if (hit || !own.length) return hit;
+  const mine = own.filter((p) => p.name.toLowerCase() === name);
+  if (ref.source) return mine.find((p) => p.source.toUpperCase() === src);
+  return mine.find((p) => rules && p.edition === rules) ?? (mine.length === 1 || !rules ? mine[0] : mine.find((p) => !p.edition) ?? mine[0]);
+}
+
+/** The table for a level's class: its own source, else the `Rules:` edition; none for a class not in the table. */
+export function tableFor(ref: Ref, rules: string | null): ClassPreset | undefined {
+  return findRow(PRESETS, yours.presets, ref, rules);
 }
 
 /** A class that prepares from its whole list (D190, D23): its table counts a `Prepared` loadout and never `Spells`.
@@ -205,9 +218,7 @@ function speciesGhosts(paste: Paste, lines: readonly string[], rules: string | n
 
 /** The species table row for a written species: its own source, else the `Rules:` edition's. */
 export function speciesPreset(ref: Ref, rules: string | null) {
-  const src = ref.source ? ref.source.toUpperCase() : rules ? EDITION_SOURCE[rules] : undefined;
-  const name = ref.name.toLowerCase();
-  return src ? SPECIES_PRESETS.find((p) => p.source === src && p.name.toLowerCase() === name) : undefined;
+  return findRow(SPECIES_PRESETS, yours.species, ref, rules);
 }
 
 /** The 1-based line of `key` inside the block that `opener:` opens (a header block), else 0. */

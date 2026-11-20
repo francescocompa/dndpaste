@@ -21,6 +21,10 @@
       "types": "./dist/src/sources.d.ts",
       "import": "./dist/src/sources.js"
     },
+    "./extract": {
+      "types": "./dist/src/extract.d.ts",
+      "import": "./dist/src/extract.js"
+    },
     "./data/srd/slots.json": "./data/srd/slots.json",
     "./data/supplement.json": "./data/supplement.json"
   },

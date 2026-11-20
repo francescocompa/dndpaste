@@ -20,6 +20,7 @@ import type { Col, Dir } from "./codes.ts";
 import { applyDisplay, displayMenuHtml, displayStore } from "./display.ts";
 import type { Display } from "./display.ts";
 import { suggestPref } from "./prefs.ts";
+import { readSummary } from "./summary.ts";
 import { keyFromHash, keyStore } from "./keys.ts";
 import { imageFileName } from "../shareimg.ts";
 import { BUILD } from "../build.gen.ts";
@@ -152,7 +153,7 @@ function wireDisplay(): void {
   if (!btn) return;
   let d: Display = store.get();
   const suggest = suggestPref(() => window.localStorage);
-  const body = () => displayMenuHtml(d, store.persistent(), suggest.get()) + SHEET_HEAD;
+  const body = () => displayMenuHtml(d, store.persistent(), suggest.get(), readSummary()) + SHEET_HEAD;
   const p = panel("dmenu", body(), "Settings", "dialog");
   btn.setAttribute("aria-controls", (p.id = "dmenu"));
   const redraw = (focus: string) => {
