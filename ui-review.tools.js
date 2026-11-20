@@ -475,8 +475,25 @@ uiReview.config({
     },
     'ed-own-spell': async (x) => { if (await edHomebrew(x, 'ed-own-spell')) await acSetup(x, 'ed-own-spell', 'Rules: 2024\nClasses: Druid 3\n\nL3 Druid\nSpells: Moonb') },
     'ed-own-options': async (x) => { if (await edHomebrew(x, 'ed-own-options')) await acSetup(x, 'ed-own-options', 'Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nFeature: Ember Gift [') },
-    // D266: brackets with two slots keep their title; an unknown feature's brackets offer nothing.
-    'ed-two-slots': (x) => acSetup(x, 'ed-two-slots', 'Rules: 2024\nSpecies: Elf\nFeature: Elven Lineage ['),
+    // D266: brackets with two slots keep their title; an unknown feature's brackets offer nothing. Since 0.10 (D291)
+    // the two slots are the Species line's lineage and ability.
+    'ed-two-slots': (x) => acSetup(x, 'ed-two-slots', 'Rules: 2024\nSpecies: Elf ['),
+    // T7.2 (D280–D291): the 0.10 Species line in the editor.
+    'lin-pick': (x) => acSetup(x, 'lin-pick', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: El'),
+    'lin-list': (x) => acSetup(x, 'lin-list', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf ['),
+    'lin-ability': (x) => acSetup(x, 'lin-ability', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf [Drow; '),
+    'lin-2014': (x) => acSetup(x, 'lin-2014', 'Rules: 2014\nClasses: Wizard 1\n\nSpecies: Dwarf ['),
+    'lin-ghost': (x) => acSetup(x, 'lin-ghost', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Tiefling'),
+    'lin-feature': (x) => acSetup(x, 'lin-feature', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf [Drow; WIS]\nFeature: '),
+    'lin-wood': async (x) => {
+      await acSetup(x, 'lin-wood', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Wood Elf\nSkills: Perception\n\nL1 Wizard\n')
+      await x.sleep(300)
+      document.querySelector('button.wlb[data-line="4"]')?.click(); await x.sleep(150)
+    },
+    'lin-old': async (x) => {
+      await acSetup(x, 'lin-old', 'Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf|XPHB\nFeature: Elven Lineage [WIS; Wood Elf]\nSkills: Perception\n\nL1 Wizard\n')
+      editor().blur(); await x.sleep(300)
+    },
     'ed-unknown-feature': (x) => acSetup(x, 'ed-unknown-feature', 'Rules: 2024\nSpecies: Elf\nFeature: Elf Lineage ['),
     // D268: needs a data folder with species variants added on /sources (his link).
     'ed-species': (x) => acSetup(x, 'ed-species', 'Rules: 2024\nSpecies: Drag'),
