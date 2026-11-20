@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
+import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, opensDetails, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 
 /** `¦` marks the cursor. */
@@ -433,6 +433,36 @@ test("D241: a Subclass line lists its class's subclasses first; the others follo
   assert.deepEqual(rows("Rules: 2024\nClasses: Wizard 3\nSubclass: Cham¦"), ["Champion~"]);
   // No class known: nothing dimmed.
   assert.ok(rows("Subclass: ¦")!.every((x) => !x.endsWith("~")));
+});
+
+test("D242: a pick that asks a detail opens its brackets; one that takes none doesn't", () => {
+  const opens = (src: string, name: string, rest = "") => {
+    const s = spot(src);
+    assert.ok(s, `a spot in ${src}`);
+    const pick = suggest(N, s, 40).find((x) => x.name === name) ?? { name, source: null };
+    return opensDetails(N, s, pick, rest);
+  };
+  // Feats with an ability, versions or spells to pick; the printing follows Rules.
+  assert.equal(opens("Rules: 2024\nFeat: Magic Ini¦", "Magic Initiate"), true);
+  assert.equal(opens("Rules: 2024\nFeat: Grap¦", "Grappler"), true);
+  assert.equal(opens("Rules: 2014\nFeat: Grap¦", "Grappler"), false, "the 2014 Grappler asks nothing");
+  assert.equal(opens("Rules: 2024\nFeat: Ale¦", "Alert"), false);
+  // Options with picks: the 2024 invocation asks its cantrip, the 2014 one doesn't; a pact boon in both.
+  assert.equal(opens("Rules: 2024\nInvocations: Agoniz¦", "Agonizing Blast"), true);
+  assert.equal(opens("Rules: 2014\nInvocations: Agoniz¦", "Agonizing Blast"), false);
+  assert.equal(opens("Rules: 2014\nPact Boon: Pact of the T¦", "Pact of the Tome"), true);
+  // Chosen forms (D195), class feature options, lineage traits.
+  assert.equal(opens("Rules: 2024\nInvocations: Pact of the Ch¦", "Pact of the Chain"), true);
+  assert.equal(opens("Rules: 2024\nSpells: Find Fam¦", "Find Familiar"), true);
+  assert.equal(opens("Feature: Divine Or¦", "Divine Order"), true);
+  assert.equal(opens("Feature: Elven Lin¦", "Elven Lineage"), true);
+  // None: a plain spell, a name inside brackets, brackets already there, a source already there.
+  assert.equal(opens("Rules: 2024\nSpells: Magic Miss¦", "Magic Missile"), false);
+  assert.equal(opens("Options: Lessons of the First Ones [Magic Ini¦", "Magic Initiate"), false, "details don't nest");
+  assert.equal(opens("Rules: 2024\nFeat: Magic Ini¦", "Magic Initiate", " [INT]"), false);
+  assert.equal(opens("Rules: 2024\nFeat: Magic Ini¦|XPHB", "Magic Initiate"), false);
+  // A form's brackets offer no names: the list has no forms.
+  assert.deepEqual(names("Spells: Find Familiar [¦]"), []);
 });
 
 test("D243: where the line's class is clear, its spells, features and options lead; the rest is dimmed, still offered", () => {

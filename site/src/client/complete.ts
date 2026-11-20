@@ -300,7 +300,7 @@ function candidates(n: Names, sp: Spot): Cand[] {
       const ed = BOOKS.filter((b) => b[2] === sp.rules).reduce((a, b) => a | b[1], 0);
       return hits.find((r) => r[1] & ed) ?? hits[hits.length - 1];
     };
-    if (["Species", "Background", "Subclass", "Classes"].includes(sp.key)) return [];
+    if (["Species", "Background", "Subclass", "Classes"].includes(sp.key) || isForm(n, p)) return [];
     if (sp.key === "Feat") {
       if (p === "ability score improvement" || p === "asi") return abilities(63);
       const f = pick(n.FEATS);
@@ -537,6 +537,27 @@ export function afterPick(n: Names, sp: Spot, picked: string): string {
 export function written(sp: Spot, s: Suggestion): string {
   return (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
 }
+
+/** Keys whose items never carry details (SPEC §5.3): a pick there is never written with brackets. */
+const NO_DETAILS = new Set(["Species", "Background", "Subclass", "Classes", "L"]);
+
+/**
+ * A pick that asks a detail is written with its brackets, the cursor inside (D242): a feat with an ability, version
+ * or spells to pick, an option with picks, a class feature's option, a lineage trait, a chosen form (D195). Which
+ * printing: the `|SOURCE` the pick writes, else the `Rules:` edition, else any. Never inside brackets (details don't
+ * nest), never where brackets or a source already follow the name (`rest`: the line after the spot).
+ */
+export function opensDetails(n: Names, sp: Spot, s: Suggestion, rest: string): boolean {
+  if (sp.parent !== null || sp.hasSource || NO_DETAILS.has(sp.key) || /^\s*\[/.test(rest)) return false;
+  const rows = n.DETAILS.filter((r) => lc(r[0]) === lc(s.name));
+  if (!rows.length) return false;
+  const want = s.source ? BOOKS.find((b) => b[0] === s.source)?.[1] ?? 0 : BOOKS.filter((b) => b[2] === sp.rules).reduce((a, b) => a | b[1], 0);
+  return rows.some((r) => !r[1] || !want || Boolean(r[1] & want));
+}
+
+/** A name whose one detail is a chosen form (D195): the list has no forms to offer inside its brackets. */
+const isForm = (n: Names, name: string) =>
+  n.DETAILS.some((r) => lc(r[0]) === name) && (/^(find |summon )/.test(name) || /^pact of the (chain|blade)$/.test(name));
 
 // ---- Key names (D170, D171) ----
 

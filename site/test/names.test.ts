@@ -38,3 +38,16 @@ test("D165: MASTERY_WEAPONS lists mundane weapons from the 2024 books only", () 
   const names = N.MASTERY_WEAPONS.map((w) => w[0]);
   assert.ok(names.includes("Longsword") && !names.includes("Shield") && !names.includes("Rope"));
 });
+
+test("D242: DETAILS names the picks that ask a detail, by printing", () => {
+  const books = (name: string) => N.DETAILS.find((r) => r[0] === name)?.[1];
+  assert.equal(books("Magic Initiate"), 2);
+  assert.equal(books("Grappler"), 2, "the XPHB printing only");
+  assert.equal(books("Agonizing Blast"), 2);
+  assert.equal(books("Pact of the Tome"), 3);
+  assert.equal(books("Pact of the Chain"), 3);
+  assert.equal(books("Find Familiar"), 3);
+  assert.equal(books("Elven Lineage"), 0);
+  assert.equal(books("Divine Order"), 0);
+  for (const none of ["Alert", "Archery", "Magic Missile", "Devil's Sight", "Phantom Steed"]) assert.equal(books(none), undefined, none);
+});

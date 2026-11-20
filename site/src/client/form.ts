@@ -26,7 +26,7 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import { afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, opensDetails, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
@@ -665,8 +665,15 @@ function init(): void {
     const sep = names && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
     // Review (D229): the last pick in `[ ]` leaves no stray spaces inside the brackets: `[ Drow ]` → `[Drow]`.
     const [a, b] = sep || sp.parent === null ? [sp.start, sp.end] : bracketTrim(ta.value, sp.start, sp.end);
-    insert(written(sp, r) + sep, a, b);
-    if (sep) complete(true);
+    // D242: a pick that asks a detail comes with its brackets, the cursor inside, and the list for its first group.
+    const le = ta.value.indexOf("\n", sp.end);
+    const br = Boolean(names) && opensDetails(names as Names, sp, r, ta.value.slice(sp.end, le < 0 ? undefined : le));
+    const w = written(sp, r);
+    insert(w + (br ? " []" : "") + sep, a, b);
+    if (br) {
+      ta.setSelectionRange(a + w.length + 2, a + w.length + 2);
+      complete(true);
+    } else if (sep) complete(true);
   };
   ed.addEventListener("keydown", (e) => {
     if (ac.hidden || e.isComposing || !acRows.length) {
