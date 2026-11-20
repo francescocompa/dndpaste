@@ -91,8 +91,9 @@ L<n> <Class>                   level block, n = character level
 
 ### M6 — Your own sources (D160, D244–D251) · next · size L
 - [x] T6.1 Scope: /interview done 2026-11-20 → D244–D251.
-- [ ] 🔍 T6.1b /jam the `/sources` page (D247): add by file or GitHub link, list with counts, on/off, remove, format docs;
+- [x] 🔍 T6.1b /jam the `/sources` page (D247): add by file or GitHub link, list with counts, on/off, remove, format docs;
   desktop and phone. Fresh Mac session · Opus@high · Done when: a pick logged as a decision, artifact linked.
+  → Done 2026-11-20: D252–D257 (one column; By book | By kind | By source; SRD hidden per book and kind; build frames).
 - [ ] T6.2 Build per D244–D251 and the T6.1b pick · own worktree · Opus@high · size L. Importer (plain format + generic
   JSON, text dropped on read) → IndexedDB store → extractor as a pure library function in the browser → names, `[ ]`
   options and counts into autocomplete, ghost counts and slot hints; per-book SRD hiding (D251); GitHub file/folder links
