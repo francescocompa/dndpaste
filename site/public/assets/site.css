@@ -488,7 +488,11 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .ktab .kh { grid-column: 1 / -1; }
   .ctab tr { grid-template-columns: 10ch minmax(0, 1fr); }
   .ctab .ct, .ctab .cd { grid-column: 2; width: auto; font-size: 12.5px; }
-  .ctab thead .ct, .ctab thead .cd { display: none; }
+  /* D274: the sort heads stay at phone width, one row of buttons above the list. */
+  .ctab thead { display: block; }
+  .ctab thead tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 0 0 8px; position: relative; }
+  .ctab thead th.ct { position: static; }
+  .ctab thead th, .ctab thead .kk, .ctab thead .ct, .ctab thead .cd { width: auto; font-size: 11px; }
   .cfind .in { max-width: none; }
 }
 

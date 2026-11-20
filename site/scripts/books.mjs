@@ -33,6 +33,8 @@ for (const f of readdirSync(join(root, "spells")).filter((f) => /^spells-.*\.jso
 
 // Titles: the book and adventure indexes, then the full-name table of the mirror's parser for codes they lack.
 const titles = new Map();
+// A few index names are raw identifiers ("Project_Lamordia"): underscores read as spaces (D273).
+const tidy = (t) => t.replace(/_+/g, " ").replace(/\s+/g, " ").trim();
 const BOOK_TYPE = { core: "Core", supplement: "Supplement", setting: "Setting" };
 for (const b of load("books.json").book) titles.set(b.source, { title: b.name, type: BOOK_TYPE[b.group] ?? "Extra", date: b.published ?? "" });
 for (const a of load("adventures.json").adventure) if (!titles.has(a.source)) titles.set(a.source, { title: a.name, type: "Adventure", date: a.published ?? "" });
@@ -82,6 +84,7 @@ const walk = (dir) => {
 };
 if (existsSync(uaRoot)) walk(uaRoot);
 else console.warn(`no Unearthed Arcana folder at ${uaRoot}: UA dates left out`);
+for (const r of rows) r.title = tidy(r.title);
 rows.push({ code: "HB", title: "Homebrew", type: "Homebrew", y2014: false, date: "" });
 rows.sort((a, b) => a.code.toLowerCase().localeCompare(b.code.toLowerCase()));
 
