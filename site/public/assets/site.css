@@ -488,7 +488,11 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .ktab .kh { grid-column: 1 / -1; }
   .ctab tr { grid-template-columns: 10ch minmax(0, 1fr); }
   .ctab .ct, .ctab .cd { grid-column: 2; width: auto; font-size: 12.5px; }
-  .ctab thead .ct, .ctab thead .cd { display: none; }
+  /* D274: the sort heads stay at phone width, one row of buttons above the list. */
+  .ctab thead { display: block; }
+  .ctab thead tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 0 0 8px; position: relative; }
+  .ctab thead th.ct { position: static; }
+  .ctab thead th, .ctab thead .kk, .ctab thead .ct, .ctab thead .cd { width: auto; font-size: 11px; }
   .cfind .in { max-width: none; }
 }
 
@@ -684,6 +688,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .srcp .fin { padding: 0 0 6px 23px; }
 .srcp .fin .fold:last-child { border-bottom: 0; }
 .srcp .fb { padding: 0 0 16px 23px; display: grid; gap: 10px; font: 13.5px/1.55 var(--sans); }
+.srcp .fb .brk { margin: 0; padding-left: 18px; display: grid; gap: 3px; }
 .srcp .fb p { margin: 0; }
 .srcp .fb code { font: 0.9em/1 var(--mono); }
 .srcp pre.code { margin: 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--field); font: 12.5px/1.6 var(--mono); white-space: pre; overflow-x: auto; }

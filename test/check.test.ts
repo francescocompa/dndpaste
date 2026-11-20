@@ -399,6 +399,21 @@ describe("spell-list legality (T2.1)", () => {
   });
 });
 
+test("2024 origin languages (Common + 2) are not extras wherever they are written (D272)", () => {
+  const lang = (f: Finding[]) => f.filter((x) => x.key === "Languages");
+  for (const [where, text] of [
+    ["header", "Rules: 2024\nLanguages: Common, Elvish, Dwarvish\nClasses: Fighter 1\n\nSpecies: Elf\n\nBackground: Soldier"],
+    ["species", "Rules: 2024\nClasses: Fighter 1\n\nSpecies: Elf\nLanguages: Common, Elvish, Dwarvish\n\nBackground: Soldier"],
+    ["background", "Rules: 2024\nClasses: Fighter 1\n\nSpecies: Human\n\nBackground: Sage\nLanguages: Common, Elvish, Dwarvish"],
+    ["L1", "Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nLanguages: Elvish, Dwarvish"],
+    ["split", "Rules: 2024\nClasses: Fighter 1\n\nSpecies: Elf\nLanguages: Elvish\n\nBackground: Sage\nLanguages: Common, Dwarvish"],
+  ]) assert.deepEqual(lang(run(text)), [], where);
+  // A third standard language is one beyond the origin.
+  assert.ok(has(run("Rules: 2024\nLanguages: Common, Elvish, Dwarvish, Giant\nClasses: Fighter 1"), "extra", /Fighter: 1 Languages written where the rules grant none/));
+  // 2014 keeps the species and background grants: no origin allowance.
+  assert.ok(has(run("Rules: 2014\nClasses: Fighter 1\n\nL1 Fighter\nLanguages: Elvish"), "extra", /Languages written where the rules grant none/));
+});
+
 // ─── T2.4: ability-score arithmetic (finalScores) ──────────────────────────
 
 test("finalScores: no Scores line means no scores and no findings", () => {

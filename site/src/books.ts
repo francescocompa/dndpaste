@@ -65,7 +65,7 @@ export const BOOKS: readonly Book[] = [
   { code: "OotA", title: "Out of the Abyss", type: "Adventure", y2014: false, date: "2015-09-15" },
   { code: "PaBTSO", title: "Phandelver and Below: The Shattered Obelisk", type: "Adventure", y2014: false, date: "2023-09-19" },
   { code: "PHB", title: "Player's Handbook (2014)", type: "Core", y2014: true, date: "2014-08-19" },
-  { code: "PL", title: "Project_Lamordia", type: "Extra", y2014: false, date: "2026-10-13" },
+  { code: "PL", title: "Project Lamordia", type: "Extra", y2014: false, date: "2026-10-13" },
   { code: "PotA", title: "Princes of the Apocalypse", type: "Adventure", y2014: false, date: "2015-04-07" },
   { code: "PSA", title: "Plane Shift: Amonkhet", type: "Extra", y2014: false, date: "2017-07-06" },
   { code: "PSD", title: "Plane Shift: Dominaria", type: "Extra", y2014: false, date: "2018-07-31" },

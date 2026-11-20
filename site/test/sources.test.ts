@@ -45,6 +45,22 @@ test("D258: the plain format reads kinds (plural too), books, details; HB by def
   assert.deepEqual(r.features["Ember Gift|MYHB"].options, ["Spark", "Flare"]);
 });
 
+test("D275: a feat's ability pick, from a plain line or a JSON file, opens its abilities inside [ ]", () => {
+  const plain = readPlain("Feat: Fey Sentinel|MYHB [General; INT, WIS, CHA]\nFeat: Ember Heart|MYHB [CHA, WIS]\nFeat: Lucky Streak|MYHB [Origin]", N.FEAT_CATEGORIES);
+  assert.deepEqual(plain.data.feat, [
+    { name: "Fey Sentinel", source: "MYHB", category: "G", ability: [{ choose: { from: ["int", "wis", "cha"] } }] },
+    { name: "Ember Heart", source: "MYHB", ability: [{ choose: { from: ["cha", "wis"] } }] },
+    { name: "Lucky Streak", source: "MYHB", category: "O" },
+  ]);
+  const json = readText(JSON.stringify({ feat: [{ name: "Spark of Embers", source: "MYHB", category: "O", additionalSpells: [{ ability: { choose: ["int", "wis", "cha"] } }] }] }));
+  for (const read of [plain, json]) {
+    const m = merge(N, [src(keepTable(read, {}, N.FEAT_CATEGORIES))], NO_SWITCHES);
+    const abilityBits = (name: string) => m.names.FEATS.find((f) => f[0] === name)?.[3];
+    for (const f of (read.data.feat ?? []) as { name: string }[]) if (f.name !== "Lucky Streak") assert.ok(abilityBits(f.name), `${f.name} asks an ability`);
+    if (read === plain) assert.equal(abilityBits("Lucky Streak"), 0);
+  }
+});
+
 test("D160, D244: a kept table holds names, codes and counts; text, long strings and bad codes are dropped", () => {
   const long = "x".repeat(200);
   const read = readText(JSON.stringify({

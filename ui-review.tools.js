@@ -95,7 +95,7 @@ const laidPreset = async (x, name, rows, edition = '2024') => {
 // T6.2 (D244–D265): your own sources on /sources. A hand-written names file, the one the build was checked with.
 const HOMEBREW = 'Spell: Moonbeam Lance|MYHB [2; Druid, Ranger]\nSpell: Ember Ward|MYHB [cantrip; Wizard]\nFeat: Lucky Streak|MYHB [Origin]\n' +
   'Subclass: Oath of Ash|MYHB [Paladin]\nItem: Lantern of Echoes|MYHB\nFeature: Ember Gift|MYHB [Spark, Flare]\nClass: Gunslinger|MYTR\n' +
-  'Option: Ember Lance|MYHB [Eldritch Invocations]\nSpellz: Not a kind\n'
+  'Option: Ember Lance|MYHB [Eldritch Invocations]\nFeat: Fey Sentinel [General; INT, WIS, CHA]\nSpellz: Not a kind\n'
 const SRC_DB = 'dndpaste-sources', SRC_SUMMARY = 'dndpaste.sources', SRC_LENS = 'dndpaste.sources.lens'
 const srcCount = () => { try { return JSON.parse(localStorage.getItem(SRC_SUMMARY) || 'null')?.n || 0 } catch { return 0 } }
 // Drops a file on a /sources page's drop zone (this page's, or an iframe's) the way a real drop does.
@@ -155,16 +155,15 @@ const srcLens = async (x, lens, split = false) => {
   const k = document.querySelector('.srcp [data-split]')
   if (k && (k.getAttribute('aria-pressed') === 'true') !== split) { k.click(); await x.sleep(150) }
 }
-// The editor with the homebrew source: added through a hidden /sources frame, then one reload (the form reads sources at load).
+// The editor with the homebrew source: read by the site's own yours.js and stored the way /sources stores it, then one
+// reload (the form reads sources at load). No hidden /sources frame: the dev CSP's frame-src blocks it.
 const edHomebrew = async (x, name) => {
   await x.waitFor('form.pform textarea.src')
   if (srcCount()) return true
-  const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:600px;height:400px;left:-9999px'; f.src = '/sources'
-  document.body.appendChild(f)
-  for (let i = 0; i < 60 && !f.contentDocument?.querySelector('.srcp .list .srow, .srcp .list .empty'); i++) await x.sleep(100)
-  srcDrop(f.contentDocument, HOMEBREW)
-  for (let i = 0; i < 40 && !srcCount(); i++) await x.sleep(100)
-  f.remove()
+  const [{ fromFile }, n] = await Promise.all([import(`${location.origin}/assets/yours.js`), import(`${location.origin}/assets/names.js`)])
+  const rec = await fromFile(new File([HOMEBREW], 'homebrew.txt', { type: 'text/plain' }), n.FEAT_CATEGORIES)
+  const all = await srcIdb('readwrite', (st) => st.put(rec))
+  try { localStorage.setItem(SRC_SUMMARY, JSON.stringify({ n: all.length + 1, on: all.length + 1 })) } catch { /* storage blocked */ }
   return !reloadOnce(name)
 }
 
@@ -504,6 +503,16 @@ uiReview.config({
       document.querySelector('#format-more').scrollIntoView({ block: 'start' })
     },
     'src-builtin': async (x) => { await srcHomebrew(x, 'src-builtin'); await srcLens(x, 'source'); document.querySelector('.srcp [data-remove-no]')?.click() },
+    // T6.3 (D272–D278): small fixes after M6.
+    'codes-phone': async (x) => { await x.waitFor('table.ctab thead .srt'); document.querySelector('table.ctab th.ct .srt')?.click(); await x.sleep(150) },
+    'codes-pl': async (x) => { await x.waitFor('table.ctab thead .srt'); const q = document.querySelector('#cq'); q.value = 'Lamordia'; q.dispatchEvent(new Event('input', { bubbles: true })); await x.sleep(150) },
+    'ed-own-ability': async (x) => { if (await edHomebrew(x, 'ed-own-ability')) await acSetup(x, 'ed-own-ability', 'Rules: 2024\nClasses: Warlock 4\n\nL4 Warlock\nFeat: Fey Sentinel [') },
+    'src-format-plain': async (x) => {
+      await x.waitFor('.srcp .list .srow, .srcp .list .bgrp, .srcp .list .empty', 6000)
+      document.querySelector('#names-format').open = true; document.querySelector('#format-plain').open = true
+      document.querySelector('#format-plain').scrollIntoView({ block: 'start' })
+    },
+    'src-top': async (x) => { await x.waitFor('.srcp .list .srow, .srcp .list .bgrp, .srcp .list .empty', 6000); window.scrollTo(0, 0) },
     'form-drop': async (x) => {
       await x.waitFor('form.pform textarea.src')
       const dt = new DataTransfer(); dt.items.add(new File(['Shigen\n'], 'shigen.dndpaste', { type: 'text/plain' }))

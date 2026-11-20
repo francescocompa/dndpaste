@@ -21,9 +21,9 @@ Fidelity notes:
 - `shigen`: the Human origin feat is a `Feat` line in the Species block; the homebrew background
   is fully specified in its block (D21, D26). The six Warlock spells are known only as the current
   prepared set, not by the level each was picked, so they sit unplaced in the header — the mixed
-  form (D4, D28). Skills chosen at Fighter 1 are not on the compiled sheet and are omitted. Whether
-  Spellfire Spark or Fey Sentinel ask for an ability pick is unverified (⚑ Francesco): if so, it
-  goes in the feat's first detail slot.
+  form (D4, D28). Skills chosen at Fighter 1 are not on the compiled sheet and are omitted. Spellfire Spark
+  asks for an ability pick, so CHA sits in its first detail slot; so does `vice`'s Fey Sentinel, a
+  D&D Beyond Drops feat written `|HB` (D276).
 
 ## What the checker says about them (full extract, 2026-09-04)
 
