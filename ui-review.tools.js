@@ -57,6 +57,8 @@ const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / 
   'L1 Fighter|XPHB\nSkills: Athletics, Perception\nMasteries: Longsword, Shortbow\nFeat (Fighting Style): Defense\n\n' +
   'L2 Wizard|XPHB\nCantrips: Light, Mage Hand, Prestidigitation, Fire Bolt\nSpells: Shield, Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar\nPrepared: Shield, Sleep\n\n' +
   'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
+// M8 (D304): a Wizard 5 build, for the swap list on its L1 header.
+const M8_SWAP = 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield, Magic Missile\n'
 // D151 (D154–D159): put a build in the editor with the cursor at its end, typed the way a keystroke is, so the name
 // list opens (it loads /assets/names.js on focus, then shows what fits). The list closes when the editor loses focus.
 const acSetup = async (x, name, text) => {
@@ -560,6 +562,16 @@ uiReview.config({
       editor().dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }))
       editor().dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
       await x.sleep(150)
+    },
+    // M8 (D303, D304, D306): a 60-row list, a name written in full, the swap list on a click.
+    'm8-classes': (x) => acSetup(x, 'm8-classes', 'Vesk\nRules: 2024\nClasses: '),
+    'm8-spells': (x) => acSetup(x, 'm8-spells', 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: '),
+    'm8-full': (x) => acSetup(x, 'm8-full', 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield'),
+    'm8-swap': async (x) => {
+      await acSetup(x, 'm8-swap', M8_SWAP)
+      const ta = editor(), at = M8_SWAP.indexOf('L1 Wizard') + 6
+      ta.focus(); ta.setSelectionRange(at, at)
+      ta.dispatchEvent(new MouseEvent('click', { bubbles: true })); await x.sleep(200)
     },
   },
 })

@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, alternatives, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, swapAt, written, writtenKey } from "../src/client/complete.ts";
+import { LIST_LIMIT, OPEN_EVERY_SPOT, afterPick, alternativeList, alternatives, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, suggestList, swapAt, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 import { presetText } from "../src/preset.ts";
 import { EXAMPLE } from "../src/example.ts";
@@ -626,4 +626,19 @@ test("D304: a click in a written name lists what it can be swapped for; a pick r
     const s = swapAt(F, at);
     assert.ok(s && alternatives(N, s, F).some((a) => a.name === "Wizard"), "Wizard comes back");
   }
+});
+
+test("D306: every list holds up to 60 rows; past that, it counts the rest", () => {
+  const all = (src: string) => { const s = spot(src); return s ? suggestList(N, s) : { rows: [], more: 0 }; };
+  const cls = all("Vesk\nRules: 2024\nClasses: ¦");
+  assert.ok(cls.rows.some((r) => r.name === "Wizard"), "an empty Classes: lists every class, Wizard too");
+  assert.equal(cls.more, 0, "a short list leaves nothing out");
+  const sp = all("Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: ¦");
+  assert.equal(sp.rows.length, LIST_LIMIT, "a long list stops at 60");
+  assert.ok(sp.more > 0, "and counts the rest");
+  const T = "Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield\n";
+  const sw = swapAt(T, T.indexOf("Shield") + 2);
+  const alt = sw ? alternativeList(N, sw, T) : { rows: [], more: 0 };
+  assert.equal(alt.rows.length, LIST_LIMIT, "the swap list too");
+  assert.ok(alt.more > 0);
 });

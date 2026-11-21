@@ -304,14 +304,19 @@ export function swapAt(text: string, pos: number): Spot | null {
   return /^\s/.test(name) || !name.trim() ? null : sp;
 }
 
-/** D304: a swap list holds every alternative (it scrolls); 8 rows cut the classes after Rogue, so a swapped-out Wizard
- *  could not come back. Capped for the long lists (spells), where typing narrows. */
-export const SWAP_LIMIT = 60;
+/** D306: every list (names, keys, swap) holds up to 60 rows and scrolls past its 8-row box; past 60, a last row counts
+ *  the rest. At 8 a short list lost its tail: `Classes: ` hid Wizard, and a swapped-out Wizard could not come back (D304). */
+export const LIST_LIMIT = 60;
 
 /** D304: what a written name can be swapped for: the list its empty spot would show, the name itself left out. */
-export function alternatives(n: Names, sp: Spot, text: string, limit = SWAP_LIMIT): Suggestion[] {
+export function alternatives(n: Names, sp: Spot, text: string, limit = LIST_LIMIT): Suggestion[] {
+  return alternativeList(n, sp, text, limit).rows;
+}
+
+/** {@link alternatives}, with how many more there are past `limit` (D306). */
+export function alternativeList(n: Names, sp: Spot, text: string, limit = LIST_LIMIT): { rows: Suggestion[]; more: number } {
   const cur = lc(clean(text.slice(sp.start, sp.end)));
-  return suggest(n, { ...sp, typed: "", taken: new Set([...sp.taken, cur]) }, limit, true);
+  return suggestList(n, { ...sp, typed: "", taken: new Set([...sp.taken, cur]) }, limit, true);
 }
 
 interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean }
@@ -543,12 +548,18 @@ export function isKnown(n: Names, sp: Spot): boolean {
  * level last and dimmed (D162), then how well the name matches, then A–Z. One row per name. Empty under the letters
  * the spot's list size asks (D164; none while the D172 trial is on), or when the typed name is already exactly one.
  */
-export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SPOT): Suggestion[] {
+export function suggest(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = OPEN_EVERY_SPOT): Suggestion[] {
+  return suggestList(n, sp, limit, everySpot).rows;
+}
+
+/** {@link suggest}, with how many more names fit past `limit` (D306: the list's last row counts them). */
+export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = OPEN_EVERY_SPOT): { rows: Suggestion[]; more: number } {
+  const none = { rows: [], more: 0 };
   const own = (name: string): readonly string[] => n.OWN?.get(lc(name)) ?? [];
   const q = norm(sp.typed);
   const cands = candidates(n, sp).filter((c) => !sp.taken.has(lc(c.name)));
   const pool = new Set(cands.map((c) => lc(c.name))).size;
-  if (q.replace(/\s/g, "").length < minTyped(pool, everySpot)) return [];
+  if (q.replace(/\s/g, "").length < minTyped(pool, everySpot)) return none;
   const best = new Map<string, { c: Cand; t: number }>();
   for (const c of cands) {
     const t = q ? Math.min(...[c.name, c.alt ?? ""].filter(Boolean).map((x) => tier(x, q)).map((v) => (v < 0 ? 9 : v))) : 0;
@@ -576,7 +587,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
     };
   });
   // The name is already written as it should be: nothing to suggest.
-  if (rows.some((r) => r.name === typed && !r.source)) return [];
+  if (rows.some((r) => r.name === typed && !r.source)) return none;
   // A spell above the level cap comes last (D162): it can't be picked yet. Before it, outside the spot's short list
   // (D227 skills, D241 another class's subclass, D243 another class's spell, feature or option), after the other
   // edition: the class's own subclass from the other book still comes before another class's.
@@ -585,7 +596,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
   const top = rows.slice(0, limit);
   // A cantrip says so only among other kinds of names (the general list); a list of cantrips doesn't repeat it.
   const mixed = top.some((r) => r.level !== 0);
-  return top.map(({ name, source, level, dim }) => {
+  return { more: rows.length - top.length, rows: top.map(({ name, source, level, dim }) => {
     const s: Suggestion = { name, source };
     if (level !== undefined && (level > 0 || (mixed && level === 0))) s.tag = ORD[level];
     // D250: a name of yours shows its book, unless the row already shows the one a pick writes.
@@ -593,7 +604,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
     if (books.length && !source) s.book = books.find((b) => BOOKS.some(([c, , ed]) => c === b && ed === sp.rules)) ?? books[0];
     if (dim) s.dim = true;
     return s;
-  });
+  }) };
 }
 
 /** The word for a species' defining pick (D163): its trait's last word, `subrace` for a 2014 one (D291). */

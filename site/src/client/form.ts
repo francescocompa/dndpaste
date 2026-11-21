@@ -28,7 +28,7 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, alternatives, bracketTrim, ghostWord, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggest, suggestKeys, swapAt, written, writtenKey } from "./complete.ts";
+import { LIST_LIMIT, afterPick, alternativeList, bracketTrim, ghostWord, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggestList, suggestKeys, swapAt, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
@@ -544,6 +544,8 @@ function init(): void {
   /** D304: the list shows a clicked name's alternatives; a pick swaps the whole name. Mouse or tap only: any key closes
    *  it and does what it always does, so a click never takes over the arrows, Enter or Tab. */
   let acSwap = false;
+  /** D306: how many more rows fit past the list's 60; its last row counts them. */
+  let acMore = 0;
   const acAria = () => {
     ta.setAttribute("aria-autocomplete", "list");
     ta.setAttribute("aria-controls", ac.id);
@@ -562,6 +564,7 @@ function init(): void {
     acHint = null;
     acEmpty = false;
     acSwap = false;
+    acMore = 0;
     dock.classList.remove("ac-on");
     acAria();
   };
@@ -615,7 +618,9 @@ function init(): void {
       hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
       `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
-      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
+      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("") +
+      // D306: a list past 60 says how many it leaves out; typing narrows it.
+      (acMore > 0 ? `<div class="am" aria-hidden="true">${acMore} more · keep typing</div>` : "");
     // Phone: the dock's last row, right on the keyboard (D157 amended).
     const home = onPhone ? dock : ed;
     if (ac.parentElement !== home) { if (onPhone) dock.append(ac); else ed.append(ac); }
@@ -623,7 +628,7 @@ function init(): void {
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : "name";
-      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${acMore > 0 ? `, ${acMore} more` : ""}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
     ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
     ac.hidden = false;
@@ -641,19 +646,21 @@ function init(): void {
     const ks = keySpotAt(ta.value, ta.selectionStart);
     const kk = ks ? suggestKeys(ta.value, ks) : [];
     if (ks && kk.length) {
-      const rows = kk.slice(0, phone.matches ? 12 : 8).map((k): Suggestion => ({ name: `${k}:`, source: null }));
+      const rows = kk.slice(0, LIST_LIMIT).map((k): Suggestion => ({ name: `${k}:`, source: null }));
       const same = acKey?.start === ks.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
       if (!same) acOn = -1;
       acSpot = null;
       acKey = ks;
       acRows = rows;
+      acMore = kk.length - rows.length;
       acHint = null;
       acDraw();
       return;
     }
     acKey = null;
     const sp = spotAt(ta.value, ta.selectionStart);
-    const rows = sp ? suggest(names, sp, phone.matches ? 12 : 8) : [];
+    const got = sp ? suggestList(names, sp) : { rows: [], more: 0 };
+    const rows = got.rows;
     // An empty `[ ]` group the table knows shows what goes there, even before a name fits (D163).
     const hint = sp ? slotHint(names, sp) : null;
     // D256: while no source is added, a name of 3+ letters that matches nothing keeps one line open, linking to /sources.
@@ -665,18 +672,21 @@ function init(): void {
     if (!same) acOn = -1;
     acSpot = sp;
     acRows = rows;
+    acMore = got.more;
     acHint = hint;
     acDraw();
   };
   /** D304: a click in or at the end of a written name lists what it can be swapped for. */
   const swapList = (): boolean => {
     const sw = names ? swapAt(ta.value, ta.selectionStart) : null;
-    const rows = sw && names ? alternatives(names, sw, ta.value) : [];
+    const got = sw && names ? alternativeList(names, sw, ta.value) : { rows: [], more: 0 };
+    const rows = got.rows;
     if (!sw || !rows.length) return false;
     acKey = null;
     acOn = -1;
     acSpot = sw;
     acRows = rows;
+    acMore = got.more;
     acHint = null;
     acEmpty = false;
     acSwap = true;

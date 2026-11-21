@@ -463,3 +463,13 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* a toolbar split button and a row in the Keys column (away from where the block lands); a Copilot-style
   ghost line only (hard to find with a mouse or on a phone); a header-only block (the owed keys show what to pick).
   *Enforced by:* pending (T8.2 build and its /ui-review).
+
+- **D306 — Every dropdown holds up to 60 rows and scrolls; past 60, a last row counts the rest. DECIDED (2026-11-21).**
+  Name lists, key lists and the swap list share one limit, `LIST_LIMIT` (60); the desktop box still shows 8 rows and
+  scrolls, the phone's chip row scrolls sideways. A list with more ends on a quiet row, `214 more · keep typing`, not
+  an option (arrows and Tab skip it). Short lists (classes, species, lineages, editions, keys) always show in full, so
+  an empty `Classes: ` lists Wizard. Amends D304's swap-only 60.
+  *Raw note:* "let's rethink the dropdown caps" · (AskUserQuestion) row limits, not pick caps; "60 rows everywhere".
+  *Rejected:* by list size (closed lists in full, big lists at 8: two behaviours to learn); keep 8 and add the count
+  (an empty `Classes: ` still hides Wizard).
+  *Enforced by:* `site/test/complete.test.ts` (D306 test).

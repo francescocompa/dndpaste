@@ -688,6 +688,9 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .dmenu .srcrow .cnt { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--chip); color: var(--fg); font: 600 11px/18px var(--sans); text-align: center; }
 .dmenu .srcrow svg.i { color: var(--mute); }
 /* The autocomplete's no-match line while no source is added (D256). */
+.ac .am { font: 12px/1.4 var(--sans); color: var(--mute); white-space: nowrap; }
+.ed .ac .am { margin: 4px -4px 0; padding: 6px 12px 3px; border-top: 1px solid var(--rule); }
+.pdock .ac .am { flex-shrink: 0; padding: 0 6px; }
 .ac .ae { display: grid; font: 12px/1.4 var(--sans); color: var(--mute); white-space: normal; }
 .ac .ae > span { padding: 6px 8px; }
 .ac .ae a { display: flex; align-items: center; gap: 4px; color: var(--mute); text-decoration: none; padding: 6px 8px; border-top: 1px solid var(--rule); }
