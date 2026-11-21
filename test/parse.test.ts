@@ -134,15 +134,15 @@ test("Scores: the named partial form (F1, D46)", () => {
   const s = p.header.get("Scores");
   assert.ok(s && s.type === "scores");
   assert.deepEqual(s.values, [null, 16, null, null, null, 17]);
-  // Canonical: named form in STR…CHA order while any ability is missing.
-  assert.equal(emit(p), "Scores: DEX 16, CHA 17\nClasses: Sorcerer 5\n");
+  // Canonical: named form in STR…CHA order, `/`-separated (D320).
+  assert.equal(emit(p), "Scores: DEX 16/CHA 17\nClasses: Sorcerer 5\n");
   assert.equal(emit(parse(emit(p))), emit(p));
 });
 
-test("Scores: all six named is the six-number form in canonical emit", () => {
+test("Scores: all six named stay named in canonical emit; six numbers convert (D320)", () => {
   const p = parse("Scores: CHA 12, WIS 14, INT 10, CON 13, DEX 15, STR 8");
   assert.deepEqual(codes(p), []);
-  assert.equal(emit(p), "Scores: 8/15/13/10/14/12\n");
+  assert.equal(emit(p), "Scores: STR 8/DEX 15/CON 13/INT 10/WIS 14/CHA 12\n");
   const q = parse("Scores: 8/15/13/10/14/12");
   assert.deepEqual(q.header.get("Scores"), p.header.get("Scores"), "the two forms give the same AST");
 });

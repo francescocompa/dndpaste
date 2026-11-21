@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse, emit, tidy, applyFix, SPEC_VERSION, type Paste } from "../src/dndpaste.js";
+import { parse, emit, tidy, applyFix, type Paste } from "../src/dndpaste.js";
 import { check, normalise, speciesPicks, shortLineage, speciesLineage, type Slots, type Supplement, type Finding } from "../src/check.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -16,8 +16,6 @@ const codes = (p: Paste) => p.diagnostics.map((d) => d.code);
 const species = (text: string) => { const sp = parse(text).entities.find((e) => e.key === "Species"); return sp?.item ? emit({ identifier: null, header: new Map(), entities: [sp], levels: [], diagnostics: [] }).split("\n")[0] : null; };
 const sp = (f: Finding[]) => f.filter((x) => x.where === "Species").map((x) => `${x.kind}|${x.severity}|${x.message}`);
 const run = (text: string) => check(parse(text), srd, supplement);
-
-test("the library implements SPEC 0.10", () => assert.equal(SPEC_VERSION, "0.10"));
 
 describe("D280, D281: the defining pick, then its ability, in brackets on the Species line", () => {
   test("the bracket form reads clean and emits as written", () => {

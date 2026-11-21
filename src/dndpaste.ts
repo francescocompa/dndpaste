@@ -1,11 +1,11 @@
 /**
  * dndpaste — reference parser and canonical emitter.
- * Implements SPEC.md 0.10 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113) and the 0.9
+ * Implements SPEC.md 0.11 (core grammar §1–4, profile `dnd5e` §5); reads 0.7 keys as aliases (D113) and the 0.9
  * lineage forms with a warning (D282, D283).
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.10";
+export const SPEC_VERSION = "0.11";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────
@@ -18,6 +18,8 @@ export interface Bonus { amount: number; ability: Ability }
 
 export type Ability = "STR" | "DEX" | "CON" | "INT" | "WIS" | "CHA";
 export const ABILITIES: readonly Ability[] = ["STR", "DEX", "CON", "INT", "WIS", "CHA"];
+/** How a base was made (D323, D326): the method marker's value, and what `scoreKind` reads from the numbers. */
+export type ScoreKind = "standard-array" | "point-buy" | "custom";
 
 export type Value =
   | { type: "items"; items: Item[] }
@@ -30,9 +32,10 @@ export type Value =
   /**
    * The `Scores` lines of one scope (§5.2, D108). `values`: base scores in STR/DEX/CON/INT/WIS/CHA order, `null` = not
    * written (all six `null` when the scope has no base line; a base goes in the header only). `increase`: the increase
-   * line (`+2 CHA`), or `null`. Both empty: a `Scores:` line with no value yet (D112).
+   * line (`+2 CHA`), or `null`. Both empty: a `Scores:` line with no value yet (D112). `method`: the base line's
+   * marker, `Scores (point buy): …` (D323), absent when none is written; it is what the paste says, never checked.
    */
-  | { type: "scores"; values: (number | null)[]; increase: Bonus[] | null }
+  | { type: "scores"; values: (number | null)[]; increase: Bonus[] | null; method?: ScoreKind }
   /** Hit-point method (§5.2, D59): `roll` is a die result, level blocks only, and implies `Rolled`. */
   | { type: "hp"; method: HpMethod; roll: number | null }
   /** A key with no value yet ("not chosen yet", D112) whose type has no empty form: `Paste`, `Rules`, `HP`. */
@@ -87,9 +90,10 @@ export interface KeyDef {
   renamed?: string;
   /**
    * What the key's parentheses may hold (§2.4): `open`, any text kept as written (`Feat (Origin)`, `Options (Soul
-   * Techniques)`, D110, D181); `level`, a spell level cap `1st`–`9th` (`Spells (3rd)`, D184). Absent: no marker (E002).
+   * Techniques)`, D110, D181); `level`, a spell level cap `1st`–`9th` (`Spells (3rd)`, D184); `method`, how a base
+   * `Scores` line was made, `standard array`, `point buy` or `custom` (D323). Absent: no marker (E002).
    */
-  marker?: "open" | "level";
+  marker?: "open" | "level" | "method";
   /**
    * An `Options` family (D180–D182): the names an `Options (<family>)` marker folds from (the key's own name and its
    * singular or plural, matched ignoring case), and the 5etools family codes its options carry (`EI`; `MV` covers
@@ -103,7 +107,7 @@ export const KEYS: readonly KeyDef[] = [
   { key: "Paste", type: "int", scopes: ["H"] },
   { key: "Producer", type: "text", scopes: ["H"] },
   { key: "Rules", type: "enum", scopes: ["H"], enumValues: ["2014", "2024"] },
-  { key: "Scores", type: "scores", scopes: ["H", "S", "B", "L"] },
+  { key: "Scores", type: "scores", scopes: ["H", "S", "B", "L"], marker: "method" },
   { key: "Classes", type: "classes", scopes: ["H"] },
   { key: "HP", type: "hp", scopes: ["H", "L"] },
   { key: "Species", type: "item", scopes: ["H"], opensBlock: "S" },
@@ -149,6 +153,17 @@ const KEY_BY_LOWER = new Map([...KEYS, ...LEGACY_KEYS].map((k) => [k.key.toLower
 const FAMILY_BY_NAME = new Map(KEYS.flatMap((k) => (k.family?.names ?? []).map((n) => [n.toLowerCase(), k] as const)));
 /** The level cap ordinals, index = spell level (D184). */
 const LEVEL_CAPS = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"];
+/** The method marker's words (D323), written in lower case, and the kind each one names. */
+const METHOD_WORDS: readonly [string, ScoreKind][] = [["standard array", "standard-array"], ["point buy", "point-buy"], ["custom", "custom"]];
+/** A method marker as written (`Point Buy`) → its kind; null when it names no method. */
+function methodOf(marker: string): ScoreKind | null {
+  const w = marker.trim().replace(/\s+/g, " ").toLowerCase();
+  return METHOD_WORDS.find(([words]) => words === w)?.[1] ?? null;
+}
+/** A kind as the method marker writes it: `point-buy` → `point buy`. */
+export function methodWords(kind: ScoreKind): string {
+  return METHOD_WORDS.find(([, k]) => k === kind)?.[0] ?? kind;
+}
 const LEVEL_MIN = 1;
 const LEVEL_MAX = 20;
 
@@ -160,7 +175,8 @@ export function splitMarker(key: string): { key: string; marker: string | null }
 /**
  * A key as written, resolved (§2.4): its definition and the scope key its line goes under. `Feat (Origin)` → `Feat`'s,
  * under `Feat (Origin)`; `Options (Invocation)` → `Invocations` (D181); `Spells (3RD)` → `Spells`'s, under
- * `Spells (3rd)` (D184). Null for an unknown key or a marker the key doesn't take, with the reason.
+ * `Spells (3rd)` (D184); `Scores (Point Buy)` → `Scores`'s, under `Scores`, the marker `point buy` (D323). Null for an
+ * unknown key or a marker the key doesn't take, with the reason.
  */
 export function resolveKey(key: string): { def: KeyDef; key: string; marker: string | null } | { def: null; reason: string } {
   const hit = KEY_BY_LOWER.get(key.trim().toLowerCase());
@@ -178,7 +194,12 @@ export function resolveKey(key: string): { def: KeyDef; key: string; marker: str
     return n > 0 ? { def, key: `${def.key} (${LEVEL_CAPS[n]})`, marker: LEVEL_CAPS[n] }
       : { def: null, reason: `${key.trim()}: a level cap is 1st to 9th, as in ${def.key} (3rd)` };
   }
-  return { def: null, reason: `${key.trim()}: only Feat and Options take a marker, and Spells and Prepared a level cap` };
+  if (def.marker === "method") {
+    const kind = methodOf(marker);
+    return kind ? { def, key: def.key, marker: methodWords(kind) }
+      : { def: null, reason: `${key.trim()}: the method is standard array, point buy or custom, as in Scores (point buy)` };
+  }
+  return { def: null, reason: `${key.trim()}: only Feat and Options take a marker, Spells and Prepared a level cap, and Scores a method` };
 }
 /** The key's definition, 0.8 or 0.7 alias; a marked key gives its key's (`Feat (Origin)` → `Feat`), a folded family marker the family's. */
 export function keyDef(key: string): KeyDef | undefined {
@@ -231,6 +252,29 @@ export function shortLineage(option: string, species: string, trait: string | nu
   const words = option.split(" ");
   const last = words[words.length - 1].toLowerCase();
   return words.length > 1 && (last === species.toLowerCase() || (trait && last === trait.split(" ")[0].toLowerCase())) ? words.slice(0, -1).join(" ") : option;
+}
+/** The standard array (D326): numbers only, no rules text. */
+export const STANDARD_ARRAY: readonly number[] = [15, 14, 13, 12, 10, 8];
+/** Point-buy cost of each base score 8–15 (D326): numbers only. */
+export const POINT_BUY_COST: Readonly<Record<number, number>> = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
+/** The point-buy budget (D326). */
+export const POINT_BUY_BUDGET = 27;
+/**
+ * What the base scores are, read from the numbers alone (D326, D324): `standard-array` when they are the standard
+ * array, `point-buy` when each is 8–15 within the 27-point budget, else `custom`; the narrower kind wins, since the
+ * standard array also costs 27. `left`: the point-buy points left of 27, null when the numbers are not point-buy
+ * legal. `values` is a base in STR…CHA order, `null` = unknown (a `scores` value's `values`); a partial base is read on
+ * its known numbers (`DEX 15/CON 14` is a standard array so far, 11 points left), and no known number is `custom`.
+ * A hint, never a check (D66): the method marker, when written, is what the paste says.
+ */
+export function scoreKind(values: readonly (number | null)[]): { kind: ScoreKind; left: number | null } {
+  const known = values.slice(0, 6).filter((x): x is number => x !== null);
+  if (!known.length) return { kind: "custom", left: null };
+  const cost = known.reduce<number | null>((sum, x) => (sum === null || POINT_BUY_COST[x] === undefined ? null : sum + POINT_BUY_COST[x]), 0);
+  const left = cost !== null && cost <= POINT_BUY_BUDGET ? POINT_BUY_BUDGET - cost : null;
+  const rest = [...STANDARD_ARRAY];
+  const array = known.every((x) => { const i = rest.indexOf(x); if (i < 0) return false; rest.splice(i, 1); return true; });
+  return { kind: array ? "standard-array" : left !== null ? "point-buy" : "custom", left };
 }
 /** True when the detail group is an ability pick (see `abilityOf`). */
 export function isAbilitySlot(group: readonly Detail[] | undefined): boolean {
@@ -555,9 +599,9 @@ function parseBonuses(raw: string, diag: Diag, line: number): Bonus[] | null {
 }
 
 /**
- * `Scores` (§5.2): the `+` decides (D108). A base is six integers `8/15/13/10/14/12` in STR/DEX/CON/INT/WIS/CHA
- * order, or the named form for the known ones, `DEX 15, CON 13` or `DEX 15/CON 13` (D106). An increase is `+2 CHA`
- * or `+1 INT, +1 CON`.
+ * `Scores` (§5.2): the `+` decides (D108). A base is named, `STR 8/DEX 15/…` or for the known ones only `DEX 15/CON 13`
+ * or `DEX 15, CON 13` (D106, D320), or six integers `8/15/13/10/14/12` in STR/DEX/CON/INT/WIS/CHA order. An increase
+ * is `+2 CHA` or `+1 INT, +1 CON`.
  */
 function parseScores(raw: string, diag: Diag, line: number): Value | null {
   if (raw.startsWith("+")) {
@@ -566,14 +610,14 @@ function parseScores(raw: string, diag: Diag, line: number): Value | null {
   }
   const parts = raw.split(/[,/]/).map((p) => p.trim());
   if (raw.includes("/") && parts.every((p) => /^\d+$/.test(p))) {
-    if (parts.length !== 6) { diag.add("E012", line, "Scores needs six integers separated by / (STR/DEX/CON/INT/WIS/CHA), named scores such as DEX 15, CON 13, or an increase such as +2 CHA"); return null; }
+    if (parts.length !== 6) { diag.add("E012", line, "Scores needs named scores such as STR 8/DEX 14, six integers separated by / (STR/DEX/CON/INT/WIS/CHA), or an increase such as +2 CHA"); return null; }
     return { type: "scores", values: parts.map(Number), increase: null };
   }
   const values = NO_SCORES();
   for (const part of parts) {
     const m = /^([A-Za-z]{3})\s+(\d+)$/.exec(part);
     const i = m ? ABILITIES.indexOf(m[1].toUpperCase() as Ability) : -1;
-    if (!m || i < 0) { diag.add("E012", line, `bad score "${part}": use six integers separated by / (STR/DEX/CON/INT/WIS/CHA), named scores such as DEX 15, CON 13, or an increase such as +2 CHA`); return null; }
+    if (!m || i < 0) { diag.add("E012", line, `bad score "${part}": use named scores such as STR 8/DEX 14, six integers separated by / (STR/DEX/CON/INT/WIS/CHA), or an increase such as +2 CHA`); return null; }
     if (values[i] !== null) { diag.add("E012", line, `${ABILITIES[i]} given twice`); return null; }
     values[i] = Number(m[2]);
   }
@@ -785,6 +829,8 @@ export function parse(text: string): Paste {
       ? { hint: firstBlock.label, fix: { label: firstBlock.label, safe: true, edits: [{ line: no, text: null }, { line: firstBlock.line, text: line, insert: true }] } }
       : {});
     if (!def.scopes.includes(scope)) { diag.add("E005", no, `${def.key} in ${scopeName(scope)} scope`, move()); return; }
+    // A method marker (D323) marks a base, and a base goes in the header (on an increase it is E012 below, fixed in place).
+    if (def.marker === "method" && marker !== null && scope !== "H" && !rawValue.startsWith("+")) { diag.add("E005", no, "a method marker goes on the base Scores line, in the header", move()); return; }
     const v = rawValue ? parseValue(def, rawValue, scope, diag, no) : emptyValue(def);
     if (!v) {
       // `Classes: Sorcerer 5, Warlock 5`: the 0.4 comma form (D192). Classes are separated with ` / `.
@@ -834,9 +880,12 @@ export function parse(text: string): Paste {
 
     if (v.type === "scores") {
       const base = v.values.some((x) => x !== null);
+      // The method marker (D323) goes on a base line, or on an empty one waiting for its numbers.
+      if (marker !== null && v.increase) { diag.add("E012", no, `the method goes on the base Scores line, not on an increase: write Scores: ${rawValue}`, { hint: "Drop the method", fix: { label: "Drop the method", safe: true, edits: [{ line: no, text: `Scores: ${rawValue}` }] } }); return; }
       if (base && scope !== "H") { diag.add("E005", no, "base Scores go in the header; an increase starts with + (+2 CHA)", move()); return; }
       if (!once(current, base ? "Scores" : v.increase ? "Scores+" : "Scores:", no, "Scores", join)) return;
-      mergeScores(current, v);
+      const kind = marker !== null ? methodOf(marker) : null;
+      mergeScores(current, kind ? { ...v, method: kind } : v);
       return;
     }
     if (marker !== null && v.type === "items") {
@@ -1001,9 +1050,10 @@ function appendItems(scope: Scope, key: string, items: readonly Item[]): void {
 /** Merges a `Scores` line into its scope's value: a base fills `values`, an increase appends to `increase`. */
 function mergeScores(scope: Scope, v: Extract<Value, { type: "scores" }>): void {
   const prev = scope.get("Scores");
-  if (!prev || prev.type !== "scores") { scope.set("Scores", { type: "scores", values: [...v.values], increase: v.increase ? [...v.increase] : null }); return; }
-  const increase = prev.increase || v.increase ? [...(prev.increase ?? []), ...(v.increase ?? [])] : null;
-  scope.set("Scores", { type: "scores", values: prev.values.map((x, i) => v.values[i] ?? x), increase });
+  const p = prev?.type === "scores" ? prev : null;
+  const increase = p?.increase || v.increase ? [...(p?.increase ?? []), ...(v.increase ?? [])] : null;
+  const method = v.method ?? p?.method;
+  scope.set("Scores", { type: "scores", values: p ? p.values.map((x, i) => v.values[i] ?? x) : [...v.values], increase, ...(method ? { method } : {}) });
 }
 /** The scope's key for a marked line: an existing spelling of the same marker, else `<Key> (<marker>)`. */
 function markedKey(scope: Scope, key: string, marker: string): string {
@@ -1054,10 +1104,9 @@ export function emitValue(v: Value): string {
     case "text": return v.value;
     // Runs fold to totals, one entry per class in first-appearance order; the order moves to level headers (§5.5).
     case "classes": return foldClasses(v.entries).map((e) => fmtRef(e.ref) + (e.levels === null ? "" : ` ${e.levels}`)).join(" / ");
-    // All six known → the six-number form; otherwise the named form, STR…CHA order (§5.5).
+    // A base is named, `/`-separated, STR…CHA order, full or partial (§5.5, D320); an increase keeps its commas.
     case "scores":
-      if (v.values.every((x) => x !== null)) return v.values.join("/");
-      if (v.values.some((x) => x !== null)) return ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [`${a} ${v.values[i]}`])).join(", ");
+      if (v.values.some((x) => x !== null)) return ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [`${a} ${v.values[i]}`])).join("/");
       return (v.increase ?? []).map((b) => `+${b.amount} ${b.ability}`).join(", ");
     case "hp": return v.roll !== null ? String(v.roll) : v.method;
     case "empty": return "";
@@ -1076,6 +1125,16 @@ const cmpKey = (a: string, b: string) => cmpCode(a.toLowerCase(), b.toLowerCase(
 export function scopeLines(scope: Scope): [string, Value][] {
   const out: [string, Value][] = [];
   for (const def of KEYS) {
+    if (def.type === "scores") {
+      const v = scope.get(def.key);
+      if (v?.type !== "scores") continue;
+      const base = v.values.some((x) => x !== null);
+      const method = v.method ? { method: v.method } : {};
+      // The base line carries the marker (D323); a marker with no numbers yet keeps its empty line.
+      if (base || v.method || !v.increase) out.push(["Scores", { type: "scores", values: v.values, increase: null, ...method }]);
+      if (v.increase) out.push(["Scores", { type: "scores", values: NO_SCORES(), increase: v.increase }]);
+      continue;
+    }
     if (def.marker) {
       const v = scope.get(def.key);
       if (v) out.push([def.key, v]);
@@ -1084,13 +1143,6 @@ export function scopeLines(scope: Scope): [string, Value][] {
     }
     const v = scope.get(def.key);
     if (!v) continue;
-    if (v.type === "scores") {
-      const base = v.values.some((x) => x !== null);
-      if (base) out.push(["Scores", { type: "scores", values: v.values, increase: null }]);
-      if (v.increase) out.push(["Scores", { type: "scores", values: NO_SCORES(), increase: v.increase }]);
-      if (!base && !v.increase) out.push(["Scores", v]);
-      continue;
-    }
     out.push([def.key, v]);
   }
   for (const def of LEGACY_KEYS) { const v = scope.get(def.key); if (v) out.push([def.key, v]); }
@@ -1099,10 +1151,11 @@ export function scopeLines(scope: Scope): [string, Value][] {
   return out;
 }
 
-/** `Key: value`, or `Key:` for a value not chosen yet (D112). */
-function lineOfValue(key: string, v: Value): string {
+/** `Key: value`, or `Key:` for a value not chosen yet (D112); a base `Scores` line with its method, `Scores (point buy): …` (D323). */
+export function lineOfValue(key: string, v: Value): string {
   const s = emitValue(v);
-  return s ? `${key}: ${s}` : `${key}:`;
+  const k = v.type === "scores" && v.method ? `${key} (${methodWords(v.method)})` : key;
+  return s ? `${k}: ${s}` : `${k}:`;
 }
 
 function emitScope(scope: Scope, out: string[]): void {
