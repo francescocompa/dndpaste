@@ -304,8 +304,12 @@ export function swapAt(text: string, pos: number): Spot | null {
   return /^\s/.test(name) || !name.trim() ? null : sp;
 }
 
+/** D304: a swap list holds every alternative (it scrolls); 8 rows cut the classes after Rogue, so a swapped-out Wizard
+ *  could not come back. Capped for the long lists (spells), where typing narrows. */
+export const SWAP_LIMIT = 60;
+
 /** D304: what a written name can be swapped for: the list its empty spot would show, the name itself left out. */
-export function alternatives(n: Names, sp: Spot, text: string, limit = 8): Suggestion[] {
+export function alternatives(n: Names, sp: Spot, text: string, limit = SWAP_LIMIT): Suggestion[] {
   const cur = lc(clean(text.slice(sp.start, sp.end)));
   return suggest(n, { ...sp, typed: "", taken: new Set([...sp.taken, cur]) }, limit, true);
 }

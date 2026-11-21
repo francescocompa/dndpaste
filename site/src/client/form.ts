@@ -671,7 +671,7 @@ function init(): void {
   /** D304: a click in or at the end of a written name lists what it can be swapped for. */
   const swapList = (): boolean => {
     const sw = names ? swapAt(ta.value, ta.selectionStart) : null;
-    const rows = sw && names ? alternatives(names, sw, ta.value, phone.matches ? 12 : 8) : [];
+    const rows = sw && names ? alternatives(names, sw, ta.value) : [];
     if (!sw || !rows.length) return false;
     acKey = null;
     acOn = -1;

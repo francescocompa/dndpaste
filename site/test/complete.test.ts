@@ -620,4 +620,10 @@ test("D304: a click in a written name lists what it can be swapped for; a pick r
   assert.equal(at0 && T.slice(at0.start, at0.end), "Shield", "at a name's first letter: that name");
   assert.equal(swapAt(T, T.indexOf("Shield,") + 7), null, "after the comma, before the next name's space");
   assert.deepEqual(names("Rules: 2¦"), ["2014", "2024"], "typing an edition lists both");
+  // Swapped out and back: every class is offered, not the first 8 (Wizard sorts last).
+  const F = "Vesk\nRules: 2024\nClasses: Fighter 3\n\nL1 Fighter|XPHB\n";
+  for (const at of [F.indexOf("Fighter 3") + 3, F.indexOf("L1 Fighter") + 6]) {
+    const s = swapAt(F, at);
+    assert.ok(s && alternatives(N, s, F).some((a) => a.name === "Wizard"), "Wizard comes back");
+  }
 });
