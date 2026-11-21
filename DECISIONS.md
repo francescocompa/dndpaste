@@ -643,7 +643,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   B, slash · (AskUserQuestion) "Reads, no warning".
   *Rejected:* comma, `STR 8, DEX 14` (A, my pick: one rule with the partial form already canonical; he kept his slash);
   a W-code on the bare form (it would flag every older paste).
-  *Enforced by:* owed (T8.3: emit and Tidy tests, a fixture keeping the bare form).
+  *Enforced by:* `test/spec11.test.ts` D320 (emit, Tidy, `fixtures/v0.10/` converting); SPEC 0.11 §5.2, §5.5, §13.
 
 - **D321 — A click on a score opens the regular list: the final in its title, the method chip in its corner, the
   options as rows. DECIDED (2026-11-21), round 2.1 A with his pins.** A click on a base score (its ability or its
@@ -672,7 +672,8 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Enforced by:* owed (T8.4).
 
 - **D323 — The method is not written by default; the paste may state it in brackets, `Scores (point buy): …`.
-  DECIDED (2026-11-21), round 3.1 (no pick; his notes, then AskUserQuestion).** The chip's chevron (D324) and the
+  DECIDED (2026-11-21), round 3.1 (no pick; his notes, then AskUserQuestion). AMENDED by D332: a pick rewrites a
+  marker already written; the clash look is D333.** The chip's chevron (D324) and the
   popover's corner chip (D321) set the method for this draft: it steers the lists and the popover and writes nothing.
   The format accepts an optional marker on a base `Scores` line, `(standard array)`, `(point buy)` or `(custom)`; a
   typed marker is read and kept by Tidy (in lower case, like a level cap, SPEC §5.5 rule 6), and when present it wins over the
@@ -683,7 +684,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   panel of the scores" · (AskUserQuestion) "Nothing written".
   *Rejected:* derived only, no marker (A, my pick); the chevron writing the marker (a longer line, a second place to
   disagree with the numbers); a site-only setting (C: a share drops it).
-  *Enforced by:* owed (T8.3 parse/emit tests; T8.4).
+  *Enforced by:* `test/spec11.test.ts` D323 (parse, emit, Tidy, E002/E005/E012); SPEC 0.11 §5.2; owed (T8.4).
 
 - **D324 — The method chip: dry words at the `Scores` line's end, with a chevron. DECIDED (2026-11-21), round 4.1 A
   with his pin.** A faint chip in the D309 look after the line: `Std. Array`, `Point Buy 2/27` (points left of 27),
@@ -711,7 +712,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Raw note:* none (follows D321, D324, D325 and the overseer's note: "Point buy and standard array are checked nowhere:
   that's new, about 15 constants").
   *Rejected:* the constants in the site only (the view and other apps would each need their own copy).
-  *Enforced by:* owed (T8.3 tests).
+  *Enforced by:* `test/spec11.test.ts` D326 (and the UMD load test); SPEC 0.11 §6.
 
 ## T8.5 strict toggle evaluation (2026-11-21) — mechanism: digest survey of `src/check.ts` and `site/` + write-up, then AskUserQuestion, 1 round, overseer
 
@@ -722,3 +723,38 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* a toggle after T8.3/T8.4 (S library + M+M site; noisy on non-SRD builds; a second mode, and "strict" reads as
   the site judging builds, against SPEC §6, D34, D132, D199); always-on checker hints (same site cost, a D66 step-1 call for later).
   *Enforced by:* PLAN T8.5 ticked; prose only.
+
+## T8.4 scores in the site (2026-11-21) — mechanism: build constraint found by the T8.4 worker, no user call
+
+- **D331 — The popover's final is the site's mirror of `finalScores()`, fed by the names table. DECIDED (2026-11-21).**
+  D321 and D326 have the popover's final come from the library's `finalScores()`, but `src/check.ts` may not ship in a
+  site bundle (the IP gate, `site/scripts/check-bundle.mjs`, D9, D45), and it needs a slot table the browser doesn't
+  carry. `site/src/scores.ts` `finalOf` repeats its arithmetic (species fixed increases, increase lines, ASI and
+  half-feat picks, played levels only, the 20 and Epic Boon 30 caps) from the names table: `FEATS` (category, ability
+  bits) and a new `SPECIES_FIXED` (a 2014 printing's fixed increases, numbers only; `namerows.ts`, your own sources too).
+  A test bundles `src/check.ts` with esbuild and holds the two equal on every fixture plus four 2014/2024 builds.
+  *Raw note:* none (build constraint).
+  *Rejected:* shipping `src/check.ts` to the client (the IP gate); no final in the popover (D321's title is the final).
+  *Enforced by:* `site/test/scores.test.ts` (D331 parity); `check:bundle`.
+
+- **D332 — A method picked in the chip's list rewrites a marker already written. DECIDED (2026-11-21), T8.4 /ui-review r1.**
+  Amends D323: with `Scores (point buy):` on the line, the method list offers all three methods, and a pick changes the
+  words in the parentheses. With no marker, a pick still writes nothing. The list's "The line says (…)" note and the
+  dimmed rows are gone.
+  *Raw note:* "Remove the note altogether. If the user changes the method after writing the method in parenthesis, the
+  method updates in parenthesis as well".
+  *Rejected:* the marker locking the list (the r1 build).
+  *Enforced by:* /ui-review r2; prose only (form.ts `takeScore`).
+
+- **D333 — Numbers that break the method keep its words and count; the alert icon takes the chevron's place. DECIDED
+  (2026-11-21), T8.4 /ui-review r1, variant A.** The open item of D323. A marker, a pick, or a kind the numbers read as
+  before in this draft (standard array or point buy) stays on the chip when the numbers break it: `Std. Array`, or
+  `Point Buy −3/27` counting below zero past the budget, with the alert icon in the chevron's place (same click, the
+  method list). The chip turns to `Custom` only for numbers that never read as one of the two. The shared page keeps
+  the marker's words with a dotted underline (D325).
+  *Raw note:* "Go with alert, align this state with the note mentioned earlier. Alert shouldn't replace the count but
+  highlight how it becomes negative. If not enough space, we can consider either writing Pt. Buy or replace the chevron
+  with the alert icon (still same behavior)" · (general) "Maybe instead of immediately reverting to custom if point buy
+  or std. array break, we should instead have an alert state of both when the numbers are off".
+  *Rejected:* B, the marker struck with the numbers' own kind; `Pt. Buy` (the chevron swap left room).
+  *Enforced by:* `site/test/scores.test.ts` (the count below zero); /ui-review r2.

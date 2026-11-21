@@ -11,12 +11,16 @@ and how an old form is retired.
 | Kind | Example | Version (D57) | Old pastes |
 |---|---|---|---|
 | **Addition** | a new optional key (`HP`, `Producer`) or value form (`/` in named scores) | minor | mean the same |
+| **Canonical-form change** | the base `Scores` line written `STR 8/DEX 14/…` instead of `8/14/…` (0.11, D320) | minor | mean the same; the old form still reads with no warning, `emit` and Tidy write the new one, no alias (nothing is renamed) |
 | **Rename or merge** | `Equipment` + `Items` → `Gear` | minor | read through an alias, with `W005` |
 | **Break** | an old key changes meaning, or an alias is removed | major (`Paste: 2`) | need a rewrite |
 | **Fix** | a parser or checker bug, new game data | patch | mean the same |
 
 A change that only the checker sees (a new finding, a new data field) is not a format change. It
 follows the library's version rules alone.
+
+A canonical-form change needs no alias, but it follows §3's fixture rule: at least one fixture keeps
+the old form (`fixtures/v0.10/` for 0.11), and a test checks that it converts to its sibling.
 
 ## 2. Propose
 

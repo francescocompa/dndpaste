@@ -83,6 +83,9 @@ export const DETAILS: readonly (readonly [string, Books])[] = ${q(details)};
 export const LINEAGES: readonly (readonly [string, Books, string, AbilityBits, readonly string[]])[] = ${q(lineages)};
 /** [feature name, picks]: a species feature with picks that is not its defining trait, on a \`Feature\` line */
 export const SPECIES_FEATURES: readonly (readonly [string, readonly string[]])[] = ${q(n.SPECIES_FEATURES)};
+/** [species, source, edition, fixed increases STR…CHA]: a printing's score increases, numbers only, for the score
+ *  popover's final (D331) */
+export const SPECIES_FIXED: readonly (readonly [string, string, string, readonly number[]])[] = ${q(n.SPECIES_FIXED)};
 `);
 console.log(`${out}: ${spells.length} spells, ${feats.length} feats, ${options.length} options, ${items.length} items, ${masteryWeapons.length} mastery weapons, ` +
   `${n.SPECIES.length} species, ${n.BACKGROUNDS.length} backgrounds, ${n.SUBCLASSES.length} subclasses, ${classes.length} classes, ${lineages.length} lineage rows, ${features.length} class features, ${casters.length} casters`);

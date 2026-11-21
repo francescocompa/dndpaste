@@ -1120,6 +1120,10 @@ function checkStartingEquipment2014(
 // paste. A pick already reported "missing" elsewhere is not re-flagged here.
 // ═══════════════════════════════════════════════════════════════════════════
 
+// The base's kind (standard array, point buy, custom) is data-free and lives in the parser module (D326); it is
+// exported here too, beside the arithmetic that feeds the same popover.
+export { scoreKind, STANDARD_ARRAY, POINT_BUY_COST, POINT_BUY_BUDGET, type ScoreKind } from "./dndpaste.js";
+
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 const ABILITY_KEYS: readonly AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
 interface AbilityGrant { fixed?: Record<string, number>; choose?: { from: string[]; count?: number; amount?: number; weights?: number[] } | null }

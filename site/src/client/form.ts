@@ -5,14 +5,17 @@
  * the phone dock (D86). Bundled to /assets/form.js by scripts/build-client.mjs; CSP `script-src 'self'`, so no
  * inline scripts, no inline style attributes (CSSOM properties set from here are allowed).
  */
-import { esc, icon } from "../render.ts";
+import { esc, icon, scoreMark } from "../render.ts";
+import { fillScore, finalFoot, finalOf, finalTitle, pickScore, scoreLineAt, scoreRows } from "../scores.ts";
+import type { ScoreLine, ScoreRow } from "../scores.ts";
 import { highlightRows } from "./highlight.ts";
 import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, useYourPresets } from "../ghost.ts";
 import { readSummary } from "./summary.ts";
 import type * as Yours from "./sync.ts";
 import { ADDS, fixCursor, markFixes, nameFixes, tidyPlan } from "../fixes.ts";
 import { nextOpen } from "../preset.ts";
-import { resolveKey } from "../../../src/dndpaste.ts";
+import { ABILITIES, methodWords, resolveKey, scoreKind } from "../../../src/dndpaste.ts";
+import type { ScoreKind } from "../../../src/dndpaste.ts";
 import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
@@ -215,6 +218,14 @@ function init(): void {
   let fixes: Fix[] = [];
   /** D314, D319: the Classes: mismatch, an alert chip at its line's end beside any add chip; its panel holds the fix. */
   let alert: Fix | null = null;
+  /** D323: the method picked for this draft (Start a build, the chip's chevron): it steers the score lists and the
+   *  chip and writes nothing; a marker on the line wins over it. */
+  let scoreMethod: ScoreKind | null = null;
+  /** Review r1: the last kind the numbers read as (standard array or point buy) in this draft. When they then break it,
+   *  the chip keeps that kind with its alert instead of turning to Custom. */
+  let scoreSeen: ScoreKind | null = null;
+  /** The base Scores line the method chip sits on (D324), as of the last redraw. */
+  let scoreChip: ScoreLine | null = null;
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
   let changed = () => {};
 
@@ -344,7 +355,8 @@ function init(): void {
   const fixAt = (line: number) => fixes.find((f) => f.line === line);
   function placeNotes() {
     const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line], .wa[data-line]")];
-    if (!marks.length && !alert && !wls.firstChild) return;
+    scoreChip = chipLine();
+    if (!marks.length && !alert && !scoreChip && !wls.firstChild) return;
     const box = ed.getBoundingClientRect();
     const range = document.createRange();
     // D240: positions through CSSOM, never a style="" attribute: the live CSP (`style-src 'self'`) drops those, which
@@ -361,6 +373,7 @@ function init(): void {
       return b;
     }));
     if (alert) alertButton(alert, box, range);
+    if (scoreChip) methodButton(scoreChip, box, range);
     if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine) && wlLine !== alert?.line) wlClose();
   }
   /** Where a row's text ends, on its last wrapped row: the rect of its last piece (a text node or a span). */
@@ -395,6 +408,65 @@ function init(): void {
     const label = add.querySelector("span");
     const n = (fixAt(f.line)?.act ?? "").replace(/^Add /, "").split(",").length;
     if (label && label.scrollWidth > label.clientWidth && n > 1) label.textContent = `Add ${n} lines`;
+  }
+  /** D324: the header's base Scores line, when the chip has something to say (numbers, a marker or the draft's pick). */
+  function chipLine(): ScoreLine | null {
+    const text = ta.value;
+    let at = 0;
+    for (const line of text.split("\n")) {
+      if (/^\s*(L\d+\b|Species\s*:|Background\s*:)/i.test(line)) return null;
+      if (/^\s*Scores\b/i.test(line)) {
+        const sl = scoreLineAt(text, at);
+        const read = sl && sl.values.some((x) => x !== null) ? scoreKind(sl.values).kind : "custom";
+        if (read !== "custom") scoreSeen = read;
+        if (sl && (sl.marker || scoreMethod || sl.values.some((x) => x !== null))) return sl;
+      }
+      at += line.length + 1;
+    }
+    return null;
+  }
+  /** The method a list and chip follow (D323): the marker's, else the draft's pick, else the numbers' kind; numbers
+   *  that break the kind they read as before keep it (review r1), so the chip alerts rather than say Custom. */
+  const effMethod = (sl: Pick<ScoreLine, "marker" | "values">): ScoreKind | null => {
+    if (sl.marker ?? scoreMethod) return sl.marker ?? scoreMethod;
+    if (!sl.values.some((x) => x !== null)) return null;
+    const read = scoreKind(sl.values).kind;
+    return read === "custom" && scoreSeen ? scoreSeen : read;
+  };
+  /** The chip's words (D324): the method and, for point buy, the points left. Numbers that break the method keep the
+   *  count (below zero past the budget) and the alert icon takes the chevron's place, same click (D323, review r1). */
+  const chipHtml = (sl: ScoreLine): { html: string; clash: boolean; label: string } => {
+    const kind = effMethod(sl) ?? "custom";
+    const m = scoreMark({ type: "scores", values: sl.values, increase: null, method: kind });
+    return {
+      html: `<span>${esc(m.words)}</span>${icon(m.clash ? "alert" : "chevron-down")}`, clash: m.clash,
+      label: `Ability scores: ${m.words}${m.clash ? ", the numbers don't fit it" : ""}. Choose the method`,
+    };
+  };
+  /** D324: the method chip at the end of the base Scores line; its chevron opens the method list (D323). */
+  function methodButton(sl: ScoreLine, box: DOMRect, range: Range): void {
+    const line = ta.value.slice(0, sl.start).split("\n").length;
+    const row = hl.children[line - 1] as HTMLElement | undefined;
+    const t = row?.querySelector<HTMLElement>(".t") ?? row;
+    if (!t) return;
+    const end = textEnd(t, range);
+    const right = t.getBoundingClientRect().right - box.left;
+    // Review r5: no room even for the icon: the icon sits over the line's end, at the row's edge, on a solid fill.
+    const tight = right - (end.right - box.left + 10) < 24;
+    const left = tight ? right - 24 : end.right - box.left + 10;
+    const c = chipHtml(sl);
+    const b = el("button", `wla wsm${c.clash ? " clash" : ""}${tight ? " ico over" : ""}`);
+    b.type = "button";
+    b.dataset.review = "score-chip";
+    b.setAttribute("aria-label", c.label);
+    b.setAttribute("aria-haspopup", "listbox");
+    b.innerHTML = c.html;
+    Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
+    wls.append(b);
+    // Review r2–r6: only where the words don't fit after the line does the chip keep its icon alone (its label still
+    // says it); a face that loads later places the chips again (the fonts' loadingdone, below).
+    const words = b.querySelector("span");
+    if (words && words.scrollWidth > words.clientWidth) b.classList.add("ico");
   }
   /** D308: an add fix is a faint `+ Add Subclass, Spells` at the end of its line (the level-up lens's look); one click
    *  writes the lines. Where the full label doesn't fit, it says how many (`+ Add 3 lines`). */
@@ -432,6 +504,8 @@ function init(): void {
   };
   wls.addEventListener("mousedown", (e) => { if ((e.target as Element).closest(".wla")) e.preventDefault(); });
   wls.addEventListener("click", (e) => {
+    const sm = (e.target as Element).closest<HTMLElement>(".wsm");
+    if (sm) { e.stopPropagation(); openMethods(sm); return; }
     const a = (e.target as Element).closest<HTMLElement>(".wla");
     // The chip carries data-line: the form's jump-to-line click would put the caret back on the chip's line (D310).
     if (a) { e.stopPropagation(); applyFix(Number(a.dataset.line)); return; }
@@ -474,8 +548,13 @@ function init(): void {
   };
   // A wider or narrower row changes which ghosts fit their block's column: redraw when it does.
   // D240: the fix buttons follow their marks through any reflow (a width change, the web font arriving).
-  new ResizeObserver(() => { if (measure()) drawRows(); else placeNotes(); }).observe(hl);
+  // T8.4 review r3: the editor too, since a window resize can leave the layer's box as it was while the rows move.
+  const reflow = new ResizeObserver(() => { if (measure()) drawRows(); else placeNotes(); });
+  reflow.observe(hl);
+  reflow.observe(ed);
   void document.fonts?.ready.then(() => placeNotes());
+  // T8.4 review r4: a face first used by a chip loads after `ready`; place the chips again when it arrives.
+  document.fonts?.addEventListener?.("loadingdone", () => placeNotes());
   /** Sets innerHTML only when it changed: most keystrokes leave the summary, Problems and hints as they were. */
   const shown = new WeakMap<Element, string>();
   const put = (e: Element, html: string) => {
@@ -677,6 +756,10 @@ function init(): void {
   let acSwap = false;
   /** D306: how many more rows fit past the list's 60; its last row counts them. */
   let acMore = 0;
+  /** T8.4: the list is a score list on the header's base Scores line: `fill`, the next ability's numbers while the line
+   *  is written (D322); `pop`, a clicked score's options (D321); `method`, the method list (D323), reached from the
+   *  line's chip (`back` null) or the list's corner chip (`back`: the list to go back to). */
+  let acScore: { sl: ScoreLine; i: number; mode: "fill" | "pop" | "method"; rows: ScoreRow[]; back: "fill" | "pop" | null; pos: number; anchor: Element | null } | null = null;
   const acAria = () => {
     ta.setAttribute("aria-autocomplete", "list");
     ta.setAttribute("aria-controls", ac.id);
@@ -685,8 +768,9 @@ function init(): void {
     else ta.removeAttribute("aria-activedescendant");
   };
   const acClose = () => {
-    if (ac.hidden && !acSpot) return;
+    if (ac.hidden && !acSpot && !acScore) return;
     ac.hidden = true;
+    acScore = null;
     acSpot = null;
     acKey = null;
     acRows = [];
@@ -718,8 +802,8 @@ function init(): void {
     return t.getBoundingClientRect();
   };
   const acPlace = () => {
-    const from = acSpot?.start ?? acKey?.start;
-    const at = from === undefined ? null : caretBox(from);
+    const from = acSpot?.start ?? acKey?.start ?? acScore?.pos;
+    const at = acScore?.anchor?.isConnected ? acScore.anchor.getBoundingClientRect() : from === undefined ? null : caretBox(from);
     if (!at) return;
     const box = ed.getBoundingClientRect();
     // Below the line when the list fits in the window there (it may hang past the editor's edge), else on the
@@ -745,7 +829,7 @@ function init(): void {
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
     // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
-    ac.innerHTML = (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
+    ac.innerHTML = acScore ? scoreListHtml(onPhone) : (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
       hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
       `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
@@ -759,9 +843,9 @@ function init(): void {
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : "name";
-      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${acMore > 0 ? `, ${acMore} more` : ""}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      acSays.textContent = acScore ? scoreSays() : acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${acMore > 0 ? `, ${acMore} more` : ""}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
-    ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
+    ac.setAttribute("aria-label", acKey ? "Keys" : acScore ? "Ability scores" : "Names");
     ac.hidden = false;
     if (!onPhone) acPlace();
     ac.querySelector(".on")?.scrollIntoView({ block: "nearest" });
@@ -772,7 +856,10 @@ function init(): void {
     // The editor may have had focus before this ran (a restored draft, the browser's own focus): load on first use too.
     if (!names) { if (typing) loadNames(); return; }
     if (!typing && ac.hidden) return;
+    // The method list (D323) stays open while its arrows move: it is not a list for the caret's spot.
+    if (!typing && acScore?.mode === "method") return;
     if (!suggestOn.get() || document.activeElement !== ta || ta.selectionStart !== ta.selectionEnd) { acClose(); return; }
+    if (scoreFill()) return;
     // A key at the line's start (D170): the hint strip's keys, narrowed by what was typed.
     const ks = keySpotAt(ta.value, ta.selectionStart);
     const kk = ks ? suggestKeys(ta.value, ks) : [];
@@ -807,6 +894,128 @@ function init(): void {
     acHint = hint;
     acDraw();
   };
+  // ---- T8.4: the base Scores line's lists (D321–D324) ----
+  const METHODS: readonly ScoreKind[] = ["standard-array", "point-buy", "custom"];
+  const METHOD_NAMES: Readonly<Record<ScoreKind, string>> = { "standard-array": "Standard array", "point-buy": "Point buy", custom: "Custom" };
+  const scoreRowName = (r: ScoreRow) => String(r.n);
+  /** Opens a score list: its rows become the list's, so the arrows, Tab and Enter work on them as on names. */
+  const showScore = (next: NonNullable<typeof acScore>) => {
+    const same = acScore?.mode === next.mode && acScore.i === next.i && acScore.rows.length === next.rows.length;
+    acKey = null;
+    acSpot = null;
+    acHint = null;
+    acEmpty = false;
+    acMore = 0;
+    acScore = next;
+    acRows = next.mode === "method" ? METHODS.map((k) => ({ name: METHOD_NAMES[k], source: null }))
+      : next.rows.map((r) => ({ name: scoreRowName(r), source: null }));
+    if (!same) acOn = -1;
+    acDraw();
+  };
+  /** D322: the caret at the end of a base line being filled: the next ability's numbers by the method. */
+  const scoreFill = (): boolean => {
+    const sl = scoreLineAt(ta.value, ta.selectionStart);
+    const m = sl?.fill ? effMethod(sl) : null;
+    if (!sl?.fill || !m) return false;
+    const f = sl.fill;
+    const rows = scoreRows(m, sl.values, f.i, true).filter((r) => String(r.n).startsWith(f.typed));
+    if (!rows.length) { acClose(); return true; }
+    acSwap = false;
+    showScore({ sl, i: f.i, mode: "fill", rows, back: null, pos: ta.selectionStart, anchor: null });
+    return true;
+  };
+  /** D321: a click on a written score opens its options, mouse or tap only (any key closes it, as the swap list). */
+  const scorePop = (): boolean => {
+    const sl = scoreLineAt(ta.value, ta.selectionStart);
+    if (!sl || sl.at === null) return false;
+    if (!names) loadNames();
+    const m = effMethod(sl) ?? "custom";
+    acSwap = true;
+    showScore({ sl, i: sl.at, mode: "pop", rows: scoreRows(m, sl.values, sl.at), back: null, pos: ta.selectionStart, anchor: null });
+    return true;
+  };
+  /** D323, D324: the method list, from the line's chip; a pick steers the lists and the chip and writes nothing. */
+  function openMethods(chip: Element) {
+    if (acScore?.mode === "method" && !ac.hidden) { acClose(); return; }
+    const sl = scoreChip;
+    if (!sl) return;
+    if (document.activeElement !== ta) ta.focus({ preventScroll: true });
+    acSwap = false;
+    showScore({ sl, i: -1, mode: "method", rows: [], back: null, pos: sl.end, anchor: chip });
+  }
+  const scoreKindNow = (sl: ScoreLine): ScoreKind => effMethod(sl) ?? "custom";
+  /** The list's head: the final (`WIS 15 → 19 (+4)`, D321) or the ability being filled, and the method chip at its right. */
+  const scoreListHtml = (onPhone: boolean): string => {
+    const s = acScore!;
+    const c = chipHtml(s.sl);
+    const chip = `<button type="button" class="acm${c.clash ? " clash" : ""}" data-m tabindex="-1" aria-label="${esc(c.label)}">${c.html}</button>`;
+    const fin = names && st.paste && s.mode !== "method" ? finalOf(st.paste, names)[s.i] : null;
+    let title: string;
+    // Review r1: the method list reached from a score's list has a way back before its title.
+    if (s.mode === "method") title = `${s.back ? `<button type="button" class="acb" data-back tabindex="-1" aria-label="Back">${icon("chevron-left")}</button>` : ""}<span>Ability scores</span>`;
+    else if (s.mode === "fill") title = `<b>${ABILITIES[s.i]}</b>`;
+    else if (fin) { const t = finalTitle(s.i, fin); title = `<span>${esc(t.from)}</span>${icon("arrow-right")}<b>${esc(t.to)}</b>`; }
+    else title = `<b>${ABILITIES[s.i]} ${s.sl.values[s.i] ?? ""}</b>`;
+    const foot = s.mode === "pop" && fin?.parts.length ? `<div class="af${s.rows.length ? "" : " solo"}">${esc(finalFoot(fin))}</div>` : "";
+    // Review r1: no rows and no foot, no divider under the head.
+    const bare = s.mode !== "method" && !s.rows.length && !foot;
+    const head = `<div class="ah acs${bare ? " bare" : ""}" aria-hidden="true"><span class="acst">${title}</span>${s.mode === "method" ? "" : chip}</div>`;
+    const now = scoreKindNow(s.sl);
+    const rows = s.mode === "method"
+      ? METHODS.map((k, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+        `<span class="an">${esc(METHOD_NAMES[k])}</span>${k === now ? `<span class="al">${icon("check")}</span>` : ""}</div>`).join("")
+      : s.rows.map((r, i) => `<div role="option" id="ac-${i}" class="ao asr${i === acOn ? " on" : ""}${r.over ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+        `<span class="an">${r.n}</span>` +
+        (r.swap !== null ? `<span class="al">${icon("arrow-left-right")}${ABILITIES[r.swap]}</span>` : "") +
+        (r.cost !== null ? `<span class="al">${r.cost} pt${r.cost === 1 ? "" : "s"}</span>` : "") +
+        `${!onPhone && i === 0 && acOn < 0 && s.mode === "fill" ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
+    return head + rows + foot;
+  };
+  const scoreSays = (): string => {
+    const s = acScore!;
+    if (s.mode === "method") return `Ability score method, ${METHOD_NAMES[scoreKindNow(s.sl)]}. Pick one.`;
+    const n = s.rows.length;
+    return `${ABILITIES[s.i]}: ${n ? `${n} number${n === 1 ? "" : "s"}.` : "no numbers to pick."}${s.mode === "fill" && !phone.matches ? " Tab takes the first." : ""}`;
+  };
+  /** A pick in a score list: the method (writes nothing), a clicked score's swap or number, or the next fill number. */
+  const takeScore = (i: number) => {
+    const s = acScore!;
+    if (s.mode === "method") {
+      const k = METHODS[i];
+      if (!k) return;
+      scoreMethod = k;
+      // Review r1 (amends D323): a method written in parentheses follows the pick; with none, nothing is written.
+      const now = scoreLineAt(ta.value, s.sl.start);
+      if (now?.marker && now.marker !== k) {
+        const colon = ta.value.indexOf(":", now.start);
+        writeChange(ta.value.slice(0, now.start) + `Scores (${methodWords(k)})` + ta.value.slice(colon));
+      }
+      const sl = scoreLineAt(ta.value, s.sl.start) ?? s.sl;
+      if (s.back === "pop") showScore({ ...s, sl, mode: "pop", back: null, rows: scoreRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
+      else if (s.back === "fill") { acClose(); complete(true); }
+      else acClose();
+      drawRows();
+      changed();
+      return;
+    }
+    const r = s.rows[i];
+    if (!r) return;
+    acClose();
+    if (s.mode === "pop") {
+      const next = pickScore(ta.value, s.sl, s.i, r);
+      writeChange(next.text);
+      ta.setSelectionRange(next.cursor, next.cursor);
+      return;
+    }
+    const next = fillScore(ta.value, s.sl, r.n);
+    // Review r1: the line is still being written (`STR 15/DEX `): hold its error, as typing does (D176).
+    if (!next.done) { holdLine = ta.value.slice(0, s.sl.start).split("\n").length; clearTimeout(holdTimer); holdTimer = window.setTimeout(release, HOLD_MS); }
+    writeChange(next.text);
+    ta.setSelectionRange(next.cursor, next.cursor);
+    // D322, D307: the next ability's list at once; after CHA, on to the next open choice (D310).
+    if (!next.done) complete(true);
+    else toNextOpen(lineEnd(next.cursor) + 1);
+  };
   /** D304: a click in or at the end of a written name lists what it can be swapped for. */
   const swapList = (): boolean => {
     const sw = names ? swapAt(ta.value, ta.selectionStart) : null;
@@ -828,7 +1037,12 @@ function init(): void {
     if (names || loading) return;
     loading = true;
     // Typed before the names arrived: show what fits now.
-    (import(NAMES_JS) as Promise<Names>).then((m) => { names = m; fixNames = m; drawRows(); complete(true); loadYours(m); }, () => { loading = false; });
+    (import(NAMES_JS) as Promise<Names>).then((m) => {
+      names = m; fixNames = m; drawRows();
+      // D321: an open score popover gets its final now; anything else is what typing showed.
+      if (acScore && acScore.mode !== "fill" && !ac.hidden) acDraw(); else complete(true);
+      loadYours(m);
+    }, () => { loading = false; });
   };
   /** D246: your own sources join the names, and your classes the ghost counts; the links are checked on this visit (D248). */
   const loadYours = (base: Names) => {
@@ -841,6 +1055,7 @@ function init(): void {
     })).catch(() => { /* the built-in names stay */ });
   };
   const acTake = (i: number) => {
+    if (acScore) { takeScore(i); return; }
     const sp = acSpot;
     const r = acRows[i];
     const ks = acKey;
@@ -979,6 +1194,17 @@ function init(): void {
     }
   });
   ac.addEventListener("click", (e) => {
+    // D321: the list's corner chip turns it into the method list; a pick there comes back to the same list.
+    if ((e.target as Element).closest("[data-back]") && acScore?.back) {
+      const s = acScore;
+      const sl = scoreLineAt(ta.value, s.sl.start) ?? s.sl;
+      if (s.back === "fill") { acClose(); complete(true); } else showScore({ ...s, sl, mode: "pop", back: null, rows: scoreRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
+      return;
+    }
+    if ((e.target as Element).closest("[data-m]") && acScore && acScore.mode !== "method") {
+      showScore({ ...acScore, mode: "method", back: acScore.mode, anchor: null });
+      return;
+    }
     const o = (e.target as Element).closest<HTMLElement>("[data-i]");
     if (o) acTake(Number(o.dataset.i));
   });
@@ -992,10 +1218,12 @@ function init(): void {
   // opens the list, as typing would, on any line however it got there; any other click only updates or closes it.
   ed.addEventListener("keyup", (e) => { if (!ac.contains(e.target as Node)) complete(false); });
   ed.addEventListener("click", (e) => {
-    if (ac.contains(e.target as Node)) return;
+    // A click in the list, even on a row its redraw just took out (the corner chip, a method pick, D321).
+    if (ac.contains(e.target as Node) || !(e.target as Node).isConnected) return;
     const here = e.target === ta && ta.selectionStart === ta.selectionEnd;
+    if (here && suggestOn.get() && scorePop()) return;
     if (here && names && suggestOn.get() && !opensOnClick(ta.value, ta.selectionStart) && swapList()) return;
-    complete(here && opensOnClick(ta.value, ta.selectionStart));
+    complete(here && (opensOnClick(ta.value, ta.selectionStart) || Boolean(scoreLineAt(ta.value, ta.selectionStart)?.fill)));
   });
   phone.addEventListener("change", acClose);
   window.addEventListener("resize", () => { if (!ac.hidden && !phone.matches) acPlace(); });
@@ -1048,6 +1276,8 @@ function init(): void {
   // ---- events ----
   ed.addEventListener("input", (e) => {
     if (bulk) return;
+    // D323: the method pick belongs to this draft; an emptied editor is a new one.
+    if (!ta.value.trim()) { scoreMethod = null; scoreSeen = null; }
     const kind = (e as InputEvent).inputType;
     if (/^(insertText|insertCompositionText|insertReplacementText|deleteContent)/.test(kind ?? "")) {
       holdLine = cursorLine() + 1;
@@ -1153,7 +1383,9 @@ function init(): void {
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tipFor) hideTip(); });
   window.addEventListener("scroll", hideTip, { passive: true });
-  if (offers) mountStarter(offer, (text) => {
+  if (offers) mountStarter(offer, (text, method) => {
+    // D322: the method chosen in the builder steers the Scores line's lists; it writes nothing (D323).
+    scoreMethod = method;
     replaceAll(text);
     // D310: the caret waits on the first open choice (the Scores line when the wizard left it empty), its list open.
     const at = nextOpen(text, 0);

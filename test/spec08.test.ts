@@ -28,10 +28,10 @@ describe("D106: named scores take / too", () => {
     const a = parse("Scores: STR 8/DEX 13/CON 14"), b = parse("Scores: STR 8, DEX 13, CON 14");
     assert.deepEqual(codes(a), []);
     assert.deepEqual(a.header.get("Scores"), b.header.get("Scores"));
-    assert.equal(emit(a), "Scores: STR 8, DEX 13, CON 14\n");
+    assert.equal(emit(a), "Scores: STR 8/DEX 13/CON 14\n");
   });
-  test("any order, and all six named emit the six-number form", () => {
-    assert.equal(canon("Scores: CHA 15/STR 8/DEX 13/CON 14/INT 12/WIS 10"), "Scores: 8/13/14/12/10/15\n");
+  test("any order; all six named emit named, STR…CHA (D320)", () => {
+    assert.equal(canon("Scores: CHA 15/STR 8/DEX 13/CON 14/INT 12/WIS 10"), "Scores: STR 8/DEX 13/CON 14/INT 12/WIS 10/CHA 15\n");
   });
   test("numbers and names do not mix", () => {
     assert.deepEqual(codes(parse("Scores: DEX 15/13")), ["E012"]);
@@ -77,11 +77,11 @@ describe("D108: Scores holds increases too; the + decides", () => {
     assert.deepEqual(h.increase, [{ amount: 2, ability: "CHA" }]);
     const b = p.entities[0].lines.get("Scores");
     assert.ok(b && b.type === "scores" && b.values.every((x) => x === null));
-    assert.equal(emit(p), "Scores: 8/13/14/12/10/15\nScores: +2 CHA\n\nBackground: Sage|XPHB\nScores: +1 INT, +1 CON\n\nL4 Fighter\nScores: +2 STR\n");
+    assert.equal(emit(p), "Scores: STR 8/DEX 13/CON 14/INT 12/WIS 10/CHA 15\nScores: +2 CHA\n\nBackground: Sage|XPHB\nScores: +1 INT, +1 CON\n\nL4 Fighter\nScores: +2 STR\n");
     assert.deepEqual(scopeLines(p.header).map(([k]) => k), ["Scores", "Scores"], "one entry per line");
   });
   test("increase first, base second: the base still writes first", () => {
-    assert.equal(canon("Scores: +2 CHA\nScores: 8/13/14/12/10/15"), "Scores: 8/13/14/12/10/15\nScores: +2 CHA\n");
+    assert.equal(canon("Scores: +2 CHA\nScores: 8/13/14/12/10/15"), "Scores: STR 8/DEX 13/CON 14/INT 12/WIS 10/CHA 15\nScores: +2 CHA\n");
   });
   test("a base outside the header is E005; a second base or a second increase is E003", () => {
     assert.deepEqual(codes(parse("Species: Elf\nScores: DEX 15")), ["E005"]);

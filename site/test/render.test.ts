@@ -70,7 +70,7 @@ test("render (0.8): a header base and increase are two Scores rows, in the order
   const html = renderPaste(p);
   const rows = [...html.matchAll(/<span class="hk">([\s\S]*?)<\/span><span class="hv[^"]*">([\s\S]*?)<\/span>(?=<span class="hk|<\/div>)/g)]
     .map((m) => `${textOf(m[1])} ${textOf(m[2])}`.trim());
-  assert.deepEqual(rows.slice(0, 4), ["Scores: 15/10/13/8/10/15", "Scores: +2 CHA", "Classes: Warlock 4", "Feat (Origin): Alert"]);
+  assert.deepEqual(rows.slice(0, 4), ["Scores: STR 15/DEX 10/CON 13/INT 8/WIS 10/CHA 15 Point Buy 0/27", "Scores: +2 CHA", "Classes: Warlock 4", "Feat (Origin): Alert"]);
   assert.ok(html.includes(`<span class="k">Feat <span class="km">(Origin)</span></span>`));
   assert.ok(html.includes(`<span class="cnt">1 line</span>`), "the level's count counts the lines shown");
   assert.ok(rows.includes("Scores: +1 CON") && !rows.includes("Spells:"), "a level increase; an empty value is left out (D216)");

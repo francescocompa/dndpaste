@@ -19,8 +19,8 @@ export const TYPE_LABEL: Readonly<Record<ValueType, (d: KeyDef) => string>> = {
   enum: (d) => (d.enumValues ?? []).map(c).join(" or "),
   int: () => "a whole number",
   classes: () => `${c("Fighter 1 / Warlock 4")}, in the order taken`,
-  scores: () => `six numbers in ${c("STR/DEX/CON/INT/WIS/CHA")} order, ${c("15/10/13/8/10/15")}, or only the known ones, ` +
-    `${c("DEX 15, CON 13")} or ${c("DEX 15/CON 13")}, or an increase, ${c("+2 CHA")}`,
+  scores: () => `each ability and its score, ${c("STR 15/DEX 10/CON 13/INT 8/WIS 10/CHA 15")}, or only the known ones, ` +
+    `${c("DEX 15/CON 13")}, or an increase, ${c("+2 CHA")}`,
   asi: () => `${c("+2 CHA")} or ${c("+1 INT, +1 CON")}`,
   hp: () => `${c("Fixed")} or ${c("Rolled")}, and in a level block also the number rolled`,
   text: () => "one line of text",
@@ -34,7 +34,8 @@ export const KEY_HOLDS: Readonly<Record<string, string>> = {
   Paste: "The version of the format. Leave it out for version 1.",
   Producer: "The app and version that wrote the text.",
   Rules: "The edition for names that have no book code.",
-  Scores: "Without a plus sign, the base ability scores, in the header only. With a plus sign, an increase: " +
+  Scores: "Without a plus sign, the base ability scores, in the header only. To say how you made them, put the method " +
+    "in parentheses after the key: Scores (standard array), Scores (point buy) or Scores (custom). With a plus sign, an increase: " +
     "in the species or background block, at a level, or in the header.",
   Classes: "Each class and its levels.",
   HP: "How the build gains hit points.",

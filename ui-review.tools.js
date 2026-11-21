@@ -57,6 +57,19 @@ const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / 
   'L1 Fighter|XPHB\nSkills: Athletics, Perception\nMasteries: Longsword, Shortbow\nFeat (Fighting Style): Defense\n\n' +
   'L2 Wizard|XPHB\nCantrips: Light, Mage Hand, Prestidigitation, Fire Bolt\nSpells: Shield, Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar\nPrepared: Shield, Sleep\n\n' +
   'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
+// T8.4 (D321): a Cleric 4 with a background increase and an L4 ASI; S_ARRAY is a standard array, S_BUY point-buy legal.
+const S_TAIL = '\nClasses: Cleric 4\n\nSpecies: Elf\n\nBackground: Acolyte\nScores: +2 WIS, +1 CON\n\nL1 Cleric|XPHB\n\nL4 Cleric|XPHB\nFeat: Ability Score Improvement [+2 WIS]\n'
+const S_ARRAY = 'Vesk\nRules: 2024\nScores: STR 8/DEX 14/CON 13/INT 10/WIS 15/CHA 12' + S_TAIL
+const S_BUY = 'Vesk\nRules: 2024\nScores: STR 8/DEX 14/CON 14/INT 8/WIS 15/CHA 10' + S_TAIL
+// An emptied editor first, so the method picked in another item (D323, per draft) doesn't carry over.
+const scoreSetup = async (x, name, text) => { await x.waitFor('form.pform textarea.src'); typeIn(''); await acSetup(x, name, text) }
+// A click on a score, the way the mouse puts the caret there (in its number).
+const scoreClick = async (x, name, text, at) => {
+  await scoreSetup(x, name, text)
+  const ta = editor(), i = text.indexOf(at) + at.length - 1
+  ta.focus(); ta.setSelectionRange(i, i)
+  ta.dispatchEvent(new MouseEvent('click', { bubbles: true })); await x.sleep(400)
+}
 // M8 (D304): a Wizard 5 build, for the swap list on its L1 header.
 const M8_SWAP = 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield, Magic Missile\n'
 // T8.2 (D305): a multiclass build for the level-up lens.
@@ -585,6 +598,22 @@ uiReview.config({
     'm8-classes': (x) => acSetup(x, 'm8-classes', 'Vesk\nRules: 2024\nClasses: '),
     'm8-spells': (x) => acSetup(x, 'm8-spells', 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: '),
     'm8-full': (x) => acSetup(x, 'm8-full', 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield'),
+    // T8.4 (D321–D325): the base Scores line.
+    's-start': async (x) => {
+      await x.waitFor('form.pform textarea.src'); typeIn(''); await x.waitFor('.sb:not([hidden])')
+      const sel = document.querySelector('#sbsc'); sel.value = 'standard-array'; sel.dispatchEvent(new Event('change', { bubbles: true }))
+    },
+    's-fill': async (x) => {
+      await x.waitFor('form.pform textarea.src'); typeIn(''); await x.waitFor('.sb:not([hidden])')
+      const sel = document.querySelector('#sbsc'); sel.value = 'standard-array'; sel.dispatchEvent(new Event('change', { bubbles: true }))
+      starter([['Cleric', 1]]); await x.sleep(100); await x.click('.sbmake'); await x.sleep(400)
+    },
+    's-pop-array': (x) => scoreClick(x, 's-pop-array', S_ARRAY, 'WIS 15'),
+    's-pop-buy': (x) => scoreClick(x, 's-pop-buy', S_BUY, 'CON 14'),
+    's-pop-custom': (x) => scoreClick(x, 's-pop-custom', S_ARRAY.replace('STR 8/', 'STR 17/'), 'STR 17'),
+    's-chip': async (x) => { await scoreSetup(x, 's-chip', S_ARRAY); await x.waitFor('.ed .wsm'); await x.click('.ed .wsm'); await x.sleep(150) },
+    's-marker': async (x) => { await scoreSetup(x, 's-marker', S_BUY.replace('Scores:', 'Scores (point buy):')); await x.waitFor('.ed .wsm'); await x.click('.ed .wsm'); await x.sleep(150) },
+    's-clash': (x) => scoreSetup(x, 's-clash', S_ARRAY.replace('Scores: STR 8/', 'Scores (point buy): STR 17/')),
     'm8-swap': async (x) => {
       await acSetup(x, 'm8-swap', M8_SWAP)
       const ta = editor(), at = M8_SWAP.indexOf('L1 Wizard') + 6

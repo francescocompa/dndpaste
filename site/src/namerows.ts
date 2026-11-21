@@ -26,7 +26,7 @@ export interface NameRows {
   CLASSES: string[]; CLASS_ROWS: Row[]; SPELLS: Row[]; SUBCLASSES: Row[]; SPECIES: Row[]; BACKGROUNDS: Row[]; FEATS: Row[];
   OPTIONS: Row[]; FAMILIES: Record<string, string>; ITEMS: Row[]; MASTERY_WEAPONS: Row[]; SKILLS: string[]; SKILL_LISTS: J[][];
   LANGUAGES: string[]; TOOLS: string[]; CLASS_FEATURES: J[][]; CASTERS: J[][]; DETAILS: Row[]; LINEAGES: J[][];
-  SPECIES_FEATURES: J[][];
+  SPECIES_FEATURES: J[][]; SPECIES_FIXED: J[][];
 }
 
 const ABILITY: Record<string, number> = { str: 1, dex: 2, con: 4, int: 8, wis: 16, cha: 32 };
@@ -219,9 +219,15 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
   }
   DETAILS.sort(byName);
 
+  // D331: a 2014 species' fixed score increases, numbers only, for the score popover's final (the site's mirror of
+  // finalScores; src/check.ts may not ship). One row per printing that has any: [name, source, edition, STR…CHA].
+  const SPECIES_FIXED: J[][] = vals("species").filter((e) => keep(e) && e.ability?.fixed && Object.keys(e.ability.fixed).length)
+    .map((e) => [e.name, e.source, e.edition ?? "", ["str", "dex", "con", "int", "wis", "cha"].map((a) => e.ability.fixed[a] ?? 0)])
+    .sort((a, b) => byName(a, b) || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
+
   return {
     CLASSES: classes, CLASS_ROWS: rows(vals("classes"), () => []), SPELLS, SUBCLASSES, SPECIES, BACKGROUNDS, FEATS, OPTIONS,
     FAMILIES: { ...(slots.families ?? {}) }, ITEMS, MASTERY_WEAPONS, SKILLS, SKILL_LISTS, LANGUAGES: words(languages), TOOLS: words(tools),
-    CLASS_FEATURES, CASTERS, DETAILS, LINEAGES, SPECIES_FEATURES,
+    CLASS_FEATURES, CASTERS, DETAILS, LINEAGES, SPECIES_FEATURES, SPECIES_FIXED,
   };
 }

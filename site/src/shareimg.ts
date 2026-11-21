@@ -9,7 +9,7 @@
 import { ABILITIES, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, Item, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
 import { allCodes } from "./codelist.ts";
-import { KIND_OF_KEY, isEmptyValue, kindOfKey, lineEntries } from "./render.ts";
+import { KIND_OF_KEY, isEmptyValue, kindOfKey, lineEntries, lineKey, scoreMark } from "./render.ts";
 import type { Kind } from "./render.ts";
 
 export interface Run { t: string; c: string; w?: "d" | "drop" }
@@ -56,8 +56,8 @@ export function valueRuns(key: string, v: Value): Run[] {
       if (v.values.every((x) => x === null)) {
         return join((v.increase ?? []).map((b) => [{ t: `+${b.amount}`, c: "n" }, { t: " ", c: "" }, ab(b.ability)]), [P(", ")]);
       }
-      if (v.values.every((x) => x !== null)) return join(v.values.map((x, i) => [{ t: String(x), c: `n ab-${ABILITIES[i].toLowerCase()}` }]), [P("/")]);
-      return join(ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [[ab(a), { t: " ", c: "" }, { t: String(v.values[i]), c: `n ab-${a.toLowerCase()}` }]])), [P(", ")]);
+      // SPEC 0.11 (D320): a base is named and `/`-separated, full or partial.
+      return join(ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [[ab(a), { t: " ", c: "" }, { t: String(v.values[i]), c: `n ab-${a.toLowerCase()}` }]])), [P("/")]);
     }
     case "hp": return v.roll !== null ? [{ t: String(v.roll), c: "n" }] : [{ t: v.method, c: "e" }];
     case "empty": return [];
@@ -72,8 +72,15 @@ export function keyRuns(key: string): Run[] {
   return [...body, P(":")];
 }
 
+/** D325: a base `Scores` row ends on the method's dry words, as the view's mark. */
+function markRuns(v: Value): Run[] {
+  if (v.type !== "scores" || !v.values.some((x) => x !== null)) return [];
+  const m = scoreMark(v);
+  return [{ t: " ", c: "" }, { t: m.words, c: m.clash ? "smk clash" : "smk" }];
+}
 // D216: the image, like the view, leaves out empty lines.
-const rows = (scope: Scope, vc?: "grp"): Row[] => lineEntries(scope).filter(([, v]) => !isEmptyValue(v)).map(([k, v]) => ({ k: keyRuns(k), v: valueRuns(k, v), ...(vc ? { vc } : {}) }));
+const rows = (scope: Scope, vc?: "grp"): Row[] => lineEntries(scope).filter(([, v]) => !isEmptyValue(v))
+  .map(([k, v]) => ({ k: keyRuns(lineKey(k, v)), v: [...valueRuns(k, v), ...markRuns(v)], ...(vc ? { vc } : {}) }));
 
 /** The whole build, block by block, in the view's order: identifier and header, Species/Background, then levels. */
 export function shareBlocks(paste: Paste): Block[] {

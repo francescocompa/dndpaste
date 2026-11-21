@@ -9,7 +9,7 @@ export const GUIDE_LINK = `<p class="muted glink"><a href="/guide">Format guide<
  */
 export const EXAMPLE = `Vesk
 Rules: 2024
-Scores: 15/10/13/8/10/15
+Scores: STR 15/DEX 10/CON 13/INT 8/WIS 10/CHA 15
 Classes: Fighter 1 / Warlock 4
 
 Species: Tiefling|XPHB [Infernal; CHA]

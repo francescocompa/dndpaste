@@ -187,6 +187,9 @@ html:not(.hasjs) .njs { display: none !important; }
 .hv { white-space: pre-wrap; min-width: 0; overflow-wrap: anywhere; }
 .grp { border-left: 2px solid var(--rule); padding-left: 1.2ch; }
 .hv.idv, .hv.ehv, .hv.lvv { font-weight: 600; }
+/* D325: the method's dry words after the base Scores row, as plain small text, on the view and in print. */
+.hv .smk { font: 0.82em/1 var(--sans); color: var(--mute); margin-left: 0.6ch; white-space: nowrap; }
+.hv .smk.clash { text-decoration: underline dotted; text-underline-offset: 3px; }
 .hk.lvk { color: var(--acc); font-weight: 600; }
 .lvb > .bl + .bl, details.lvb > .bl { margin-top: 1px; }
 details.lvb > summary { list-style: none; cursor: pointer; }
@@ -310,6 +313,28 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ac .ah { font: 12px/1.3 var(--sans); color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ac .ah b { color: var(--fg); font-weight: 600; }
 .ed .ac .ah { margin: 0 -4px 4px; padding: 3px 12px 6px; border-bottom: 1px solid var(--rule); }
+/* T8.4 (D321): a score list's head: the final (`WIS 15 → 19 (+4)`) or the ability being filled, the method chip at its
+   right (D324); its foot says where the final comes from. With no rows (custom), one divider only. */
+.ac .acs { display: flex; align-items: center; gap: 10px; overflow: visible; }
+.ac .acst { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; }
+.ac .acst svg.i { width: 12px; height: 12px; flex-shrink: 0; }
+.ac .acm { margin-left: auto; display: inline-flex; align-items: center; gap: 3px; border: 0; padding: 2px 6px; border-radius: 4px;
+  background: color-mix(in srgb, var(--chip) 70%, transparent); font: 11px/1.2 var(--sans); color: var(--mute); cursor: pointer; white-space: nowrap; }
+.ac .acm:hover { color: var(--fg); background: var(--chip); }
+.ac .acm svg.i, .ed .wsm svg.i { width: 12px; height: 12px; flex-shrink: 0; }
+.ac .acm.clash svg.i, .ed .wsm.clash svg.i { color: var(--err); }
+.ed .wsm.ico span { display: none; }
+.ed .wsm.over { background: linear-gradient(var(--chip), var(--chip)), var(--bg); box-shadow: -4px 0 0 var(--bg); }
+.ed .ac .acs.bare { border-bottom: 0; margin-bottom: 0; padding-bottom: 3px; }
+.ac .acb { display: inline-flex; align-items: center; border: 0; background: none; padding: 0 2px 0 0; color: var(--mute); cursor: pointer; }
+.ac .acb:hover { color: var(--fg); }
+.ac .ao.asr .an { font-family: var(--mono); min-width: 2ch; text-align: right; }
+.ac .ao.asr .al { display: inline-flex; align-items: center; gap: 3px; }
+.ac .ao.asr .al svg.i { width: 12px; height: 12px; }
+.ac .ao .al svg.i { width: 12px; height: 12px; }
+.ac .af { font: 12px/1.35 var(--sans); color: var(--mute); white-space: normal; }
+.ed .ac .af { margin: 4px -4px 0; padding: 6px 12px 3px; border-top: 1px solid var(--rule); }
+.ed .ac .af.solo { border-top: 0; margin-top: 0; padding-top: 0; }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .ed .lvh { font-weight: 600; } .ed .lvh .lvn { color: var(--acc); }
 .ed > .src { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 8px 10px 8px var(--gw); font: inherit;
@@ -384,7 +409,13 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .sb a { color: var(--fg); text-underline-offset: 3px; }
 .sbhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
 .sbt { font-weight: 600; }
-.sbrules { display: inline-flex; align-items: center; gap: 8px; }
+/* T8.4 review r3 (B): Rules and Ability scores side by side, labels over them, beside the title on a wide screen and
+   under it when narrow. */
+.sbopts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 18px; }
+.sbf { display: flex; flex-direction: column; gap: 4px; }
+.sbf .sel { width: 11.5em; }
+.sbf .sel select { min-height: 32px; }
+.sbhead { align-items: flex-end; }
 .sb .seg { display: inline-grid; grid-template-columns: repeat(2, 52px); background: var(--chip); border-radius: 7px; padding: 2px; }
 .sb .seg button { text-align: center; padding: 4px 0; border: 0; border-radius: 5px; background: none; color: var(--mute); font: inherit; cursor: pointer; }
 .sb .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
