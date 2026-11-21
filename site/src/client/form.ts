@@ -1240,6 +1240,8 @@ function init(): void {
   // ---- events ----
   ed.addEventListener("input", (e) => {
     if (bulk) return;
+    // D323: the method pick belongs to this draft; an emptied editor is a new one.
+    if (!ta.value.trim()) scoreMethod = null;
     const kind = (e as InputEvent).inputType;
     if (/^(insertText|insertCompositionText|insertReplacementText|deleteContent)/.test(kind ?? "")) {
       holdLine = cursorLine() + 1;
@@ -1345,6 +1347,8 @@ function init(): void {
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tipFor) hideTip(); });
   window.addEventListener("scroll", hideTip, { passive: true });
+  // /ui-review (dev only): a flipped variant redraws the chips (D323 clash look).
+  addEventListener("ui-review:variant", () => { drawRows(); if (acScore && !ac.hidden) acDraw(); });
   if (offers) mountStarter(offer, (text, method) => {
     // D322: the method chosen in the builder steers the Scores line's lists; it writes nothing (D323).
     scoreMethod = method;
