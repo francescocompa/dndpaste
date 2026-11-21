@@ -586,8 +586,9 @@ export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = 
       grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over,
     };
   });
-  // The name is already written as it should be: nothing to suggest.
-  if (rows.some((r) => r.name === typed && !r.source)) return none;
+  // The name is already written as it should be: nothing to suggest, unless a longer name starts with it (D303 review:
+  // `Shield` keeps Shield of Faith on offer).
+  if (rows.some((r) => r.name === typed && !r.source) && !rows.some((r) => r.name !== typed && norm(r.name).startsWith(q))) return none;
   // A spell above the level cap comes last (D162): it can't be picked yet. Before it, outside the spot's short list
   // (D227 skills, D241 another class's subclass, D243 another class's spell, feature or option), after the other
   // edition: the class's own subclass from the other book still comes before another class's.

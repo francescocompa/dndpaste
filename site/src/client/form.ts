@@ -25,6 +25,7 @@ import { draftBarHtml, draftKeeper, draftSlot, draftStore } from "./drafts.ts";
 import type { Draft, Fields } from "./drafts.ts";
 import { BEFORE_RELOAD, RELOAD_FLAG } from "./update.ts";
 import { GUIDE_LINK } from "../example.ts";
+import { classRuns, levelUp, nextLevel } from "../levelup.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
@@ -330,14 +331,16 @@ function init(): void {
   };
   const fixAt = (line: number) => fixes.find((f) => f.line === line);
   function placeNotes() {
-    const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line]")];
+    const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line], .wa[data-line]")];
     if (!marks.length && !wls.firstChild) return;
     const box = ed.getBoundingClientRect();
+    const range = document.createRange();
     // D240: positions through CSSOM, never a style="" attribute: the live CSP (`style-src 'self'`) drops those, which
     // left every button 0x0 and the fix unclickable (the /ui-review dev CSP allows them, so review never saw it).
     wls.replaceChildren(...marks.map((m) => {
       const r = m.getBoundingClientRect();
       const line = Number(m.dataset.line);
+      if (m.classList.contains("wa")) return addButton(m, line, box, range);
       const b = el("button", "wlb");
       b.type = "button";
       b.dataset.line = String(line);
@@ -347,7 +350,48 @@ function init(): void {
     }));
     if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine)) wlClose();
   }
+  /** D308: an add fix is a faint `+ Add Subclass, Spells` at the end of its line (the level-up lens's look); one click
+   *  writes the lines. Where the full label doesn't fit, it says how many (`+ Add 3 lines`). */
+  function addButton(m: HTMLElement, line: number, box: DOMRect, range: Range): HTMLElement {
+    const f = fixAt(line);
+    const b = el("button", "wla");
+    b.type = "button";
+    b.dataset.line = String(line);
+    b.dataset.add = "";
+    const t = m.closest<HTMLElement>(".t");
+    // The line's last piece (a text node or a span) gives where its text ends, on its last wrapped row.
+    const last = (t ?? m).lastChild ?? m;
+    range.selectNodeContents(last);
+    const rects = [...(last.nodeType === Node.TEXT_NODE ? range : (last as Element)).getClientRects()];
+    const end = rects.length ? rects[rects.length - 1] : m.getBoundingClientRect();
+    const right = (t ?? m).getBoundingClientRect().right - box.left;
+    const left = end.right - box.left + 10;
+    const act = f?.act ?? "";
+    const n = act.replace(/^Add /, "").split(",").length;
+    // D309: a chip says it short: `Feat (Fighting Style)` is `Fighting Style`.
+    b.innerHTML = `${icon("plus")}<span>${esc(act.replace(/\b[A-Z][\w ]*? \(([^)]+)\)/g, "$1"))}</span>`;
+    b.setAttribute("aria-label", `${f?.why ?? ""} ${act}`.trim());
+    Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
+    wls.append(b);
+    const label = b.querySelector("span")!;
+    if (label.scrollWidth > label.clientWidth && n > 1) label.textContent = `Add ${n} lines`;
+    return b;
+  }
+  const applyFix = (line: number) => {
+    const f = fixAt(line);
+    const before = ta.value;
+    const next = f ? f.apply(before) : null;
+    wlClose();
+    if (next === null || next === before) return;
+    writeChange(next);
+    // D270: a fix that writes empty brackets leaves the cursor inside the first ones, their list open.
+    const at = fixCursor(before, next);
+    if (at !== null) { ta.focus(); ta.setSelectionRange(at, at); complete(true); }
+  };
+  wls.addEventListener("mousedown", (e) => { if ((e.target as Element).closest(".wla")) e.preventDefault(); });
   wls.addEventListener("click", (e) => {
+    const a = (e.target as Element).closest<HTMLElement>(".wla");
+    if (a) { applyFix(Number(a.dataset.line)); return; }
     const b = (e.target as Element).closest<HTMLElement>(".wlb");
     if (!b) return;
     const line = Number(b.dataset.line);
@@ -368,15 +412,7 @@ function init(): void {
   });
   wlPop.addEventListener("click", (e) => {
     if (!(e.target as Element).closest("[data-go]")) return;
-    const f = fixAt(wlLine);
-    const before = ta.value;
-    const next = f ? f.apply(before) : null;
-    wlClose();
-    if (next === null || next === before) return;
-    writeChange(next);
-    // D270: a fix that writes empty brackets leaves the cursor inside the first ones, their list open.
-    const at = fixCursor(before, next);
-    if (at !== null) { ta.focus(); ta.setSelectionRange(at, at); complete(true); }
+    applyFix(wlLine);
   });
   document.addEventListener("pointerdown", (e) => {
     if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb")) wlClose();
@@ -400,6 +436,51 @@ function init(): void {
   };
   /** While a replace runs, Chrome fires one input event per line it inserts; redraw once, after. */
   let bulk = false;
+  // ---- T8.2 (D305): the level-up lens, a line of faint chips after the last block (code editors' CodeLens): one action
+  // for each of the last two classes, plus "Another class…" (the header and the class list).
+  // The editor grows with its text, so the highlight layer is padded while the lens shows and the lens sits in it. ----
+  const lens = el("div", "lens");
+  lens.hidden = true;
+  ed.append(lens);
+  const drawLens = () => {
+    const runs = offer.hidden ? classRuns(ta.value) : null;
+    // A bare header on the last line (`L7 `) is the level being added already: its class list does the rest.
+    const n = runs?.length && !/(^|\n)L\d+[ \t]*\s*$/.test(ta.value) ? nextLevel(ta.value) : null;
+    if (!runs?.length || n === null) { lens.hidden = true; ed.classList.remove("lv"); hl.style.paddingBottom = ""; return; }
+    // Round 2: the last two classes taken, not every class of the build.
+    lens.innerHTML = `<span class="lh">${icon("plus")}L${n}</span>` + [...runs.slice(-2).map((r) => `<button type="button" class="lb" data-cls="${esc(r.ref)}" aria-label="Level ${n}: ${esc(r.name)} ${r.levels + 1}">${esc(r.name)} ${r.levels + 1}</button>`),
+        `<button type="button" class="lb" data-new aria-label="Level ${n}: another class">Another class…</button>`].join("");
+    ed.classList.add("lv");
+    lens.hidden = false;
+    const rowEls = hl.querySelectorAll<HTMLElement>(".row");
+    const last = rowEls[rowEls.length - 1];
+    lens.style.top = `${last ? last.offsetTop + last.offsetHeight + 2 : 8}px`;
+    // The layer makes room for the lens, however many rows it wraps to.
+    const pad = `${lens.offsetHeight + 12}px`;
+    if (hl.style.paddingBottom !== pad) hl.style.paddingBottom = pad;
+  };
+  new ResizeObserver(() => drawLens()).observe(hl);
+  // The textarea keeps focus: a mousedown on the lens would take it.
+  lens.addEventListener("mousedown", (e) => e.preventDefault());
+  lens.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>("button.lb");
+    if (!b) return;
+    if (b.dataset.cls !== undefined) {
+      const up = levelUp(ta.value, b.dataset.cls);
+      if (!up) return;
+      writeChange(up.text);
+      ta.setSelectionRange(up.cursor, up.cursor);
+    } else {
+      // The bare header opens the class list (D302); a pick there runs the level-up (acTake).
+      const n = nextLevel(ta.value);
+      if (n === null) return;
+      const head = ta.value.replace(/\s+$/, "");
+      writeChange(`${head}\n\nL${n} `);
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+    ta.focus();
+    complete(true);
+  });
   const refresh = () => {
     if (bulk) return;
     st = status(ta.value, holdLine);
@@ -425,6 +506,7 @@ function init(): void {
     refreshHints();
     offer.hidden = !offers || ta.value !== "";
     fitOffer();
+    drawLens();
     changed();
   };
 
@@ -735,11 +817,35 @@ function init(): void {
     const le = ta.value.indexOf("\n", sp.end);
     const br = Boolean(names) && opensDetails(names as Names, sp, r, ta.value.slice(sp.end, le < 0 ? undefined : le));
     const w = written(sp, r);
+    // T8.2 (D305): a class picked on the bare header of the build's next level, the last block, is a level-up: the
+    // block gets its owed keys and Classes: goes up by one.
+    const ls = ta.value.lastIndexOf("\n", sp.start - 1) + 1;
+    const hm = /^L(\d+)\s*$/.exec(ta.value.slice(ls, sp.start));
+    if (sp.key === "L" && !swapping && hm && !ta.value.slice(le < 0 ? ta.value.length : le).trim() && Number(hm[1]) === nextLevel(ta.value)) {
+      const up = levelUp(ta.value.slice(0, ls), w);
+      if (up) {
+        writeChange(up.text);
+        ta.setSelectionRange(up.cursor, up.cursor);
+        complete(true);
+        return;
+      }
+    }
     insert(w + (br ? " []" : "") + sep, a, b);
     if (br) {
       ta.setSelectionRange(a + w.length + 2, a + w.length + 2);
       complete(true);
     } else if (sep) complete(true);
+    else if (!swapping && sp.parent === null) {
+      // D307: a pick at the end of a line that still owes picks writes `, ` and opens the list for the next one.
+      const at = a + w.length;
+      const end = ta.value.indexOf("\n", at);
+      const line = ta.value.slice(0, at).split("\n").length;
+      const g = st.ghosts.find((x) => !x.note && (x.line === line || x.also?.includes(line)));
+      if (g && g.have < g.of && !ta.value.slice(at, end < 0 ? undefined : end).trim()) {
+        insert(", ", at, end < 0 ? ta.value.length : end);
+        complete(true);
+      }
+    }
   };
   ed.addEventListener("keydown", (e) => {
     if (acSwap && !ac.hidden && !["Shift", "Control", "Alt", "Meta"].includes(e.key)) acClose();

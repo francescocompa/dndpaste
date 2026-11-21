@@ -103,7 +103,7 @@ test("markFixes: the underline and the line on the key, or on the level header; 
   const p = parse(text);
   const fs = lineFixes(text, p, p.diagnostics, ghostCounts(p, text));
   const rows = markFixes(highlightRows(text, p.diagnostics, new Map()), fs);
-  assert.ok(rows[3].includes(`<span class="lvh wl" data-line="4">`));
+  assert.ok(rows[3].includes(`<span class="lvh wa" data-line="4">`), "D308: an add is an action, not an underline");
   const bad = "Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\nSpells: Shield\n";
   const pb = parse(bad);
   const rb = markFixes(highlightRows(bad, pb.diagnostics, new Map()), lineFixes(bad, pb, pb.diagnostics, []));

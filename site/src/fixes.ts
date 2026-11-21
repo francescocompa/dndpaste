@@ -329,14 +329,18 @@ const fits = (codes: readonly string[], types: readonly string[]) => types.some(
  * The highlight rows with each fix's underline (`wl`, D190 review) and `data-line` on its key or level header. `rows`
  * are highlightRows' rows, one per line.
  */
+/** D308: a fix that adds the lines a level or species owes is an action at the line's end (`wa`), not an underline. */
+export const ADDS: ReadonlySet<FixKind> = new Set(["level-lines", "species-lines"]);
+
 export function markFixes(rows: readonly string[], fixes: readonly Fix[]): string[] {
   const out = [...rows];
   for (const f of fixes) {
     const r = out[f.line - 1];
     if (!r) continue;
+    const c = ADDS.has(f.kind) ? "wa" : "wl";
     out[f.line - 1] = f.at === "level"
-      ? r.replace(`<span class="lvh">`, `<span class="lvh wl" data-line="${f.line}">`)
-      : r.replace(/<span class="k((?: [\w-]+)*)">/, `<span class="k$1 wl" data-line="${f.line}">`);
+      ? r.replace(`<span class="lvh">`, `<span class="lvh ${c}" data-line="${f.line}">`)
+      : r.replace(/<span class="k((?: [\w-]+)*)">/, `<span class="k$1 ${c}" data-line="${f.line}">`);
   }
   return out;
 }

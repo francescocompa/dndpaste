@@ -427,7 +427,8 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   first. A name typed glued to the `:` (`Spells:fi`) is still that key's; the pick writes the space. Arrow keys still
   don't open it (the list would take ArrowDown). A name already written in full (`Spells: Shield`) closes the list
   instead of showing D256's "No matches" line. AMENDED by D304: that holds while typing; a click on it lists its
-  alternatives.
+  alternatives. Review note (2026-11-21): a name that a longer one starts with (`Shield`, Shield of Faith) keeps the
+  list open, the written name first ("Shield shouldn't close because for example there's Shield of Faith").
   *Raw note:* "we should also be more 'generous' with the spawn of the dropdowns, ex. making them spawn also after : of a
   header and not only after the space".
   *Rejected:* opening on every caret arrival (arrows through a wizard's empty lines would open a list on each and trap
@@ -451,7 +452,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   class and then try to come back".
 
 - **D305 — T8.2 level-up: a lens line after the last block, plus a Tab route; the new block holds its owed keys.
-  DECIDED (2026-11-21), build pending.** Placement: at the end of the editor, modelled on code editors (CodeLens).
+  DECIDED (2026-11-21), built (round 2: A kept, B deleted; look and cap in D309).** Placement: at the end of the editor, modelled on code editors (CodeLens).
   Variant A, his pick: a faint sans line after the last block, one action per class (`+ L6 Wizard | Fighter 2 |
   Another class…`); typing `L6` on a new last line and taking a class from the list (D303 puts the build's classes
   first) does the same. Variant B, built next to A for /ui-review: one `+ Level 6` lens that writes `L6 ` and opens
@@ -462,7 +463,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   environments" · "Lens + Tab, but try also an alternative to compare in review".
   *Rejected:* a toolbar split button and a row in the Keys column (away from where the block lands); a Copilot-style
   ghost line only (hard to find with a mouse or on a phone); a header-only block (the owed keys show what to pick).
-  *Enforced by:* pending (T8.2 build and its /ui-review).
+  *Enforced by:* `site/test/levelup.test.ts`; `site/src/levelup.ts` (pure), form.ts lens + acTake Tab route.
 
 - **D306 — Every dropdown holds up to 60 rows and scrolls; past 60, a last row counts the rest. DECIDED (2026-11-21).**
   Name lists, key lists and the swap list share one limit, `LIST_LIMIT` (60); the desktop box still shows 8 rows and
@@ -473,3 +474,36 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* by list size (closed lists in full, big lists at 8: two behaviours to learn); keep 8 and add the count
   (an empty `Classes: ` still hides Wizard).
   *Enforced by:* `site/test/complete.test.ts` (D306 test).
+
+- **D307 — A pick at the end of a counted line that still owes picks writes `, ` and opens the next list.
+  DECIDED (2026-11-21).** Outside `[ ]` (where D163's `afterPick` already does it), on a line whose ghost count is short
+  (`Cantrips: Fire Bolt` 1/3), taking a name from the list adds `, ` and reopens the list for the next pick, until the
+  count is met. Not on a swap (D304), not where text follows the name on the line, not on a line with no count.
+  *Raw note:* "When a list requires more choices, an auto fill from a dropdown could also add comma and space, ready
+  for the next pick loading the dropdown" (/ui-review round 1, general note).
+  *Rejected:* on every list line (a `Spells:` line with no count would trail a comma after its last pick).
+  *Enforced by:* prose only (form.ts acTake); /ui-review round 2.
+
+- **D308 — The fix that adds a level's or species' owed lines is an action at the line's end, not an underline.
+  DECIDED (2026-11-21).** Amends D190/D196's look for the two add fixes (`level-lines`, `species-lines`): no dashed
+  underline and no popover; a faint sans `+ Add Subclass, Spells` after the line's text, in the level-up lens's look
+  (D305), and one click writes the lines. Where the label doesn't fit, `+ Add 3 lines`. The other fixes (move, change)
+  keep the underline and popover: they correct something, these add.
+  *Raw note:* "Considering we are adding ex. the level button, I think I want to change the way we suggest adding fields
+  after ex. the level header, making it more look like an action rather than a typo as it is now" · (AskUserQuestion)
+  "End-of-line action".
+  *Rejected:* a `+` button in the gutter (easy to miss, hides the line number); a solid link underline with a `+`
+  (still a popover, still on the name).
+  *Enforced by:* `site/test/fixes.test.ts` (markFixes `wa`).
+
+- **D309 — Suggestions are faint chips that sit behind the text; the lens offers the last two classes. DECIDED
+  (2026-11-21).** The level-up lens (D305) and the add actions (D308) share one look: 11px sans in `--mute` on a faint
+  `--chip` fill, no border, never an accent colour. A chip says it short (`Feat (Fighting Style)` → `Fighting Style`;
+  `Add N lines` where it doesn't fit). The lens lists the last two classes of `Classes:` and "Another class…".
+  *Raw note:* "the suggestion style is too similar to the actual text, in particular the header even if different
+  font. We need a dedicated clear style" · "Test variants directly in review. In general, no strong accents, they need to
+  take a backseat compared to the actual text" · (round 2) faint chips, "In faint chips, try to always be concise" ·
+  "Cap to the last two classes, not all used".
+  *Rejected:* dashed outline pills (A) and small caps on a band (C), both built in round 2; lens variant B (one
+  `+ Level N`); every class of the build in the lens.
+  *Enforced by:* prose only (site.css `.ed .lens .lb`, `.ed .wla`).

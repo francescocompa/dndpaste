@@ -59,6 +59,8 @@ const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / 
   'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
 // M8 (D304): a Wizard 5 build, for the swap list on its L1 header.
 const M8_SWAP = 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield, Magic Missile\n'
+// T8.2 (D305): a multiclass build for the level-up lens.
+const M8_LENS = 'Vesk\nRules: 2024\nScores: 8/14/14/15/12/10\nClasses: Wizard 5 / Fighter 1\n\nSpecies: Elf|XPHB [High; INT]\n\nL1 Wizard|XPHB\nCantrips: Fire Bolt, Mage Hand, Light\nSpells: Shield, Magic Missile, Sleep, Detect Magic, Mage Armor, Find Familiar\n\nL3 Wizard|XPHB\n\nL6 Fighter|XPHB\nSkills: Athletics\n'
 // D151 (D154–D159): put a build in the editor with the cursor at its end, typed the way a keystroke is, so the name
 // list opens (it loads /assets/names.js on focus, then shows what fits). The list closes when the editor loses focus.
 const acSetup = async (x, name, text) => {
@@ -563,6 +565,11 @@ uiReview.config({
       editor().dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
       await x.sleep(150)
     },
+    // T8.2 (D305): a Wizard 5 / Fighter 1 build; the lens sits after its last block.
+    'm8-lens': (x) => acSetup(x, 'm8-lens', M8_LENS),
+    'm8-lens-tab': (x) => acSetup(x, 'm8-lens-tab', M8_LENS + '\nL7 '),
+    // D307: a short Cantrips line; take Fire Bolt and the list comes back after `, `.
+    'm8-comma': (x) => acSetup(x, 'm8-comma', 'Vesk\nRules: 2024\nClasses: Wizard 1\n\nL1 Wizard|XPHB\nCantrips: Fire Bo'),
     // M8 (D303, D304, D306): a 60-row list, a name written in full, the swap list on a click.
     'm8-classes': (x) => acSetup(x, 'm8-classes', 'Vesk\nRules: 2024\nClasses: '),
     'm8-spells': (x) => acSetup(x, 'm8-spells', 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: '),

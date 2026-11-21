@@ -49,7 +49,8 @@ test("D164: the letters before the list opens follow the list's size; never wher
 test("D154: a name already written exactly closes the list; another case still offers the fix", () => {
   assert.deepEqual(names("Spells: Fireball¦"), []);
   assert.deepEqual(names("Spells: fireball¦")?.[0], "Fireball");
-  assert.deepEqual(names("Spells: Shield¦"), [], "Shield is a name, even though Shield of Faith starts with it");
+  // D303 review: a longer name that starts with it keeps the list open, Shield first.
+  assert.deepEqual(names("Spells: Shield¦")?.slice(0, 2), ["Shield", "Shield of Faith"], "Shield of Faith starts with Shield");
   assert.deepEqual(names("Spells: Shield o¦"), ["Shield of Faith"]);
 });
 
@@ -584,7 +585,8 @@ test("D302: the list opens on an empty key line however it got there (wizard, pa
 test("D303: a name written in full gives no rows and is not \"no matches\" (D256): the list closes there", () => {
   const known = (src: string) => { const s = spot(src); assert.ok(s, src); return isKnown(N, s); };
   const pre = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\n";
-  assert.deepEqual(names(pre + "Spells: Shield¦"), [], "nothing left to complete");
+  assert.deepEqual(names(pre + "Spells: Fireball¦"), [], "nothing left to complete");
+  assert.deepEqual(names(pre + "Spells: Shield¦")?.slice(0, 2), ["Shield", "Shield of Faith"], "unless a longer name starts with it");
   assert.ok(known(pre + "Spells: Shield¦"));
   assert.ok(known(pre + "Spells: Magic Missile, shield¦"), "any case, a later item");
   assert.ok(known(pre + "Cantrips: Fire Bolt¦"));
