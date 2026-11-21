@@ -2,7 +2,7 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
-## Unreleased
+## 0.11.0 — 2026-11-21
 - **SPEC 0.11: scores** (D320, D323, D326). Tidy and `emit` write the base `Scores` line named, with `/`, full or
   partial: `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`, `Scores: DEX 16/CHA 17`. Six numbers
   (`8/14/13/12/10/15`) and the comma form (`DEX 16, CHA 17`) still read, with no diagnostic, and mean the same.
@@ -21,6 +21,17 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
   and failed to load as a script; a test now loads it.
 - Fixtures are in 0.11 form; `fixtures/v0.10/` keeps `shigen` and `heavenly-archer-v3` with six numbers, and a test
   checks they convert.
+
+- Site (T8.4, D321–D325, D331–D333): a click on a base score opens a list titled with its final value
+  (`WIS 15 → 19 (+4)`), with the method chip in its corner and the swaps the method allows. A chip at the end of
+  the `Scores` line says `Std. Array`, `Point Buy 2/27` or `Custom`; its chevron lists the methods, and a pick
+  rewrites a written marker. Start a build asks for the method and remembers it. The shared and printed pages
+  carry the same mark. The page renders the slash form (`RENDER_VERSION` bump).
+- Site (M8, D302–D319, deployed 2026-11-21): name lists open on any empty key, however the line got there, and a
+  click on a written name lists what can replace it. Every list holds up to 60 rows. A level-up line after the last
+  block adds the next level with the lines it owes, and the owed-line fixes are `+ Add …` chips. After a write,
+  the caret moves to the next open choice. A `Classes:` line that counts fewer levels than the headers shows an
+  alert chip.
 
 ### Migrating from 0.10
 Readers need nothing: every 0.10 paste reads as before. A writer's emit and snapshot tests see the new base line;
