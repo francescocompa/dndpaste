@@ -1,5 +1,10 @@
 # Time log
 
+## 2026-11-21
+- 09:45–10:25 (0h40m) — Troll Bandit build for the Reddit post
+
+**Day total: 0h40m**
+
 ## 2026-11-20
 - 18:21–20:21 (2h00m) — Reddit post review and the 0.10 release
 - 11:06–17:27 (6h21m) — Your own sources, small fixes and the 0.10 scope

@@ -389,3 +389,15 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Raw note:* "Where should I write the release changelog? Can you do it yourself as well as the push next time?"
   *Rejected:* keeping push and release on the Manual-for-Francesco list (they were the only manual steps left in a release).
   *Enforced by:* prose only (CLAUDE.md Conventions).
+
+- **D300 — The r/3d6 post (T3.11) links Troll Bandit, a Defiled Sorcerer 10 on Troll|WoW [Amani]. DECIDED (2026-11-21).**
+  Chosen in a /start pick from the vault's 53 build notes (`Compendio/Personaggi`), not from the builds Francesco played (Shigen,
+  Vice, Hazama Ryō, Heavenly Archer). The Sorcerer/Warlock Version A was reworked into a mostly-Sorcerer build at his call: origin
+  feat Raised by Cultists (UA), built around Vampiric Touch, lineage Amani. Paste: `.claude/drafts/troll-bandit.dndpaste`; it
+  checks clean apart from the two UA infos.
+  *Raw note:* "Let's rework it trying to make it mostly a Defiler Sorcerer, Warlock multiclass only if needed" · "Must be Amani, the
+  whole build relies on it" · "the origin feat must be raised by cultists, the build should focus on vampiric touch as well".
+  *Rejected:* Sir Oswyl v2 (the screen's top pick, likely a played character); Eldritch Knight and Pop Fizzbang (sound but less
+  novel); Heavenly Archer, Hazama Ryō, Vice (played); a Warlock 2 dip (not needed for the loop); Zandalari lineage (his call);
+  Necromancy Adept (its spells duplicate the Defiler list, and Life Manipulation spends the Hit Dice the loop needs).
+  *Enforced by:* prose only (STATE Manual ①).
