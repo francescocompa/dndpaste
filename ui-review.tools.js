@@ -226,9 +226,6 @@ uiReview.config({
     ] },
   ],
 
-  // T8.4 (D323): how the method chip shows a marker the numbers break.
-  variants: { 'score-clash': { label: 'Scores chip: a marker the numbers break', options: [{ id: 'a', label: 'A · Alert icon in the chip' }, { id: 'b', label: 'B · Marker struck, the numbers’ kind' }] } },
-
   presets: [
     { id: 'light', label: 'Light', pinned: true, values: { 'display.theme': 'light' } },
     { id: 'dark', label: 'Dark', pinned: true, values: { 'display.theme': 'dark' } },

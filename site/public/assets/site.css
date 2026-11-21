@@ -322,8 +322,10 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   background: color-mix(in srgb, var(--chip) 70%, transparent); font: 11px/1.2 var(--sans); color: var(--mute); cursor: pointer; white-space: nowrap; }
 .ac .acm:hover { color: var(--fg); background: var(--chip); }
 .ac .acm svg.i, .ed .wsm svg.i { width: 12px; height: 12px; flex-shrink: 0; }
-.ac .acm s, .ed .wsm s { text-decoration-thickness: 1px; }
-.ac .acm.clash svg.i:first-of-type:not(:last-of-type), .ed .wsm.clash svg.i:first-of-type:not(:last-of-type) { color: var(--err); }
+.ac .acm.clash svg.i, .ed .wsm.clash svg.i { color: var(--err); }
+.ed .ac .acs.bare { border-bottom: 0; margin-bottom: 0; padding-bottom: 3px; }
+.ac .acb { display: inline-flex; align-items: center; border: 0; background: none; padding: 0 2px 0 0; color: var(--mute); cursor: pointer; }
+.ac .acb:hover { color: var(--fg); }
 .ac .ao.asr .an { font-family: var(--mono); min-width: 2ch; text-align: right; }
 .ac .ao.asr .al { display: inline-flex; align-items: center; gap: 3px; }
 .ac .ao.asr .al svg.i { width: 12px; height: 12px; }

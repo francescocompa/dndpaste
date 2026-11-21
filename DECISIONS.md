@@ -672,7 +672,8 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Enforced by:* owed (T8.4).
 
 - **D323 — The method is not written by default; the paste may state it in brackets, `Scores (point buy): …`.
-  DECIDED (2026-11-21), round 3.1 (no pick; his notes, then AskUserQuestion).** The chip's chevron (D324) and the
+  DECIDED (2026-11-21), round 3.1 (no pick; his notes, then AskUserQuestion). AMENDED by D332: a pick rewrites a
+  marker already written; the clash look is D333.** The chip's chevron (D324) and the
   popover's corner chip (D321) set the method for this draft: it steers the lists and the popover and writes nothing.
   The format accepts an optional marker on a base `Scores` line, `(standard array)`, `(point buy)` or `(custom)`; a
   typed marker is read and kept by Tidy (in lower case, like a level cap, SPEC §5.5 rule 6), and when present it wins over the
@@ -735,3 +736,25 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Raw note:* none (build constraint).
   *Rejected:* shipping `src/check.ts` to the client (the IP gate); no final in the popover (D321's title is the final).
   *Enforced by:* `site/test/scores.test.ts` (D331 parity); `check:bundle`.
+
+- **D332 — A method picked in the chip's list rewrites a marker already written. DECIDED (2026-11-21), T8.4 /ui-review r1.**
+  Amends D323: with `Scores (point buy):` on the line, the method list offers all three methods, and a pick changes the
+  words in the parentheses. With no marker, a pick still writes nothing. The list's "The line says (…)" note and the
+  dimmed rows are gone.
+  *Raw note:* "Remove the note altogether. If the user changes the method after writing the method in parenthesis, the
+  method updates in parenthesis as well".
+  *Rejected:* the marker locking the list (the r1 build).
+  *Enforced by:* /ui-review r2; prose only (form.ts `takeScore`).
+
+- **D333 — Numbers that break the method keep its words and count; the alert icon takes the chevron's place. DECIDED
+  (2026-11-21), T8.4 /ui-review r1, variant A.** The open item of D323. A marker, a pick, or a kind the numbers read as
+  before in this draft (standard array or point buy) stays on the chip when the numbers break it: `Std. Array`, or
+  `Point Buy −3/27` counting below zero past the budget, with the alert icon in the chevron's place (same click, the
+  method list). The chip turns to `Custom` only for numbers that never read as one of the two. The shared page keeps
+  the marker's words with a dotted underline (D325).
+  *Raw note:* "Go with alert, align this state with the note mentioned earlier. Alert shouldn't replace the count but
+  highlight how it becomes negative. If not enough space, we can consider either writing Pt. Buy or replace the chevron
+  with the alert icon (still same behavior)" · (general) "Maybe instead of immediately reverting to custom if point buy
+  or std. array break, we should instead have an alert state of both when the numbers are off".
+  *Rejected:* B, the marker struck with the numbers' own kind; `Pt. Buy` (the chevron swap left room).
+  *Enforced by:* `site/test/scores.test.ts` (the count below zero); /ui-review r2.

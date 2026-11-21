@@ -60,13 +60,13 @@ export function starterHtml(edition: Edition, rows: readonly StarterRow[], score
   }).join("");
   return `<div class="sbhead"><span class="sbt" id="sbt">Start a build</span>` +
     `<span class="sbrules"><span class="muted" id="sbr">Rules</span><span class="seg" role="radiogroup" aria-labelledby="sbr">${seg}</span></span></div>` +
-    `<ol class="sbrows">${list}</ol>` +
-    `<div class="sbfoot"><button type="button" class="bt ghost sbadd"${total >= MAX_LEVEL ? " disabled" : ""}>${icon("plus")}Add a class</button>` +
-    `<span class="muted sbtot">Level ${total}</span></div>` +
-    // D322: one row, a select that starts on the last choice; no score cells (D312).
+    // D322: one row, a select that starts on the last choice; no score cells (D312). Review: above the classes.
     `<div class="sbscores"><label class="muted" for="sbsc">Ability scores</label><span class="sel"><select class="in" id="sbsc" data-f="scores">` +
     SCORE_CHOICES.map(([k, label]) => `<option value="${k}"${k === scores ? " selected" : ""}>${label}</option>`).join("") +
     `</select>${icon("chevron-down")}</span></div>` +
+    `<ol class="sbrows">${list}</ol>` +
+    `<div class="sbfoot"><button type="button" class="bt ghost sbadd"${total >= MAX_LEVEL ? " disabled" : ""}>${icon("plus")}Add a class</button>` +
+    `<span class="muted sbtot">Level ${total}</span></div>` +
     `<div class="sbgo"><button type="button" class="bt sbmake"${startReady(rows) ? "" : " disabled"}>${icon("pencil")}Start the build</button>` +
     `<span class="muted">or type, paste or open a file. See the <a href="/guide">format guide</a>.</span></div>`;
 }

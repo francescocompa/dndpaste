@@ -5,8 +5,8 @@
  * the phone dock (D86). Bundled to /assets/form.js by scripts/build-client.mjs; CSP `script-src 'self'`, so no
  * inline scripts, no inline style attributes (CSSOM properties set from here are allowed).
  */
-import { esc, icon, KIND_WORDS, scoreMark } from "../render.ts";
-import { fillScore, finalFoot, finalOf, finalTitle, methodOf, pickScore, scoreLineAt, scoreRows } from "../scores.ts";
+import { esc, icon, scoreMark } from "../render.ts";
+import { fillScore, finalFoot, finalOf, finalTitle, pickScore, scoreLineAt, scoreRows } from "../scores.ts";
 import type { ScoreLine, ScoreRow } from "../scores.ts";
 import { highlightRows } from "./highlight.ts";
 import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, useYourPresets } from "../ghost.ts";
@@ -14,7 +14,7 @@ import { readSummary } from "./summary.ts";
 import type * as Yours from "./sync.ts";
 import { ADDS, fixCursor, markFixes, nameFixes, tidyPlan } from "../fixes.ts";
 import { nextOpen } from "../preset.ts";
-import { ABILITIES, resolveKey } from "../../../src/dndpaste.ts";
+import { ABILITIES, methodWords, resolveKey, scoreKind } from "../../../src/dndpaste.ts";
 import type { ScoreKind } from "../../../src/dndpaste.ts";
 import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
@@ -221,6 +221,9 @@ function init(): void {
   /** D323: the method picked for this draft (Start a build, the chip's chevron): it steers the score lists and the
    *  chip and writes nothing; a marker on the line wins over it. */
   let scoreMethod: ScoreKind | null = null;
+  /** Review r1: the last kind the numbers read as (standard array or point buy) in this draft. When they then break it,
+   *  the chip keeps that kind with its alert instead of turning to Custom. */
+  let scoreSeen: ScoreKind | null = null;
   /** The base Scores line the method chip sits on (D324), as of the last redraw. */
   let scoreChip: ScoreLine | null = null;
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
@@ -414,23 +417,30 @@ function init(): void {
       if (/^\s*(L\d+\b|Species\s*:|Background\s*:)/i.test(line)) return null;
       if (/^\s*Scores\b/i.test(line)) {
         const sl = scoreLineAt(text, at);
+        const read = sl && sl.values.some((x) => x !== null) ? scoreKind(sl.values).kind : "custom";
+        if (read !== "custom") scoreSeen = read;
         if (sl && (sl.marker || scoreMethod || sl.values.some((x) => x !== null))) return sl;
       }
       at += line.length + 1;
     }
     return null;
   }
-  /** D323: a marker the numbers break; how the chip shows it is the review's call (variant `score-clash`). */
-  const clashLook = (): string => (window as { uiReview?: { variant?: (id: string) => string | null } }).uiReview?.variant?.("score-clash") ?? "a";
-  /** The chip's words for a base line (D324): the marker's method, else the draft's pick, else the numbers'. */
+  /** The method a list and chip follow (D323): the marker's, else the draft's pick, else the numbers' kind; numbers
+   *  that break the kind they read as before keep it (review r1), so the chip alerts rather than say Custom. */
+  const effMethod = (sl: Pick<ScoreLine, "marker" | "values">): ScoreKind | null => {
+    if (sl.marker ?? scoreMethod) return sl.marker ?? scoreMethod;
+    if (!sl.values.some((x) => x !== null)) return null;
+    const read = scoreKind(sl.values).kind;
+    return read === "custom" && scoreSeen ? scoreSeen : read;
+  };
+  /** The chip's words (D324): the method and, for point buy, the points left. Numbers that break the method keep the
+   *  count (below zero past the budget) and the alert icon takes the chevron's place, same click (D323, review r1). */
   const chipHtml = (sl: ScoreLine): { html: string; clash: boolean; label: string } => {
-    const m = scoreMark({ type: "scores", values: sl.values, increase: null, ...(sl.marker ? { method: sl.marker } : {}) }, scoreMethod);
-    const clash = m.clash || (!sl.marker && !!scoreMethod && scoreMark({ type: "scores", values: sl.values, increase: null, method: scoreMethod }).clash);
-    const read = scoreMark({ type: "scores", values: sl.values, increase: null });
-    const words = clash && clashLook() === "b" ? `<s>${esc(KIND_WORDS[m.kind])}</s> ${esc(read.words)}` : esc(m.words);
+    const kind = effMethod(sl) ?? "custom";
+    const m = scoreMark({ type: "scores", values: sl.values, increase: null, method: kind });
     return {
-      html: `<span>${words}</span>${clash && clashLook() === "a" ? icon("alert") : ""}${icon("chevron-down")}`, clash,
-      label: `Ability scores: ${m.words}${clash ? ", the numbers don't fit it" : ""}. Choose the method`,
+      html: `<span>${esc(m.words)}</span>${icon(m.clash ? "alert" : "chevron-down")}`, clash: m.clash,
+      label: `Ability scores: ${m.words}${m.clash ? ", the numbers don't fit it" : ""}. Choose the method`,
     };
   };
   /** D324: the method chip at the end of the base Scores line; its chevron opens the method list (D323). */
@@ -894,7 +904,7 @@ function init(): void {
   /** D322: the caret at the end of a base line being filled: the next ability's numbers by the method. */
   const scoreFill = (): boolean => {
     const sl = scoreLineAt(ta.value, ta.selectionStart);
-    const m = sl?.fill ? methodOf(sl, scoreMethod) : null;
+    const m = sl?.fill ? effMethod(sl) : null;
     if (!sl?.fill || !m) return false;
     const f = sl.fill;
     const rows = scoreRows(m, sl.values, f.i, true).filter((r) => String(r.n).startsWith(f.typed));
@@ -908,7 +918,7 @@ function init(): void {
     const sl = scoreLineAt(ta.value, ta.selectionStart);
     if (!sl || sl.at === null) return false;
     if (!names) loadNames();
-    const m = methodOf(sl, scoreMethod) ?? "custom";
+    const m = effMethod(sl) ?? "custom";
     acSwap = true;
     showScore({ sl, i: sl.at, mode: "pop", rows: scoreRows(m, sl.values, sl.at), back: null, pos: ta.selectionStart, anchor: null });
     return true;
@@ -922,7 +932,7 @@ function init(): void {
     acSwap = false;
     showScore({ sl, i: -1, mode: "method", rows: [], back: null, pos: sl.end, anchor: chip });
   }
-  const scoreKindNow = (sl: ScoreLine): ScoreKind => methodOf(sl, scoreMethod) ?? "custom";
+  const scoreKindNow = (sl: ScoreLine): ScoreKind => effMethod(sl) ?? "custom";
   /** The list's head: the final (`WIS 15 → 19 (+4)`, D321) or the ability being filled, and the method chip at its right. */
   const scoreListHtml = (onPhone: boolean): string => {
     const s = acScore!;
@@ -930,24 +940,25 @@ function init(): void {
     const chip = `<button type="button" class="acm${c.clash ? " clash" : ""}" data-m tabindex="-1" aria-label="${esc(c.label)}">${c.html}</button>`;
     const fin = names && st.paste && s.mode !== "method" ? finalOf(st.paste, names)[s.i] : null;
     let title: string;
-    if (s.mode === "method") title = `<span>Ability scores</span>`;
+    // Review r1: the method list reached from a score's list has a way back before its title.
+    if (s.mode === "method") title = `${s.back ? `<button type="button" class="acb" data-back tabindex="-1" aria-label="Back">${icon("chevron-left")}</button>` : ""}<span>Ability scores</span>`;
     else if (s.mode === "fill") title = `<b>${ABILITIES[s.i]}</b>`;
     else if (fin) { const t = finalTitle(s.i, fin); title = `<span>${esc(t.from)}</span>${icon("arrow-right")}<b>${esc(t.to)}</b>`; }
     else title = `<b>${ABILITIES[s.i]} ${s.sl.values[s.i] ?? ""}</b>`;
-    const head = `<div class="ah acs" aria-hidden="true"><span class="acst">${title}</span>${s.mode === "method" ? "" : chip}</div>`;
+    const foot = s.mode === "pop" && fin?.parts.length ? `<div class="af${s.rows.length ? "" : " solo"}">${esc(finalFoot(fin))}</div>` : "";
+    // Review r1: no rows and no foot, no divider under the head.
+    const bare = s.mode !== "method" && !s.rows.length && !foot;
+    const head = `<div class="ah acs${bare ? " bare" : ""}" aria-hidden="true"><span class="acst">${title}</span>${s.mode === "method" ? "" : chip}</div>`;
     const now = scoreKindNow(s.sl);
     const rows = s.mode === "method"
-      ? METHODS.map((k, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${s.sl.marker && s.sl.marker !== k ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+      ? METHODS.map((k, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
         `<span class="an">${esc(METHOD_NAMES[k])}</span>${k === now ? `<span class="al">${icon("check")}</span>` : ""}</div>`).join("")
       : s.rows.map((r, i) => `<div role="option" id="ac-${i}" class="ao asr${i === acOn ? " on" : ""}${r.over ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
         `<span class="an">${r.n}</span>` +
         (r.swap !== null ? `<span class="al">${icon("arrow-left-right")}${ABILITIES[r.swap]}</span>` : "") +
         (r.cost !== null ? `<span class="al">${r.cost} pt${r.cost === 1 ? "" : "s"}</span>` : "") +
         `${!onPhone && i === 0 && acOn < 0 && s.mode === "fill" ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
-    // D323: a marker on the line wins over a pick; the list says so.
-    const note = s.mode === "method" && s.sl.marker ? `<div class="af">The line says (${esc(METHOD_NAMES[s.sl.marker].toLowerCase())}).</div>` : "";
-    const foot = s.mode === "pop" && fin?.parts.length ? `<div class="af${s.rows.length ? "" : " solo"}">${esc(finalFoot(fin))}</div>` : "";
-    return head + rows + note + foot;
+    return head + rows + foot;
   };
   const scoreSays = (): string => {
     const s = acScore!;
@@ -960,10 +971,16 @@ function init(): void {
     const s = acScore!;
     if (s.mode === "method") {
       const k = METHODS[i];
-      if (!k || (s.sl.marker && s.sl.marker !== k)) return;
+      if (!k) return;
       scoreMethod = k;
+      // Review r1 (amends D323): a method written in parentheses follows the pick; with none, nothing is written.
+      const now = scoreLineAt(ta.value, s.sl.start);
+      if (now?.marker && now.marker !== k) {
+        const colon = ta.value.indexOf(":", now.start);
+        writeChange(ta.value.slice(0, now.start) + `Scores (${methodWords(k)})` + ta.value.slice(colon));
+      }
       const sl = scoreLineAt(ta.value, s.sl.start) ?? s.sl;
-      if (s.back === "pop") showScore({ ...s, sl, mode: "pop", back: null, rows: scoreRows(k, sl.values, s.i), anchor: null });
+      if (s.back === "pop") showScore({ ...s, sl, mode: "pop", back: null, rows: scoreRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
       else if (s.back === "fill") { acClose(); complete(true); }
       else acClose();
       drawRows();
@@ -980,6 +997,8 @@ function init(): void {
       return;
     }
     const next = fillScore(ta.value, s.sl, r.n);
+    // Review r1: the line is still being written (`STR 15/DEX `): hold its error, as typing does (D176).
+    if (!next.done) { holdLine = ta.value.slice(0, s.sl.start).split("\n").length; clearTimeout(holdTimer); holdTimer = window.setTimeout(release, HOLD_MS); }
     writeChange(next.text);
     ta.setSelectionRange(next.cursor, next.cursor);
     // D322, D307: the next ability's list at once; after CHA, on to the next open choice (D310).
@@ -1165,6 +1184,12 @@ function init(): void {
   });
   ac.addEventListener("click", (e) => {
     // D321: the list's corner chip turns it into the method list; a pick there comes back to the same list.
+    if ((e.target as Element).closest("[data-back]") && acScore?.back) {
+      const s = acScore;
+      const sl = scoreLineAt(ta.value, s.sl.start) ?? s.sl;
+      if (s.back === "fill") { acClose(); complete(true); } else showScore({ ...s, sl, mode: "pop", back: null, rows: scoreRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
+      return;
+    }
     if ((e.target as Element).closest("[data-m]") && acScore && acScore.mode !== "method") {
       showScore({ ...acScore, mode: "method", back: acScore.mode, anchor: null });
       return;
@@ -1241,7 +1266,7 @@ function init(): void {
   ed.addEventListener("input", (e) => {
     if (bulk) return;
     // D323: the method pick belongs to this draft; an emptied editor is a new one.
-    if (!ta.value.trim()) scoreMethod = null;
+    if (!ta.value.trim()) { scoreMethod = null; scoreSeen = null; }
     const kind = (e as InputEvent).inputType;
     if (/^(insertText|insertCompositionText|insertReplacementText|deleteContent)/.test(kind ?? "")) {
       holdLine = cursorLine() + 1;
@@ -1347,8 +1372,6 @@ function init(): void {
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && tipFor) hideTip(); });
   window.addEventListener("scroll", hideTip, { passive: true });
-  // /ui-review (dev only): a flipped variant redraws the chips (D323 clash look).
-  addEventListener("ui-review:variant", () => { drawRows(); if (acScore && !ac.hidden) acDraw(); });
   if (offers) mountStarter(offer, (text, method) => {
     // D322: the method chosen in the builder steers the Scores line's lists; it writes nothing (D323).
     scoreMethod = method;
