@@ -58,12 +58,13 @@ export function starterHtml(edition: Edition, rows: readonly StarterRow[], score
       `<span class="sel lv"><select class="in" data-f="lv" aria-label="Levels${label ? ` in class${label}` : ""}">${lv}</select>${icon("chevron-down")}</span>` +
       (many ? `<button type="button" class="bt ghost icon sbdel" aria-label="Remove class${label}">${icon("x")}</button>` : "") + name + `</li>`;
   }).join("");
-  return `<div class="sbhead"><span class="sbt" id="sbt">Start a build</span>` +
-    `<span class="sbrules"><span class="muted" id="sbr">Rules</span><span class="seg" role="radiogroup" aria-labelledby="sbr">${seg}</span></span></div>` +
-    // D322: one row, a select that starts on the last choice; no score cells (D312). Review: above the classes.
-    `<div class="sbscores"><label class="muted" for="sbsc">Ability scores</label><span class="sel"><select class="in" id="sbsc" data-f="scores">` +
+  // D322: the score method, a select that starts on the last choice (no score cells, D312), beside Rules, each with its
+  // label (T8.4 review r2; the arrangement is site.css `.sb[data-sl]`).
+  return `<div class="sbhead"><span class="sbt" id="sbt">Start a build</span><div class="sbopts">` +
+    `<span class="sbf"><span class="muted sbfl" id="sbr">Rules</span><span class="seg" role="radiogroup" aria-labelledby="sbr">${seg}</span></span>` +
+    `<span class="sbf"><label class="muted sbfl" for="sbsc">Ability scores</label><span class="sel"><select class="in" id="sbsc" data-f="scores">` +
     SCORE_CHOICES.map(([k, label]) => `<option value="${k}"${k === scores ? " selected" : ""}>${label}</option>`).join("") +
-    `</select>${icon("chevron-down")}</span></div>` +
+    `</select>${icon("chevron-down")}</span></span></div></div>` +
     `<ol class="sbrows">${list}</ol>` +
     `<div class="sbfoot"><button type="button" class="bt ghost sbadd"${total >= MAX_LEVEL ? " disabled" : ""}>${icon("plus")}Add a class</button>` +
     `<span class="muted sbtot">Level ${total}</span></div>` +
@@ -80,10 +81,13 @@ export function mountStarter(box: HTMLElement, fill: (text: string, method: Scor
   box.setAttribute("role", "group");
   box.setAttribute("aria-labelledby", "sbt");
   const draw = (focus?: string) => {
+    // /ui-review r2 (dev only): three arrangements of the head, flipped live.
+    box.dataset.sl = (window as { uiReview?: { variant?: (id: string) => string | null } }).uiReview?.variant?.("start-layout") ?? "a";
     box.innerHTML = starterHtml(edition, rows, scores);
     if (focus) box.querySelector<HTMLElement>(focus)?.focus();
   };
   draw();
+  addEventListener("ui-review:variant", () => draw());
   const rowOf = (e: Event) => Number((e.target as Element).closest<HTMLElement>(".sbrow")?.dataset.i);
   box.addEventListener("change", (e) => {
     const sel = e.target as HTMLSelectElement;

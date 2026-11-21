@@ -461,6 +461,9 @@ function init(): void {
     b.innerHTML = c.html;
     Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
     wls.append(b);
+    // Review r2: where the words don't fit after the line, the chip keeps its icon alone (its label still says it).
+    const words = b.querySelector("span");
+    if (words && words.scrollWidth > words.clientWidth) b.classList.add("ico");
   }
   /** D308: an add fix is a faint `+ Add Subclass, Spells` at the end of its line (the level-up lens's look); one click
    *  writes the lines. Where the full label doesn't fit, it says how many (`+ Add 3 lines`). */

@@ -226,6 +226,9 @@ uiReview.config({
     ] },
   ],
 
+  // T8.4 review r2: the Start a build head, Rules beside Ability scores.
+  variants: { 'start-layout': { label: 'Start a build: Rules and Ability scores', options: [{ id: 'a', label: 'A · Labels over, under the title' }, { id: 'b', label: 'B · Labels over, beside the title' }, { id: 'c', label: 'C · Labels inline, under the title' }] } },
+
   presets: [
     { id: 'light', label: 'Light', pinned: true, values: { 'display.theme': 'light' } },
     { id: 'dark', label: 'Dark', pinned: true, values: { 'display.theme': 'dark' } },
