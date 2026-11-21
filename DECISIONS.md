@@ -722,3 +722,16 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* a toggle after T8.3/T8.4 (S library + M+M site; noisy on non-SRD builds; a second mode, and "strict" reads as
   the site judging builds, against SPEC §6, D34, D132, D199); always-on checker hints (same site cost, a D66 step-1 call for later).
   *Enforced by:* PLAN T8.5 ticked; prose only.
+
+## T8.4 scores in the site (2026-11-21) — mechanism: build constraint found by the T8.4 worker, no user call
+
+- **D331 — The popover's final is the site's mirror of `finalScores()`, fed by the names table. DECIDED (2026-11-21).**
+  D321 and D326 have the popover's final come from the library's `finalScores()`, but `src/check.ts` may not ship in a
+  site bundle (the IP gate, `site/scripts/check-bundle.mjs`, D9, D45), and it needs a slot table the browser doesn't
+  carry. `site/src/scores.ts` `finalOf` repeats its arithmetic (species fixed increases, increase lines, ASI and
+  half-feat picks, played levels only, the 20 and Epic Boon 30 caps) from the names table: `FEATS` (category, ability
+  bits) and a new `SPECIES_FIXED` (a 2014 printing's fixed increases, numbers only; `namerows.ts`, your own sources too).
+  A test bundles `src/check.ts` with esbuild and holds the two equal on every fixture plus four 2014/2024 builds.
+  *Raw note:* none (build constraint).
+  *Rejected:* shipping `src/check.ts` to the client (the IP gate); no final in the popover (D321's title is the final).
+  *Enforced by:* `site/test/scores.test.ts` (D331 parity); `check:bundle`.
