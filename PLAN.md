@@ -141,6 +141,22 @@ L<n> <Class>                   level block, n = character level
 - [x] T8.5 Evaluate (no build) an opt-in strict rules toggle + final score totals: what it would check, what the checker
   already gives, cost, risks to the open-format stance · Done when: a short write-up and his call, logged as a decision.
 
+### M9 — Editor round 2: backgrounds, gear, masteries, feat bonuses (D334) · size M/L · split library and site workers
+- [ ] T9.1 Background block: parsed correctly in the editor, and it suggests its `Scores`, `Skills` and `Tools` lines;
+  "Custom" is always the first row of the Background list · Done when: built, site tests, /ui-review approved.
+- [ ] T9.2 Scores in a Background block suggest picking the scores and the bonus; Start a build drops "Skip" and a new
+  build starts on Custom (amends D322) · Done when: built, site tests, /ui-review approved.
+- [ ] T9.3 Gear list: a `+1`/`+2` prefix shows after the name as a chip, so names sort by name; packs and the background's
+  and class's gear options suggested in their blocks; 🔶 a mundane/magic switch (design first) · Done when: built,
+  /ui-review approved.
+- [ ] T9.4 Masteries: the error that shows right after the first pick is fixed on every counted line, not only
+  Masteries · 🔶 do Masteries accumulate across levels like Spells, instead of repeating each time one is gained (a
+  format call) · Done when: the bug fixed with a regression test; the format call decided and logged.
+- [ ] T9.5 Feat bonuses count without an explicit `+x`: a half feat is +1; an ASI with one ability is +2, with two is
+  +1/+1; the ASI pick no longer reads as ability only (library `finalScores` + the site's mirror, D331) · Done when:
+  library and site tests, the popover's final checked in /ui-review.
+- ⚑ `form.js` is 149.4 KB of the 150 KB cap (STATE): split it or decide the cap before T9.1–T9.3 land.
+
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
 - Community showcase (O5): opt-in public list, likes, filters by build element; D1 index. Revisit after a few hundred shares.

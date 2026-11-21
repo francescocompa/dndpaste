@@ -414,3 +414,23 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
 ## M8 r/3d6 feedback (2026-11-21) ↪ D302–D319 · triage, lists open on any line, swap list, 60-row lists, level-up lens and Tab route, `, ` after a pick, add chips, faint chip look, next open choice, Species/Background chip, feature names on a level, Classes mismatch alert, canonical-place adds; D312/D315 superseded by D318 · Landed: d9f0a89 (deployed 2026-11-21) · `DECISIONS-settled.md`
 
 ## Scores, SPEC 0.11 (2026-11-21) ↪ D320–D326, D330–D333 · slash-named base `Scores`, method marker, score popover, method dropdown and chip, shared/print mark, `scoreKind`; no strict toggle (D330); site mirror of `finalScores`, chip rewrites the marker, clash keeps words and count · Landed: 0828dfb (released 0.11.0) · `DECISIONS-settled.md`
+
+## Editor round 2 notes (2026-11-22) — mechanism: Francesco's notes in chat for the next session, overseer
+
+- **D334 — His testing notes after 0.11.0 become M9; the direct calls are settled, two are open. DECIDED (2026-11-22).**
+  Settled: "Custom" is always the first Background row; Start a build has no "Skip" and a new build starts on Custom
+  (amends D322); a gear `+N` prefix shows after the name as a chip; feat bonuses count with no `+x` written (half feat
+  +1; ASI one ability +2, two abilities +1/+1). Open (🔶, PLAN M9): a mundane/magic switch for Gear; whether Masteries
+  accumulate across levels like Spells.
+  *Raw note:* "Background need to be correctly parsed and suggest scores, skills and tools, first option in backgrounds
+  should always be "Custom"; scores in background should in general suggest you to pick scores and bonus; remove skip as
+  option, by default start in new build with custom; gear suggestion is too crowded: first, all +1, 2 etc. should be
+  removed from the start of a name and placed after it as a chip, so they sort in the list correctly, then we should
+  consider a way to switch between mundane and magic items; masteries still had the issue of error right after inserting
+  the first option, this needs to be fixed everywhere; gear should suggest packs or in general background and class
+  options in the respective blocks; should masteries repeat themselves each time you get a new option? They should likely
+  work like spells instead; ASI feat is offering to insert only the ability score and not the +1 or +2 bonus, therefore not
+  computing in the calc (I feel like feats should compute even without the +x bonus explicit, half feats always grant a
+  +1, for asi if you add a single choice it means +2, if you add two it means +1 +1)"
+  *Rejected:* none offered.
+  *Enforced by:* PLAN M9.

@@ -4,8 +4,9 @@
 - **State:** 0.11.0 released (tag `v0.11.0` pushed, GitHub release published) and live at `https://dndpaste.fcomfy.workers.dev`
   (`/version` 0.11.0, commit 22dcfb6). M8 done: the r/3d6 round-1 feedback (D302–D319) plus scores, SPEC 0.11 (D320–D333):
   `Scores: STR 8/DEX 14/…`, optional `Scores (point buy)` marker, score popover and method chip; no strict toggle (D330).
-  Library 290 + site 346 pass. Nothing queued in PLAN past T3.11.
-- **Single next action:** T3.11 (🎲, his): post to r/onednd and r/dndnext; triage any new r/3d6 replies into a next milestone.
+  Library 290 + site 346 pass. M9 queued (D334).
+- **Single next action:** M9 (D334, his notes after 0.11.0): scope it with him (the two 🔶 calls, the form.js cap ⚑), then
+  library and site workers. T3.11 posts (his) run alongside.
 - **Manual for Francesco:** ① T3.11 posts: rewrite the r/3d6 body by hand for r/onednd and r/dndnext (draft
   `.claude/drafts/reddit-3d6.md`, Troll Bandit paste `.claude/drafts/troll-bandit.dndpaste`, D300); not Mon/Sat
   ② archive the done sessions (M8: scores jam, T8.3 library, T8.4 site, plus the older copy-pass, editor-fixes, M6/T6.3,
