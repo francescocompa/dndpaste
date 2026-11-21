@@ -712,3 +712,13 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   that's new, about 15 constants").
   *Rejected:* the constants in the site only (the view and other apps would each need their own copy).
   *Enforced by:* owed (T8.3 tests).
+
+## T8.5 strict toggle evaluation (2026-11-21) — mechanism: digest survey of `src/check.ts` and `site/` + write-up, then AskUserQuestion, 1 round, overseer
+
+- **D330 — T8.5: no strict rules toggle; final totals and score legality come through T8.3 and T8.4. DECIDED (2026-11-21).**
+  The T8.3 popover shows the library's `finalScores()` as a hint; T8.4's chip says standard array, point-buy legal or neither.
+  Running `check` on the site stays D66 step 1, unscheduled. Write-up: `.claude/drafts/t8-5-strict-eval.md`.
+  *Raw note:* picked "No toggle; totals via T8.3/T8.4 (Recommended)".
+  *Rejected:* a toggle after T8.3/T8.4 (S library + M+M site; noisy on non-SRD builds; a second mode, and "strict" reads as
+  the site judging builds, against SPEC §6, D34, D132, D199); always-on checker hints (same site cost, a D66 step-1 call for later).
+  *Enforced by:* PLAN T8.5 ticked; prose only.

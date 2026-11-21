@@ -31,6 +31,4 @@ Spawned: none (T7.2's three workers done, merged 828d7ab)
   A Bash command that spells out the Google Drive path is refused by the privacy plugin (the folder name holds the account
   address): use a glob (`"$HOME"/Library/CloudStorage/GoogleDrive-*/…`) or the Obsidian vault tools for vault notes.
 
-⟳ Rename previous session → "Troll Bandit build for the Reddit post"  · session: local_a72fe136-f893-42e4-ab26-822bb587e4fa
-
 

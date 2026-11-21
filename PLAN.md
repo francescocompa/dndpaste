@@ -138,7 +138,7 @@ L<n> <Class>                   level block, n = character level
   the shared page and in print (D325); `render.ts` slash form, `RENDER_VERSION` bump. /ui-review (open: how the chip
   shows a marker the numbers break, D323) · Done when: verify + site tests pass, review approved, merged; then the
   overseer releases 0.11.0 (D57, D299) and deploys.
-- [ ] 🔶 T8.5 Evaluate (no build) an opt-in strict rules toggle + final score totals: what it would check, what the checker
+- [x] T8.5 Evaluate (no build) an opt-in strict rules toggle + final score totals: what it would check, what the checker
   already gives, cost, risks to the open-format stance · Done when: a short write-up and his call, logged as a decision.
 
 ### Later
