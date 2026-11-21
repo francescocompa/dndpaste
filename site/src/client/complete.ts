@@ -51,6 +51,9 @@ export interface Spot {
   /** The block the line is in (D227): a Species or Background block and its name, or a level block, its class and
    *  whether the class joins there (`join`: "first" at the build's L1, "multi" at a later class's first level). */
   block?: { kind: "S" | "B" | "L"; name: string; join?: "first" | "multi" };
+  /** The name starts right at the key's `:` (D302): an empty `Spells:` as `emit` writes it, or `Spells:fi` typed
+   *  after it. A pick writes the space the line lacks. */
+  pad?: true;
 }
 
 export interface Suggestion {
@@ -174,8 +177,13 @@ export function spotAt(text: string, pos: number): Spot | null {
     key = "L";
     vs = lead + t.length - lv[2].length;
   } else {
-    const sep = findSeparator(t);
-    if (sep < 0) return null;
+    // D302: `Spells:fi`, a name typed right after the `:` of an empty key line (the wizard, Tidy and a paste write
+    // `Spells:` with no space), is still that key's line for the list; the pick writes the missing space.
+    let sep = findSeparator(t);
+    if (sep < 0) {
+      sep = t.indexOf(":");
+      if (sep < 0) return null;
+    }
     const raw = splitMarker(t.slice(0, sep));
     const def = keyDef(t.slice(0, sep));
     if (!def) return null;
@@ -188,7 +196,8 @@ export function spotAt(text: string, pos: number): Spot | null {
     vs = lead + sep + 1;
   }
   const col = pos - ls;
-  if (col <= vs) return null;
+  // D302: at the `:` itself only on an empty value (`Spells:¦`); before a name there, the name isn't being typed.
+  if (col < vs || (col === vs && line.slice(vs).trim())) return null;
   const value = line.slice(vs);
   const cur = col - vs;
   const listSep = key === "Classes" ? "/" : ",";
@@ -255,7 +264,19 @@ export function spotAt(text: string, pos: number): Spot | null {
     key, marker, cap, family, rules: where.rules, classes: where.classes, levels: where.levels,
     start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, ...(depth ? { parentSource } : {}), slot, groups, taken,
     ...(where.block ? { block: where.block } : {}),
+    ...(key !== "L" && !depth && s === 0 ? { pad: true as const } : {}),
   };
+}
+
+/**
+ * A click here opens the list (D229, D302): inside an empty `[ ]`, or where a name goes and none is written yet:
+ * after an empty key (`Spells:¦`, `Spells: ¦`), after a list's `, `. However the line got there (typed, pasted, the
+ * wizard, the menu), as the menu's insert opens it at once (D171).
+ */
+export function opensOnClick(text: string, pos: number): boolean {
+  if (inEmptyBrackets(text, pos)) return true;
+  const sp = spotAt(text, pos);
+  return Boolean(sp && sp.parent === null && !sp.typed && sp.start === sp.end);
 }
 
 interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean }
@@ -598,7 +619,7 @@ export function afterPick(n: Names, sp: Spot, picked: string): string {
 
 /** The text a pick writes over the spot's range: quoted when the name needs it, then its source. */
 export function written(sp: Spot, s: Suggestion): string {
-  return (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
+  return (sp.pad ? " " : "") + (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
 }
 
 /** Keys whose items never carry details (SPEC §5.3): a pick there is never written with brackets. */

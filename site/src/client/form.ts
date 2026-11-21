@@ -28,7 +28,7 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, opensDetails, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import { afterPick, bracketTrim, ghostWord, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
@@ -778,9 +778,10 @@ function init(): void {
   // Your classes' ghost counts show before the editor is used (D246): with a source added, load at once.
   else if (readSummary().n) loadNames();
   ed.addEventListener("focusout", acClose);
-  // D229: a click into an empty `[ ]` opens the list, as typing would; any other click only updates or closes it.
+  // D229, D302: a click where a name goes and none is written yet (an empty `[ ]`, an empty key, after a list's `, `)
+  // opens the list, as typing would, on any line however it got there; any other click only updates or closes it.
   ed.addEventListener("keyup", (e) => { if (!ac.contains(e.target as Node)) complete(false); });
-  ed.addEventListener("click", (e) => { if (!ac.contains(e.target as Node)) complete(e.target === ta && ta.selectionStart === ta.selectionEnd && inEmptyBrackets(ta.value, ta.selectionStart)); });
+  ed.addEventListener("click", (e) => { if (!ac.contains(e.target as Node)) complete(e.target === ta && ta.selectionStart === ta.selectionEnd && opensOnClick(ta.value, ta.selectionStart)); });
   phone.addEventListener("change", acClose);
   window.addEventListener("resize", () => { if (!ac.hidden && !phone.matches) acPlace(); });
 

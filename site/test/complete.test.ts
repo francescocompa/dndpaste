@@ -2,8 +2,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, opensDetails, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
+import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
+import { presetText } from "../src/preset.ts";
+import { EXAMPLE } from "../src/example.ts";
+import { emit, parse } from "../../src/dndpaste.ts";
 
 /** `¦` marks the cursor. */
 function spot(src: string): Spot | null {
@@ -514,4 +517,50 @@ test("D243: where the line's class is clear, its spells, features and options le
   assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Agonizing Blast"), undefined);
   assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Quickened Spell"), true);
   assert.ok(rows("Classes: Warlock 2\n\nL2 Warlock\nInvocations: ¦").every((r) => !r.dim || r.source));
+});
+
+test("D302: the list opens on an empty key line however it got there (wizard, paste, Tidy, template, menu)", () => {
+  const LIST = /^(Skills|Cantrips|Spells|Feat|Gear|Tools|Masteries|Options|Expertise|Feature|Subclass|Species|Background|Prepared)\b[^:]*:/;
+  /** Every list key line in `text`: a click at its end opens the list, and a name typed there (glued to the `:`, as
+   *  after a click on `Spells:`) is offered and written with its space. */
+  const check = (text: string, what: string) => {
+    let pos = 0, seen = 0;
+    for (const line of text.split("\n")) {
+      const end = pos + line.length;
+      pos = end + 1;
+      if (!LIST.test(line) || line.slice(line.indexOf(":") + 1).trim()) continue;
+      seen++;
+      assert.ok(opensOnClick(text, end), `${what}: a click at the end of "${line}" opens the list`);
+      const sp = spotAt(text, end);
+      assert.ok(sp && sp.typed === "", `${what}: "${line}" is a spot`);
+    }
+    return seen;
+  };
+  // The wizard's text (D121): `emit` writes an empty key as `Spells:`, with no space after the colon.
+  const wizard = presetText("2024", [{ cls: "Wizard", levels: 3 }]);
+  assert.match(wizard, /^Spells:$/m, "the wizard writes a bare Spells:");
+  assert.ok(check(wizard, "wizard") >= 5);
+  // A paste in the same canonical form, and one with the spaces kept; Tidy's output of it.
+  const pasted = "Rules: 2024\nClasses: Wizard|XPHB 1\n\nL1 Wizard|XPHB\nCantrips:\nSpells: \nFeat:\n";
+  assert.equal(check(pasted, "paste"), 3);
+  assert.equal(check(emit(parse(pasted)), "Tidy"), 3);
+  // The menu writes `Spells: ` (D171): still opens.
+  const menu = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: ";
+  assert.ok(opensOnClick(menu, menu.length));
+
+  // Typed right after the colon of a bare key: still the Spells list, and the pick writes the space.
+  assert.ok(names("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells:mag¦")?.includes("Mage Armor"));
+  assert.equal(take("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells:¦"), "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: " + first("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: ¦")?.name);
+  assert.match(take("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips:fire bo¦"), /\nCantrips: Fire Bolt$/);
+  assert.equal(take("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips: fire bo¦").endsWith("Cantrips: Fire Bolt"), true, "no double space");
+
+  // The template: after a list's `, ` the next name opens; on a written name or the key, a click only updates.
+  const at = EXAMPLE.indexOf("Spells: Armor of Agathys, Hex") + "Spells: Armor of Agathys, Hex".length;
+  const more = EXAMPLE.slice(0, at) + ", " + EXAMPLE.slice(at);
+  assert.ok(opensOnClick(more, at + 2), "after `, ` in the template");
+  assert.ok(!opensOnClick(EXAMPLE, at), "at the end of a written name");
+  assert.ok(!opensOnClick(EXAMPLE, EXAMPLE.indexOf("Spells: Armor") + 3), "inside the key");
+  const glued = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells:Shield";
+  assert.ok(!opensOnClick(glued, glued.indexOf("Shield")), "before a name glued to the colon");
+  assert.ok(!opensOnClick("Feature: Elven Lineage [Drow; ]", 30), "a later [ ] group still opens as you type (D229)");
 });
