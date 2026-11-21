@@ -10,8 +10,8 @@
  * · n number · e enum · q quantity · x drop minus · drop dropped item · d detail · ab ability · ab-<str…cha>
  * · kd-<kind> (colour by kind, D82).
  */
-import { ABILITIES, keyDef, splitMarker } from "../../src/dndpaste.ts";
-import type { Ability, EntityBlock, Item, LevelBlock, Paste, Ref, Scope, Value } from "../../src/dndpaste.ts";
+import { ABILITIES, keyDef, methodWords, POINT_BUY_BUDGET, scoreKind, splitMarker } from "../../src/dndpaste.ts";
+import type { Ability, EntityBlock, Item, LevelBlock, Paste, Ref, ScoreKind, Scope, Value } from "../../src/dndpaste.ts";
 
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
@@ -79,10 +79,9 @@ export function renderValue(key: string, v: Value): string {
     case "scores": {
       // SPEC 0.8 (D108): one line is a base or an increase; a value holding both shows its base (`lineEntries` splits it).
       if (v.values.every((x) => x === null)) return (v.increase ?? []).map((b) => `<span class="n">+${b.amount}</span> ${ab(b.ability)}`).join(P(", "));
-      const all = v.values.every((x) => x !== null);
-      if (all) return v.values.map((x, i) => `<span class="n ab-${ABILITIES[i].toLowerCase()}">${x}</span>`).join(P("/"));
+      // SPEC 0.11 (D320): a base is named and `/`-separated, full or partial.
       return ABILITIES.flatMap((a, i) => (v.values[i] === null ? [] : [`${ab(a)} <span class="n ab-${a.toLowerCase()}">${v.values[i]}</span>`]))
-        .join(P(", "));
+        .join(P("/"));
     }
     case "hp": return v.roll !== null ? `<span class="n">${v.roll}</span>` : `<span class="e">${esc(v.method)}</span>`;
     case "empty": return "";
@@ -98,6 +97,39 @@ export function keyHtml(key: string): string {
 }
 function renderKey(key: string): string {
   return keyHtml(key) + P(":");
+}
+/** The method chip's dry words (D324): `Std. Array`, `Point Buy 2/27` (points left of 27), `Custom`. */
+export const KIND_WORDS: Readonly<Record<ScoreKind, string>> = { "standard-array": "Std. Array", "point-buy": "Point Buy", custom: "Custom" };
+export interface ScoreMark {
+  /** The method the mark names: the marker's when written (D323), else the draft's pick, else the numbers' (D326). */
+  kind: ScoreKind;
+  /** The chip's words. */
+  words: string;
+  /** The method came from a written marker. */
+  marked: boolean;
+  /** A marker the numbers break: `(point buy)` over scores that cost more than 27, `(standard array)` over others (D323). */
+  clash: boolean;
+}
+/**
+ * What the method chip (D324), the popover's corner chip (D321) and the view's mark (D325) say for a base `Scores`
+ * value: a hint, never a check (D66). `pick`, the method chosen in the editor for this draft, which writes nothing (D323).
+ */
+export function scoreMark(v: Extract<Value, { type: "scores" }>, pick: ScoreKind | null = null): ScoreMark {
+  const read = scoreKind(v.values);
+  const kind = v.method ?? pick ?? read.kind;
+  const clash = !!v.method && (kind === "standard-array" ? read.kind !== "standard-array" : kind === "point-buy" ? read.left === null : false);
+  const left = kind === "point-buy" && read.left !== null ? ` ${read.left}/${POINT_BUY_BUDGET}` : "";
+  return { kind, words: KIND_WORDS[kind] + left, marked: !!v.method, clash };
+}
+/** The key a line is written under: a base `Scores` line with its method marker, `Scores (point buy)` (D323). */
+export function lineKey(key: string, v: Value): string {
+  return v.type === "scores" && v.method ? `${key} (${methodWords(v.method)})` : key;
+}
+/** D325: the view's and print's mark after a base `Scores` row, the chip's words as plain small text. */
+function markHtml(v: Value): string {
+  if (v.type !== "scores" || !v.values.some((x) => x !== null)) return "";
+  const m = scoreMark(v);
+  return ` <span class="smk${m.clash ? " clash" : ""}">${esc(m.words)}</span>`;
 }
 const row = (k: string, v: string, kc = "", vc = ""): string =>
   `<span class="hk${kc ? " " + kc : ""}">${k}</span><span class="hv${vc ? " " + vc : ""}">${v}</span>`;
@@ -125,7 +157,8 @@ export function isEmptyValue(v: Value): boolean {
   }
 }
 const filled = (scope: Scope): [string, Value][] => lineEntries(scope).filter(([, v]) => !isEmptyValue(v));
-const rows = (scope: Scope, vc = ""): string => filled(scope).map(([k, v]) => row(renderKey(k), renderValue(k, v), "", vc)).join("");
+const rows = (scope: Scope, vc = ""): string =>
+  filled(scope).map(([k, v]) => row(renderKey(lineKey(k, v)), renderValue(k, v) + markHtml(v), "", vc)).join("");
 
 export interface RenderOptions {
   /** URL of the SVG sprite (D89: icons, never text glyphs). */
