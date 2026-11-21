@@ -451,11 +451,11 @@ function init(): void {
     if (!t) return;
     const end = textEnd(t, range);
     const right = t.getBoundingClientRect().right - box.left;
-    const left = end.right - box.left + 10;
-    // No room even for the icon: no chip (a score's popover still has the method in its corner, D321).
-    if (right - left < 22) return;
+    // Review r5: no room even for the icon: the icon sits over the line's end, at the row's edge, on a solid fill.
+    const tight = right - (end.right - box.left + 10) < 24;
+    const left = tight ? right - 24 : end.right - box.left + 10;
     const c = chipHtml(sl);
-    const b = el("button", `wla wsm${c.clash ? " clash" : ""}`);
+    const b = el("button", `wla wsm${c.clash ? " clash" : ""}${tight ? " ico over" : ""}`);
     b.type = "button";
     b.dataset.review = "score-chip";
     b.setAttribute("aria-label", c.label);
