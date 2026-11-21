@@ -463,10 +463,10 @@ function init(): void {
     b.innerHTML = c.html;
     Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
     wls.append(b);
-    // Review r2–r4: where the words don't fit after the line, the chip keeps its icon alone (its label still says it).
-    // Measured, and also estimated at 7px a character, so a face that loads after the measure can't clip the words.
+    // Review r2–r6: only where the words don't fit after the line does the chip keep its icon alone (its label still
+    // says it); a face that loads later places the chips again (the fonts' loadingdone, below).
     const words = b.querySelector("span");
-    if (words && (words.scrollWidth > words.clientWidth || right - left < (words.textContent ?? "").length * 7 + 32)) b.classList.add("ico");
+    if (words && words.scrollWidth > words.clientWidth) b.classList.add("ico");
   }
   /** D308: an add fix is a faint `+ Add Subclass, Spells` at the end of its line (the level-up lens's look); one click
    *  writes the lines. Where the full label doesn't fit, it says how many (`+ Add 3 lines`). */
