@@ -410,3 +410,11 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   that message and leave the edit link only in the dropdown."
   *Rejected:* keeping the panel with weaker styling (still sits right under the share link at the moment of copying).
   *Enforced by:* prose only (SITE.md).
+
+- **D302 — First r/3d6 feedback (NLwino) triaged into M8. DECIDED (2026-11-21).** One bug (T8.1, dropdowns only on
+  menu-inserted lines, fixed first in its own session), three builds (T8.2 level-up button, T8.3 score labels in the editor,
+  T8.4 point buy / standard array in the wizard), one evaluation (T8.5 strict toggle + totals, write-up before any build).
+  *Raw note:* "Let's only evaluate strict toggle for now and see what it would do for us" · bug fix in a new session.
+  *Rejected:* character sheet generation (not a character sheet, CLAUDE.md "What it is / is not"; character-forge's job);
+  building the strict toggle straight away (open-format stance first).
+  *Enforced by:* PLAN M8.

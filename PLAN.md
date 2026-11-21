@@ -116,6 +116,17 @@ L<n> <Class>                   level block, n = character level
   key hints; check D268's dropped `Base (Variant)` names against the new form (they may become lineage options). /ui-review
   · Done when: verify + site pass, review approved, merged; then the overseer releases 0.10.0 (D57) and deploys.
 
+### M8 — Community round 1: r/3d6 feedback (D302) · size M
+- [ ] T8.1 Bug: header dropdowns open only on lines added from the left menu; lines from the wizard, a paste or the template
+  get none, and an existing `Spells:` line had to be deleted and re-added (NLwino, Firefox/Windows) · own worktree · Opus@high ·
+  Done when: reproduced (Firefox via Playwright if possible), fixed for any line however it got there, a regression test,
+  `npm run verify` green at root and in `site/`, committed on the branch; the overseer merges and deploys.
+- [ ] T8.2 Level-up button: appends the next `L<n> <Class>` block and bumps `Classes:` · after T8.1 · Done when: scoped, built, /ui-review approved.
+- [ ] T8.3 Score labels: the editor shows STR/DEX/CON/INT/WIS/CHA over `Scores:` as a hint; the format does not change · after T8.1.
+- [ ] T8.4 Point buy / standard array / custom in the "Start a build" wizard, writing `Scores:` · after T8.1.
+- [ ] 🔶 T8.5 Evaluate (no build) an opt-in strict rules toggle + final score totals: what it would check, what the checker
+  already gives, cost, risks to the open-format stance · Done when: a short write-up and his call, logged as a decision.
+
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
 - Community showcase (O5): opt-in public list, likes, filters by build element; D1 index. Revisit after a few hundred shares.
