@@ -79,7 +79,7 @@ L<n> <Class>                   level block, n = character level
 - [x] T3.9 ✅ 2026-11-17 (fb682b9, 9275fd0; merged 6c78f01, deployed f4c67871) Ghost pick counts in the editor: a `have/of` tag on lines that owe picks, from the SRD table (D129–D134); /ui-review 2 rounds, all approved; 179 + 197 tests.
 - [x] T3.10 ✅ 2026-11-18 Launch prep (D141–D147): SRD licence check, format-update policy decided, feedback route (README, issue forms, `/about` + `/guide` links; merged 4c34e26). Deploy, tag + push and the GitHub release are his.
 - [x] 🔍 T3.12 Wide user test (D191) · done 2026-11-19: D192–D229, merged to main 1b54399, vault Tidy pass T34 (48 notes) · after the 0.9 keys are wired, before the D152 copy pass and the 0.9 release · 4 personas, ~15 Obsidian builds, mixed headless + browser, triage board → fix sessions
-- [ ] 🎲 T3.11 Community feedback round · after 0.10.0 is live (D285) · soft round with his table, then r/3d6, then r/onednd · Done when: feedback triaged into issues or decisions.
+- [ ] 🎲 T3.11 Community feedback round · after 0.10.0 is live (D285) · soft round with his table, then r/3d6 (posted 2026-11-21, round 1 → M8, done), then r/onednd · Done when: feedback triaged into issues or decisions.
 - Follow-ups (D66, D70, D71): SRD checker → "check against data" → domain + `abuse@` + canonical-origin flip.
 
 ### M4 — character-forge interview seeding · size M in that repo
@@ -116,13 +116,13 @@ L<n> <Class>                   level block, n = character level
   key hints; check D268's dropped `Base (Variant)` names against the new form (they may become lineage options). /ui-review
   · Done when: verify + site pass, review approved, merged; then the overseer releases 0.10.0 (D57) and deploys.
 
-### M8 — Community round 1: r/3d6 feedback (D302) · size M
+### M8 — Community round 1: r/3d6 feedback (D302) · ✅ released 0.11.0 2026-11-21 (22dcfb6, deployed) · size M
 - [x] T8.1 Bug: header dropdowns open only on lines added from the left menu; lines from the wizard, a paste or the template
   get none, and an existing `Spells:` line had to be deleted and re-added (NLwino, Firefox/Windows) · own worktree · Opus@high ·
   Done when: reproduced (Firefox via Playwright if possible), fixed for any line however it got there, a regression test,
   `npm run verify` green at root and in `site/`, committed on the branch; the overseer merges and deploys.
 - [x] T8.2 Level-up button: appends the next `L<n> <Class>` block and bumps `Classes:` · after T8.1 · Done when: scoped, built, /ui-review approved.
-- [ ] T8.3 Scores, library + SPEC 0.11 (designed: D320, D323, D326; jam 2026-11-21-scores) · own worktree · Opus@high ·
+- [x] T8.3 Scores, library + SPEC 0.11 (designed: D320, D323, D326; jam 2026-11-21-scores) · own worktree · Opus@high ·
   size M · library only (STATE gotcha: size L ran out of room twice, so library and site are two workers). SPEC §5.2,
   §5.5 rule 2: the base `Scores` line canonical named with `/`, full or partial (D320); the optional method marker
   `Scores (standard array|point buy|custom)` on a base line (D323); a §13 "Changes from 0.10"; FORMAT-UPDATES §1 a
@@ -130,7 +130,7 @@ L<n> <Class>                   level block, n = character level
   marker, `scoreKind(values)` data-free next to `finalScores` (D326); fixtures keep the bare and comma forms with tests
   that they convert; CHANGELOG Unreleased with a Migrating list. No rules text (content boundary). · Done when: `npm run
   verify` green at root, SPEC 0.11 drafted, committed on the branch; the overseer merges (release 0.11.0 waits for T8.4).
-- [ ] T8.4 Scores, site (designed: D321, D322, D324, D325) · after T8.3 is merged (needs its emit, marker and
+- [x] T8.4 Scores, site (designed: D321, D322, D324, D325) · after T8.3 is merged (needs its emit, marker and
   `scoreKind`) · own worktree · Opus@high · size M. Popover on a score: the D304 list, title `WIS 15 → 19 (+4)` from
   `finalScores()`, method chip in its corner, rows per method, sources in the foot (D321). Start a build: a method
   dropdown that remembers the last choice, then the per-ability fill (D322, D307, D310). The method chip at the line's

@@ -1,9 +1,10 @@
 # Time log
 
 ## 2026-11-21
+- 19:46–23:31 (3h45m) — M8 close: scores jam, SPEC 0.11 and the 0.11.0 release
 - 09:45–10:25 (0h40m) — Troll Bandit build for the Reddit post
 
-**Day total: 0h40m**
+**Day total: 4h25m**
 
 ## 2026-11-20
 - 18:21–20:21 (2h00m) — Reddit post review and the 0.10 release
