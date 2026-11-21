@@ -12,7 +12,9 @@ Mystic Arcanum, D180–D184); `noncanonical/mc-planned-20-families` is its long 
 `Options (Mastery)`, `Spells (6TH)`), which emits as the canonical file. A test checks both fixtures get the
 same checker findings as `mc-planned-20`. Since SPEC 0.10 (D280) the fixtures write the lineage on the `Species`
 line (`Species: Tiefling|XPHB [Infernal]`); `v0.7/druid-custom-background` and `noncanonical/mc-planned-20-families`
-keep the old `Feature` line and read with `W006`.
+keep the old `Feature` line and read with `W006`. Since SPEC 0.11 (D320) the base `Scores` line is
+named, `Scores: STR 8/DEX 13/…`; `v0.10/shigen` and `v0.10/heavenly-archer-v3` keep the six-number form, and a test
+asserts they read clean and emit their canonical sibling.
 
 Fidelity notes:
 - `vice`: the paper sheet lists three invocations at level 1; a 2024 Warlock has one at level 1 and

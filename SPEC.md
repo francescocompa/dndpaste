@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.10 (2026-11-20) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10); 0.9 adds option family keys (`Invocations`, …), a family marker on `Options`, a level cap on `Spells` and `Prepared`, a free-text `Note` key, form details on summons and pact boons, and keeps a line with an error instead of dropping it (§11); 0.10 puts a species' lineage and its spellcasting ability in brackets on the `Species` line, `Species: Elf [Drow; WIS]` (§12). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113, D180–D185, D200–D206, D220–D221, D280–D287.
+**Version:** 0.11 (2026-11-21) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10); 0.9 adds option family keys (`Invocations`, …), a family marker on `Options`, a level cap on `Spells` and `Prepared`, a free-text `Note` key, form details on summons and pact boons, and keeps a line with an error instead of dropping it (§11); 0.10 puts a species' lineage and its spellcasting ability in brackets on the `Species` line, `Species: Elf [Drow; WIS]` (§12); 0.11 writes the base `Scores` line named, `STR 8/DEX 14/…`, and adds an optional method marker, `Scores (point buy): …` (§13). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113, D180–D185, D200–D206, D220–D221, D280–D287, D320, D323, D326.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -110,10 +110,11 @@ In `dnd5e` the block-opening keys are `Species` and `Background` (§5.1).
 ```
 
 - `Key` is one of the profile's keys, or an extension key beginning with `X-` (§2.5). Anything
-  else is `E002`. A profile may let a key take a **marker** in parentheses, of one of two kinds:
+  else is `E002`. A profile may let a key take a **marker** in parentheses, of one of three kinds:
   an **open** marker, any text kept as written (`dnd5e`: `Feat (Origin)`, `Options (Soul
-  Techniques)`), or a **level cap** from a fixed set (`dnd5e`: `Spells (3rd)`), §5.1, §5.7. A marker
-  on a key that takes none, a level cap outside its set, or an empty marker is `E002`. A profile
+  Techniques)`), a **level cap** from a fixed set (`dnd5e`: `Spells (3rd)`), §5.1, §5.7, or a
+  **method** from a fixed set (`dnd5e`: `Scores (point buy)`, §5.2). A marker on a key that takes
+  none, a level cap or a method outside its set, or an empty marker is `E002`. A profile
   may fold a marker into another key (`Options (Invocation)` is `Invocations`, §5.7).
 - The separator is the first `:` followed by a space or end of line. Keys never contain `:`;
   a value containing `:` must quote it (§3.1).
@@ -124,7 +125,8 @@ In `dnd5e` the block-opening keys are `Species` and `Background` (§5.1).
 - The same key may not appear twice in one **scope** (`E003`). A marked key is its own key
   (`Feat` and `Feat (Origin)` may share a scope; `Feat (Origin)` twice may not, markers matched
   case-insensitively). Two spellings that fold into one key are that key twice (`Invocations` and
-  `Options (Invocation)`, `E003`). `Scores` may appear once as a base and once as an increase (§5.2).
+  `Options (Invocation)`, `E003`). `Scores` may appear once as a base and once as an increase (§5.2);
+  its method marker does not make it another key (`Scores (point buy)` is the base line).
 - Each key declares in which scopes it may appear (§5.1). A key in a scope it is not allowed in
   is `E005`.
 
@@ -238,8 +240,9 @@ more than once; its totals and the class of every level follow §5.2 and §5.4. 
 its canonical form (totals plus switch-point headers, §5.5) describe the same build: compare
 them after canonical emit. A `scores` value holds a scope's `Scores` lines (D108): `values`, six
 slots in `STR…CHA` order, `null` for an ability the base leaves out (all six `null` when the scope
-has no base line), and `increase`, the increase line's bonuses or `null`:
-`{ type: "scores"; values: (number | null)[]; increase: { amount: number; ability: Ability }[] | null }`.
+has no base line), `increase`, the increase line's bonuses or `null`, and `method`, the base line's
+method marker (`standard-array`, `point-buy` or `custom`), absent when none is written (D323):
+`{ type: "scores"; values: (number | null)[]; increase: { amount: number; ability: Ability }[] | null; method?: "standard-array" | "point-buy" | "custom" }`.
 A scope's lines in canonical order, one entry per line, are the library's `scopeLines`.
 
 ---
@@ -263,7 +266,7 @@ an Unearthed Arcana one. A name that only Unearthed Arcana prints always carries
 | `Paste` | int | H | spec major version (§2.5) |
 | `Producer` | text | H | **producer stamp**, optional (D62): what wrote the paste and its version, `character-forge 2.1`. Free single-line text, kept as written; no format is checked. For tracing odd output only: it never changes what the build means, and absent has no finding |
 | `Rules` | enum `2014`/`2024` | H | default edition |
-| `Scores` | scores | H, S, B, L | **The `+` decides** (D108). Without `+`, the **base** scores, header only, once: all six in `STR/DEX/CON/INT/WIS/CHA` order, `8/13/14/12/10/15`, or the ones known, named: `DEX 15, CON 13` or `DEX 15/CON 13`. With `+`, an **increase**: `+2 CHA`, `+1 INT, +1 CON`; in S/B the species (2014) or background (2024) bonuses, elsewhere any other increase. A level's Ability Score Improvement is a `Feat` line, not an increase (D109). A base outside the header is `E005` (§5.2) |
+| `Scores` | scores | H, S, B, L | **The `+` decides** (D108). Without `+`, the **base** scores, header only, once, named: `STR 8/DEX 13/CON 14/INT 12/WIS 10/CHA 15`, or the ones known, `DEX 15/CON 13`; also read: six numbers in `STR/DEX/CON/INT/WIS/CHA` order, `8/13/14/12/10/15`, and the comma form, `DEX 15, CON 13`. A base line may name its method: `Scores (point buy): …` (§5.2). With `+`, an **increase**: `+2 CHA`, `+1 INT, +1 CON`; in S/B the species (2014) or background (2024) bonuses, elsewhere any other increase. A level's Ability Score Improvement is a `Feat` line, not an increase (D109). A base outside the header is `E005` (§5.2) |
 | `Classes` | classes | H | classes in the order taken, with levels **as played now**; `Fighter 1 / Warlock 5`. An interleaved multiclass may write **runs**: `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` (§5.2) |
 | `HP` | hp | H, L | **hit-point method**, optional (D59). In H: `Fixed` (the class's fixed value at each level after 1st) or `Rolled`. In L: that level's method, overriding H: `Fixed`, `Rolled`, or the **die result** rolled there (`HP: 7`). Level 1 always takes the die's maximum, so it has no line. Absent: no method stated, never assumed |
 | `Species` | item · **opens block** | H | the species. Its **defining pick**, the lineage or ancestry that splits it (Elven Lineage, Gnomish Lineage, Fiendish Legacy, Draconic Ancestry, Giant Ancestry and their like), goes in its brackets, then that lineage's spellcasting ability when it asks one: `Species: Elf [Drow; WIS]`, `Species: Dragonborn [Black]`, `Species: Goliath [Fire]` (D280, D281). A 2014 subrace is the same form: `Species: Elf|PHB [Wood]`, `Species: Human|PHB [Variant]` (D282). Every other species pick (skills, size, an origin feat, a cantrip) is a line in the block. An `Ability: WIS` line in the block, after a `Species` line that names a lineage and no ability, is that ability: it reads with no warning and is written in the brackets (D281). The 0.9 forms read with a warning (§5.8) |
@@ -301,11 +304,22 @@ Abilities are `STR DEX CON INT WIS CHA`, case-insensitive.
     totals (20 above, not 24). Without repeats the entries are the totals, as before.
 - **`scores`** — one `Scores` line is either a base or an increase; the `+` decides (D108).
   - A **base** — scores before species, background and feat increases (D46) — in one of two
-    forms: six integers separated by `/`, in `STR/DEX/CON/INT/WIS/CHA` order:
-    `8/15/13/10/14/12`; or **named**, for a partial set: `<ABI> <n>` entries separated by `,` or
-    `/`, in any order, each ability at most once, missing abilities simply absent: `DEX 15, CON 13`,
-    `STR 8/DEX 13/CON 14` (D106). No placeholders (`?` is `E012`); numbers and names do not mix.
-    An ability left out is **unknown**, never assumed 10. Header only (`E005` elsewhere).
+    forms: **named**, full or partial: `<ABI> <n>` entries separated by `/` or `,`, in any order,
+    each ability at most once, missing abilities simply absent: `STR 8/DEX 15/CON 13/INT 10/WIS 14/CHA 12`,
+    `DEX 15/CON 13`, `DEX 15, CON 13` (D106); or six integers separated by `/`, in
+    `STR/DEX/CON/INT/WIS/CHA` order: `8/15/13/10/14/12`. Every form reads the same, with no
+    diagnostic; the named form with `/` is canonical (§5.5, D320). No placeholders (`?` is `E012`);
+    numbers and names do not mix. An ability left out is **unknown**, never assumed 10. Header
+    only (`E005` elsewhere).
+  - A base line may carry a **method marker** (D323): `Scores (standard array): …`,
+    `Scores (point buy): …` or `Scores (custom): …`, matched ignoring case and spacing, written in
+    lower case. It says how the paste's author made the base, and is optional: no marker is the
+    default, and consumers may read the method from the numbers instead (`scoreKind`, §6). The
+    parser does not compare the marker with the numbers: `Scores (standard array): 18/18/18/18/18/18`
+    reads with no diagnostic (a hint for consumers, never a check, D66). An empty marked line,
+    `Scores (point buy):`, is a to-do with its method (`W004`). Another method, or an empty
+    marker, is `E002`; a marker on an increase line is `E012`, with a safe fix that drops it; a
+    marked line outside the header is `E005`.
   - An **increase** — one or more `+<n> <ABI>` entries, `,`-separated. Grouping is preserved
     (`+2 CHA` is one entry; `+1 INT, +1 CON` two). A line mixing both forms is `E012`.
 - **`text`** — the rest of the line, trimmed, kept as written. By convention `<producer name> <version>`; nothing is validated (D62).
@@ -391,8 +405,9 @@ fighting-style feat), `+1 CHA` is accepted as the same pick: `Grappler [+1 STR]`
 2. Header scope in this order: `Paste`, `Producer`, `Rules`, `Scores`, `Classes`, `HP`, then unplaced choice
    keys in §5.1 table order (`Gear` last), then `X-` keys alphabetically ignoring case, each
    written as authored after the `X-` prefix (§2.5). A base `Scores` line is written in the
-   six-number form when all six are known, else in the named form, `STR…CHA` order, `,`-separated;
-   an increase line follows the base line. `Classes` is written as
+   named form, `STR…CHA` order, `/`-separated, full or partial: `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`,
+   `Scores: DEX 16/CHA 17` (D320); its method marker, if any, is kept, in lower case,
+   `Scores (point buy): …`; an increase line follows the base line and keeps its `,`. `Classes` is written as
    **totals**: one entry per class, in first-appearance order, with its total (runs fold:
    `Fighter 1 / Rogue 3 / Fighter 6 / Rogue 14` → `Fighter 6 / Rogue 14`).
 3. Blank line, `Species` block; blank line, `Background` block; each with its lines in §5.1
@@ -522,6 +537,13 @@ background bonus outside the background's three abilities stays the existing inf
 ability the named `Scores` form leaves out has an **unknown** final score (`null`): it is never
 assumed 10, and increases on it are not cap-checked (D46).
 
+`scoreKind` reads a base from its numbers alone, with no game data (D326): `standard-array` when
+the known numbers are the standard array's (`15, 14, 13, 12, 10, 8`, each once), else `point-buy`
+when each is 8–15 and their point-buy cost is within 27, else `custom`; with the points left of 27,
+or none when the numbers are not point-buy legal. The narrower kind wins (the standard array also
+costs 27). It is a hint, never a finding: a paste's method marker (§5.2) is what its author says,
+and the library does not report a marker the numbers break.
+
 `HP` is never owed: a paste without it has no finding (D59). A level-1 `HP` line is
 `misplaced`/warning (level 1 takes the die's maximum); a die result above the hit die of that
 level's class (§5.4) is `misplaced`/warning; a level `HP: Fixed` or `HP: Rolled` that repeats the
@@ -620,7 +642,7 @@ no species and the rest is one that offers that lineage (D287); `normalise` writ
 | Code | Meaning |
 |---|---|
 | E001 | malformed line; identifier not first |
-| E002 | unknown key; a marker on a key that takes none, an empty marker, or a level cap outside `1st`–`9th` (§2.4, §5.7) |
+| E002 | unknown key; a marker on a key that takes none, an empty marker, a level cap outside `1st`–`9th`, or a `Scores` method other than `standard array`, `point buy`, `custom` (§2.4, §5.2, §5.7) |
 | E003 | duplicate key in one scope |
 | E004 | level header not strictly increasing, or out of profile range |
 | E005 | key not allowed in this scope |
@@ -630,7 +652,7 @@ no species and the rest is one that offers that lineage (D287); `normalise` writ
 | E009 | quantity on a key other than `Gear` |
 | E010 | reserved line `---` |
 | E011 | malformed item: unbalanced brackets or quotes, nested brackets, empty name, a source after the brackets (D286) |
-| E012 | value does not match the key's type (`classes`, `scores`, `asi`, `enum`, `int`), including runs that do not strictly increase (§5.2) |
+| E012 | value does not match the key's type (`classes`, `scores`, `asi`, `enum`, `int`), including runs that do not strictly increase and a method marker on a `Scores` increase (§5.2) |
 | E013 | `@<n>` outside a detail |
 | E014 | entity block after a level block, or a second block for the same key |
 | E015 | unsupported `Paste` version |
@@ -688,7 +710,7 @@ Spells: Hex, Armor of Agathys, Misty Step
 
 ```
 Rules: 2024
-Scores: 10/14/13/8/16/12
+Scores: STR 10/DEX 14/CON 13/INT 8/WIS 16/CHA 12
 Classes: Druid 4
 
 Species: Elf [Wood; WIS]
@@ -725,7 +747,7 @@ Gear: "Bag of Tricks, Gray", Arrows (20) x2
 
 ```
 Rules: 2024
-Scores: DEX 16, CHA 17
+Scores: DEX 16/CHA 17
 Classes: Sorcerer 1 / Warlock 2 / Sorcerer 5 / Bard 6
 
 Species: Human|XPHB
@@ -902,3 +924,19 @@ before, with no new warning (§2.6). The additions are minor-version.
   `Wood Elf` read as `Elf [Wood]` (§6, D287). Supplement: `lineageAbility`.
 - Library: `W006`, `W007`; `speciesPicks`, `speciesLineage`, `shortLineage` (`dndpaste/check`);
   `TidyOptions.species`.
+
+## 13. Changes from 0.10
+
+0.11 (D320, D323, D326) changes one canonical form and adds one optional marker; it renames no key and needs no
+alias. Every 0.10 paste reads as before, with no new diagnostic, and means the same; `emit` and Tidy write the new
+form.
+
+- **The base `Scores` line is written named, with `/`** (D320; amends §5.5 rule 2): `Scores: 8/14/13/12/10/15` and
+  `Scores: STR 8, DEX 14, CON 13, INT 12, WIS 10, CHA 15` are written `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`;
+  a partial base `Scores: DEX 16, CHA 17` is written `Scores: DEX 16/CHA 17`. Reading is unchanged (§5.2). The
+  increase line keeps its commas, `Scores: +2 WIS, +1 DEX`. Kind: a canonical-form change (`FORMAT-UPDATES.md` §1).
+- **An optional method marker on the base line** (D323): `Scores (standard array): …`, `Scores (point buy): …`,
+  `Scores (custom): …`, kept in lower case. Not written by default. Kind: an addition.
+- Library: the `scores` value's optional `method` (§4); `scoreKind` with the constants `STANDARD_ARRAY`,
+  `POINT_BUY_COST`, `POINT_BUY_BUDGET`, data-free, also exported from `dndpaste/check` (D326, §6); `lineOfValue`
+  and `methodWords`.

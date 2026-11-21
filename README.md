@@ -14,7 +14,7 @@ are valid: `Classes: Warlock` is a complete document.
 ```
 Shigen
 Rules: 2024
-Scores: 8/13/14/12/10/15
+Scores: STR 8/DEX 13/CON 14/INT 12/WIS 10/CHA 15
 Classes: Fighter 1 / Warlock 5
 
 Species: Human
@@ -111,7 +111,8 @@ Findings are warnings or infos, never errors. Each has a code:
 
 `normalise(paste, slots, supplement)` returns a new paste with redundant lines removed, repeated
 Gear names written as `x2`, and `Options` lines moved onto their family key. `finalScores` adds up
-the ability scores. `UA_SOURCES` (`dndpaste/sources`) lists the Unearthed Arcana codes the checker
+the ability scores; `scoreKind` (data-free, in the main module too) says whether a base is the
+standard array, point-buy legal (with the points left of 27) or custom. `UA_SOURCES` (`dndpaste/sources`) lists the Unearthed Arcana codes the checker
 knows.
 
 A name with no book code means its newest printing under the paste's `Rules`, or in either edition

@@ -2,6 +2,41 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- **SPEC 0.11: scores** (D320, D323, D326). Tidy and `emit` write the base `Scores` line named, with `/`, full or
+  partial: `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`, `Scores: DEX 16/CHA 17`. Six numbers
+  (`8/14/13/12/10/15`) and the comma form (`DEX 16, CHA 17`) still read, with no diagnostic, and mean the same.
+  The increase line keeps its commas.
+- An optional method marker on the base line: `Scores (standard array): …`, `Scores (point buy): …`,
+  `Scores (custom): …`, read in any case and written in lower case. Not written by default; the parser never compares
+  it with the numbers. An unknown method is `E002`; a marker on an increase is `E012` with a safe fix that drops it;
+  a marked line outside the header is `E005`. The AST's `scores` value gets an optional `method`
+  (`"standard-array" | "point-buy" | "custom"`).
+- Library: `scoreKind(values)`, data-free, says whether a base is the standard array, point-buy legal (with the
+  points left of 27) or custom, on the known numbers of a partial base too; the constants `STANDARD_ARRAY`,
+  `POINT_BUY_COST`, `POINT_BUY_BUDGET` are numbers only. In the main module and the UMD build, and exported from
+  `dndpaste/check` beside `finalScores`. Also exported: `lineOfValue` (a scope line's text, the marker included) and
+  `methodWords`.
+- Build: the UMD file loads again. 0.10.0's `dist/dndpaste.umd.cjs` kept an `export { shortLineage } from …` line
+  and failed to load as a script; a test now loads it.
+- Fixtures are in 0.11 form; `fixtures/v0.10/` keeps `shigen` and `heavenly-archer-v3` with six numbers, and a test
+  checks they convert.
+
+### Migrating from 0.10
+Readers need nothing: every 0.10 paste reads as before. A writer's emit and snapshot tests see the new base line;
+a reader that matched the old text should parse instead:
+
+| 0.10 | 0.11 |
+|---|---|
+| `Scores: 8/14/13/12/10/15` | `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15` |
+| `Scores: STR 8, DEX 14, CON 13, INT 12, WIS 10, CHA 15` | `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15` |
+| `Scores: DEX 16, CHA 17` | `Scores: DEX 16/CHA 17` |
+| `Scores: +2 WIS, +1 DEX` | unchanged |
+| (new) | `Scores (point buy): STR 15/DEX 14/CON 13/INT 10/WIS 10/CHA 8` |
+
+Code building lines from `scopeLines`: the key stays `Scores` for the base line; write it with `lineOfValue` to keep
+the method marker. The share site bumps `RENDER_VERSION` (D320).
+
 ## 0.10.0 — 2026-11-20
 - **SPEC 0.10: the lineage format** (D280–D287). A species' defining pick goes in brackets on the `Species` line,
   then its spellcasting ability: `Species: Elf [Drow; WIS]`, `Species: Dragonborn [Black]`, `Species: Goliath [Fire]`.

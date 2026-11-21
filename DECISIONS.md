@@ -643,7 +643,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   B, slash · (AskUserQuestion) "Reads, no warning".
   *Rejected:* comma, `STR 8, DEX 14` (A, my pick: one rule with the partial form already canonical; he kept his slash);
   a W-code on the bare form (it would flag every older paste).
-  *Enforced by:* owed (T8.3: emit and Tidy tests, a fixture keeping the bare form).
+  *Enforced by:* `test/spec11.test.ts` D320 (emit, Tidy, `fixtures/v0.10/` converting); SPEC 0.11 §5.2, §5.5, §13.
 
 - **D321 — A click on a score opens the regular list: the final in its title, the method chip in its corner, the
   options as rows. DECIDED (2026-11-21), round 2.1 A with his pins.** A click on a base score (its ability or its
@@ -683,7 +683,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   panel of the scores" · (AskUserQuestion) "Nothing written".
   *Rejected:* derived only, no marker (A, my pick); the chevron writing the marker (a longer line, a second place to
   disagree with the numbers); a site-only setting (C: a share drops it).
-  *Enforced by:* owed (T8.3 parse/emit tests; T8.4).
+  *Enforced by:* `test/spec11.test.ts` D323 (parse, emit, Tidy, E002/E005/E012); SPEC 0.11 §5.2; owed (T8.4).
 
 - **D324 — The method chip: dry words at the `Scores` line's end, with a chevron. DECIDED (2026-11-21), round 4.1 A
   with his pin.** A faint chip in the D309 look after the line: `Std. Array`, `Point Buy 2/27` (points left of 27),
@@ -711,7 +711,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Raw note:* none (follows D321, D324, D325 and the overseer's note: "Point buy and standard array are checked nowhere:
   that's new, about 15 constants").
   *Rejected:* the constants in the site only (the view and other apps would each need their own copy).
-  *Enforced by:* owed (T8.3 tests).
+  *Enforced by:* `test/spec11.test.ts` D326 (and the UMD load test); SPEC 0.11 §6.
 
 ## T8.5 strict toggle evaluation (2026-11-21) — mechanism: digest survey of `src/check.ts` and `site/` + write-up, then AskUserQuestion, 1 round, overseer
 
