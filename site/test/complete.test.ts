@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
+import { OPEN_EVERY_SPOT, afterPick, alternatives, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, swapAt, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 import { presetText } from "../src/preset.ts";
 import { EXAMPLE } from "../src/example.ts";
@@ -37,7 +37,7 @@ test("D164: the letters before the list opens follow the list's size; never wher
   assert.deepEqual(names("Feature: Divine Order [¦"), ["Protector", "Thaumaturge"]);
   assert.equal(spot("Spe¦lls: Fireball"), null, "typing the key");
   assert.equal(spot("Scores: 8/1¦"), null, "a score");
-  assert.equal(spot("Rules: 20¦"), null, "an enum");
+  assert.deepEqual(names("Rules: 20¦"), ["2014", "2024"], "an enum lists its values (D304)");
   assert.equal(spot("HP: Fi¦"), null);
   assert.equal(spot("Producer: ch¦"), null, "free text");
   assert.equal(spot("Spells: Fireball|XP¦"), null, "typing a source");
@@ -592,4 +592,32 @@ test("D303: a name written in full gives no rows and is not \"no matches\" (D256
   assert.ok(!known(pre + "Spells: Shiel¦"), "a part of a name is still being typed");
   assert.ok(!known(pre + "Spells: Xyzzy¦"), "an unknown name keeps the D256 line");
   assert.ok(!known(pre + "Spells: ¦"));
+});
+
+test("D304: a click in a written name lists what it can be swapped for; a pick replaces the whole name", () => {
+  const T = "Vesk\nRules: 2024\nClasses: Wizard 3\n\nSpecies: Elf|XPHB [Drow; WIS]\n\nL1 Wizard|XPHB\nSpells: Shield, Magic Missile\n";
+  const swap = (needle: string, off: number) => {
+    const s = swapAt(T, T.indexOf(needle) + off);
+    if (!s) return null;
+    const alts = alternatives(N, s, T, 40);
+    return { name: T.slice(s.start, s.end), alts: alts.map((a) => a.name), swapped: alts[0] ? T.slice(0, s.start) + written(s, alts[0]) + T.slice(s.end) : T };
+  };
+  assert.deepEqual(swap("2024", 4)?.alts, ["2014"], "Rules: the other edition");
+  assert.ok(swap("2024", 4)?.swapped.includes("\nRules: 2014\n"));
+  const cls = swap("Wizard 3", 2);
+  assert.equal(cls?.name, "Wizard", "mid-name: the whole name");
+  assert.ok(cls?.alts.includes("Fighter") && !cls.alts.includes("Wizard"), "the other classes, not itself");
+  assert.ok(swap("L1 Wizard", 5)?.alts.includes("Cleric"), "a level header's class");
+  assert.ok(swap("Elf", 3)?.alts.includes("Dwarf"), "a species");
+  assert.ok(swap("Drow", 4)?.alts.includes("High"), "a lineage in [ ]");
+  const sp = swap("Magic Missile", 13);
+  assert.equal(sp?.name, "Magic Missile");
+  assert.ok(sp && !sp.alts.includes("Shield") && !sp.alts.includes("Magic Missile"), "names on the line are not offered");
+  assert.ok(sp?.swapped.includes("Spells: Shield, " + sp.alts[0] + "\n"), "the rest of the line stays");
+  assert.ok(swap("Wizard|XPHB", 6)?.swapped.includes("\nL1 Barbarian|XPHB\n"), "a written source stays");
+  assert.equal(swapAt(T, T.indexOf("Spells:") + 3), null, "inside the key: no swap");
+  const at0 = swapAt(T, T.indexOf("Spells: ") + 8);
+  assert.equal(at0 && T.slice(at0.start, at0.end), "Shield", "at a name's first letter: that name");
+  assert.equal(swapAt(T, T.indexOf("Shield,") + 7), null, "after the comma, before the next name's space");
+  assert.deepEqual(names("Rules: 2¦"), ["2014", "2024"], "typing an edition lists both");
 });

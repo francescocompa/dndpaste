@@ -426,9 +426,24 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   key, after a list's `, `, or in an empty `[ ]`; on a bare level header (`L2`, `L2 `), with the `Classes:` classes
   first. A name typed glued to the `:` (`Spells:fi`) is still that key's; the pick writes the space. Arrow keys still
   don't open it (the list would take ArrowDown). A name already written in full (`Spells: Shield`) closes the list
-  instead of showing D256's "No matches" line.
+  instead of showing D256's "No matches" line. AMENDED by D304: that holds while typing; a click on it lists its
+  alternatives.
   *Raw note:* "we should also be more 'generous' with the spawn of the dropdowns, ex. making them spawn also after : of a
   header and not only after the space".
   *Rejected:* opening on every caret arrival (arrows through a wizard's empty lines would open a list on each and trap
   ArrowDown); inserting the missing space on click (changes the text and the undo history on a mere click).
   *Enforced by:* `site/test/complete.test.ts` (D302, D303 tests).
+
+- **D304 — A click on a written name lists its alternatives; a pick swaps the whole name. DECIDED (2026-11-21).**
+  A click in, at the start or at the end of a name already written (`Wizard`, `Shield`, `Elf`, `Drow` in `[ ]`, the
+  `2024` of `Rules:`) opens the regular list, titled "Swap for", with what goes there instead: the empty spot's list
+  minus the name itself and the line's other names. A pick replaces the whole name and keeps its `|SOURCE` and `[ ]`.
+  The swap list is mouse or tap only: any key closes it and does what it always does, so a click never takes over the
+  arrows, Enter or Tab (a code editor never opens completion on a click). Enum keys (`Rules`) now list their values,
+  so typing `Rules: 2` offers both editions too (reverses the D164 test's "never an enum"). Swapping a class leaves
+  `Classes:` and the level headers as they are; the checker flags a mismatch.
+  *Raw note:* "clicking on a fully typed option should show the alternatives (ex. clicking on 2024 should show 2014,
+  clicking on Wizard should show the other classes, in our regular dropdown) so that you can easily change your choice."
+  *Rejected:* closing the list on a written name only (D303's first form; no way to change a pick but retyping);
+  arrow keys browsing the swap list (they'd stop moving the caret after every click).
+  *Enforced by:* `site/test/complete.test.ts` (D304 test).

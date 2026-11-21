@@ -28,7 +28,7 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, bracketTrim, ghostWord, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import { afterPick, alternatives, bracketTrim, ghostWord, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggest, suggestKeys, swapAt, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
@@ -541,6 +541,9 @@ function init(): void {
   let acHint: { slots: string[]; at: number } | null = null;
   /** D256: nothing matches a name of 3+ letters and no source is added yet: one line that links to /sources. */
   let acEmpty = false;
+  /** D304: the list shows a clicked name's alternatives; a pick swaps the whole name. Mouse or tap only: any key closes
+   *  it and does what it always does, so a click never takes over the arrows, Enter or Tab. */
+  let acSwap = false;
   const acAria = () => {
     ta.setAttribute("aria-autocomplete", "list");
     ta.setAttribute("aria-controls", ac.id);
@@ -558,6 +561,7 @@ function init(): void {
     acSays.textContent = "";
     acHint = null;
     acEmpty = false;
+    acSwap = false;
     dock.classList.remove("ac-on");
     acAria();
   };
@@ -602,7 +606,8 @@ function init(): void {
     // line was cut and read as stale once a group was filled).
     const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
     // D266: the slot title only where the brackets take two picks or more; one slot needs no title.
-    const hint = !acHint || acHint.slots.length < 2 ? "" : onPhone
+    // D304: a swap list says so, so it doesn't read as completion.
+    const hint = acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
     // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
@@ -618,7 +623,7 @@ function init(): void {
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : "name";
-      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
     ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
     ac.hidden = false;
@@ -663,6 +668,21 @@ function init(): void {
     acHint = hint;
     acDraw();
   };
+  /** D304: a click in or at the end of a written name lists what it can be swapped for. */
+  const swapList = (): boolean => {
+    const sw = names ? swapAt(ta.value, ta.selectionStart) : null;
+    const rows = sw && names ? alternatives(names, sw, ta.value, phone.matches ? 12 : 8) : [];
+    if (!sw || !rows.length) return false;
+    acKey = null;
+    acOn = -1;
+    acSpot = sw;
+    acRows = rows;
+    acHint = null;
+    acEmpty = false;
+    acSwap = true;
+    acDraw();
+    return true;
+  };
   const loadNames = () => {
     if (names || loading) return;
     loading = true;
@@ -694,10 +714,11 @@ function init(): void {
       return;
     }
     if (!sp || !r) return;
+    const swapping = acSwap;
     acClose();
     // Inside [ ], the next group or name starts at once (D163 review), unless a separator is already there.
     const nx = ta.value[sp.end];
-    const sep = names && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
+    const sep = names && !swapping && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
     // Review (D229): the last pick in `[ ]` leaves no stray spaces inside the brackets: `[ Drow ]` → `[Drow]`.
     const [a, b] = sep || sp.parent === null ? [sp.start, sp.end] : bracketTrim(ta.value, sp.start, sp.end);
     // D242: a pick that asks a detail comes with its brackets, the cursor inside, and the list for its first group.
@@ -711,6 +732,7 @@ function init(): void {
     } else if (sep) complete(true);
   };
   ed.addEventListener("keydown", (e) => {
+    if (acSwap && !ac.hidden && !["Shift", "Control", "Alt", "Meta"].includes(e.key)) acClose();
     // D297: Tab on a Species line's ghost text (`Dwarf [subrace]`) writes the brackets and opens their list, when the
     // list has no row to take.
     if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && (ac.hidden || !acRows.length)) {
@@ -782,7 +804,12 @@ function init(): void {
   // D229, D302: a click where a name goes and none is written yet (an empty `[ ]`, an empty key, after a list's `, `)
   // opens the list, as typing would, on any line however it got there; any other click only updates or closes it.
   ed.addEventListener("keyup", (e) => { if (!ac.contains(e.target as Node)) complete(false); });
-  ed.addEventListener("click", (e) => { if (!ac.contains(e.target as Node)) complete(e.target === ta && ta.selectionStart === ta.selectionEnd && opensOnClick(ta.value, ta.selectionStart)); });
+  ed.addEventListener("click", (e) => {
+    if (ac.contains(e.target as Node)) return;
+    const here = e.target === ta && ta.selectionStart === ta.selectionEnd;
+    if (here && names && suggestOn.get() && !opensOnClick(ta.value, ta.selectionStart) && swapList()) return;
+    complete(here && opensOnClick(ta.value, ta.selectionStart));
+  });
   phone.addEventListener("change", acClose);
   window.addEventListener("resize", () => { if (!ac.hidden && !phone.matches) acPlace(); });
 

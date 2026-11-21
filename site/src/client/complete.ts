@@ -48,6 +48,8 @@ export interface Spot {
   groups: string[][];
   /** Names already on the line, lower case: not offered again (D156). */
   taken: Set<string>;
+  /** An enum key's values (`Rules`: 2014, 2024; D304); absent on a name key. */
+  values?: readonly string[];
   /** The block the line is in (D227): a Species or Background block and its name, or a level block, its class and
    *  whether the class joins there (`join`: "first" at the build's L1, "multi" at a later class's first level). */
   block?: { kind: "S" | "B" | "L"; name: string; join?: "first" | "multi" };
@@ -174,6 +176,7 @@ export function spotAt(text: string, pos: number): Spot | null {
   let vs: number;            // where the value starts, in the line
   // The name may sit right at the key's `:`, or (a bare `L3`) right after the level: a pick writes the space (D302).
   let glued = true;
+  let values: readonly string[] | undefined;
   const lv = LEVEL_RE.exec(t);
   // D302: a level header with no class yet, `L3` or `L3 `, lists the classes at its end, as an empty key does.
   const bare = lv ? null : /^L[1-9]\d*(\s*)$/i.exec(line.trimStart());
@@ -198,7 +201,9 @@ export function spotAt(text: string, pos: number): Spot | null {
     if (!def) return null;
     key = def.key === "Fighting Style" ? "Feat" : def.key === "Equipment" || def.key === "Items" ? "Gear" : def.key;
     marker = def.key === "Fighting Style" ? "fighting style" : raw.marker ? lc(raw.marker) : null;
-    if (!["items", "item", "items¹", "classes"].includes(def.type)) return null;
+    // D304: an enum key (`Rules: 2024`) lists its values, so a click on one offers the other.
+    if (!["items", "item", "items¹", "classes", "enum"].includes(def.type)) return null;
+    if (def.type === "enum") values = def.enumValues;
     cap = levelCap(t.slice(0, sep));
     const fam = keyGroup(t.slice(0, sep)) === "Options" ? familyOf(t.slice(0, sep)) : null;
     family = fam ? ("codes" in fam ? fam.codes : null) : null;
@@ -276,6 +281,7 @@ export function spotAt(text: string, pos: number): Spot | null {
     start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, ...(depth ? { parentSource } : {}), slot, groups, taken,
     ...(where.block ? { block: where.block } : {}),
     ...(glued && !depth && s === 0 ? { pad: true as const } : {}),
+    ...(values ? { values } : {}),
   };
 }
 
@@ -288,6 +294,20 @@ export function opensOnClick(text: string, pos: number): boolean {
   if (inEmptyBrackets(text, pos)) return true;
   const sp = spotAt(text, pos);
   return Boolean(sp && sp.parent === null && !sp.typed && sp.start === sp.end);
+}
+
+/** D304: the name a click landed in or at the end of (`Wiz¦ard`, `2024¦`): the spot over the whole name, or null. */
+export function swapAt(text: string, pos: number): Spot | null {
+  const sp = spotAt(text, pos);
+  if (!sp || sp.start === sp.end) return null;
+  const name = text.slice(sp.start, sp.end);
+  return /^\s/.test(name) || !name.trim() ? null : sp;
+}
+
+/** D304: what a written name can be swapped for: the list its empty spot would show, the name itself left out. */
+export function alternatives(n: Names, sp: Spot, text: string, limit = 8): Suggestion[] {
+  const cur = lc(clean(text.slice(sp.start, sp.end)));
+  return suggest(n, { ...sp, typed: "", taken: new Set([...sp.taken, cur]) }, limit, true);
 }
 
 interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean }
@@ -318,6 +338,7 @@ const plain = (list: readonly string[]): Cand[] => list.map((name) => ({ name, b
 
 /** The names that fit the spot's key and slot, each marked when it belongs to the spot's classes (D156). */
 function candidates(n: Names, sp: Spot): Cand[] {
+  if (sp.values) return sp.values.map((v) => ({ name: v, books: 0, first: false }));
   const bitsOf = (names: string[]) => names.reduce((a, c) => { const i = n.CLASSES.findIndex((x) => lc(x) === lc(c)); return i < 0 ? a : a | 2 ** i; }, 0);
   const mine = bitsOf(sp.classes);
   // D243: where the line's class is clear (a level block, or the header with Classes), a name outside it is dimmed and
@@ -642,7 +663,7 @@ export function written(sp: Spot, s: Suggestion): string {
 }
 
 /** Keys whose items never carry details (SPEC §5.3): a pick there is never written with brackets. */
-const NO_DETAILS = new Set(["Background", "Subclass", "Classes", "L"]);
+const NO_DETAILS = new Set(["Background", "Subclass", "Classes", "L", "Rules"]);
 
 /**
  * A pick that asks a detail is written with its brackets, the cursor inside (D242): a feat with an ability, version
