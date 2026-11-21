@@ -597,7 +597,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Enforced by:* `site/test/fixes.test.ts` (D317 test; T01's move now lands Subclass before Spells).
 
 - **D318 — T8.3 and T8.4 reopened: ability scores move into the editor. DECIDED (2026-11-21), /ui-review round 3;
-  design and build owed (PLAN T8.3, T8.4).** Supersedes D312 and D315; the round-3 builds came off the branch unreleased.
+  designed in D320–D326 (jam 2026-11-21-scores); build owed (PLAN T8.3, T8.4).** Supersedes D312 and D315; the round-3 builds came off the branch unreleased.
   Direction: the named form becomes Tidy's canonical `Scores:` (`STR 8, DEX 14, …`, a SPEC and emit change); a click
   on an ability score opens a popover with the final score (base plus bonuses) and, where there are any, the options
   (swap with another standard-array number); Start a build keeps only a method choice (point buy, standard array, …),
@@ -629,3 +629,86 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   chip (`Levels don't match`, cut short on a phone); the primary button in the panel (round 6: panels use row actions);
   leaving `Classes:` alone when the lens takes a class past its count (the alert would then fire after every such pick).
   *Enforced by:* `site/test/levelup.test.ts` (D316 round-4 case); form.ts `alertButton`, site.css `.ed .wlx`, `.wlpop .wlw`.
+
+- **D320 — Tidy writes the base `Scores` line named, slash-separated, full or partial; the bare six numbers still read,
+  with no warning. DECIDED (2026-11-21), jam 2026-11-21-scores round 1.1.** Amends SPEC §5.5 rule 2 (six known →
+  `8/13/14/12/10/15`; fewer → named with `,`). Canonical now: `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`, and a
+  partial base `Scores: DEX 16/CHA 17`, in `STR…CHA` order. Reading is unchanged (§5.2: six numbers, or named with `,` or
+  `/`), so every saved paste means the same; Tidy rewrites the old forms and its badge counts the change, with no
+  diagnostic. The increase line keeps its commas (`+2 WIS, +1 DEX`). Kind (FORMAT-UPDATES §1): a canonical-form change,
+  new row there: minor (SPEC 0.11, library 0.11.0), old pastes mean the same, no alias (nothing renamed, D142/D143 do not
+  apply). The shared page renders the canonical form (`render.ts` scores case), so it shows the named form too; the site
+  bumps `RENDER_VERSION`. Consumers: reading is free; a writer's emit snapshot tests see the new line (Migrating list).
+  *Raw note:* (D318) "make the extended version the standard notation for tidy (STR 8/DEX 14 etc.)" · (board) picked
+  B, slash · (AskUserQuestion) "Reads, no warning".
+  *Rejected:* comma, `STR 8, DEX 14` (A, my pick: one rule with the partial form already canonical; he kept his slash);
+  a W-code on the bare form (it would flag every older paste).
+  *Enforced by:* owed (T8.3: emit and Tidy tests, a fixture keeping the bare form).
+
+- **D321 — A click on a score opens the regular list: the final in its title, the method chip in its corner, the
+  options as rows. DECIDED (2026-11-21), round 2.1 A with his pins.** A click on a base score (its ability or its
+  number) on the `Scores` line opens the D304 list, mouse or tap only, any key closes it. Title: `WIS 15 → 19 (+4)`, an
+  arrow icon, not the word "final"; at the title's right, the method chip (D324, with its chevron). Rows by method:
+  standard array, the other five numbers, each `14 ⇄ DEX` (a swap icon before the ability, no "swap with" text), a pick
+  swaps both; point buy, the numbers 8–15 with their cost only (`15 · 9 pts`; points left are in the chip, not repeated);
+  custom, no rows. Foot: where the final comes from, one line (`15 base, +2 Background, +2 L4 feat`). With no rows, one
+  divider only, and no "not a standard array" sentence. On a phone, the dock's chip row, as every list. The final comes
+  from the library's `finalScores()` (overseer, T8.5: no strict toggle, D330): a hint, never a check (D66).
+  *Raw note:* (D318) "the popover should show the computed final score and if available the various options (ex. switch
+  with a different standard array score)" · (pins) "Instead of swap for, write Std. Array" · "Instead of final, use an
+  arrow icon" · "Instead of repeating swap, use an icon before ex. DEX" · "write 2 points left in a number only notation
+  ex. 2/27" · "Don't mention points left, already in header" · "Don't repeat divider twice, avoid the std array comment."
+  *Rejected:* a panel with the final big and row actions (B); a sheet of all six with − and + (C, close to D312).
+  *Enforced by:* owed (T8.4: site tests, /ui-review).
+
+- **D322 — Start a build picks the method from a dropdown that remembers the last choice. DECIDED (2026-11-21),
+  round 3.1 pin.** One row, `Ability scores`, a select: Standard array, Point buy, Custom, Skip; it starts on the last
+  choice made on this browser (first time: Skip, which leaves `Scores:` empty as before). No score cells (D312 stays
+  rejected). Start writes `Scores:` and the caret waits there (D310) with the method's list open; the fill goes one
+  ability at a time, a pick writes `STR 15/DEX ` and reopens the list (D307, in the slash form of D320).
+  *Raw note:* "In the start a build, instead of a toggle it should be an option with dropdown which remembers last
+  choice".
+  *Rejected:* a segmented switch (every option on the board).
+  *Enforced by:* owed (T8.4).
+
+- **D323 — The method is not written by default; the paste may state it in brackets, `Scores (point buy): …`.
+  DECIDED (2026-11-21), round 3.1 (no pick; his notes, then AskUserQuestion).** The chip's chevron (D324) and the
+  popover's corner chip (D321) set the method for this draft: it steers the lists and the popover and writes nothing.
+  The format accepts an optional marker on a base `Scores` line, `(standard array)`, `(point buy)` or `(custom)`; a
+  typed marker is read and kept by Tidy (in lower case, like a level cap, SPEC §5.5 rule 6), and when present it wins over the
+  draft's pick. Kind: an addition, minor, in the same SPEC 0.11 as D320. A marker the numbers break gets no
+  parse diagnostic (no checker, D66); how the chip shows the clash is a /ui-review call in T8.4.
+  *Raw note:* "In the builder, it's accepted between () after scores, but by default a chip appears after scores with a
+  chevron that lets you select the type. The same choice could be in a small chip in the top right corner inside the
+  panel of the scores" · (AskUserQuestion) "Nothing written".
+  *Rejected:* derived only, no marker (A, my pick); the chevron writing the marker (a longer line, a second place to
+  disagree with the numbers); a site-only setting (C: a share drops it).
+  *Enforced by:* owed (T8.3 parse/emit tests; T8.4).
+
+- **D324 — The method chip: dry words at the `Scores` line's end, with a chevron. DECIDED (2026-11-21), round 4.1 A
+  with his pin.** A faint chip in the D309 look after the line: `Std. Array`, `Point Buy 2/27` (points left of 27),
+  `Custom`. It reads the numbers (a standard array costs 27 points, so it is point-buy legal too: the chip says the
+  narrower kind); with a marker (D323), the marker's method. The chevron opens the method list (D323). Not an alert:
+  custom scores are fine (D319's alert chip is for problems).
+  *Raw note:* (D318) "we could show as chip if the current scores array is standard array, point buy legal or neither" ·
+  (pin) "Keep it dry and condensed: Std. Array, Point Buy 2/27, Custom".
+  *Rejected:* a count chip in the ghost lane (B); the chip only while the caret is on the line (C, close to D315 A).
+  *Enforced by:* owed (T8.4).
+
+- **D325 — The shared page and the printed page carry the same mark. DECIDED (2026-11-21), round 4.1.** The chip's
+  dry words, as plain small text after the `Scores` row on the view and in print, read from the numbers (or the marker),
+  a hint, never a check (D66).
+  *Raw note:* (D318) "We could consider showing this mark in the shared and printed versions as well." ·
+  (AskUserQuestion) "Shared page and print".
+  *Rejected:* shared page only; editor only.
+  *Enforced by:* owed (T8.4: render tests).
+
+- **D326 — The library owns the score kind: a data-free `scoreKind` beside `finalScores`. DECIDED (2026-11-21), jam
+  close-out (build split).** Standard array and point buy are checked nowhere today (overseer, T8.5 survey). The
+  library gets a pure function from the six base values to `{ kind: "standard-array" | "point-buy" | "custom", left }`
+  (the array, the 8–15 costs and the 27-point budget as numbers only: SRD numbers, no rules text, content boundary);
+  the site's chip, popover rows and view mark all call it. `finalScores()` (src/check.ts) feeds the popover's final.
+  *Raw note:* none (follows D321, D324, D325 and the overseer's note: "Point buy and standard array are checked nowhere:
+  that's new, about 15 constants").
+  *Rejected:* the constants in the site only (the view and other apps would each need their own copy).
+  *Enforced by:* owed (T8.3 tests).

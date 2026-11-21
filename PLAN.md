@@ -122,13 +122,22 @@ L<n> <Class>                   level block, n = character level
   Done when: reproduced (Firefox via Playwright if possible), fixed for any line however it got there, a regression test,
   `npm run verify` green at root and in `site/`, committed on the branch; the overseer merges and deploys.
 - [x] T8.2 Level-up button: appends the next `L<n> <Class>` block and bumps `Classes:` · after T8.1 · Done when: scoped, built, /ui-review approved.
-- [ ] T8.3 Ability scores in the editor (D318, reopened; round-3 labels rejected, D315): the named form as Tidy's canonical
-  `Scores:` (SPEC + emit change, a format update), and a popover on a score with its final value and its options (swap with
-  another standard-array number) · design first (/jam), then build · Done when: SPEC decided, built, /ui-review approved.
-- [ ] T8.4 Score method (D318, reopened; D312's Start-a-build section rejected): Start a build keeps only the method choice
-  (point buy, standard array, …), changeable in the editor through the lens and lists; an editor chip says standard array,
-  point-buy legal or neither; maybe the same mark on the shared and printed pages · with T8.3 · Done when: designed, built,
-  /ui-review approved.
+- [ ] T8.3 Scores, library + SPEC 0.11 (designed: D320, D323, D326; jam 2026-11-21-scores) · own worktree · Opus@high ·
+  size M · library only (STATE gotcha: size L ran out of room twice, so library and site are two workers). SPEC §5.2,
+  §5.5 rule 2: the base `Scores` line canonical named with `/`, full or partial (D320); the optional method marker
+  `Scores (standard array|point buy|custom)` on a base line (D323); a §13 "Changes from 0.10"; FORMAT-UPDATES §1 a
+  "canonical-form change" row. Library: parse the marker, emit and Tidy (normalise) write the slash form and keep the
+  marker, `scoreKind(values)` data-free next to `finalScores` (D326); fixtures keep the bare and comma forms with tests
+  that they convert; CHANGELOG Unreleased with a Migrating list. No rules text (content boundary). · Done when: `npm run
+  verify` green at root, SPEC 0.11 drafted, committed on the branch; the overseer merges (release 0.11.0 waits for T8.4).
+- [ ] T8.4 Scores, site (designed: D321, D322, D324, D325) · after T8.3 is merged (needs its emit, marker and
+  `scoreKind`) · own worktree · Opus@high · size M. Popover on a score: the D304 list, title `WIS 15 → 19 (+4)` from
+  `finalScores()`, method chip in its corner, rows per method, sources in the foot (D321). Start a build: a method
+  dropdown that remembers the last choice, then the per-ability fill (D322, D307, D310). The method chip at the line's
+  end, `Std. Array` / `Point Buy 2/27` / `Custom`, chevron → method list, writes nothing (D323, D324). The same words on
+  the shared page and in print (D325); `render.ts` slash form, `RENDER_VERSION` bump. /ui-review (open: how the chip
+  shows a marker the numbers break, D323) · Done when: verify + site tests pass, review approved, merged; then the
+  overseer releases 0.11.0 (D57, D299) and deploys.
 - [ ] 🔶 T8.5 Evaluate (no build) an opt-in strict rules toggle + final score totals: what it would check, what the checker
   already gives, cost, risks to the open-format stance · Done when: a short write-up and his call, logged as a decision.
 
