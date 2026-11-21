@@ -563,4 +563,20 @@ test("D302: the list opens on an empty key line however it got there (wizard, pa
   const glued = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells:Shield";
   assert.ok(!opensOnClick(glued, glued.indexOf("Shield")), "before a name glued to the colon");
   assert.ok(!opensOnClick("Feature: Elven Lineage [Drow; ]", 30), "a later [ ] group still opens as you type (D229)");
+
+  // Typing the `:` itself opens the list (the input is typing): every key with a value list is a spot right there.
+  for (const k of ["Classes", "Species", "Background", "Spells", "Cantrips", "Feat", "Subclass", "Skills", "Feat (Fighting Style)"]) {
+    const t = `Vesk\nRules: 2024\nClasses: Wizard 3\n\nL1 Wizard\n${k}:`;
+    assert.ok(spotAt(t, t.length), `${k}: a spot at its colon`);
+  }
+
+  // A level header with no class yet, `L2` or `L2 `: the classes, the build's own first; the pick writes the space.
+  const lvl = "Rules: 2024\nClasses: Wizard 3 / Fighter 1\n\nL1 Wizard\nSpells: Shield\n\nL2";
+  assert.deepEqual(names(lvl + "¦", 2), ["Fighter", "Wizard"]);
+  assert.deepEqual(names(lvl + " ¦", 2), ["Fighter", "Wizard"]);
+  assert.ok(opensOnClick(lvl, lvl.length) && opensOnClick(lvl + " ", lvl.length + 1));
+  assert.ok(take(lvl + "¦").endsWith("\nL2 Fighter"));
+  assert.ok(take(lvl + " ¦").endsWith("\nL2 Fighter"));
+  assert.deepEqual(names("Rules: 2024\nClasses: Wizard 3 / Fighter 1\n\nL1 W¦"), ["Wizard", "Warlock"], "a written class keeps its match order");
+  assert.equal(spot("Rules: 2024\nL¦"), null, "a lone L is a key being typed (Languages), not a level");
 });

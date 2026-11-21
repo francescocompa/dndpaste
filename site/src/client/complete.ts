@@ -172,10 +172,19 @@ export function spotAt(text: string, pos: number): Spot | null {
   let cap: number | null = null;
   let family: readonly string[] | null = null;
   let vs: number;            // where the value starts, in the line
+  // The name may sit right at the key's `:`, or (a bare `L3`) right after the level: a pick writes the space (D302).
+  let glued = true;
   const lv = LEVEL_RE.exec(t);
+  // D302: a level header with no class yet, `L3` or `L3 `, lists the classes at its end, as an empty key does.
+  const bare = lv ? null : /^L[1-9]\d*(\s*)$/i.exec(line.trimStart());
   if (lv) {
     key = "L";
     vs = lead + t.length - lv[2].length;
+    glued = false;
+  } else if (bare) {
+    key = "L";
+    vs = line.length;
+    glued = !bare[1];
   } else {
     // D302: `Spells:fi`, a name typed right after the `:` of an empty key line (the wizard, Tidy and a paste write
     // `Spells:` with no space), is still that key's line for the list; the pick writes the missing space.
@@ -260,11 +269,13 @@ export function spotAt(text: string, pos: number): Spot | null {
   const taken = new Set(others.map((x) => lc(clean(x.replace(/\[[^\]]*\]?/g, "").replace(/\s+x\d+\s*$/, "").replace(/^\+\d+\s+/, "")))).filter(Boolean));
 
   const where = setting(text, lines, at);
+  // D302: a level header's list leads with the build's own classes (`Classes:`), not the block above's one class.
+  const classes = key === "L" ? setting(text, lines, -1).classes : where.classes;
   return {
-    key, marker, cap, family, rules: where.rules, classes: where.classes, levels: where.levels,
+    key, marker, cap, family, rules: where.rules, classes, levels: where.levels,
     start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, ...(depth ? { parentSource } : {}), slot, groups, taken,
     ...(where.block ? { block: where.block } : {}),
-    ...(key !== "L" && !depth && s === 0 ? { pad: true as const } : {}),
+    ...(glued && !depth && s === 0 ? { pad: true as const } : {}),
   };
 }
 
@@ -412,7 +423,8 @@ function candidates(n: Names, sp: Spot): Cand[] {
         const own = Boolean(2 ** s[2] & mine);
         return { name: s[0], books: s[1], first: own, alt: s[3] || undefined, ...(mine && !own ? { out: true } : {}) };
       });
-    case "Classes": case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
+    case "Classes": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
+    case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: sp.classes.some((k) => lc(k) === lc(c[0])) }));
     case "Gear": return items(false);
     case "Masteries": return n.MASTERY_WEAPONS.map((w) => ({ name: w[0], books: w[1], first: false })); // weapons only (D165)
     case "Skills": {
