@@ -441,9 +441,25 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   The swap list is mouse or tap only: any key closes it and does what it always does, so a click never takes over the
   arrows, Enter or Tab (a code editor never opens completion on a click). Enum keys (`Rules`) now list their values,
   so typing `Rules: 2` offers both editions too (reverses the D164 test's "never an enum"). Swapping a class leaves
-  `Classes:` and the level headers as they are; the checker flags a mismatch.
+  `Classes:` and the level headers as they are; the checker flags a mismatch. The swap list holds every alternative
+  and scrolls (up to 60), not 8 rows: at 8, a class swapped away (Wizard sorts last) could not be swapped back.
   *Raw note:* "clicking on a fully typed option should show the alternatives (ex. clicking on 2024 should show 2014,
   clicking on Wizard should show the other classes, in our regular dropdown) so that you can easily change your choice."
   *Rejected:* closing the list on a written name only (D303's first form; no way to change a pick but retyping);
   arrow keys browsing the swap list (they'd stop moving the caret after every click).
-  *Enforced by:* `site/test/complete.test.ts` (D304 test).
+  *Enforced by:* `site/test/complete.test.ts` (D304 test). Follow-up note: "The swap seems to lose wizard if done with a
+  class and then try to come back".
+
+- **D305 — T8.2 level-up: a lens line after the last block, plus a Tab route; the new block holds its owed keys.
+  DECIDED (2026-11-21), build pending.** Placement: at the end of the editor, modelled on code editors (CodeLens).
+  Variant A, his pick: a faint sans line after the last block, one action per class (`+ L6 Wizard | Fighter 2 |
+  Another class…`); typing `L6` on a new last line and taking a class from the list (D303 puts the build's classes
+  first) does the same. Variant B, built next to A for /ui-review: one `+ Level 6` lens that writes `L6 ` and opens
+  the class list. The block: `L<n> <Class>` plus the empty keys that level owes, from the same rule as the wizard
+  (`owedKeys` in `site/src/preset.ts`), and `Classes:` goes up by one (a new class joins as `/ <Class> 1`).
+  *Raw note:* "I lean towards end of the editor, but we need to design it accurately. I like the idea of having more
+  affordances inside the builder to make the building process flow more naturally, taking inspiration perhaps from coding
+  environments" · "Lens + Tab, but try also an alternative to compare in review".
+  *Rejected:* a toolbar split button and a row in the Keys column (away from where the block lands); a Copilot-style
+  ghost line only (hard to find with a mouse or on a phone); a header-only block (the owed keys show what to pick).
+  *Enforced by:* pending (T8.2 build and its /ui-review).

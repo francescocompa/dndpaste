@@ -53,6 +53,21 @@ export function totalLevels(rows: readonly Row[]): number {
   return rows.reduce((s, r) => s + (r.levels > 0 ? r.levels : 0), 0);
 }
 
+/**
+ * The keys a class level owes, as empty lines lay them out: class level `k` of `cls`, at the build's level `n` (the
+ * first class's level 1 owes its starting picks, a later class's its multiclass ones). Shared by the wizard and the
+ * level-up (D305), so the two never disagree. [] for a class not in the table.
+ */
+export function owedKeys(edition: Edition, cls: string, k: number, n: number): string[] {
+  const p = presetFor(cls, edition);
+  if (!p) return [];
+  const keys = [...(k === 1 ? (n === 1 ? p.first : p.multi) : []), ...(p.owes[k - 1] ?? [])];
+  // D190: a whole-list preparer (2024 Cleric, Druid, Paladin, Ranger) gets an empty `Prepared:` line where its
+  // loadout first appears or grows, with its ghost count; never a `Spells` line. 2014 counts no loadout (D129).
+  if (edition === "2024" && isWholeList(p) && (p.counts[k - 1]?.Prepared ?? 0) > (k > 1 ? p.counts[k - 2]?.Prepared ?? 0 : 0)) keys.push("Prepared");
+  return [...new Set(keys)];
+}
+
 /** The laid-out paste for these rows, in canonical form; "" when no row names a class. */
 export function presetText(edition: Edition, rows: readonly Row[]): string {
   const clean = cleanRows(rows);
@@ -63,16 +78,12 @@ export function presetText(edition: Edition, rows: readonly Row[]): string {
   const blocks: string[] = [];
   let n = 0;
   for (const r of clean) {
-    const p = presetFor(r.cls, edition);
     for (let i = 0; i < r.levels; i++) {
       n++;
       const k = (classLevel.get(r.cls) ?? 0) + 1;
       classLevel.set(r.cls, k);
-      const keys = p ? [...(k === 1 ? (n === 1 ? p.first : p.multi) : []), ...(p.owes[k - 1] ?? [])] : [];
-      // D190: a whole-list preparer (2024 Cleric, Druid, Paladin, Ranger) gets an empty `Prepared:` line where its
-      // loadout first appears or grows, with its ghost count; never a `Spells` line. 2014 counts no loadout (D129).
-      if (p && edition === "2024" && isWholeList(p) && (p.counts[k - 1]?.Prepared ?? 0) > (k > 1 ? p.counts[k - 2]?.Prepared ?? 0 : 0)) keys.push("Prepared");
-      if (keys.length || n === 1) blocks.push(`L${n} ${ref(r.cls)}\n${[...new Set(keys)].map((key) => `${key}:`).join("\n")}`);
+      const keys = owedKeys(edition, r.cls, k, n);
+      if (keys.length || n === 1) blocks.push(`L${n} ${ref(r.cls)}\n${keys.map((key) => `${key}:`).join("\n")}`);
     }
     runs.push(`${ref(r.cls)} ${classLevel.get(r.cls)}`);
   }
