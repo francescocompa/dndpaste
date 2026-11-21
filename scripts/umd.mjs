@@ -14,7 +14,8 @@ for (const m of src.matchAll(/^export\s+(?:const|function|class|let|var)\s+([A-Z
 const body = src
   .replace(/^export\s+(?=(?:const|function|class|let|var)\s)/gm, "")
   .replace(/^export\s+type\s.*$/gm, "")
-  .replace(/^export\s*\{[^}]*\};?\s*$/gm, "")
+  // A re-export (`export { shortLineage } from "./dndpaste.js"`) names what the shared scope already holds.
+  .replace(/^export\s*\{[^}]*\}(?:\s*from\s*"[^"]*")?;?\s*$/gm, "")
   .replace(/^\/\/# sourceMappingURL=.*$/gm, "");
 
 const out = `(function (root, factory) {
