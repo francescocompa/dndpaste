@@ -10,7 +10,9 @@ import { highlightRows } from "./highlight.ts";
 import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, useYourPresets } from "../ghost.ts";
 import { readSummary } from "./summary.ts";
 import type * as Yours from "./sync.ts";
-import { fixCursor, markFixes, nameFixes, tidyPlan } from "../fixes.ts";
+import { ADDS, fixCursor, markFixes, nameFixes, tidyPlan } from "../fixes.ts";
+import { nextOpen } from "../preset.ts";
+import { resolveKey } from "../../../src/dndpaste.ts";
 import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
@@ -25,10 +27,11 @@ import { draftBarHtml, draftKeeper, draftSlot, draftStore } from "./drafts.ts";
 import type { Draft, Fields } from "./drafts.ts";
 import { BEFORE_RELOAD, RELOAD_FLAG } from "./update.ts";
 import { GUIDE_LINK } from "../example.ts";
+import { lensOffer, levelUp, matchLevels, nextLevel } from "../levelup.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, opensDetails, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import { LIST_LIMIT, afterPick, alternativeList, bracketTrim, ghostWord, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggestList, suggestKeys, swapAt, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
@@ -210,6 +213,8 @@ function init(): void {
   /** D196 T12: the names table once loaded (D158), for the fixes that need it; the fixes on show now. */
   let fixNames: Names | null = null;
   let fixes: Fix[] = [];
+  /** D314, D319: the Classes: mismatch, an alert chip at its line's end beside any add chip; its panel holds the fix. */
+  let alert: Fix | null = null;
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
   let changed = () => {};
 
@@ -304,6 +309,12 @@ function init(): void {
       // D295: `Wood Elf` → `Elf [Wood]` (D293) is Tidy's alone: a valid name gets no mark on its line.
       ? [...st.fixes, ...nameFixes(fixNames, ta.value, st.paste, new Set(st.fixes.map((f) => f.line))).filter((f) => f.kind !== "lineage")].sort((a, b) => a.line - b.line)
       : st.fixes;
+    // D314, D319: when the headers prove Classes: too low, an alert chip on Classes:, next to `+ Add Species,
+    // Background` (D311) when that is owed too; `Match the levels` is in its panel.
+    const cl = ta.value.split("\n").findIndex((x) => /^Classes:/.test(x)) + 1;
+    alert = cl > 0 && matchLevels(ta.value) !== null
+      ? { line: cl, at: "key", kind: "classes-match", why: "Classes: counts fewer levels than the headers.", act: "Match the levels", apply: (x: string) => matchLevels(x) }
+      : null;
     draw(markFixes(highlightRows(ta.value, st.diagnostics, after), fixes));
     placeNotes();
   };
@@ -318,7 +329,9 @@ function init(): void {
   document.body.append(wlPop);
   /** The popover's line; 0 when closed. */
   let wlLine = 0;
-  const wlClose = () => { wlPop.hidden = true; wlLine = 0; };
+  /** The fix the open panel holds: the line's underline fix, or the alert chip's (D319). */
+  let wlFix: Fix | null = null;
+  const wlClose = () => { wlPop.hidden = true; wlLine = 0; wlFix = null; };
   /** Writes only the part of the text that changed, through insert, so Undo brings the old text back. */
   const writeChange = (next: string) => {
     const before = ta.value;
@@ -330,14 +343,16 @@ function init(): void {
   };
   const fixAt = (line: number) => fixes.find((f) => f.line === line);
   function placeNotes() {
-    const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line]")];
-    if (!marks.length && !wls.firstChild) return;
+    const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line], .wa[data-line]")];
+    if (!marks.length && !alert && !wls.firstChild) return;
     const box = ed.getBoundingClientRect();
+    const range = document.createRange();
     // D240: positions through CSSOM, never a style="" attribute: the live CSP (`style-src 'self'`) drops those, which
     // left every button 0x0 and the fix unclickable (the /ui-review dev CSP allows them, so review never saw it).
     wls.replaceChildren(...marks.map((m) => {
       const r = m.getBoundingClientRect();
       const line = Number(m.dataset.line);
+      if (m.classList.contains("wa")) return addButton(m, line, box, range);
       const b = el("button", "wlb");
       b.type = "button";
       b.dataset.line = String(line);
@@ -345,18 +360,96 @@ function init(): void {
       Object.assign(b.style, { left: `${r.left - box.left}px`, top: `${r.top - box.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       return b;
     }));
-    if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine)) wlClose();
+    if (alert) alertButton(alert, box, range);
+    if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine) && wlLine !== alert?.line) wlClose();
   }
+  /** Where a row's text ends, on its last wrapped row: the rect of its last piece (a text node or a span). */
+  function textEnd(t: HTMLElement, range: Range): DOMRect {
+    const last = t.lastChild ?? t;
+    range.selectNodeContents(last);
+    const rects = [...(last.nodeType === Node.TEXT_NODE ? range : (last as Element)).getClientRects()];
+    return rects.length ? rects[rects.length - 1] : t.getBoundingClientRect();
+  }
+  /** D319: an alert chip at the end of its line, before the line's add chip if it has one (the add chip moves after it
+   *  and shortens to `Add N lines` where it no longer fits); a click opens its panel. */
+  function alertButton(f: Fix, box: DOMRect, range: Range): void {
+    const row = hl.children[f.line - 1] as HTMLElement | undefined;
+    const t = row?.querySelector<HTMLElement>(".t") ?? row;
+    if (!t) return;
+    const end = textEnd(t, range);
+    const add = [...wls.querySelectorAll<HTMLElement>(".wla")].find((x) => Number(x.dataset.line) === f.line);
+    const left = end.right - box.left + 10;
+    const b = el("button", "wlx");
+    b.type = "button";
+    b.dataset.line = String(f.line);
+    b.setAttribute("aria-label", f.why);
+    b.setAttribute("aria-haspopup", "dialog");
+    // Round 5: the icon only; its label says it.
+    b.innerHTML = icon("alert");
+    const right = t.getBoundingClientRect().right - box.left;
+    Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
+    wls.append(b);
+    if (!add) return;
+    const after = left + b.offsetWidth + 6;
+    Object.assign(add.style, { left: `${after}px`, maxWidth: `${Math.max(0, right - after)}px` });
+    const label = add.querySelector("span");
+    const n = (fixAt(f.line)?.act ?? "").replace(/^Add /, "").split(",").length;
+    if (label && label.scrollWidth > label.clientWidth && n > 1) label.textContent = `Add ${n} lines`;
+  }
+  /** D308: an add fix is a faint `+ Add Subclass, Spells` at the end of its line (the level-up lens's look); one click
+   *  writes the lines. Where the full label doesn't fit, it says how many (`+ Add 3 lines`). */
+  function addButton(m: HTMLElement, line: number, box: DOMRect, range: Range): HTMLElement {
+    const f = fixAt(line);
+    const b = el("button", "wla");
+    b.type = "button";
+    b.dataset.line = String(line);
+    b.dataset.add = "";
+    const t = m.closest<HTMLElement>(".t");
+    const end = textEnd(t ?? m, range);
+    const right = (t ?? m).getBoundingClientRect().right - box.left;
+    const left = end.right - box.left + 10;
+    const act = f?.act ?? "";
+    const n = act.replace(/^Add /, "").split(",").length;
+    // D309: a chip says it short: `Feat (Fighting Style)` is `Fighting Style`.
+    b.innerHTML = `${icon("plus")}<span>${esc(act.replace(/\b[A-Z][\w ]*? \(([^)]+)\)/g, "$1"))}</span>`;
+    b.setAttribute("aria-label", `${f?.why ?? ""} ${act}`.trim());
+    Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
+    wls.append(b);
+    const label = b.querySelector("span")!;
+    if (label.scrollWidth > label.clientWidth && n > 1) label.textContent = `Add ${n} lines`;
+    return b;
+  }
+  const applyFix = (line: number, f = fixAt(line)) => {
+    const before = ta.value;
+    const next = f ? f.apply(before) : null;
+    wlClose();
+    if (next === null || next === before) return;
+    writeChange(next);
+    // D270: a fix that writes empty brackets leaves the cursor inside the first ones, their list open. D310: an add fix
+    // leaves it on the first open choice from its line down.
+    const at = f && ADDS.has(f.kind) ? nextOpen(next, next.split("\n").slice(0, line - 1).join("\n").length + (line > 1 ? 1 : 0)) : fixCursor(before, next);
+    if (at !== null) { ta.focus(); ta.setSelectionRange(at, at); complete(true); }
+  };
+  wls.addEventListener("mousedown", (e) => { if ((e.target as Element).closest(".wla")) e.preventDefault(); });
   wls.addEventListener("click", (e) => {
-    const b = (e.target as Element).closest<HTMLElement>(".wlb");
+    const a = (e.target as Element).closest<HTMLElement>(".wla");
+    // The chip carries data-line: the form's jump-to-line click would put the caret back on the chip's line (D310).
+    if (a) { e.stopPropagation(); applyFix(Number(a.dataset.line)); return; }
+    const b = (e.target as Element).closest<HTMLElement>(".wlb, .wlx");
     if (!b) return;
+    const isAlert = b.classList.contains("wlx");
+    if (isAlert) e.stopPropagation();   // its data-line: the form's jump-to-line click would take the focus from the panel
     const line = Number(b.dataset.line);
     if (wlLine === line && !wlPop.hidden) { wlClose(); return; }
-    const f = fixAt(line);
+    const f = isAlert ? alert : fixAt(line);
     if (!f) return;
     wlPop.setAttribute("aria-label", f.why);
-    wlPop.innerHTML = `<button type="button" class="it" data-go>${esc(f.act)}</button>`;
+    // D319: the alert's panel says what is wrong above its fix.
+    wlPop.innerHTML = isAlert
+      ? `<p class="wlw">${esc(f.why)}</p><button type="button" class="it" data-go>${esc(f.act)}</button>`
+      : `<button type="button" class="it" data-go>${esc(f.act)}</button>`;
     wlLine = line;
+    wlFix = f;
     wlPop.hidden = false;
     // T35: anchored to its key: the popover's left edge at the key's, kept inside the window.
     const r = b.getBoundingClientRect();
@@ -368,18 +461,10 @@ function init(): void {
   });
   wlPop.addEventListener("click", (e) => {
     if (!(e.target as Element).closest("[data-go]")) return;
-    const f = fixAt(wlLine);
-    const before = ta.value;
-    const next = f ? f.apply(before) : null;
-    wlClose();
-    if (next === null || next === before) return;
-    writeChange(next);
-    // D270: a fix that writes empty brackets leaves the cursor inside the first ones, their list open.
-    const at = fixCursor(before, next);
-    if (at !== null) { ta.focus(); ta.setSelectionRange(at, at); complete(true); }
+    applyFix(wlLine, wlFix ?? undefined);
   });
   document.addEventListener("pointerdown", (e) => {
-    if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb")) wlClose();
+    if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb, .wlx")) wlClose();
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !wlPop.hidden) { wlClose(); ta.focus(); } });
   /** A cursor move: redraw when the ghost text comes, goes or moves. */
@@ -400,6 +485,51 @@ function init(): void {
   };
   /** While a replace runs, Chrome fires one input event per line it inserts; redraw once, after. */
   let bulk = false;
+  // ---- T8.2 (D305, D316): the level-up lens, a line of faint chips after the last block (code editors' CodeLens): the
+  // level after the last block, one action per class it offers (lensOffer), plus "Another class…" (the header and the
+  // class list).
+  // The editor grows with its text, so the highlight layer is padded while the lens shows and the lens sits in it. ----
+  const lens = el("div", "lens");
+  lens.hidden = true;
+  ed.append(lens);
+  const drawLens = () => {
+    // A bare header on the last line (`L7 `) is the level being added already: its class list does the rest.
+    const o = offer.hidden && !/(^|\n)L\d+[ \t]*\s*$/.test(ta.value) ? lensOffer(ta.value) : null;
+    if (!o) { lens.hidden = true; ed.classList.remove("lv"); hl.style.paddingBottom = ""; return; }
+    // D309: up to two classes; D316: inside the Classes: total, the classes its levels without a block read as.
+    lens.innerHTML = `<span class="lh">${icon("plus")}L${o.level}</span>` + [...o.classes.map((c) => `<button type="button" class="lb" data-cls="${esc(c.ref)}" aria-label="Level ${o.level}: ${esc(c.name)} ${c.level}">${esc(c.name)} ${c.level}</button>`),
+        `<button type="button" class="lb" data-new aria-label="Level ${o.level}: another class">Another class…</button>`].join("");
+    ed.classList.add("lv");
+    lens.hidden = false;
+    const rowEls = hl.querySelectorAll<HTMLElement>(".row");
+    const last = rowEls[rowEls.length - 1];
+    lens.style.top = `${last ? last.offsetTop + last.offsetHeight + 2 : 8}px`;
+    // The layer makes room for the lens, however many rows it wraps to.
+    const pad = `${lens.offsetHeight + 12}px`;
+    if (hl.style.paddingBottom !== pad) hl.style.paddingBottom = pad;
+  };
+  new ResizeObserver(() => drawLens()).observe(hl);
+  // The textarea keeps focus: a mousedown on the lens would take it.
+  lens.addEventListener("mousedown", (e) => e.preventDefault());
+  lens.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>("button.lb");
+    if (!b) return;
+    if (b.dataset.cls !== undefined) {
+      const up = levelUp(ta.value, b.dataset.cls);
+      if (!up) return;
+      writeChange(up.text);
+      ta.setSelectionRange(up.cursor, up.cursor);
+    } else {
+      // The bare header opens the class list (D302); a pick there runs the level-up (acTake).
+      const n = nextLevel(ta.value);
+      if (n === null) return;
+      const head = ta.value.replace(/\s+$/, "");
+      writeChange(`${head}\n\nL${n} `);
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+    ta.focus();
+    complete(true);
+  });
   const refresh = () => {
     if (bulk) return;
     st = status(ta.value, holdLine);
@@ -425,6 +555,7 @@ function init(): void {
     refreshHints();
     offer.hidden = !offers || ta.value !== "";
     fitOffer();
+    drawLens();
     changed();
   };
 
@@ -541,6 +672,11 @@ function init(): void {
   let acHint: { slots: string[]; at: number } | null = null;
   /** D256: nothing matches a name of 3+ letters and no source is added yet: one line that links to /sources. */
   let acEmpty = false;
+  /** D304: the list shows a clicked name's alternatives; a pick swaps the whole name. Mouse or tap only: any key closes
+   *  it and does what it always does, so a click never takes over the arrows, Enter or Tab. */
+  let acSwap = false;
+  /** D306: how many more rows fit past the list's 60; its last row counts them. */
+  let acMore = 0;
   const acAria = () => {
     ta.setAttribute("aria-autocomplete", "list");
     ta.setAttribute("aria-controls", ac.id);
@@ -558,6 +694,8 @@ function init(): void {
     acSays.textContent = "";
     acHint = null;
     acEmpty = false;
+    acSwap = false;
+    acMore = 0;
     dock.classList.remove("ac-on");
     acAria();
   };
@@ -602,7 +740,8 @@ function init(): void {
     // line was cut and read as stale once a group was filled).
     const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
     // D266: the slot title only where the brackets take two picks or more; one slot needs no title.
-    const hint = !acHint || acHint.slots.length < 2 ? "" : onPhone
+    // D304: a swap list says so, so it doesn't read as completion.
+    const hint = acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
     // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
@@ -610,7 +749,9 @@ function init(): void {
       hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
       `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
-      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
+      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("") +
+      // D306: a list past 60 says how many it leaves out; typing narrows it.
+      (acMore > 0 ? `<div class="am" aria-hidden="true">${acMore} more · keep typing</div>` : "");
     // Phone: the dock's last row, right on the keyboard (D157 amended).
     const home = onPhone ? dock : ed;
     if (ac.parentElement !== home) { if (onPhone) dock.append(ac); else ed.append(ac); }
@@ -618,7 +759,7 @@ function init(): void {
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : "name";
-      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      acSays.textContent = acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${acMore > 0 ? `, ${acMore} more` : ""}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
     ac.setAttribute("aria-label", acKey ? "Keys" : "Names");
     ac.hidden = false;
@@ -636,31 +777,52 @@ function init(): void {
     const ks = keySpotAt(ta.value, ta.selectionStart);
     const kk = ks ? suggestKeys(ta.value, ks) : [];
     if (ks && kk.length) {
-      const rows = kk.slice(0, phone.matches ? 12 : 8).map((k): Suggestion => ({ name: `${k}:`, source: null }));
+      const rows = kk.slice(0, LIST_LIMIT).map((k): Suggestion => ({ name: `${k}:`, source: null }));
       const same = acKey?.start === ks.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
       if (!same) acOn = -1;
       acSpot = null;
       acKey = ks;
       acRows = rows;
+      acMore = kk.length - rows.length;
       acHint = null;
       acDraw();
       return;
     }
     acKey = null;
     const sp = spotAt(ta.value, ta.selectionStart);
-    const rows = sp ? suggest(names, sp, phone.matches ? 12 : 8) : [];
+    const got = sp ? suggestList(names, sp) : { rows: [], more: 0 };
+    const rows = got.rows;
     // An empty `[ ]` group the table knows shows what goes there, even before a name fits (D163).
     const hint = sp ? slotHint(names, sp) : null;
     // D256: while no source is added, a name of 3+ letters that matches nothing keeps one line open, linking to /sources.
-    const none = Boolean(sp && !rows.length && !hint && sp.typed.replace(/\s/g, "").length >= 3 && !readSummary().n);
+    // D303: a name already written in full is not "no matches": the list closes there.
+    const none = Boolean(sp && !rows.length && !hint && sp.typed.replace(/\s/g, "").length >= 3 && !readSummary().n && !isKnown(names, sp));
     if (!sp || !(rows.length || (hint && !sp.typed.trim()) || none)) { acClose(); return; }
     acEmpty = none;
     const same = acSpot?.start === sp.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
     if (!same) acOn = -1;
     acSpot = sp;
     acRows = rows;
+    acMore = got.more;
     acHint = hint;
     acDraw();
+  };
+  /** D304: a click in or at the end of a written name lists what it can be swapped for. */
+  const swapList = (): boolean => {
+    const sw = names ? swapAt(ta.value, ta.selectionStart) : null;
+    const got = sw && names ? alternativeList(names, sw, ta.value) : { rows: [], more: 0 };
+    const rows = got.rows;
+    if (!sw || !rows.length) return false;
+    acKey = null;
+    acOn = -1;
+    acSpot = sw;
+    acRows = rows;
+    acMore = got.more;
+    acHint = null;
+    acEmpty = false;
+    acSwap = true;
+    acDraw();
+    return true;
   };
   const loadNames = () => {
     if (names || loading) return;
@@ -693,23 +855,71 @@ function init(): void {
       return;
     }
     if (!sp || !r) return;
+    const swapping = acSwap;
     acClose();
     // Inside [ ], the next group or name starts at once (D163 review), unless a separator is already there.
     const nx = ta.value[sp.end];
-    const sep = names && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
+    const sep = names && !swapping && nx !== ";" && nx !== "," ? afterPick(names, sp, r.name) : "";
     // Review (D229): the last pick in `[ ]` leaves no stray spaces inside the brackets: `[ Drow ]` → `[Drow]`.
     const [a, b] = sep || sp.parent === null ? [sp.start, sp.end] : bracketTrim(ta.value, sp.start, sp.end);
     // D242: a pick that asks a detail comes with its brackets, the cursor inside, and the list for its first group.
     const le = ta.value.indexOf("\n", sp.end);
     const br = Boolean(names) && opensDetails(names as Names, sp, r, ta.value.slice(sp.end, le < 0 ? undefined : le));
     const w = written(sp, r);
+    // T8.2 (D305): a class picked on the bare header of the build's next level, the last block, is a level-up: the
+    // block gets its owed keys and Classes: goes up by one.
+    const ls = ta.value.lastIndexOf("\n", sp.start - 1) + 1;
+    const hm = /^L(\d+)\s*$/.exec(ta.value.slice(ls, sp.start));
+    if (sp.key === "L" && !swapping && hm && !ta.value.slice(le < 0 ? ta.value.length : le).trim() && Number(hm[1]) === nextLevel(ta.value)) {
+      const up = levelUp(ta.value.slice(0, ls), w);
+      if (up) {
+        writeChange(up.text);
+        ta.setSelectionRange(up.cursor, up.cursor);
+        complete(true);
+        return;
+      }
+    }
     insert(w + (br ? " []" : "") + sep, a, b);
     if (br) {
       ta.setSelectionRange(a + w.length + 2, a + w.length + 2);
       complete(true);
     } else if (sep) complete(true);
+    else if (!swapping && sp.parent === null) {
+      // D307: a pick at the end of a line that still owes picks writes `, ` and opens the list for the next one.
+      const at = a + w.length;
+      const end = ta.value.indexOf("\n", at);
+      const line = ta.value.slice(0, at).split("\n").length;
+      const g = st.ghosts.find((x) => !x.note && (x.line === line || x.also?.includes(line)));
+      const rest = ta.value.slice(at, end < 0 ? undefined : end).trim();
+      if (g && g.have < g.of && !rest) {
+        insert(", ", at, end < 0 ? ta.value.length : end);
+        complete(true);
+      } else if (!rest && (g ? g.have >= g.of : onePick(ta.value.slice(ta.value.lastIndexOf("\n", at - 1) + 1, at)))) {
+        // D310: the line is complete (its count met, or a one-pick key): on to the next open choice below.
+        toNextOpen(lineEnd(at) + 1);
+      }
+    } else if (!swapping) {
+      // D310: the last pick in `[ ]` completes it: on to the next open choice, when nothing follows the brackets.
+      const at = a + w.length;
+      if (/^\s*\]\s*$/.test(ta.value.slice(at, lineEnd(at)))) toNextOpen(lineEnd(at) + 1);
+    }
+  };
+  /** D310: the caret goes to the next open choice from `from` down, its list open; it stays when there is none. */
+  const toNextOpen = (from: number) => {
+    const at = from <= ta.value.length ? nextOpen(ta.value, from) : null;
+    if (at === null) return;
+    ta.setSelectionRange(at, at);
+    complete(true);
+  };
+  const lineEnd = (at: number) => { const e = ta.value.indexOf("\n", at); return e < 0 ? ta.value.length : e; };
+  /** D310: a key that takes one pick (`Subclass`, `Background`, `Rules`, each `Feat` line), from the line up to the pick. */
+  const onePick = (line: string) => {
+    const k = /^\s*([^:]+):/.exec(line)?.[1];
+    const d = k ? resolveKey(k).def : null;
+    return Boolean(d && (d.type === "item" || d.type === "items¹" || d.type === "enum" || d.key === "Feat"));
   };
   ed.addEventListener("keydown", (e) => {
+    if (acSwap && !ac.hidden && !["Shift", "Control", "Alt", "Meta"].includes(e.key)) acClose();
     // D297: Tab on a Species line's ghost text (`Dwarf [subrace]`) writes the brackets and opens their list, when the
     // list has no row to take.
     if (e.key === "Tab" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && (ac.hidden || !acRows.length)) {
@@ -778,9 +988,15 @@ function init(): void {
   // Your classes' ghost counts show before the editor is used (D246): with a source added, load at once.
   else if (readSummary().n) loadNames();
   ed.addEventListener("focusout", acClose);
-  // D229: a click into an empty `[ ]` opens the list, as typing would; any other click only updates or closes it.
+  // D229, D302: a click where a name goes and none is written yet (an empty `[ ]`, an empty key, after a list's `, `)
+  // opens the list, as typing would, on any line however it got there; any other click only updates or closes it.
   ed.addEventListener("keyup", (e) => { if (!ac.contains(e.target as Node)) complete(false); });
-  ed.addEventListener("click", (e) => { if (!ac.contains(e.target as Node)) complete(e.target === ta && ta.selectionStart === ta.selectionEnd && inEmptyBrackets(ta.value, ta.selectionStart)); });
+  ed.addEventListener("click", (e) => {
+    if (ac.contains(e.target as Node)) return;
+    const here = e.target === ta && ta.selectionStart === ta.selectionEnd;
+    if (here && names && suggestOn.get() && !opensOnClick(ta.value, ta.selectionStart) && swapList()) return;
+    complete(here && opensOnClick(ta.value, ta.selectionStart));
+  });
   phone.addEventListener("change", acClose);
   window.addEventListener("resize", () => { if (!ac.hidden && !phone.matches) acPlace(); });
 
@@ -939,11 +1155,12 @@ function init(): void {
   window.addEventListener("scroll", hideTip, { passive: true });
   if (offers) mountStarter(offer, (text) => {
     replaceAll(text);
-    // The caret waits at the end of the Scores line, the first thing to fill.
-    const at = text.indexOf("\nScores:");
+    // D310: the caret waits on the first open choice (the Scores line when the wizard left it empty), its list open.
+    const at = nextOpen(text, 0);
     ta.focus({ preventScroll: true });
-    if (at >= 0) ta.setSelectionRange(at + 8, at + 8);
+    if (at !== null) ta.setSelectionRange(at, at);
     refreshHints();
+    complete(true);
     ed.scrollIntoView({ block: "nearest" });
   });
   // D229 (review): Tidy makes its changes at once (one Undo takes them back); the badge lists them first if you ask.

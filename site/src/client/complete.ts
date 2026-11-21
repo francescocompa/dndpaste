@@ -48,9 +48,14 @@ export interface Spot {
   groups: string[][];
   /** Names already on the line, lower case: not offered again (D156). */
   taken: Set<string>;
+  /** An enum key's values (`Rules`: 2014, 2024; D304); absent on a name key. */
+  values?: readonly string[];
   /** The block the line is in (D227): a Species or Background block and its name, or a level block, its class and
    *  whether the class joins there (`join`: "first" at the build's L1, "multi" at a later class's first level). */
   block?: { kind: "S" | "B" | "L"; name: string; join?: "first" | "multi" };
+  /** The name starts right at the key's `:` (D302): an empty `Spells:` as `emit` writes it, or `Spells:fi` typed
+   *  after it. A pick writes the space the line lacks. */
+  pad?: true;
 }
 
 export interface Suggestion {
@@ -169,26 +174,44 @@ export function spotAt(text: string, pos: number): Spot | null {
   let cap: number | null = null;
   let family: readonly string[] | null = null;
   let vs: number;            // where the value starts, in the line
+  // The name may sit right at the key's `:`, or (a bare `L3`) right after the level: a pick writes the space (D302).
+  let glued = true;
+  let values: readonly string[] | undefined;
   const lv = LEVEL_RE.exec(t);
+  // D302: a level header with no class yet, `L3` or `L3 `, lists the classes at its end, as an empty key does.
+  const bare = lv ? null : /^L[1-9]\d*(\s*)$/i.exec(line.trimStart());
   if (lv) {
     key = "L";
     vs = lead + t.length - lv[2].length;
+    glued = false;
+  } else if (bare) {
+    key = "L";
+    vs = line.length;
+    glued = !bare[1];
   } else {
-    const sep = findSeparator(t);
-    if (sep < 0) return null;
+    // D302: `Spells:fi`, a name typed right after the `:` of an empty key line (the wizard, Tidy and a paste write
+    // `Spells:` with no space), is still that key's line for the list; the pick writes the missing space.
+    let sep = findSeparator(t);
+    if (sep < 0) {
+      sep = t.indexOf(":");
+      if (sep < 0) return null;
+    }
     const raw = splitMarker(t.slice(0, sep));
     const def = keyDef(t.slice(0, sep));
     if (!def) return null;
     key = def.key === "Fighting Style" ? "Feat" : def.key === "Equipment" || def.key === "Items" ? "Gear" : def.key;
     marker = def.key === "Fighting Style" ? "fighting style" : raw.marker ? lc(raw.marker) : null;
-    if (!["items", "item", "items¹", "classes"].includes(def.type)) return null;
+    // D304: an enum key (`Rules: 2024`) lists its values, so a click on one offers the other.
+    if (!["items", "item", "items¹", "classes", "enum"].includes(def.type)) return null;
+    if (def.type === "enum") values = def.enumValues;
     cap = levelCap(t.slice(0, sep));
     const fam = keyGroup(t.slice(0, sep)) === "Options" ? familyOf(t.slice(0, sep)) : null;
     family = fam ? ("codes" in fam ? fam.codes : null) : null;
     vs = lead + sep + 1;
   }
   const col = pos - ls;
-  if (col <= vs) return null;
+  // D302: at the `:` itself only on an empty value (`Spells:¦`); before a name there, the name isn't being typed.
+  if (col < vs || (col === vs && line.slice(vs).trim())) return null;
   const value = line.slice(vs);
   const cur = col - vs;
   const listSep = key === "Classes" ? "/" : ",";
@@ -251,11 +274,49 @@ export function spotAt(text: string, pos: number): Spot | null {
   const taken = new Set(others.map((x) => lc(clean(x.replace(/\[[^\]]*\]?/g, "").replace(/\s+x\d+\s*$/, "").replace(/^\+\d+\s+/, "")))).filter(Boolean));
 
   const where = setting(text, lines, at);
+  // D302: a level header's list leads with the build's own classes (`Classes:`), not the block above's one class.
+  const classes = key === "L" ? setting(text, lines, -1).classes : where.classes;
   return {
-    key, marker, cap, family, rules: where.rules, classes: where.classes, levels: where.levels,
+    key, marker, cap, family, rules: where.rules, classes, levels: where.levels,
     start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, ...(depth ? { parentSource } : {}), slot, groups, taken,
     ...(where.block ? { block: where.block } : {}),
+    ...(glued && !depth && s === 0 ? { pad: true as const } : {}),
+    ...(values ? { values } : {}),
   };
+}
+
+/**
+ * A click here opens the list (D229, D302): inside an empty `[ ]`, or where a name goes and none is written yet:
+ * after an empty key (`Spells:¦`, `Spells: ¦`), after a list's `, `. However the line got there (typed, pasted, the
+ * wizard, the menu), as the menu's insert opens it at once (D171).
+ */
+export function opensOnClick(text: string, pos: number): boolean {
+  if (inEmptyBrackets(text, pos)) return true;
+  const sp = spotAt(text, pos);
+  return Boolean(sp && sp.parent === null && !sp.typed && sp.start === sp.end);
+}
+
+/** D304: the name a click landed in or at the end of (`Wiz¦ard`, `2024¦`): the spot over the whole name, or null. */
+export function swapAt(text: string, pos: number): Spot | null {
+  const sp = spotAt(text, pos);
+  if (!sp || sp.start === sp.end) return null;
+  const name = text.slice(sp.start, sp.end);
+  return /^\s/.test(name) || !name.trim() ? null : sp;
+}
+
+/** D306: every list (names, keys, swap) holds up to 60 rows and scrolls past its 8-row box; past 60, a last row counts
+ *  the rest. At 8 a short list lost its tail: `Classes: ` hid Wizard, and a swapped-out Wizard could not come back (D304). */
+export const LIST_LIMIT = 60;
+
+/** D304: what a written name can be swapped for: the list its empty spot would show, the name itself left out. */
+export function alternatives(n: Names, sp: Spot, text: string, limit = LIST_LIMIT): Suggestion[] {
+  return alternativeList(n, sp, text, limit).rows;
+}
+
+/** {@link alternatives}, with how many more there are past `limit` (D306). */
+export function alternativeList(n: Names, sp: Spot, text: string, limit = LIST_LIMIT): { rows: Suggestion[]; more: number } {
+  const cur = lc(clean(text.slice(sp.start, sp.end)));
+  return suggestList(n, { ...sp, typed: "", taken: new Set([...sp.taken, cur]) }, limit, true);
 }
 
 interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean }
@@ -286,6 +347,7 @@ const plain = (list: readonly string[]): Cand[] => list.map((name) => ({ name, b
 
 /** The names that fit the spot's key and slot, each marked when it belongs to the spot's classes (D156). */
 function candidates(n: Names, sp: Spot): Cand[] {
+  if (sp.values) return sp.values.map((v) => ({ name: v, books: 0, first: false }));
   const bitsOf = (names: string[]) => names.reduce((a, c) => { const i = n.CLASSES.findIndex((x) => lc(x) === lc(c)); return i < 0 ? a : a | 2 ** i; }, 0);
   const mine = bitsOf(sp.classes);
   // D243: where the line's class is clear (a level block, or the header with Classes), a name outside it is dimmed and
@@ -391,7 +453,8 @@ function candidates(n: Names, sp: Spot): Cand[] {
         const own = Boolean(2 ** s[2] & mine);
         return { name: s[0], books: s[1], first: own, alt: s[3] || undefined, ...(mine && !own ? { out: true } : {}) };
       });
-    case "Classes": case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
+    case "Classes": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
+    case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: sp.classes.some((k) => lc(k) === lc(c[0])) }));
     case "Gear": return items(false);
     case "Masteries": return n.MASTERY_WEAPONS.map((w) => ({ name: w[0], books: w[1], first: false })); // weapons only (D165)
     case "Skills": {
@@ -473,17 +536,30 @@ export function spellCap(n: Names, sp: Spot): number | null {
   return cap;
 }
 
+/** What was typed is already a name the spot knows (`Spells: Shield`): `suggest` gives no row there, and that is
+ *  not "no matches" (D256, D303). */
+export function isKnown(n: Names, sp: Spot): boolean {
+  const q = norm(sp.typed);
+  return Boolean(q) && candidates(n, sp).some((c) => norm(c.name) === q || (c.alt !== undefined && norm(c.alt) === q));
+}
+
 /**
  * The suggestions for a spot, best first, at most `limit`: the spot's classes first (D156), spells above the class's
  * level last and dimmed (D162), then how well the name matches, then A–Z. One row per name. Empty under the letters
  * the spot's list size asks (D164; none while the D172 trial is on), or when the typed name is already exactly one.
  */
-export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SPOT): Suggestion[] {
+export function suggest(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = OPEN_EVERY_SPOT): Suggestion[] {
+  return suggestList(n, sp, limit, everySpot).rows;
+}
+
+/** {@link suggest}, with how many more names fit past `limit` (D306: the list's last row counts them). */
+export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = OPEN_EVERY_SPOT): { rows: Suggestion[]; more: number } {
+  const none = { rows: [], more: 0 };
   const own = (name: string): readonly string[] => n.OWN?.get(lc(name)) ?? [];
   const q = norm(sp.typed);
   const cands = candidates(n, sp).filter((c) => !sp.taken.has(lc(c.name)));
   const pool = new Set(cands.map((c) => lc(c.name))).size;
-  if (q.replace(/\s/g, "").length < minTyped(pool, everySpot)) return [];
+  if (q.replace(/\s/g, "").length < minTyped(pool, everySpot)) return none;
   const best = new Map<string, { c: Cand; t: number }>();
   for (const c of cands) {
     const t = q ? Math.min(...[c.name, c.alt ?? ""].filter(Boolean).map((x) => tier(x, q)).map((v) => (v < 0 ? 9 : v))) : 0;
@@ -510,8 +586,9 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
       grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over,
     };
   });
-  // The name is already written as it should be: nothing to suggest.
-  if (rows.some((r) => r.name === typed && !r.source)) return [];
+  // The name is already written as it should be: nothing to suggest, unless a longer name starts with it (D303 review:
+  // `Shield` keeps Shield of Faith on offer).
+  if (rows.some((r) => r.name === typed && !r.source) && !rows.some((r) => r.name !== typed && norm(r.name).startsWith(q))) return none;
   // A spell above the level cap comes last (D162): it can't be picked yet. Before it, outside the spot's short list
   // (D227 skills, D241 another class's subclass, D243 another class's spell, feature or option), after the other
   // edition: the class's own subclass from the other book still comes before another class's.
@@ -520,7 +597,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
   const top = rows.slice(0, limit);
   // A cantrip says so only among other kinds of names (the general list); a list of cantrips doesn't repeat it.
   const mixed = top.some((r) => r.level !== 0);
-  return top.map(({ name, source, level, dim }) => {
+  return { more: rows.length - top.length, rows: top.map(({ name, source, level, dim }) => {
     const s: Suggestion = { name, source };
     if (level !== undefined && (level > 0 || (mixed && level === 0))) s.tag = ORD[level];
     // D250: a name of yours shows its book, unless the row already shows the one a pick writes.
@@ -528,7 +605,7 @@ export function suggest(n: Names, sp: Spot, limit = 8, everySpot = OPEN_EVERY_SP
     if (books.length && !source) s.book = books.find((b) => BOOKS.some(([c, , ed]) => c === b && ed === sp.rules)) ?? books[0];
     if (dim) s.dim = true;
     return s;
-  });
+  }) };
 }
 
 /** The word for a species' defining pick (D163): its trait's last word, `subrace` for a 2014 one (D291). */
@@ -598,11 +675,11 @@ export function afterPick(n: Names, sp: Spot, picked: string): string {
 
 /** The text a pick writes over the spot's range: quoted when the name needs it, then its source. */
 export function written(sp: Spot, s: Suggestion): string {
-  return (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
+  return (sp.pad ? " " : "") + (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
 }
 
 /** Keys whose items never carry details (SPEC §5.3): a pick there is never written with brackets. */
-const NO_DETAILS = new Set(["Background", "Subclass", "Classes", "L"]);
+const NO_DETAILS = new Set(["Background", "Subclass", "Classes", "L", "Rules"]);
 
 /**
  * A pick that asks a detail is written with its brackets, the cursor inside (D242): a feat with an ability, version

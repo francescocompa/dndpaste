@@ -1,7 +1,7 @@
 /**
  * Slot table → class presets and species lines (D121–D125, D129–D133, D211): the keys a class owes at each class level,
- * as the checker counts them, and the picks each counted line expects (the editor's ghost counts). Key names and
- * numbers only. Pure, shared by scripts/presets.mjs (the bundled SRD presets, presets.ts) and by the browser for the
+ * as the checker counts them, and the picks each counted line expects (the editor's ghost counts). Key names,
+ * numbers, and the names of features with a pick (D313). Pure, shared by scripts/presets.mjs (the bundled SRD presets, presets.ts) and by the browser for the
  * visitor's own classes (D246), which get no supplement: a count only the supplement knows stays unknown.
  */
 // The slot table is untyped JSON from the extractor (src/extract.ts).
@@ -30,6 +30,8 @@ for (const cd of Object.values(slots.classes ?? {}) as J[]) {
   const uid = `${cd.name}|${cd.source}`;
   const owes: string[][] = [];
   const counts: J[] = [];
+  // D313: the names of the features with a pick, by class level (`Divine Order` at 1), so a `Feature` line can name it.
+  const features: Record<number, string[]> = {};
   const cast = cd.casting;
   const book = sup.spellbook?.[uid];
   // The mastery loadout by class level: the table's progression, else the supplement's fixed count (a class whose
@@ -60,7 +62,11 @@ for (const cd of Object.values(slots.classes ?? {}) as J[]) {
     if (delta(cast?.cantrips, k) > 0) keys.add("Cantrips");
     if (sup.spellbook?.[uid]) keys.add("Spells");
     else if (cast?.preparedChange === "level" ? delta(cast.prepared, k) > 0 : delta(cast?.known, k) > 0) keys.add("Spells");
-    for (const fs of Object.values(cd.features ?? {}) as J[]) if (fs.level === k) keys.add("Feature");
+    for (const [name, fs] of Object.entries(cd.features ?? {}) as [string, J][]) {
+      if (fs.level !== k) continue;
+      keys.add("Feature");
+      (features[k] ??= []).push(name);
+    }
     for (const fp of Object.values(sup.classFeaturePicks?.[uid] ?? {}) as J[]) if (fp.levels.includes(k)) keys.add(fp.key);
     owes.push([...keys]);
     // The counts at class level k: gains, except the two loadouts (Masteries, Prepared), which are the total from k.
@@ -82,7 +88,7 @@ for (const cd of Object.values(slots.classes ?? {}) as J[]) {
   if (cd.equipmentOptions?.length && y2024) first.push("Gear");
   const multi = count(cd.multiclassSkills) ? ["Skills"] : [];
   const skills = [count(cd.skills), count(cd.multiclassSkills)];
-  rows.push({ name: cd.name, source: cd.source, first, multi, owes, counted, skills, counts });
+  rows.push({ name: cd.name, source: cd.source, first, multi, owes, counted, skills, counts, ...(Object.keys(features).length ? { features } : {}) });
 }
 rows.sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source));
 

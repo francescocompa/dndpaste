@@ -76,7 +76,8 @@ export function status(text: string, holdLine = 0): Status {
     diagnostics, errors, warnings: diagnostics.length - errors - empties.length, toChoose, ghosts, bytes, empty, bare, over,
     canSave: !empty && !over && !errors && !held && !bare,
     canon,
-    canTidy: !empty && !held && (canon !== null ? canon.trimEnd() !== t.trimEnd() : tidyPlan(t) !== null),
+    // D313: an empty `[]` is an open choice, like an empty key: on its own it gives Tidy nothing to do.
+    canTidy: !empty && !held && (canon !== null ? canon.trimEnd() !== t.replace(/ ?\[\s*\]/g, "").trimEnd() : tidyPlan(t) !== null),
     held,
     paste,
     fixes: lineFixes(t, paste, diagnostics, ghosts),

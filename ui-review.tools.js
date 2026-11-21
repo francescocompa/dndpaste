@@ -57,6 +57,12 @@ const GHOST_TEXT = 'Rules: 2024\nScores: 8/14/14/15/12/10\nClasses: Fighter 1 / 
   'L1 Fighter|XPHB\nSkills: Athletics, Perception\nMasteries: Longsword, Shortbow\nFeat (Fighting Style): Defense\n\n' +
   'L2 Wizard|XPHB\nCantrips: Light, Mage Hand, Prestidigitation, Fire Bolt\nSpells: Shield, Sleep, Magic Missile, Detect Magic, Mage Armor, Find Familiar\nPrepared: Shield, Sleep\n\n' +
   'L3 Wizard|XPHB\nSpells: -Sleep, Grease, Fog Cloud\nExpertise:\n\nL4 Wizard|XPHB\nSubclass:\nSpells:\n'
+// M8 (D304): a Wizard 5 build, for the swap list on its L1 header.
+const M8_SWAP = 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield, Magic Missile\n'
+// T8.2 (D305): a multiclass build for the level-up lens.
+const M8_LENS = 'Vesk\nRules: 2024\nScores: 8/14/14/15/12/10\nClasses: Wizard 5 / Fighter 1\n\nSpecies: Elf|XPHB [High; INT]\n\nL1 Wizard|XPHB\nCantrips: Fire Bolt, Mage Hand, Light\nSpells: Shield, Magic Missile, Sleep, Detect Magic, Mage Armor, Find Familiar\n\nL3 Wizard|XPHB\n\nL6 Fighter|XPHB\nSkills: Athletics\n'
+// Round 3 (D314): his note's build, Classes: Wizard 6 / Fighter 2 with blocks at L1, L3, L6 only.
+const M8_STUCK = 'Vesk\nRules: 2024\nScores: 8/14/14/15/12/10\nClasses: Wizard 6 / Fighter 2\n\nSpecies: Elf|XPHB [High; INT]\n\nBackground: Sage\n\nL1 Wizard|XPHB\nCantrips: Fire Bolt, Mage Hand, Light\n\nL3 Wizard|XPHB\n\nL6 Fighter|XPHB\nSkills: Athletics\n'
 // D151 (D154–D159): put a build in the editor with the cursor at its end, typed the way a keystroke is, so the name
 // list opens (it loads /assets/names.js on focus, then shows what fits). The list closes when the editor loses focus.
 const acSetup = async (x, name, text) => {
@@ -206,6 +212,7 @@ uiReview.config({
       { id: 'start-bard5', label: 'Start a build: Bard 5 (2024)', kind: 'action', dodge: false, run: () => starter([['Bard', 5]]) },
     ] },
   ],
+
   presets: [
     { id: 'light', label: 'Light', pinned: true, values: { 'display.theme': 'light' } },
     { id: 'dark', label: 'Dark', pinned: true, values: { 'display.theme': 'dark' } },
@@ -560,6 +567,29 @@ uiReview.config({
       editor().dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: dt }))
       editor().dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
       await x.sleep(150)
+    },
+    // T8.2 (D305): a Wizard 5 / Fighter 1 build; the lens sits after its last block.
+    'm8-lens': (x) => acSetup(x, 'm8-lens', M8_LENS),
+    // Round 3 (D310, D311, D313, D314, D316).
+    'm8-stuck': (x) => acSetup(x, 'm8-stuck', M8_STUCK),
+    'm8-mismatch': (x) => acSetup(x, 'm8-mismatch', 'Vesk\nRules: 2024\nClasses: Wizard 2\n\nSpecies: Elf\n\nBackground: Sage\n\nL1 Wizard|XPHB\n\nL3 Fighter|XPHB\n'),
+    'm8-cleric': (x) => acSetup(x, 'm8-cleric', 'Vesk\nRules: 2024\nClasses: Cleric 1\n\nSpecies: Elf\n\nBackground: Sage\n\nL1 Cleric|XPHB\nSkills: Insight, Religion\nGear: A\n'),
+    'm8-cleric-up': (x) => acSetup(x, 'm8-cleric-up', 'Vesk\nRules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\n\nBackground: Sage\n\nL1 Wizard|XPHB\nCantrips: Fire Bolt, Mage Hand, Light\n'),
+    'm8-nohead': (x) => acSetup(x, 'm8-nohead', 'Vesk\nRules: 2024\nClasses: Wizard 1\n\nL1 Wizard|XPHB\nCantrips:\n'),
+    'm8-subclass': (x) => acSetup(x, 'm8-subclass', 'Vesk\nRules: 2024\nClasses: Wizard 3\n\nSpecies: Elf\n\nBackground: Sage\n\nL3 Wizard|XPHB\nSubclass: Evo\nSpells:\n'),
+    'm8-start': async (x) => { await x.waitFor('form.pform textarea.src'); typeIn(''); await x.waitFor('.sb:not([hidden])') },
+    'm8-lens-tab': (x) => acSetup(x, 'm8-lens-tab', M8_LENS + '\nL7 '),
+    // D307: a short Cantrips line; take Fire Bolt and the list comes back after `, `.
+    'm8-comma': (x) => acSetup(x, 'm8-comma', 'Vesk\nRules: 2024\nClasses: Wizard 1\n\nL1 Wizard|XPHB\nCantrips: Fire Bo'),
+    // M8 (D303, D304, D306): a 60-row list, a name written in full, the swap list on a click.
+    'm8-classes': (x) => acSetup(x, 'm8-classes', 'Vesk\nRules: 2024\nClasses: '),
+    'm8-spells': (x) => acSetup(x, 'm8-spells', 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: '),
+    'm8-full': (x) => acSetup(x, 'm8-full', 'Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield'),
+    'm8-swap': async (x) => {
+      await acSetup(x, 'm8-swap', M8_SWAP)
+      const ta = editor(), at = M8_SWAP.indexOf('L1 Wizard') + 6
+      ta.focus(); ta.setSelectionRange(at, at)
+      ta.dispatchEvent(new MouseEvent('click', { bubbles: true })); await x.sleep(200)
     },
   },
 })

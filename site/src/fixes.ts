@@ -25,11 +25,12 @@ import { KEYS, applyFix, classSequence, emit, familyOf, isAbilitySlot, keyGroup,
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { isWholeList, speciesPreset, tableFor, toPrepared } from "./ghost.ts";
 import { lineageRow } from "./client/complete.ts";
+import { owedLabel, owedLine } from "./preset.ts";
 import type { Ghost } from "./ghost.ts";
 import type { ClassPreset } from "./presets.ts";
 import type * as N from "./names.gen.ts";
 
-export type FixKind = "lib" | "prepared" | "move-up" | "move-level" | "level-lines" | "species-lines" | "family" | "lineage";
+export type FixKind = "lib" | "prepared" | "move-up" | "move-level" | "level-lines" | "species-lines" | "start-lines" | "classes-match" | "family" | "lineage";
 
 export interface Fix {
   /** 1-based line. */
@@ -92,8 +93,23 @@ function insertInBlock(text: string, i: number, add: readonly string[]): string 
   const lines = text.split("\n");
   let [, b] = blockRange(lines, i);
   while (b > i && !lines[b].trim()) b--;
-  lines.splice(b + 1, 0, ...add);
+  // D317: each line at its canonical place (KEYS order, SPEC §5.5), before the block's first key that sorts after it,
+  // so Tidy has nothing to reorder after an add; a line without a known key goes last.
+  for (const line of add) {
+    const r = rank(line);
+    let at = b + 1;
+    for (let k = i + 1; k <= b; k++) if (rank(lines[k]) > r) { at = k; break; }
+    lines.splice(at, 0, line);
+    b++;
+  }
   return lines.join("\n");
+}
+/** A line's place in canonical key order; past every key for a line without one the format knows. */
+function rank(line: string): number {
+  const k = keyOf(line);
+  const def = k ? resolveKey(k).def : undefined;
+  const at = def ? KEYS.indexOf(def) : -1;
+  return at < 0 ? KEYS.length : at;
 }
 
 /**
@@ -255,9 +271,11 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
     const have = new Set([...(blocks.get(n)?.lines.keys() ?? [])].map((x) => keyGroup(x)));
     const missing = owedKeys(at.p, n, at.k).filter((x) => !have.has(keyGroup(x)));
     if (!missing.length) continue;
+    // D313: a feature with a pick comes by name, its brackets open (`Feature: Divine Order []`).
+    const label = missing.map((x) => owedLabel(at.p, at.k, x)).join(", ");
     add({
-      line: i + 1, at: "level", kind: "level-lines", why: `L${n} ${at.p.name} owes ${missing.join(", ")}.`, act: `Add ${missing.join(", ")}`,
-      apply: (x) => (LEVEL_RE.test(x.split("\n")[i]?.trim() ?? "") ? insertInBlock(x, i, missing.map((m) => `${m}:`)) : null),
+      line: i + 1, at: "level", kind: "level-lines", why: `L${n} ${at.p.name} owes ${label}.`, act: `Add ${label}`,
+      apply: (x) => (LEVEL_RE.test(x.split("\n")[i]?.trim() ?? "") ? insertInBlock(x, i, missing.map((m) => owedLine(at.p, at.k, m))) : null),
     });
   }
 
@@ -293,7 +311,35 @@ export function lineFixes(text: string, paste: Paste, diagnostics: readonly Diag
       });
     }
   }
+  // D311: a build with no Species or Background block: `+ Add Species, Background` at the end of Classes:.
+  const ci = lines.findIndex((x, j) => w[j].region === "H" && keyIs(x, "Classes"));
+  const lack = ["Species", "Background"].filter((k) => !lines.some((x) => keyIs(x, k)));
+  if (ci >= 0 && lack.length) {
+    add({ line: ci + 1, at: "key", kind: "start-lines", why: `The build has no ${lack.join(" or ")} yet.`, act: `Add ${lack.join(", ")}`, apply: (x) => startBlocks(x, rules) });
+  }
   return [...out.values()].sort((a, b) => a.line - b.line);
+}
+
+const keyIs = (line: string, key: string): boolean => resolveKey(keyOf(line) ?? "").def?.key === key;
+
+/**
+ * D311: the empty Species and Background blocks a build lacks, laid out as Start a build writes them (a 2024 background
+ * owes its `Scores`, `Skills`, `Tools` and `Gear`, D126): after the Species block when there is one, else after the
+ * header's block. Null when the build has both, or no Classes line.
+ */
+export function startBlocks(text: string, rules: string | null): string | null {
+  const xs = text.replace(/\r\n?/g, "\n").split("\n");
+  const want = [
+    xs.some((x) => keyIs(x, "Species")) ? null : "Species:",
+    xs.some((x) => keyIs(x, "Background")) ? null : rules === "2014" ? "Background:" : "Background:\nScores:\nSkills:\nTools:\nGear:",
+  ].filter((b): b is string => b !== null);
+  const si = xs.findIndex((x) => keyIs(x, "Species"));
+  const anchor = si >= 0 ? si : xs.findIndex((x) => keyIs(x, "Classes"));
+  if (!want.length || anchor < 0) return null;
+  let end = anchor;
+  while (end + 1 < xs.length && xs[end + 1].trim() !== "") end++;
+  xs.splice(end + 1, 0, ...want.flatMap((b) => ["", ...b.split("\n")]));
+  return xs.join("\n");
 }
 
 const isSubclass = (line: string): boolean => resolveKey(keyOf(line) ?? "").def?.key === "Subclass";
@@ -329,14 +375,18 @@ const fits = (codes: readonly string[], types: readonly string[]) => types.some(
  * The highlight rows with each fix's underline (`wl`, D190 review) and `data-line` on its key or level header. `rows`
  * are highlightRows' rows, one per line.
  */
+/** D308: a fix that adds the lines a level or species owes is an action at the line's end (`wa`), not an underline. */
+export const ADDS: ReadonlySet<FixKind> = new Set(["level-lines", "species-lines", "start-lines"]);
+
 export function markFixes(rows: readonly string[], fixes: readonly Fix[]): string[] {
   const out = [...rows];
   for (const f of fixes) {
     const r = out[f.line - 1];
     if (!r) continue;
+    const c = ADDS.has(f.kind) ? "wa" : "wl";
     out[f.line - 1] = f.at === "level"
-      ? r.replace(`<span class="lvh">`, `<span class="lvh wl" data-line="${f.line}">`)
-      : r.replace(/<span class="k((?: [\w-]+)*)">/, `<span class="k$1 wl" data-line="${f.line}">`);
+      ? r.replace(`<span class="lvh">`, `<span class="lvh ${c}" data-line="${f.line}">`)
+      : r.replace(/<span class="k((?: [\w-]+)*)">/, `<span class="k$1 ${c}" data-line="${f.line}">`);
   }
   return out;
 }
@@ -477,7 +527,8 @@ export function tidyPlan(text: string, n: Names | null = null, skip: ReadonlySet
     }
   }
   const canon = emit(parse(t));
-  if (canon.trimEnd() !== t.trimEnd()) {
+  // D313: an empty `[]` is an open choice, like an empty key: dropping it is no change to count (as status's canTidy).
+  if (canon.trimEnd() !== t.replace(/ ?\[\s*\]/g, "").trimEnd()) {
     note(CANONICAL, skip.has(CANONICAL));
     if (!skip.has(CANONICAL)) t = canon;
   }

@@ -418,3 +418,214 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* character sheet generation (not a character sheet, CLAUDE.md "What it is / is not"; character-forge's job);
   building the strict toggle straight away (open-format stance first).
   *Enforced by:* PLAN M8.
+
+- **D303 — Name lists open wherever a name goes, however the line got there; they close on a name written in full.
+  DECIDED (2026-11-21).** Amends D154 (only typing opens) and D229 (a click opens only an empty `[ ]`). T8.1: the
+  wizard, Tidy and a paste write an empty key as `Spells:` (no space), where neither typing nor a click found a spot,
+  so only menu lines (`Spells: `) had a list. Now the list opens: as soon as a key's `:` is typed; on a click at an empty
+  key, after a list's `, `, or in an empty `[ ]`; on a bare level header (`L2`, `L2 `), with the `Classes:` classes
+  first. A name typed glued to the `:` (`Spells:fi`) is still that key's; the pick writes the space. Arrow keys still
+  don't open it (the list would take ArrowDown). A name already written in full (`Spells: Shield`) closes the list
+  instead of showing D256's "No matches" line. AMENDED by D304: that holds while typing; a click on it lists its
+  alternatives. Review note (2026-11-21): a name that a longer one starts with (`Shield`, Shield of Faith) keeps the
+  list open, the written name first ("Shield shouldn't close because for example there's Shield of Faith").
+  *Raw note:* "we should also be more 'generous' with the spawn of the dropdowns, ex. making them spawn also after : of a
+  header and not only after the space".
+  *Rejected:* opening on every caret arrival (arrows through a wizard's empty lines would open a list on each and trap
+  ArrowDown); inserting the missing space on click (changes the text and the undo history on a mere click).
+  *Enforced by:* `site/test/complete.test.ts` (D302, D303 tests).
+
+- **D304 — A click on a written name lists its alternatives; a pick swaps the whole name. DECIDED (2026-11-21).**
+  A click in, at the start or at the end of a name already written (`Wizard`, `Shield`, `Elf`, `Drow` in `[ ]`, the
+  `2024` of `Rules:`) opens the regular list, titled "Swap for", with what goes there instead: the empty spot's list
+  minus the name itself and the line's other names. A pick replaces the whole name and keeps its `|SOURCE` and `[ ]`.
+  The swap list is mouse or tap only: any key closes it and does what it always does, so a click never takes over the
+  arrows, Enter or Tab (a code editor never opens completion on a click). Enum keys (`Rules`) now list their values,
+  so typing `Rules: 2` offers both editions too (reverses the D164 test's "never an enum"). Swapping a class leaves
+  `Classes:` and the level headers as they are; the checker flags a mismatch. The swap list holds every alternative
+  and scrolls (up to 60), not 8 rows: at 8, a class swapped away (Wizard sorts last) could not be swapped back.
+  *Raw note:* "clicking on a fully typed option should show the alternatives (ex. clicking on 2024 should show 2014,
+  clicking on Wizard should show the other classes, in our regular dropdown) so that you can easily change your choice."
+  *Rejected:* closing the list on a written name only (D303's first form; no way to change a pick but retyping);
+  arrow keys browsing the swap list (they'd stop moving the caret after every click).
+  *Enforced by:* `site/test/complete.test.ts` (D304 test). Follow-up note: "The swap seems to lose wizard if done with a
+  class and then try to come back".
+
+- **D305 — T8.2 level-up: a lens line after the last block, plus a Tab route; the new block holds its owed keys.
+  DECIDED (2026-11-21), built (round 2: A kept, B deleted; look and cap in D309). AMENDED by D316: the next level is
+  the one after the last header, not the Classes: total + 1.** Placement: at the end of the editor, modelled on code editors (CodeLens).
+  Variant A, his pick: a faint sans line after the last block, one action per class (`+ L6 Wizard | Fighter 2 |
+  Another class…`); typing `L6` on a new last line and taking a class from the list (D303 puts the build's classes
+  first) does the same. Variant B, built next to A for /ui-review: one `+ Level 6` lens that writes `L6 ` and opens
+  the class list. The block: `L<n> <Class>` plus the empty keys that level owes, from the same rule as the wizard
+  (`owedKeys` in `site/src/preset.ts`), and `Classes:` goes up by one (a new class joins as `/ <Class> 1`).
+  *Raw note:* "I lean towards end of the editor, but we need to design it accurately. I like the idea of having more
+  affordances inside the builder to make the building process flow more naturally, taking inspiration perhaps from coding
+  environments" · "Lens + Tab, but try also an alternative to compare in review".
+  *Rejected:* a toolbar split button and a row in the Keys column (away from where the block lands); a Copilot-style
+  ghost line only (hard to find with a mouse or on a phone); a header-only block (the owed keys show what to pick).
+  *Enforced by:* `site/test/levelup.test.ts`; `site/src/levelup.ts` (pure), form.ts lens + acTake Tab route.
+
+- **D306 — Every dropdown holds up to 60 rows and scrolls; past 60, a last row counts the rest. DECIDED (2026-11-21).**
+  Name lists, key lists and the swap list share one limit, `LIST_LIMIT` (60); the desktop box still shows 8 rows and
+  scrolls, the phone's chip row scrolls sideways. A list with more ends on a quiet row, `214 more · keep typing`, not
+  an option (arrows and Tab skip it). Short lists (classes, species, lineages, editions, keys) always show in full, so
+  an empty `Classes: ` lists Wizard. Amends D304's swap-only 60.
+  *Raw note:* "let's rethink the dropdown caps" · (AskUserQuestion) row limits, not pick caps; "60 rows everywhere".
+  *Rejected:* by list size (closed lists in full, big lists at 8: two behaviours to learn); keep 8 and add the count
+  (an empty `Classes: ` still hides Wizard).
+  *Enforced by:* `site/test/complete.test.ts` (D306 test).
+
+- **D307 — A pick at the end of a counted line that still owes picks writes `, ` and opens the next list.
+  DECIDED (2026-11-21).** Outside `[ ]` (where D163's `afterPick` already does it), on a line whose ghost count is short
+  (`Cantrips: Fire Bolt` 1/3), taking a name from the list adds `, ` and reopens the list for the next pick, until the
+  count is met. Not on a swap (D304), not where text follows the name on the line, not on a line with no count.
+  *Raw note:* "When a list requires more choices, an auto fill from a dropdown could also add comma and space, ready
+  for the next pick loading the dropdown" (/ui-review round 1, general note).
+  *Rejected:* on every list line (a `Spells:` line with no count would trail a comma after its last pick).
+  *Enforced by:* prose only (form.ts acTake); /ui-review round 2.
+
+- **D308 — The fix that adds a level's or species' owed lines is an action at the line's end, not an underline.
+  DECIDED (2026-11-21).** Amends D190/D196's look for the two add fixes (`level-lines`, `species-lines`): no dashed
+  underline and no popover; a faint sans `+ Add Subclass, Spells` after the line's text, in the level-up lens's look
+  (D305), and one click writes the lines. Where the label doesn't fit, `+ Add 3 lines`. The other fixes (move, change)
+  keep the underline and popover: they correct something, these add.
+  *Raw note:* "Considering we are adding ex. the level button, I think I want to change the way we suggest adding fields
+  after ex. the level header, making it more look like an action rather than a typo as it is now" · (AskUserQuestion)
+  "End-of-line action".
+  *Rejected:* a `+` button in the gutter (easy to miss, hides the line number); a solid link underline with a `+`
+  (still a popover, still on the name).
+  *Enforced by:* `site/test/fixes.test.ts` (markFixes `wa`).
+
+- **D309 — Suggestions are faint chips that sit behind the text; the lens offers the last two classes. DECIDED
+  (2026-11-21).** The level-up lens (D305) and the add actions (D308) share one look: 11px sans in `--mute` on a faint
+  `--chip` fill, no border, never an accent colour. A chip says it short (`Feat (Fighting Style)` → `Fighting Style`;
+  `Add N lines` where it doesn't fit). The lens lists the last two classes of `Classes:` and "Another class…".
+  *Raw note:* "the suggestion style is too similar to the actual text, in particular the header even if different
+  font. We need a dedicated clear style" · "Test variants directly in review. In general, no strong accents, they need to
+  take a backseat compared to the actual text" · (round 2) faint chips, "In faint chips, try to always be concise" ·
+  "Cap to the last two classes, not all used".
+  *Rejected:* dashed outline pills (A) and small caps on a band (C), both built in round 2; lens variant B (one
+  `+ Level N`); every class of the build in the lens.
+  *Enforced by:* prose only (site.css `.ed .lens .lb`, `.ed .wla`).
+
+- **D310 — After a write or a completed pick, the caret goes to the next open choice, its list open. DECIDED
+  (2026-11-21).** After any action that writes lines (an `+ Add …` chip, the level-up lens, the Tab route, Start a build)
+  and after a pick that completes a line (its count met, or a one-pick key such as `Subclass`), the caret moves to the
+  next empty key in that block, then in the blocks below, and opens its list. An empty `[ ]` counts as an empty key.
+  *Raw note:* "The cursor should consistently move to the next open choice" (/ui-review round 2, add-action) ·
+  (AskUserQuestion) "Writes and completed picks".
+  *Rejected:* only after writes (a pick that completes a line would leave the caret where it is).
+  Round-3 fix: an add chip's click also ran the form's jump-to-line click (the chip carries `data-line`), which put the
+  caret back on the chip's line; the chip's click no longer bubbles.
+  *Enforced by:* `site/test/fixes.test.ts`, `site/test/levelup.test.ts` (`nextOpen`); /ui-review round 3 (approved).
+
+- **D311 — A build with no Species or Background block gets `+ Add Species, Background` on `Classes:`. DECIDED
+  (2026-11-21).** A faint chip in the D309 look at the end of the `Classes:` line; one click writes the empty blocks the
+  way Start a build lays them out (2024: the background's `Scores`, `Skills`, `Tools`, `Gear`), caret on the first (D310).
+  *Raw note:* "Are the starting headers ever suggested (ex. background, species, classes etc.)?" (round 2) ·
+  (AskUserQuestion) "Chip on Classes:".
+  *Rejected:* no chip (Start a build and the key list already offer them, but a build typed by hand never sees them).
+  *Enforced by:* `site/test/fixes.test.ts` (D311 test).
+
+- **D312 — T8.4: ability scores are a section under the classes in Start a build. ~~DECIDED (2026-11-21)~~ SUPERSEDED → D318
+  (round 3: built, then taken off the branch unreleased).** Below the class
+  rows: a method switch (Skip, Point buy, Standard array, Custom), then six cells STR…CHA whose control follows the
+  method. Standard array: a native select per ability holding the six numbers; one taken elsewhere swaps. Skip (the
+  default) leaves `Scores:` empty, as before. It writes the base `Scores:` only; bonuses stay on their own lines.
+  The point-buy control is built in two variants for /ui-review.
+  *Raw note:* "Section under classes, we need to figure out how to support the inputing of one or the other types" ·
+  (array) "Select per ability".
+  *Rejected:* a folded section; a second step; dragging numbers onto abilities (keyboard and phone).
+  *Enforced by:* nothing (removed, D318).
+
+- **D313 — A level writes a feature with a pick by name, its brackets open. DECIDED (2026-11-21), approved in /ui-review round 3.**
+  The class tables carry the names of the features with a pick, by class level (`features` in presets.ts, from the SRD
+  slot table: 2024 Cleric Divine Order 1, Blessed Strikes 7; Druid Primal Order 1, Elemental Fury 7). Start a build,
+  the level-up and the add chip write `Feature: Divine Order []` (as a species feature comes, D242), and the chip names
+  it (`Add Cantrips, Divine Order, Prepared`). An empty `[]` on its own no longer turns Tidy on: it is an open choice,
+  like an empty key (round 3: nor does it count in Tidy's badge, `tidyPlan`). Names only, never a feature's text (content boundary).
+  *Raw note:* "When auto filling a series of options from a level (ex. cleric 1), it shouldn't only write Feature: it
+  should also auto add Divine Order (which is the mandatory feature you get) and leave only the true choice open."
+  *Rejected:* a bare `Feature:` line (the round-2 form: the name was the user's to look up).
+  *Enforced by:* `site/test/preset.test.ts` (content boundary), `site/test/levelup.test.ts`, `site/test/fixes.test.ts` (D313).
+
+- **D314 — `Classes:` and the level headers hold the levels twice; how they stay in step. DECIDED (2026-11-21), /ui-review
+  round 3: the Match chip (B) kept; the lens as before (A) but blocks first (D316); the remove chip, the note and the level
+  list rejected.** Options built as round-3 variants: Finding: in his note's build (`Classes: Wizard 6 / Fighter 2`, blocks
+  L1, L3, L6) the format reads L7 Fighter and L8 Wizard as levels with no block, so the lens's "Fighter 3" is right and
+  the checker sees nothing wrong; Ctrl+Z already undoes a lens add. Built: lens `− L8` chip (`levelDown`), a note naming
+  the blockless levels (`blockless`), a `Match the levels` chip on Classes: that only raises (`matchLevels`), a level list
+  on a Classes: number (`levelNumberAt`). None edits the text without a click.
+  *Raw note:* "It could update automatically, but it could risk editing a choice from the user. Let's delve deeper into
+  the issue and solutions." · "Show these options directly in review."
+  *Raw note (round 3):* lens "As now, no need to go back. However, my issue was with the fact that the example build has
+  not printed L7 or L8, making it unclear what those levels are and what they add" · Classes: "B · Match chip".
+  *Rejected:* removing a block's header by hand lowers Classes: (automatic; retyping a header trips it); the `− L8` chip
+  (B: no need to go back, Cmd+Z does); the blockless note (C, D: reads as a warning on any sparse build, a Start-a-build
+  Barbarian 7 showed L5–L7); the level list on a Classes: number (C).
+  *Enforced by:* `site/test/levelup.test.ts` (D314 Match test); form.ts drawRows (`alert`, D319).
+  Two chips on Classes: (his round-3 question): settled by D319, both show, the mismatch as an alert chip.
+
+- **D315 — T8.3 score labels: STR…CHA for the header's six `Scores:` numbers, display only. ~~OPEN (2026-11-21)~~
+  SUPERSEDED → D318 (all three looks rejected in round 3). Three looks built as /ui-review round-3 variants** (labels over the numbers while the caret or mouse is on the line; a chip after
+  the line; a tip per number with its modifier). The format doesn't change.
+  *Raw note:* (AskUserQuestion) "Show various options in review".
+  *Rejected:* A over the numbers (crowded: STR runs into DEX over a one-digit score), B a chip after the line, C a tip
+  per number; replaced by D318's direction.
+
+- **D316 — The level-up lens goes by the blocks: it offers the level after the last header. DECIDED (2026-11-21),
+  /ui-review round 3.** Amends D305 (the next level was the `Classes:` total + 1). The lens and the Tab route add `L<n>`
+  for n = the last level header + 1 (L1 with none). Inside the `Classes:` total that is a level Classes: already counts,
+  so the lens offers the classes its levels without a block read as (his build, Wizard 6 / Fighter 2 with blocks at L1,
+  L3, L6: `+ L7 Fighter 2 | Wizard 6 | Another class…`) and a pick leaves `Classes:` as it is; "Another class…" there
+  adds the class to `Classes:` as `/ <Class> 1`. Once the blocks reach the total, it offers total + 1 and `Classes:`
+  goes up, as before. Each level gets its block, so what it adds shows.
+  *Raw note:* "I think the bottom lens should offer the next level based on those present in the builder, not those
+  forecasted in the classes section. If the level coincide, then also classes gets updated." · (AskUserQuestion) "Also
+  allow another class".
+  *Rejected:* only the classes Classes: already reads there, no "Another class…" inside the total (offered; he kept it);
+  the D314 round-3 variants (D314).
+  *Enforced by:* `site/test/levelup.test.ts` (D316 tests: `lensOffer`, `levelUp`).
+
+- **D317 — An add chip writes each line at its canonical place in the block. DECIDED (2026-11-21), /ui-review round 3.**
+  The `+ Add …` chips (D308, D311, D313) and the move fixes put each line where Tidy would (KEYS order, SPEC §5.5),
+  before the block's first key that sorts after it, not after the block's last line. Tidy has nothing to reorder after
+  a click (it lit up with 1 change after a Cleric's `+ Add Cantrips, Divine Order, Prepared`).
+  *Raw note:* (AskUserQuestion) "Yes, canonical place".
+  *Rejected:* lines at the block's end (D215's way: every add left Tidy one change).
+  *Enforced by:* `site/test/fixes.test.ts` (D317 test; T01's move now lands Subclass before Spells).
+
+- **D318 — T8.3 and T8.4 reopened: ability scores move into the editor. DECIDED (2026-11-21), /ui-review round 3;
+  design and build owed (PLAN T8.3, T8.4).** Supersedes D312 and D315; the round-3 builds came off the branch unreleased.
+  Direction: the named form becomes Tidy's canonical `Scores:` (`STR 8, DEX 14, …`, a SPEC and emit change); a click
+  on an ability score opens a popover with the final score (base plus bonuses) and, where there are any, the options
+  (swap with another standard-array number); Start a build keeps only a method choice (point buy, standard array, …),
+  also changeable in the editor; the editor shows a chip saying whether the scores are a standard array, point-buy
+  legal or neither, maybe also on the shared and printed pages.
+  *Raw note:* (labels) "I think we need to make the extended version the standard notation for tidy (STR 8/DEX 14 etc.).
+  On click on an ability score, the popover should show the computed final score and if available the various options
+  (ex. switch with a different standard array score)." · (point buy) "I don't like the idea of having the ability scores
+  selector in the start a build. I think we need to design it so that it can be operated inside the builder via our
+  current lens and dropdown system. In start a build we could have only the ability choice type selector (which should
+  be changeable also in the editor). In the editor, regardless of your choice, we could show as chip if the current
+  scores array is standard array, point buy legal or neither. We could consider showing this mark in the shared and
+  printed versions as well." · (AskUserQuestion) "Ship T8.2, reopen 8.3/8.4".
+  *Rejected:* D312's scores section in Start a build (steppers A, selects B); D315's three label looks.
+
+- **D319 — A Classes: mismatch is an alert chip; its panel holds `Match the levels`. DECIDED (2026-11-21), /ui-review
+  rounds 4–6.** Amends D314's Match chip (an add chip in the D309 look). When the headers prove `Classes:` too low, an
+  icon-only alert chip (the alert icon on the count chip's fill, `--err`) sits at the end of `Classes:`, before
+  `+ Add Species, Background` when that is owed too (both show; the add chip shortens to `Add N lines` where it doesn't
+  fit). A click opens the fix panel: `Classes: counts fewer levels than the headers.` on two lines, then `Match the
+  levels` as the panel's row action, the way the other fix panels act. The lens offers the class its level reads as
+  first, then the build's other recent class (round 4: "the example slide 2 should also feature fighter in the lens");
+  a class taken past its `Classes:` count raises it, as "Another class…" adds one (round 5: "Approve, raise Classes:").
+  *Raw note:* "instead of match the levels as lens, it could be an alert chip, moving the match the levels cta inside the
+  alert panel on click" · "Show both, one becomes an alert chip" · (round 5) "Shorter chip, only icon. Also shorter,
+  dried copy inside the panel, with clearer button like elsewhere" · (round 6) "Approve, but wrap in two lines the
+  panel. Not sure that match the levels button style is the one we use in panels".
+  *Rejected:* Match as an add chip (D314 B's first look); one chip per line with Match first (round 4); a labelled alert
+  chip (`Levels don't match`, cut short on a phone); the primary button in the panel (round 6: panels use row actions);
+  leaving `Classes:` alone when the lens takes a class past its count (the alert would then fire after every such pick).
+  *Enforced by:* `site/test/levelup.test.ts` (D316 round-4 case); form.ts `alertButton`, site.css `.ed .wlx`, `.wlpop .wlw`.

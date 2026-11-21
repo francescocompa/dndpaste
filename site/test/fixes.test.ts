@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parse } from "../../src/dndpaste.ts";
 import { ghostCounts } from "../src/ghost.ts";
-import { CANONICAL, fixCursor, lineFixes, markFixes, nameFixes, tidyPlan } from "../src/fixes.ts";
+import { CANONICAL, fixCursor, lineFixes, markFixes, nameFixes, startBlocks, tidyPlan } from "../src/fixes.ts";
 import type { Fix } from "../src/fixes.ts";
 import { highlightRows } from "../src/client/highlight.ts";
 import * as N from "../src/names.gen.ts";
@@ -21,7 +21,8 @@ test("T01, D192: a header line under Species (E005) moves above Species in one c
   assert.equal(at(text, 4), undefined, "an unknown species: its Spells line is left alone");
   const lv = "Rules: 2024\nClasses: Wizard 5\nSpecies: Goblin\nSubclass: Diviner\nFeat: Alert\n\nL1 Wizard\n\nL3 Wizard\nSpells: Fly\n";
   assert.equal(at(lv, 4)?.act, "Move to L3 Wizard", "review: a subclass goes where its class gains it");
-  assert.equal(at(lv, 4)?.apply(lv), "Rules: 2024\nClasses: Wizard 5\nSpecies: Goblin\nFeat: Alert\n\nL1 Wizard\n\nL3 Wizard\nSpells: Fly\nSubclass: Diviner\n");
+  // D317: at its canonical place in the block, before Spells.
+  assert.equal(at(lv, 4)?.apply(lv), "Rules: 2024\nClasses: Wizard 5\nSpecies: Goblin\nFeat: Alert\n\nL1 Wizard\n\nL3 Wizard\nSubclass: Diviner\nSpells: Fly\n");
 });
 
 test("D213: a pick the written species doesn't give moves above Species; blank lines stay with the block", () => {
@@ -35,7 +36,7 @@ test("D213: a pick the written species doesn't give moves above Species; blank l
 });
 
 test("D225 (review): the library's unsafe fixes show as one-click fixes; its safe ones are left to Tidy", () => {
-  const text = "Paste: 1\nRules: 2024\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\n\nSpecies: Elf\nMasteries: Dagger\n";
+  const text = "Paste: 1\nRules: 2024\nClasses: Sorcerer 5, Warlock 5\nFighting Style: Archery\n\nSpecies: Elf\nMasteries: Dagger\n\nBackground: Sage\n";
   for (const l of [3, 4]) assert.equal(at(text, l), undefined, `line ${l}: Tidy's job`);
   assert.equal(at(text, 7)?.kind, "move-up", "a pick the species doesn't give: the site's, Tidy doesn't move it");
   const note = "Rules: 2024\nClasses: Fighter 1\n# a comment\n";
@@ -103,7 +104,7 @@ test("markFixes: the underline and the line on the key, or on the level header; 
   const p = parse(text);
   const fs = lineFixes(text, p, p.diagnostics, ghostCounts(p, text));
   const rows = markFixes(highlightRows(text, p.diagnostics, new Map()), fs);
-  assert.ok(rows[3].includes(`<span class="lvh wl" data-line="4">`));
+  assert.ok(rows[3].includes(`<span class="lvh wa" data-line="4">`), "D308: an add is an action, not an underline");
   const bad = "Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\nSpells: Shield\n";
   const pb = parse(bad);
   const rb = markFixes(highlightRows(bad, pb.diagnostics, new Map()), lineFixes(bad, pb, pb.diagnostics, []));
@@ -148,4 +149,31 @@ test("D287, D291: a lineage written before the species' name gets a fix, and Tid
   assert.equal(tidyPlan(wood)?.text ?? wood, wood, "no names table: the name stays");
   const old = "Rules: 2024\n\nSpecies: Elf|XPHB\nFeature: Elven Lineage [WIS; Wood Elf]\n";
   assert.equal(tidyPlan(old, N)?.text, "Rules: 2024\n\nSpecies: Elf|XPHB [Wood Elf; WIS]\n", "W006: the 0.9 line moves onto the Species line");
+});
+
+test("D311: a build with no Species or Background block gets an add chip on Classes:, writing them as Start a build does", () => {
+  const t = "Vesk\nRules: 2024\nClasses: Wizard 1\n\nL1 Wizard|XPHB\nCantrips:\n";
+  const f = at(t, 3, "start-lines");
+  assert.equal(f?.act, "Add Species, Background");
+  assert.equal(f?.apply(t), "Vesk\nRules: 2024\nClasses: Wizard 1\n\nSpecies:\n\nBackground:\nScores:\nSkills:\nTools:\nGear:\n\nL1 Wizard|XPHB\nCantrips:\n");
+  const s = "Rules: 2014\nClasses: Wizard 1\n\nSpecies: Elf\nSkills: Perception\n\nL1 Wizard|PHB\n";
+  assert.equal(at(s, 2, "start-lines")?.act, "Add Background");
+  assert.equal(startBlocks(s, "2014"), "Rules: 2014\nClasses: Wizard 1\n\nSpecies: Elf\nSkills: Perception\n\nBackground:\n\nL1 Wizard|PHB\n", "after the Species block");
+  assert.equal(at("Rules: 2024\nClasses: Wizard 1\n\nSpecies: Elf\n\nBackground: Sage\n", 2, "start-lines"), undefined);
+});
+
+test("D313: a level's add chip names a feature with a pick and writes it with open brackets", () => {
+  const t = "Rules: 2024\nClasses: Cleric 1\n\nSpecies: Elf\n\nBackground: Sage\n\nL1 Cleric|XPHB\nSkills: Insight, Religion\nGear: A\n";
+  const f = at(t, 8, "level-lines");
+  assert.equal(f?.act, "Add Cantrips, Divine Order, Prepared");
+  assert.match(f?.apply(t) ?? "", /\nFeature: Divine Order \[\]\n/);
+});
+
+test("D317: an add chip writes each line at its canonical place, so Tidy has nothing to reorder", async () => {
+  const { status } = await import("../src/client/status.ts");
+  const t = "Rules: 2024\nClasses: Cleric 1\n\nSpecies: Elf\n\nBackground: Sage\n\nL1 Cleric|XPHB\nSkills: Insight, Religion\nGear: A\n";
+  const out = at(t, 8, "level-lines")?.apply(t) ?? "";
+  assert.match(out, /\nL1 Cleric\|XPHB\nSkills: Insight, Religion\nFeature: Divine Order \[\]\nCantrips:\nPrepared:\nGear: A\n/, out);
+  assert.equal(status(out).canTidy, false, "Tidy stays quiet");
+  assert.equal(tidyPlan(`Vesk\n${out}`), null, "and its badge counts nothing (D313: the open brackets are no change)");
 });

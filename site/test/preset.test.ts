@@ -20,7 +20,8 @@ const errors = (text: string) => parse(text).diagnostics.filter((d) => d.code.st
 function sound(text: string, what: string): void {
   assert.deepEqual(errors(text), [], what);
   assert.deepEqual([...new Set(parse(text).diagnostics.map((d) => d.code))].filter((c) => c !== "W004"), [], what);
-  assert.equal(emit(parse(text)), text, `${what}: canonical`);
+  // D313: canonical but for a feature's open brackets (`Feature: Divine Order []`), which emit drops.
+  assert.equal(emit(parse(text)), text.replace(/ \[\]/g, ""), `${what}: canonical`);
   const s = status(text);
   assert.equal(s.canSave, true, `${what}: the form can save it`);
   assert.equal(s.canTidy, false, `${what}: Tidy has nothing to change`);
@@ -70,10 +71,13 @@ test("every level in between lays out too, and only levels that owe a pick get a
   assert.deepEqual(barb.levels.map((l) => l.n), [1, 3, 4], "Barbarian 2014 owes nothing at 2, 5, 6, 7");
 });
 
-test("the laid-out lines are empty values only: no names, no rules text (content boundary)", () => {
+test("the laid-out lines are empty values only, features named with empty brackets: no rules text (content boundary)", () => {
   for (const edition of EDITIONS) for (const cls of CLASS_NAMES) {
     for (const line of presetText(edition, [{ cls, levels: 20 }]).split("\n")) {
       if (!line || /^(Rules|Classes): /.test(line) || /^L\d+ [A-Z][a-z]+\|X?PHB$/.test(line)) continue;
+      // D313: a feature with a pick is named, its brackets empty (`Feature: Divine Order []`): a name, never its text.
+      const f = /^Feature: (.+)$/.exec(line);
+      if (f) { for (const x of f[1].split(", ")) assert.match(x, /^[A-Z][a-z]+( [A-Z][a-z]+)* \[\]$/, `${cls} (${edition}): ${line}`); continue; }
       assert.match(line, /^[A-Z][a-z]+( \([A-Z][a-z]+( [A-Z][a-z]+)*\))?:$/, `${cls} (${edition}): ${line}`);
     }
   }

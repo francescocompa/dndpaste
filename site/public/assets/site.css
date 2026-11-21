@@ -279,6 +279,16 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ed .row.err { background: var(--errbg); } .ed .row.err .g { color: var(--err); font-weight: 600; }
 .ed .row.warn .g { color: var(--warnc); font-weight: 600; }
 .ed .bad { text-decoration: underline wavy var(--err); text-underline-offset: 3px; color: var(--err); }
+/* T8.2 (D305): the level-up lens after the last block, a faint sans line like a code editor's CodeLens. The layer is
+   padded while it shows, so the editor grows to hold it; it sits over the textarea, under the list. */
+.ed .lens { position: absolute; left: var(--gw); right: 10px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  font: 12px/1.4 var(--sans); color: var(--mute); }
+.ed .lens .lh { display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px 2px 0; }
+/* D309: suggestions are faint chips, smaller than the text, never an accent: they sit behind what's written. */
+.ed .lens .lb { display: inline-flex; align-items: center; gap: 3px; font: 11px/1.4 var(--sans); color: var(--mute); border: 0;
+  background: color-mix(in srgb, var(--chip) 70%, transparent); padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+.ed .lens .lb:hover, .ed .lens .lb:focus-visible { color: var(--fg); background: var(--chip); }
+.ed .lens svg.i { width: 12px; height: 12px; }
 /* Name autocomplete (D151, D157): desktop, a list under the cursor's line, up to 8 rows; the source a pick adds in
    --src; Tab marks the row it takes until an arrow picks one. */
 .pane:has(.ac:not([hidden])) { overflow: visible; } /* the list may hang past the editor's edge */
@@ -530,7 +540,21 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ed .wlb { position: absolute; z-index: 2; pointer-events: auto; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
 .ed .wlb:hover { background: color-mix(in srgb, var(--acc) 12%, transparent); }   /* fix-level review: no outline over the underline */
 .ed .wlb:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 1px; }
+/* D308: an add fix is an action at its line's end, in the level-up lens's faint sans (D305), not an underline. */
+.ed .wla { position: absolute; z-index: 2; pointer-events: auto; display: inline-flex; align-items: center; gap: 3px; border: 0;
+  background: color-mix(in srgb, var(--chip) 70%, transparent); padding: 0 6px; border-radius: 4px; font: 11px/1 var(--sans); color: var(--mute); cursor: pointer; white-space: nowrap;
+  overflow: hidden; }
+.ed .wla span { overflow: hidden; text-overflow: ellipsis; }
+.ed .wla:hover, .ed .wla:focus-visible { color: var(--fg); background: var(--chip); }
+.ed .wla svg.i { width: 12px; height: 12px; flex-shrink: 0; }
 .wlpop { padding: 4px; max-width: min(340px, calc(100vw - 16px)); }
+/* D319: an alert chip (the Classes: mismatch), its alert icon alone on the count chip's fill; its panel says what's wrong. */
+.ed .wlx { position: absolute; z-index: 2; pointer-events: auto; display: inline-flex; align-items: center; border: 0;
+  background: var(--chip); padding: 0 5px; border-radius: 4px; cursor: pointer; }
+.ed .wlx svg.i { width: 12px; height: 12px; flex-shrink: 0; color: var(--err); }
+.ed .wlx:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 1px; }
+.wlpop:has(.wlw) { max-width: min(232px, calc(100vw - 16px)); }   /* round 6: the line wraps in two */
+.wlpop .wlw { margin: 0; padding: 6px 10px 2px; font-size: 12px; line-height: 1.4; color: var(--mute); }
 .wlpop .it { white-space: normal; }
 /* D218 review: the Type column's info button on /codes; a plain <details>, its note under the header. */
 .ctab th.ct { position: relative; }
@@ -688,6 +712,9 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .dmenu .srcrow .cnt { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--chip); color: var(--fg); font: 600 11px/18px var(--sans); text-align: center; }
 .dmenu .srcrow svg.i { color: var(--mute); }
 /* The autocomplete's no-match line while no source is added (D256). */
+.ac .am { font: 12px/1.4 var(--sans); color: var(--mute); white-space: nowrap; }
+.ed .ac .am { margin: 4px -4px 0; padding: 6px 12px 3px; border-top: 1px solid var(--rule); }
+.pdock .ac .am { flex-shrink: 0; padding: 0 6px; }
 .ac .ae { display: grid; font: 12px/1.4 var(--sans); color: var(--mute); white-space: normal; }
 .ac .ae > span { padding: 6px 8px; }
 .ac .ae a { display: flex; align-items: center; gap: 4px; color: var(--mute); text-decoration: none; padding: 6px 8px; border-top: 1px solid var(--rule); }

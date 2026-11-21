@@ -2,8 +2,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, opensDetails, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
+import { LIST_LIMIT, OPEN_EVERY_SPOT, afterPick, alternativeList, alternatives, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, suggestList, swapAt, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
+import { presetText } from "../src/preset.ts";
+import { EXAMPLE } from "../src/example.ts";
+import { emit, parse } from "../../src/dndpaste.ts";
 
 /** `¦` marks the cursor. */
 function spot(src: string): Spot | null {
@@ -34,7 +37,7 @@ test("D164: the letters before the list opens follow the list's size; never wher
   assert.deepEqual(names("Feature: Divine Order [¦"), ["Protector", "Thaumaturge"]);
   assert.equal(spot("Spe¦lls: Fireball"), null, "typing the key");
   assert.equal(spot("Scores: 8/1¦"), null, "a score");
-  assert.equal(spot("Rules: 20¦"), null, "an enum");
+  assert.deepEqual(names("Rules: 20¦"), ["2014", "2024"], "an enum lists its values (D304)");
   assert.equal(spot("HP: Fi¦"), null);
   assert.equal(spot("Producer: ch¦"), null, "free text");
   assert.equal(spot("Spells: Fireball|XP¦"), null, "typing a source");
@@ -46,7 +49,8 @@ test("D164: the letters before the list opens follow the list's size; never wher
 test("D154: a name already written exactly closes the list; another case still offers the fix", () => {
   assert.deepEqual(names("Spells: Fireball¦"), []);
   assert.deepEqual(names("Spells: fireball¦")?.[0], "Fireball");
-  assert.deepEqual(names("Spells: Shield¦"), [], "Shield is a name, even though Shield of Faith starts with it");
+  // D303 review: a longer name that starts with it keeps the list open, Shield first.
+  assert.deepEqual(names("Spells: Shield¦")?.slice(0, 2), ["Shield", "Shield of Faith"], "Shield of Faith starts with Shield");
   assert.deepEqual(names("Spells: Shield o¦"), ["Shield of Faith"]);
 });
 
@@ -514,4 +518,129 @@ test("D243: where the line's class is clear, its spells, features and options le
   assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Agonizing Blast"), undefined);
   assert.equal(dim("Classes: Warlock 2\n\nL2 Warlock\nOptions: ¦", "Quickened Spell"), true);
   assert.ok(rows("Classes: Warlock 2\n\nL2 Warlock\nInvocations: ¦").every((r) => !r.dim || r.source));
+});
+
+test("D302: the list opens on an empty key line however it got there (wizard, paste, Tidy, template, menu)", () => {
+  const LIST = /^(Skills|Cantrips|Spells|Feat|Gear|Tools|Masteries|Options|Expertise|Feature|Subclass|Species|Background|Prepared)\b[^:]*:/;
+  /** Every list key line in `text`: a click at its end opens the list, and a name typed there (glued to the `:`, as
+   *  after a click on `Spells:`) is offered and written with its space. */
+  const check = (text: string, what: string) => {
+    let pos = 0, seen = 0;
+    for (const line of text.split("\n")) {
+      const end = pos + line.length;
+      pos = end + 1;
+      if (!LIST.test(line) || line.slice(line.indexOf(":") + 1).trim()) continue;
+      seen++;
+      assert.ok(opensOnClick(text, end), `${what}: a click at the end of "${line}" opens the list`);
+      const sp = spotAt(text, end);
+      assert.ok(sp && sp.typed === "", `${what}: "${line}" is a spot`);
+    }
+    return seen;
+  };
+  // The wizard's text (D121): `emit` writes an empty key as `Spells:`, with no space after the colon.
+  const wizard = presetText("2024", [{ cls: "Wizard", levels: 3 }]);
+  assert.match(wizard, /^Spells:$/m, "the wizard writes a bare Spells:");
+  assert.ok(check(wizard, "wizard") >= 5);
+  // A paste in the same canonical form, and one with the spaces kept; Tidy's output of it.
+  const pasted = "Rules: 2024\nClasses: Wizard|XPHB 1\n\nL1 Wizard|XPHB\nCantrips:\nSpells: \nFeat:\n";
+  assert.equal(check(pasted, "paste"), 3);
+  assert.equal(check(emit(parse(pasted)), "Tidy"), 3);
+  // The menu writes `Spells: ` (D171): still opens.
+  const menu = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: ";
+  assert.ok(opensOnClick(menu, menu.length));
+
+  // Typed right after the colon of a bare key: still the Spells list, and the pick writes the space.
+  assert.ok(names("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells:mag¦")?.includes("Mage Armor"));
+  assert.equal(take("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells:¦"), "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: " + first("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells: ¦")?.name);
+  assert.match(take("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips:fire bo¦"), /\nCantrips: Fire Bolt$/);
+  assert.equal(take("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips: fire bo¦").endsWith("Cantrips: Fire Bolt"), true, "no double space");
+
+  // The template: after a list's `, ` the next name opens; on a written name or the key, a click only updates.
+  const at = EXAMPLE.indexOf("Spells: Armor of Agathys, Hex") + "Spells: Armor of Agathys, Hex".length;
+  const more = EXAMPLE.slice(0, at) + ", " + EXAMPLE.slice(at);
+  assert.ok(opensOnClick(more, at + 2), "after `, ` in the template");
+  assert.ok(!opensOnClick(EXAMPLE, at), "at the end of a written name");
+  assert.ok(!opensOnClick(EXAMPLE, EXAMPLE.indexOf("Spells: Armor") + 3), "inside the key");
+  const glued = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nSpells:Shield";
+  assert.ok(!opensOnClick(glued, glued.indexOf("Shield")), "before a name glued to the colon");
+  assert.ok(!opensOnClick("Feature: Elven Lineage [Drow; ]", 30), "a later [ ] group still opens as you type (D229)");
+
+  // Typing the `:` itself opens the list (the input is typing): every key with a value list is a spot right there.
+  for (const k of ["Classes", "Species", "Background", "Spells", "Cantrips", "Feat", "Subclass", "Skills", "Feat (Fighting Style)"]) {
+    const t = `Vesk\nRules: 2024\nClasses: Wizard 3\n\nL1 Wizard\n${k}:`;
+    assert.ok(spotAt(t, t.length), `${k}: a spot at its colon`);
+  }
+
+  // A level header with no class yet, `L2` or `L2 `: the classes, the build's own first; the pick writes the space.
+  const lvl = "Rules: 2024\nClasses: Wizard 3 / Fighter 1\n\nL1 Wizard\nSpells: Shield\n\nL2";
+  assert.deepEqual(names(lvl + "¦", 2), ["Fighter", "Wizard"]);
+  assert.deepEqual(names(lvl + " ¦", 2), ["Fighter", "Wizard"]);
+  assert.ok(opensOnClick(lvl, lvl.length) && opensOnClick(lvl + " ", lvl.length + 1));
+  assert.ok(take(lvl + "¦").endsWith("\nL2 Fighter"));
+  assert.ok(take(lvl + " ¦").endsWith("\nL2 Fighter"));
+  assert.deepEqual(names("Rules: 2024\nClasses: Wizard 3 / Fighter 1\n\nL1 W¦"), ["Wizard", "Warlock"], "a written class keeps its match order");
+  assert.equal(spot("Rules: 2024\nL¦"), null, "a lone L is a key being typed (Languages), not a level");
+});
+
+test("D303: a name written in full gives no rows and is not \"no matches\" (D256): the list closes there", () => {
+  const known = (src: string) => { const s = spot(src); assert.ok(s, src); return isKnown(N, s); };
+  const pre = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\n";
+  assert.deepEqual(names(pre + "Spells: Fireball¦"), [], "nothing left to complete");
+  assert.deepEqual(names(pre + "Spells: Shield¦")?.slice(0, 2), ["Shield", "Shield of Faith"], "unless a longer name starts with it");
+  assert.ok(known(pre + "Spells: Shield¦"));
+  assert.ok(known(pre + "Spells: Magic Missile, shield¦"), "any case, a later item");
+  assert.ok(known(pre + "Cantrips: Fire Bolt¦"));
+  assert.ok(known(pre + "Feat: Alert¦"));
+  assert.ok(!known(pre + "Spells: Shiel¦"), "a part of a name is still being typed");
+  assert.ok(!known(pre + "Spells: Xyzzy¦"), "an unknown name keeps the D256 line");
+  assert.ok(!known(pre + "Spells: ¦"));
+});
+
+test("D304: a click in a written name lists what it can be swapped for; a pick replaces the whole name", () => {
+  const T = "Vesk\nRules: 2024\nClasses: Wizard 3\n\nSpecies: Elf|XPHB [Drow; WIS]\n\nL1 Wizard|XPHB\nSpells: Shield, Magic Missile\n";
+  const swap = (needle: string, off: number) => {
+    const s = swapAt(T, T.indexOf(needle) + off);
+    if (!s) return null;
+    const alts = alternatives(N, s, T, 40);
+    return { name: T.slice(s.start, s.end), alts: alts.map((a) => a.name), swapped: alts[0] ? T.slice(0, s.start) + written(s, alts[0]) + T.slice(s.end) : T };
+  };
+  assert.deepEqual(swap("2024", 4)?.alts, ["2014"], "Rules: the other edition");
+  assert.ok(swap("2024", 4)?.swapped.includes("\nRules: 2014\n"));
+  const cls = swap("Wizard 3", 2);
+  assert.equal(cls?.name, "Wizard", "mid-name: the whole name");
+  assert.ok(cls?.alts.includes("Fighter") && !cls.alts.includes("Wizard"), "the other classes, not itself");
+  assert.ok(swap("L1 Wizard", 5)?.alts.includes("Cleric"), "a level header's class");
+  assert.ok(swap("Elf", 3)?.alts.includes("Dwarf"), "a species");
+  assert.ok(swap("Drow", 4)?.alts.includes("High"), "a lineage in [ ]");
+  const sp = swap("Magic Missile", 13);
+  assert.equal(sp?.name, "Magic Missile");
+  assert.ok(sp && !sp.alts.includes("Shield") && !sp.alts.includes("Magic Missile"), "names on the line are not offered");
+  assert.ok(sp?.swapped.includes("Spells: Shield, " + sp.alts[0] + "\n"), "the rest of the line stays");
+  assert.ok(swap("Wizard|XPHB", 6)?.swapped.includes("\nL1 Barbarian|XPHB\n"), "a written source stays");
+  assert.equal(swapAt(T, T.indexOf("Spells:") + 3), null, "inside the key: no swap");
+  const at0 = swapAt(T, T.indexOf("Spells: ") + 8);
+  assert.equal(at0 && T.slice(at0.start, at0.end), "Shield", "at a name's first letter: that name");
+  assert.equal(swapAt(T, T.indexOf("Shield,") + 7), null, "after the comma, before the next name's space");
+  assert.deepEqual(names("Rules: 2¦"), ["2014", "2024"], "typing an edition lists both");
+  // Swapped out and back: every class is offered, not the first 8 (Wizard sorts last).
+  const F = "Vesk\nRules: 2024\nClasses: Fighter 3\n\nL1 Fighter|XPHB\n";
+  for (const at of [F.indexOf("Fighter 3") + 3, F.indexOf("L1 Fighter") + 6]) {
+    const s = swapAt(F, at);
+    assert.ok(s && alternatives(N, s, F).some((a) => a.name === "Wizard"), "Wizard comes back");
+  }
+});
+
+test("D306: every list holds up to 60 rows; past that, it counts the rest", () => {
+  const all = (src: string) => { const s = spot(src); return s ? suggestList(N, s) : { rows: [], more: 0 }; };
+  const cls = all("Vesk\nRules: 2024\nClasses: ¦");
+  assert.ok(cls.rows.some((r) => r.name === "Wizard"), "an empty Classes: lists every class, Wizard too");
+  assert.equal(cls.more, 0, "a short list leaves nothing out");
+  const sp = all("Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: ¦");
+  assert.equal(sp.rows.length, LIST_LIMIT, "a long list stops at 60");
+  assert.ok(sp.more > 0, "and counts the rest");
+  const T = "Vesk\nRules: 2024\nClasses: Wizard 5\n\nL1 Wizard|XPHB\nSpells: Shield\n";
+  const sw = swapAt(T, T.indexOf("Shield") + 2);
+  const alt = sw ? alternativeList(N, sw, T) : { rows: [], more: 0 };
+  assert.equal(alt.rows.length, LIST_LIMIT, "the swap list too");
+  assert.ok(alt.more > 0);
 });
