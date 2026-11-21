@@ -10,7 +10,9 @@ import { highlightRows } from "./highlight.ts";
 import { LANE, ghostHtml, ghostPads, ghostWordHtml, keepCount, useYourPresets } from "../ghost.ts";
 import { readSummary } from "./summary.ts";
 import type * as Yours from "./sync.ts";
-import { fixCursor, markFixes, nameFixes, tidyPlan } from "../fixes.ts";
+import { ADDS, fixCursor, markFixes, nameFixes, tidyPlan } from "../fixes.ts";
+import { nextOpen } from "../preset.ts";
+import { resolveKey } from "../../../src/dndpaste.ts";
 import type { Fix } from "../fixes.ts";
 import type { Ghost } from "../ghost.ts";
 import { keyHints } from "./hints.ts";
@@ -25,7 +27,7 @@ import { draftBarHtml, draftKeeper, draftSlot, draftStore } from "./drafts.ts";
 import type { Draft, Fields } from "./drafts.ts";
 import { BEFORE_RELOAD, RELOAD_FLAG } from "./update.ts";
 import { GUIDE_LINK } from "../example.ts";
-import { classRuns, levelUp, nextLevel } from "../levelup.ts";
+import { lensOffer, levelUp, matchLevels, nextLevel } from "../levelup.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
@@ -211,6 +213,8 @@ function init(): void {
   /** D196 T12: the names table once loaded (D158), for the fixes that need it; the fixes on show now. */
   let fixNames: Names | null = null;
   let fixes: Fix[] = [];
+  /** D314, D319: the Classes: mismatch, an alert chip at its line's end beside any add chip; its panel holds the fix. */
+  let alert: Fix | null = null;
   /** Set once the draft autosave (D102) is wired: every redraw of the editor may queue a draft write. */
   let changed = () => {};
 
@@ -305,6 +309,12 @@ function init(): void {
       // D295: `Wood Elf` → `Elf [Wood]` (D293) is Tidy's alone: a valid name gets no mark on its line.
       ? [...st.fixes, ...nameFixes(fixNames, ta.value, st.paste, new Set(st.fixes.map((f) => f.line))).filter((f) => f.kind !== "lineage")].sort((a, b) => a.line - b.line)
       : st.fixes;
+    // D314, D319: when the headers prove Classes: too low, an alert chip on Classes:, next to `+ Add Species,
+    // Background` (D311) when that is owed too; `Match the levels` is in its panel.
+    const cl = ta.value.split("\n").findIndex((x) => /^Classes:/.test(x)) + 1;
+    alert = cl > 0 && matchLevels(ta.value) !== null
+      ? { line: cl, at: "key", kind: "classes-match", why: "Classes: counts fewer levels than the headers.", act: "Match the levels", apply: (x: string) => matchLevels(x) }
+      : null;
     draw(markFixes(highlightRows(ta.value, st.diagnostics, after), fixes));
     placeNotes();
   };
@@ -319,7 +329,9 @@ function init(): void {
   document.body.append(wlPop);
   /** The popover's line; 0 when closed. */
   let wlLine = 0;
-  const wlClose = () => { wlPop.hidden = true; wlLine = 0; };
+  /** The fix the open panel holds: the line's underline fix, or the alert chip's (D319). */
+  let wlFix: Fix | null = null;
+  const wlClose = () => { wlPop.hidden = true; wlLine = 0; wlFix = null; };
   /** Writes only the part of the text that changed, through insert, so Undo brings the old text back. */
   const writeChange = (next: string) => {
     const before = ta.value;
@@ -332,7 +344,7 @@ function init(): void {
   const fixAt = (line: number) => fixes.find((f) => f.line === line);
   function placeNotes() {
     const marks = [...hl.querySelectorAll<HTMLElement>(".wl[data-line], .wa[data-line]")];
-    if (!marks.length && !wls.firstChild) return;
+    if (!marks.length && !alert && !wls.firstChild) return;
     const box = ed.getBoundingClientRect();
     const range = document.createRange();
     // D240: positions through CSSOM, never a style="" attribute: the live CSP (`style-src 'self'`) drops those, which
@@ -348,7 +360,41 @@ function init(): void {
       Object.assign(b.style, { left: `${r.left - box.left}px`, top: `${r.top - box.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       return b;
     }));
-    if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine)) wlClose();
+    if (alert) alertButton(alert, box, range);
+    if (wlLine && !marks.some((m) => Number(m.dataset.line) === wlLine) && wlLine !== alert?.line) wlClose();
+  }
+  /** Where a row's text ends, on its last wrapped row: the rect of its last piece (a text node or a span). */
+  function textEnd(t: HTMLElement, range: Range): DOMRect {
+    const last = t.lastChild ?? t;
+    range.selectNodeContents(last);
+    const rects = [...(last.nodeType === Node.TEXT_NODE ? range : (last as Element)).getClientRects()];
+    return rects.length ? rects[rects.length - 1] : t.getBoundingClientRect();
+  }
+  /** D319: an alert chip at the end of its line, before the line's add chip if it has one (the add chip moves after it
+   *  and shortens to `Add N lines` where it no longer fits); a click opens its panel. */
+  function alertButton(f: Fix, box: DOMRect, range: Range): void {
+    const row = hl.children[f.line - 1] as HTMLElement | undefined;
+    const t = row?.querySelector<HTMLElement>(".t") ?? row;
+    if (!t) return;
+    const end = textEnd(t, range);
+    const add = [...wls.querySelectorAll<HTMLElement>(".wla")].find((x) => Number(x.dataset.line) === f.line);
+    const left = end.right - box.left + 10;
+    const b = el("button", "wlx");
+    b.type = "button";
+    b.dataset.line = String(f.line);
+    b.setAttribute("aria-label", f.why);
+    b.setAttribute("aria-haspopup", "dialog");
+    // Round 5: the icon only; its label says it.
+    b.innerHTML = icon("alert");
+    const right = t.getBoundingClientRect().right - box.left;
+    Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
+    wls.append(b);
+    if (!add) return;
+    const after = left + b.offsetWidth + 6;
+    Object.assign(add.style, { left: `${after}px`, maxWidth: `${Math.max(0, right - after)}px` });
+    const label = add.querySelector("span");
+    const n = (fixAt(f.line)?.act ?? "").replace(/^Add /, "").split(",").length;
+    if (label && label.scrollWidth > label.clientWidth && n > 1) label.textContent = `Add ${n} lines`;
   }
   /** D308: an add fix is a faint `+ Add Subclass, Spells` at the end of its line (the level-up lens's look); one click
    *  writes the lines. Where the full label doesn't fit, it says how many (`+ Add 3 lines`). */
@@ -359,11 +405,7 @@ function init(): void {
     b.dataset.line = String(line);
     b.dataset.add = "";
     const t = m.closest<HTMLElement>(".t");
-    // The line's last piece (a text node or a span) gives where its text ends, on its last wrapped row.
-    const last = (t ?? m).lastChild ?? m;
-    range.selectNodeContents(last);
-    const rects = [...(last.nodeType === Node.TEXT_NODE ? range : (last as Element)).getClientRects()];
-    const end = rects.length ? rects[rects.length - 1] : m.getBoundingClientRect();
+    const end = textEnd(t ?? m, range);
     const right = (t ?? m).getBoundingClientRect().right - box.left;
     const left = end.right - box.left + 10;
     const act = f?.act ?? "";
@@ -377,30 +419,37 @@ function init(): void {
     if (label.scrollWidth > label.clientWidth && n > 1) label.textContent = `Add ${n} lines`;
     return b;
   }
-  const applyFix = (line: number) => {
-    const f = fixAt(line);
+  const applyFix = (line: number, f = fixAt(line)) => {
     const before = ta.value;
     const next = f ? f.apply(before) : null;
     wlClose();
     if (next === null || next === before) return;
     writeChange(next);
-    // D270: a fix that writes empty brackets leaves the cursor inside the first ones, their list open.
-    const at = fixCursor(before, next);
+    // D270: a fix that writes empty brackets leaves the cursor inside the first ones, their list open. D310: an add fix
+    // leaves it on the first open choice from its line down.
+    const at = f && ADDS.has(f.kind) ? nextOpen(next, next.split("\n").slice(0, line - 1).join("\n").length + (line > 1 ? 1 : 0)) : fixCursor(before, next);
     if (at !== null) { ta.focus(); ta.setSelectionRange(at, at); complete(true); }
   };
   wls.addEventListener("mousedown", (e) => { if ((e.target as Element).closest(".wla")) e.preventDefault(); });
   wls.addEventListener("click", (e) => {
     const a = (e.target as Element).closest<HTMLElement>(".wla");
-    if (a) { applyFix(Number(a.dataset.line)); return; }
-    const b = (e.target as Element).closest<HTMLElement>(".wlb");
+    // The chip carries data-line: the form's jump-to-line click would put the caret back on the chip's line (D310).
+    if (a) { e.stopPropagation(); applyFix(Number(a.dataset.line)); return; }
+    const b = (e.target as Element).closest<HTMLElement>(".wlb, .wlx");
     if (!b) return;
+    const isAlert = b.classList.contains("wlx");
+    if (isAlert) e.stopPropagation();   // its data-line: the form's jump-to-line click would take the focus from the panel
     const line = Number(b.dataset.line);
     if (wlLine === line && !wlPop.hidden) { wlClose(); return; }
-    const f = fixAt(line);
+    const f = isAlert ? alert : fixAt(line);
     if (!f) return;
     wlPop.setAttribute("aria-label", f.why);
-    wlPop.innerHTML = `<button type="button" class="it" data-go>${esc(f.act)}</button>`;
+    // D319: the alert's panel says what is wrong above its fix.
+    wlPop.innerHTML = isAlert
+      ? `<p class="wlw">${esc(f.why)}</p><button type="button" class="it" data-go>${esc(f.act)}</button>`
+      : `<button type="button" class="it" data-go>${esc(f.act)}</button>`;
     wlLine = line;
+    wlFix = f;
     wlPop.hidden = false;
     // T35: anchored to its key: the popover's left edge at the key's, kept inside the window.
     const r = b.getBoundingClientRect();
@@ -412,10 +461,10 @@ function init(): void {
   });
   wlPop.addEventListener("click", (e) => {
     if (!(e.target as Element).closest("[data-go]")) return;
-    applyFix(wlLine);
+    applyFix(wlLine, wlFix ?? undefined);
   });
   document.addEventListener("pointerdown", (e) => {
-    if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb")) wlClose();
+    if (!wlPop.hidden && !wlPop.contains(e.target as Node) && !(e.target as Element).closest?.(".wlb, .wlx")) wlClose();
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !wlPop.hidden) { wlClose(); ta.focus(); } });
   /** A cursor move: redraw when the ghost text comes, goes or moves. */
@@ -436,20 +485,20 @@ function init(): void {
   };
   /** While a replace runs, Chrome fires one input event per line it inserts; redraw once, after. */
   let bulk = false;
-  // ---- T8.2 (D305): the level-up lens, a line of faint chips after the last block (code editors' CodeLens): one action
-  // for each of the last two classes, plus "Another class…" (the header and the class list).
+  // ---- T8.2 (D305, D316): the level-up lens, a line of faint chips after the last block (code editors' CodeLens): the
+  // level after the last block, one action per class it offers (lensOffer), plus "Another class…" (the header and the
+  // class list).
   // The editor grows with its text, so the highlight layer is padded while the lens shows and the lens sits in it. ----
   const lens = el("div", "lens");
   lens.hidden = true;
   ed.append(lens);
   const drawLens = () => {
-    const runs = offer.hidden ? classRuns(ta.value) : null;
     // A bare header on the last line (`L7 `) is the level being added already: its class list does the rest.
-    const n = runs?.length && !/(^|\n)L\d+[ \t]*\s*$/.test(ta.value) ? nextLevel(ta.value) : null;
-    if (!runs?.length || n === null) { lens.hidden = true; ed.classList.remove("lv"); hl.style.paddingBottom = ""; return; }
-    // Round 2: the last two classes taken, not every class of the build.
-    lens.innerHTML = `<span class="lh">${icon("plus")}L${n}</span>` + [...runs.slice(-2).map((r) => `<button type="button" class="lb" data-cls="${esc(r.ref)}" aria-label="Level ${n}: ${esc(r.name)} ${r.levels + 1}">${esc(r.name)} ${r.levels + 1}</button>`),
-        `<button type="button" class="lb" data-new aria-label="Level ${n}: another class">Another class…</button>`].join("");
+    const o = offer.hidden && !/(^|\n)L\d+[ \t]*\s*$/.test(ta.value) ? lensOffer(ta.value) : null;
+    if (!o) { lens.hidden = true; ed.classList.remove("lv"); hl.style.paddingBottom = ""; return; }
+    // D309: up to two classes; D316: inside the Classes: total, the classes its levels without a block read as.
+    lens.innerHTML = `<span class="lh">${icon("plus")}L${o.level}</span>` + [...o.classes.map((c) => `<button type="button" class="lb" data-cls="${esc(c.ref)}" aria-label="Level ${o.level}: ${esc(c.name)} ${c.level}">${esc(c.name)} ${c.level}</button>`),
+        `<button type="button" class="lb" data-new aria-label="Level ${o.level}: another class">Another class…</button>`].join("");
     ed.classList.add("lv");
     lens.hidden = false;
     const rowEls = hl.querySelectorAll<HTMLElement>(".row");
@@ -841,11 +890,33 @@ function init(): void {
       const end = ta.value.indexOf("\n", at);
       const line = ta.value.slice(0, at).split("\n").length;
       const g = st.ghosts.find((x) => !x.note && (x.line === line || x.also?.includes(line)));
-      if (g && g.have < g.of && !ta.value.slice(at, end < 0 ? undefined : end).trim()) {
+      const rest = ta.value.slice(at, end < 0 ? undefined : end).trim();
+      if (g && g.have < g.of && !rest) {
         insert(", ", at, end < 0 ? ta.value.length : end);
         complete(true);
+      } else if (!rest && (g ? g.have >= g.of : onePick(ta.value.slice(ta.value.lastIndexOf("\n", at - 1) + 1, at)))) {
+        // D310: the line is complete (its count met, or a one-pick key): on to the next open choice below.
+        toNextOpen(lineEnd(at) + 1);
       }
+    } else if (!swapping) {
+      // D310: the last pick in `[ ]` completes it: on to the next open choice, when nothing follows the brackets.
+      const at = a + w.length;
+      if (/^\s*\]\s*$/.test(ta.value.slice(at, lineEnd(at)))) toNextOpen(lineEnd(at) + 1);
     }
+  };
+  /** D310: the caret goes to the next open choice from `from` down, its list open; it stays when there is none. */
+  const toNextOpen = (from: number) => {
+    const at = from <= ta.value.length ? nextOpen(ta.value, from) : null;
+    if (at === null) return;
+    ta.setSelectionRange(at, at);
+    complete(true);
+  };
+  const lineEnd = (at: number) => { const e = ta.value.indexOf("\n", at); return e < 0 ? ta.value.length : e; };
+  /** D310: a key that takes one pick (`Subclass`, `Background`, `Rules`, each `Feat` line), from the line up to the pick. */
+  const onePick = (line: string) => {
+    const k = /^\s*([^:]+):/.exec(line)?.[1];
+    const d = k ? resolveKey(k).def : null;
+    return Boolean(d && (d.type === "item" || d.type === "items¹" || d.type === "enum" || d.key === "Feat"));
   };
   ed.addEventListener("keydown", (e) => {
     if (acSwap && !ac.hidden && !["Shift", "Control", "Alt", "Meta"].includes(e.key)) acClose();
@@ -1084,11 +1155,12 @@ function init(): void {
   window.addEventListener("scroll", hideTip, { passive: true });
   if (offers) mountStarter(offer, (text) => {
     replaceAll(text);
-    // The caret waits at the end of the Scores line, the first thing to fill.
-    const at = text.indexOf("\nScores:");
+    // D310: the caret waits on the first open choice (the Scores line when the wizard left it empty), its list open.
+    const at = nextOpen(text, 0);
     ta.focus({ preventScroll: true });
-    if (at >= 0) ta.setSelectionRange(at + 8, at + 8);
+    if (at !== null) ta.setSelectionRange(at, at);
     refreshHints();
+    complete(true);
     ed.scrollIntoView({ block: "nearest" });
   });
   // D229 (review): Tidy makes its changes at once (one Undo takes them back); the badge lists them first if you ask.

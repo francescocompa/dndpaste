@@ -548,6 +548,13 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ed .wla:hover, .ed .wla:focus-visible { color: var(--fg); background: var(--chip); }
 .ed .wla svg.i { width: 12px; height: 12px; flex-shrink: 0; }
 .wlpop { padding: 4px; max-width: min(340px, calc(100vw - 16px)); }
+/* D319: an alert chip (the Classes: mismatch), its alert icon alone on the count chip's fill; its panel says what's wrong. */
+.ed .wlx { position: absolute; z-index: 2; pointer-events: auto; display: inline-flex; align-items: center; border: 0;
+  background: var(--chip); padding: 0 5px; border-radius: 4px; cursor: pointer; }
+.ed .wlx svg.i { width: 12px; height: 12px; flex-shrink: 0; color: var(--err); }
+.ed .wlx:focus-visible { outline: 1.5px solid var(--acc); outline-offset: 1px; }
+.wlpop:has(.wlw) { max-width: min(232px, calc(100vw - 16px)); }   /* round 6: the line wraps in two */
+.wlpop .wlw { margin: 0; padding: 6px 10px 2px; font-size: 12px; line-height: 1.4; color: var(--mute); }
 .wlpop .it { white-space: normal; }
 /* D218 review: the Type column's info button on /codes; a plain <details>, its note under the header. */
 .ctab th.ct { position: relative; }
