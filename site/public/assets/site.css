@@ -408,15 +408,13 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .sb a { color: var(--fg); text-underline-offset: 3px; }
 .sbhead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; }
 .sbt { font-weight: 600; }
-/* T8.4 review r2: Rules and Ability scores side by side, each labelled; `data-sl` picks the arrangement (a: labels
-   over, under the title; b: labels over, beside the title on wide screens; c: labels inline, under the title). */
+/* T8.4 review r3 (B): Rules and Ability scores side by side, labels over them, beside the title on a wide screen and
+   under it when narrow. */
 .sbopts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 18px; }
 .sbf { display: flex; flex-direction: column; gap: 4px; }
 .sbf .sel { width: 11.5em; }
 .sbf .sel select { min-height: 32px; }
-.sb:not([data-sl="b"]) .sbhead { flex-direction: column; align-items: stretch; gap: 8px; }
-.sb[data-sl="b"] .sbhead { align-items: flex-end; }
-.sb[data-sl="c"] .sbf { flex-direction: row; align-items: center; gap: 8px; }
+.sbhead { align-items: flex-end; }
 .sb .seg { display: inline-grid; grid-template-columns: repeat(2, 52px); background: var(--chip); border-radius: 7px; padding: 2px; }
 .sb .seg button { text-align: center; padding: 4px 0; border: 0; border-radius: 5px; background: none; color: var(--mute); font: inherit; cursor: pointer; }
 .sb .seg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }

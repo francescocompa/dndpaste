@@ -59,7 +59,7 @@ export function starterHtml(edition: Edition, rows: readonly StarterRow[], score
       (many ? `<button type="button" class="bt ghost icon sbdel" aria-label="Remove class${label}">${icon("x")}</button>` : "") + name + `</li>`;
   }).join("");
   // D322: the score method, a select that starts on the last choice (no score cells, D312), beside Rules, each with its
-  // label (T8.4 review r2; the arrangement is site.css `.sb[data-sl]`).
+  // label above it, beside the title on a wide screen (T8.4 review r3, B).
   return `<div class="sbhead"><span class="sbt" id="sbt">Start a build</span><div class="sbopts">` +
     `<span class="sbf"><span class="muted sbfl" id="sbr">Rules</span><span class="seg" role="radiogroup" aria-labelledby="sbr">${seg}</span></span>` +
     `<span class="sbf"><label class="muted sbfl" for="sbsc">Ability scores</label><span class="sel"><select class="in" id="sbsc" data-f="scores">` +
@@ -81,13 +81,10 @@ export function mountStarter(box: HTMLElement, fill: (text: string, method: Scor
   box.setAttribute("role", "group");
   box.setAttribute("aria-labelledby", "sbt");
   const draw = (focus?: string) => {
-    // /ui-review r2 (dev only): three arrangements of the head, flipped live.
-    box.dataset.sl = (window as { uiReview?: { variant?: (id: string) => string | null } }).uiReview?.variant?.("start-layout") ?? "a";
     box.innerHTML = starterHtml(edition, rows, scores);
     if (focus) box.querySelector<HTMLElement>(focus)?.focus();
   };
   draw();
-  addEventListener("ui-review:variant", () => draw());
   const rowOf = (e: Event) => Number((e.target as Element).closest<HTMLElement>(".sbrow")?.dataset.i);
   box.addEventListener("change", (e) => {
     const sel = e.target as HTMLSelectElement;

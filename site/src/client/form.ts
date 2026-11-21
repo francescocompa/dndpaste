@@ -545,7 +545,10 @@ function init(): void {
   };
   // A wider or narrower row changes which ghosts fit their block's column: redraw when it does.
   // D240: the fix buttons follow their marks through any reflow (a width change, the web font arriving).
-  new ResizeObserver(() => { if (measure()) drawRows(); else placeNotes(); }).observe(hl);
+  // T8.4 review r3: the editor too, since a window resize can leave the layer's box as it was while the rows move.
+  const reflow = new ResizeObserver(() => { if (measure()) drawRows(); else placeNotes(); });
+  reflow.observe(hl);
+  reflow.observe(ed);
   void document.fonts?.ready.then(() => placeNotes());
   /** Sets innerHTML only when it changed: most keystrokes leave the summary, Problems and hints as they were. */
   const shown = new WeakMap<Element, string>();
