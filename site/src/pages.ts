@@ -240,7 +240,7 @@ export function aboutPage(): string {
 <h2>What a build holds</h2>
 <p>A build names the choices a character makes, level by level: species, background, classes, feats, spells and items. It holds names only, never rules text. The site checks that the text follows the dndpaste format. It does not check the build against the rules. The <a href="/guide">format guide</a> shows how a build is laid out.</p>
 <h2>Saved builds</h2>
-<p>The browser that saved a build can edit it: open the build and choose Edit. After you save a build, the site also shows a private edit link. Keep it to edit the build from another device. The browser that saved the build can copy the link again from the Copy link menu. Anyone who has the link can edit the build.</p>
+<p>The browser that saved a build can edit it: open the build and choose Edit. To edit it from another device, copy the private edit link from the Copy link menu in the browser that saved it. Anyone who has the link can edit the build.</p>
 <p>Each edit adds a revision. The link shows the latest revision a few minutes after the edit. The address <code>/&lt;id&gt;/2</code> always shows revision 2 as it was saved. If you lose the edit key, choose Duplicate and edit and save a copy. The copy gets a new link. You cannot delete a saved build.</p>
 <p>There are no accounts. The site stores the title, the author and the text that you save. It never stores your private edit link, only a scrambled check for it. Saved builds, your private edit links, your unsaved drafts, the author name you last saved with and your settings stay in your browser.</p>
 <h2>For apps</h2>

@@ -71,9 +71,8 @@ Functionality first, then the jam's look, then the QoL set. Names only, never ru
   `<origin>/<id>/edit#k=<key>`). The fragment never reaches a server or a Referer. KV keeps only the SHA-256; the check hashes
   any submitted key (malformed ones too) and compares in constant time. The browser keeps keys in localStorage
   (`dndpaste.keys`, id → key); the view shows Edit and a "Copy edit link" item in the Copy link menu when it has one
-  (Francesco, 2026-11-16, extends D97's "once"), and the private edit link in a panel after the save (from a
-  `#new=<key>` fragment, shown only if it is the key this browser just kept, or when storage is blocked; cleared from the
-  address at once). An edit link's `#k=` key stays in memory until an edit with it succeeds, so a crafted link never replaces
+  (Francesco, 2026-11-16, extends D97's "once"). No panel after the save (D301): the `#new=<key>` fragment is read only
+  when storage is blocked (the key then lives in that page) and is cleared from the address at once. An edit link's `#k=` key stays in memory until an edit with it succeeds, so a crafted link never replaces
   a kept key (and "Copy edit link" never copies an untested one). A no-JS save gets no key: it has nowhere to keep one. A lost key leaves Duplicate and edit.
 - **Cache (D97):** `/<id>` and its raw/canon/json `public, max-age=300` (an edit shows everywhere within ~5 min plus KV's
   spread; the editing browser re-fetches them with `cache: "reload"` before it lands on the share). `/<id>/<n>` raw/canon/json

@@ -401,3 +401,12 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   novel); Heavenly Archer, Hazama Ryō, Vice (played); a Warlock 2 dip (not needed for the loop); Zandalari lineage (his call);
   Necromancy Adept (its spells duplicate the Defiler list, and Life Manipulation spends the Hit Dice the loop needs).
   *Enforced by:* prose only (STATE Manual ①).
+
+- **D301 — No edit-link panel after a save; the private edit link lives only in the Copy link menu. DECIDED (2026-11-21).**
+  Amends D97's "the save screen also offers a private edit link once". The green Saved panel on the view (link field +
+  Copy edit link) is gone; "Copy edit link" in the Copy link menu stays the one place to get it. When storage is blocked the
+  `#new=` key still reaches the page, so Edit and that menu item work for that visit.
+  *Raw note:* "the edit link is too prominent and one could easily mistake it for the main link when saving a build. Remove
+  that message and leave the edit link only in the dropdown."
+  *Rejected:* keeping the panel with weaker styling (still sits right under the share link at the moment of copying).
+  *Enforced by:* prose only (SITE.md).

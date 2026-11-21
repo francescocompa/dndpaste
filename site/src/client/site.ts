@@ -460,16 +460,14 @@ function wireShare(btn: HTMLButtonElement, id: string, link: string, raw: () => 
 }
 
 // ---- editing (D97) ----
-/** Adds Edit (and, right after a save, the private edit link panel); returns the private edit link, or null without a key. */
+/** Adds Edit; returns the private edit link (copied from the Copy link menu only, D301), or null without a key. */
 function wireEdit(acts: HTMLElement, id: string, link: string): string | null {
   const keys = keyStore(() => window.localStorage);
   const fresh = keyFromHash(location.hash, "new");
   if (location.hash.startsWith("#new=")) history.replaceState(null, "", location.pathname + location.search);
   const kept = keys.get(id);
-  // A `#new=` fragment counts only when it is the key the form just kept, or when this browser can keep none: a
-  // link someone else crafted shows nothing.
+  // A `#new=` fragment counts only when this browser can keep no key: then it lives in this page alone.
   const blocked = fresh !== null && kept === null && !keys.writable();
-  const shown = fresh !== null && (fresh === kept || blocked) ? fresh : null;
   const key = kept ?? (blocked ? fresh : null);
   if (!key) return null;
 
@@ -483,30 +481,6 @@ function wireEdit(acts: HTMLElement, id: string, link: string): string | null {
   if (dup) dup.before(btn);
   else acts.append(btn);
   acts.classList.add("own");
-  if (!shown) return editUrl;
-
-  const box = document.createElement("div");
-  box.className = "saved";
-  box.setAttribute("role", "status");
-  box.innerHTML = `<div class="shd"><b>${icon("check")}Saved</b><button type="button" class="x" aria-label="Close">${icon("x")}</button></div>` +
-    `<p>${blocked
-      ? "This browser can't keep the edit key. To edit the build later, keep this private link."
-      : "This browser can edit the build. To edit it on another device, keep this private link. You can copy it again from the Copy link menu."} ` +
-    `Anyone who has the link can edit the build.</p>` +
-    `<div class="erow"><input class="in" readonly spellcheck="false" aria-label="Private edit link"><button type="button" class="bt cpe">${icon("copy")}<span>Copy edit link</span></button></div>`;
-  const input = box.querySelector("input") as HTMLInputElement;
-  input.value = editUrl;
-  acts.after(box);
-  input.addEventListener("focus", () => input.select());
-  const cpe = box.querySelector<HTMLButtonElement>(".cpe") as HTMLButtonElement;
-  cpe.addEventListener("click", async () => {
-    if (await writeClip(editUrl)) cpe.innerHTML = `${icon("check")}<span>Edit link copied</span>`;
-    else { input.focus(); input.select(); }
-  });
-  box.querySelector(".x")?.addEventListener("click", () => {
-    box.remove();
-    btn.focus();
-  });
   return editUrl;
 }
 

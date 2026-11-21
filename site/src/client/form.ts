@@ -1140,7 +1140,7 @@ function init(): void {
           return;
         }
         recent.add({ id, title: name, created: new Date().toISOString() });
-        // The view shows the private edit link once (D97), from the fragment; site.js clears it from the address.
+        // The view takes the key from the fragment only when this browser can keep none (D301); site.js clears it from the address.
         const key = typeof data.key === "string" ? data.key : null;
         if (key) keys.set(id, key);
         location.assign(key ? `/${id}#new=${key}` : `/${id}`);
