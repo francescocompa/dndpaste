@@ -418,3 +418,17 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* character sheet generation (not a character sheet, CLAUDE.md "What it is / is not"; character-forge's job);
   building the strict toggle straight away (open-format stance first).
   *Enforced by:* PLAN M8.
+
+- **D303 — Name lists open wherever a name goes, however the line got there; they close on a name written in full.
+  DECIDED (2026-11-21).** Amends D154 (only typing opens) and D229 (a click opens only an empty `[ ]`). T8.1: the
+  wizard, Tidy and a paste write an empty key as `Spells:` (no space), where neither typing nor a click found a spot,
+  so only menu lines (`Spells: `) had a list. Now the list opens: as soon as a key's `:` is typed; on a click at an empty
+  key, after a list's `, `, or in an empty `[ ]`; on a bare level header (`L2`, `L2 `), with the `Classes:` classes
+  first. A name typed glued to the `:` (`Spells:fi`) is still that key's; the pick writes the space. Arrow keys still
+  don't open it (the list would take ArrowDown). A name already written in full (`Spells: Shield`) closes the list
+  instead of showing D256's "No matches" line.
+  *Raw note:* "we should also be more 'generous' with the spawn of the dropdowns, ex. making them spawn also after : of a
+  header and not only after the space".
+  *Rejected:* opening on every caret arrival (arrows through a wizard's empty lines would open a list on each and trap
+  ArrowDown); inserting the missing space on click (changes the text and the undo history on a mere click).
+  *Enforced by:* `site/test/complete.test.ts` (D302, D303 tests).

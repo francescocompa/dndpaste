@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
+import { OPEN_EVERY_SPOT, afterPick, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 import { presetText } from "../src/preset.ts";
 import { EXAMPLE } from "../src/example.ts";
@@ -579,4 +579,17 @@ test("D302: the list opens on an empty key line however it got there (wizard, pa
   assert.ok(take(lvl + " ¦").endsWith("\nL2 Fighter"));
   assert.deepEqual(names("Rules: 2024\nClasses: Wizard 3 / Fighter 1\n\nL1 W¦"), ["Wizard", "Warlock"], "a written class keeps its match order");
   assert.equal(spot("Rules: 2024\nL¦"), null, "a lone L is a key being typed (Languages), not a level");
+});
+
+test("D303: a name written in full gives no rows and is not \"no matches\" (D256): the list closes there", () => {
+  const known = (src: string) => { const s = spot(src); assert.ok(s, src); return isKnown(N, s); };
+  const pre = "Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\n";
+  assert.deepEqual(names(pre + "Spells: Shield¦"), [], "nothing left to complete");
+  assert.ok(known(pre + "Spells: Shield¦"));
+  assert.ok(known(pre + "Spells: Magic Missile, shield¦"), "any case, a later item");
+  assert.ok(known(pre + "Cantrips: Fire Bolt¦"));
+  assert.ok(known(pre + "Feat: Alert¦"));
+  assert.ok(!known(pre + "Spells: Shiel¦"), "a part of a name is still being typed");
+  assert.ok(!known(pre + "Spells: Xyzzy¦"), "an unknown name keeps the D256 line");
+  assert.ok(!known(pre + "Spells: ¦"));
 });

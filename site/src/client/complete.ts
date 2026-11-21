@@ -506,6 +506,13 @@ export function spellCap(n: Names, sp: Spot): number | null {
   return cap;
 }
 
+/** What was typed is already a name the spot knows (`Spells: Shield`): `suggest` gives no row there, and that is
+ *  not "no matches" (D256, D303). */
+export function isKnown(n: Names, sp: Spot): boolean {
+  const q = norm(sp.typed);
+  return Boolean(q) && candidates(n, sp).some((c) => norm(c.name) === q || (c.alt !== undefined && norm(c.alt) === q));
+}
+
 /**
  * The suggestions for a spot, best first, at most `limit`: the spot's classes first (D156), spells above the class's
  * level last and dimmed (D162), then how well the name matches, then A–Z. One row per name. Empty under the letters

@@ -28,7 +28,7 @@ import { GUIDE_LINK } from "../example.ts";
 import { mountStarter } from "./starter.ts";
 import { authorStore, openingAuthor } from "./author.ts";
 import { keyDoc, MARKED_FEAT } from "../keydocs.ts";
-import { afterPick, bracketTrim, ghostWord, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
+import { afterPick, bracketTrim, ghostWord, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggest, suggestKeys, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import { suggestPref } from "./prefs.ts";
 
@@ -652,7 +652,8 @@ function init(): void {
     // An empty `[ ]` group the table knows shows what goes there, even before a name fits (D163).
     const hint = sp ? slotHint(names, sp) : null;
     // D256: while no source is added, a name of 3+ letters that matches nothing keeps one line open, linking to /sources.
-    const none = Boolean(sp && !rows.length && !hint && sp.typed.replace(/\s/g, "").length >= 3 && !readSummary().n);
+    // D303: a name already written in full is not "no matches": the list closes there.
+    const none = Boolean(sp && !rows.length && !hint && sp.typed.replace(/\s/g, "").length >= 3 && !readSummary().n && !isKnown(names, sp));
     if (!sp || !(rows.length || (hint && !sp.typed.trim()) || none)) { acClose(); return; }
     acEmpty = none;
     const same = acSpot?.start === sp.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
