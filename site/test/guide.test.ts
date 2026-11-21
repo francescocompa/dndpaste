@@ -79,7 +79,8 @@ test("/codes (D103): every book code with its title, linked from the guide, neve
   assert.ok(!/5e\s*tools|usual|standard/i.test(textOf(page)), "no source name, no usual or standard wording");
   assert.ok(!/style=|<style/i.test(page));
   assert.ok((await (await call(env, "GET", "/guide")).text()).includes(`<a href="/codes">all book codes</a>`));
-  assert.ok(!/5e\s*tools|usual|standard/i.test(textOf(await (await call(env, "GET", "/guide")).text())), "the guide either");
+  // The guide names the Scores method marker `(standard array)` (D323): only that use of the word.
+  assert.ok(!/5e\s*tools|usual|standard(?! array)/i.test(textOf(await (await call(env, "GET", "/guide")).text())), "the guide either");
   assert.equal((await call(env, "POST", "/codes", form({ paste: VICE }))).status, 405);
 });
 

@@ -96,6 +96,7 @@ test("D323, D324: the method: the marker, else the draft's pick, else the number
   assert.equal(scoreMark(v([15, 14, 13, 12, 10, 8]), "point-buy").words, "Point Buy 0/27");
   assert.equal(scoreMark(v([13, 13, 13, 12, 12, 10])).words, "Point Buy 2/27");
   assert.equal(scoreMark(v([18, 14, 13, 12, 10, 8])).words, "Custom");
+  assert.equal(scoreMark(v([15, 15, 15, 10, 8, 8], "point-buy")).words, "Point Buy −2/27", "past the budget");
   assert.deepEqual([scoreMark(v([18, 14, 13, 12, 10, 8], "point-buy")).clash, scoreMark(v([15, 14, 13, 12, 10, 8], "point-buy")).clash], [true, false]);
 });
 
@@ -103,6 +104,6 @@ test("D325: the view and print carry the mark after the base row; the marker sho
   const html = renderPaste(parse("Scores (point buy): STR 13/DEX 13/CON 13/INT 12/WIS 12/CHA 10\nClasses: Wizard 1\n"));
   assert.match(html, /<span class="smk">Point Buy 2\/27<\/span>/);
   assert.ok(textOf(html).startsWith("Scores (point buy):STR 13/DEX 13/CON 13/INT 12/WIS 12/CHA 10 Point Buy 2/27"));
-  assert.match(renderPaste(parse("Scores (standard array): STR 18\n")), /class="smk clash">Std\. Array</);
+  assert.match(renderPaste(parse("Scores (standard array): STR 18\n")), /class="smk clash" title="[^"]+">Std\. Array</);
   assert.ok(!/smk/.test(renderPaste(parse("Scores: +2 CHA\n"))), "an increase has no mark");
 });

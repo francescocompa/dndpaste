@@ -10,7 +10,7 @@
  * · n number · e enum · q quantity · x drop minus · drop dropped item · d detail · ab ability · ab-<str…cha>
  * · kd-<kind> (colour by kind, D82).
  */
-import { ABILITIES, keyDef, methodWords, POINT_BUY_BUDGET, scoreKind, splitMarker } from "../../src/dndpaste.ts";
+import { ABILITIES, keyDef, methodWords, POINT_BUY_BUDGET, POINT_BUY_COST, scoreKind, splitMarker } from "../../src/dndpaste.ts";
 import type { Ability, EntityBlock, Item, LevelBlock, Paste, Ref, ScoreKind, Scope, Value } from "../../src/dndpaste.ts";
 
 const ESC: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -117,8 +117,12 @@ export interface ScoreMark {
 export function scoreMark(v: Extract<Value, { type: "scores" }>, pick: ScoreKind | null = null): ScoreMark {
   const read = scoreKind(v.values);
   const kind = v.method ?? pick ?? read.kind;
-  const clash = !!v.method && (kind === "standard-array" ? read.kind !== "standard-array" : kind === "point-buy" ? read.left === null : false);
-  const left = kind === "point-buy" && read.left !== null ? ` ${read.left}/${POINT_BUY_BUDGET}` : "";
+  const clash = !!v.method && v.values.some((x) => x !== null) && (kind === "standard-array" ? read.kind !== "standard-array" : kind === "point-buy" ? read.left === null : false);
+  // Past the budget, the count goes below zero (`Point Buy −3/27`) while every number is 8–15.
+  const known = v.values.filter((x): x is number => x !== null);
+  const spent = known.every((x) => POINT_BUY_COST[x] !== undefined) ? known.reduce((a, x) => a + POINT_BUY_COST[x], 0) : null;
+  const n = read.left ?? (spent === null ? null : POINT_BUY_BUDGET - spent);
+  const left = kind === "point-buy" && n !== null && known.length ? ` ${n < 0 ? `−${-n}` : n}/${POINT_BUY_BUDGET}` : "";
   return { kind, words: KIND_WORDS[kind] + left, marked: !!v.method, clash };
 }
 /** The key a line is written under: a base `Scores` line with its method marker, `Scores (point buy)` (D323). */
@@ -129,7 +133,8 @@ export function lineKey(key: string, v: Value): string {
 function markHtml(v: Value): string {
   if (v.type !== "scores" || !v.values.some((x) => x !== null)) return "";
   const m = scoreMark(v);
-  return ` <span class="smk${m.clash ? " clash" : ""}">${esc(m.words)}</span>`;
+  return m.clash ? ` <span class="smk clash" title="The numbers don't fit the method the paste names">${esc(m.words)}</span>`
+    : ` <span class="smk">${esc(m.words)}</span>`;
 }
 const row = (k: string, v: string, kc = "", vc = ""): string =>
   `<span class="hk${kc ? " " + kc : ""}">${k}</span><span class="hv${vc ? " " + vc : ""}">${v}</span>`;
