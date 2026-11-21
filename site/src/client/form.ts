@@ -452,6 +452,8 @@ function init(): void {
     const end = textEnd(t, range);
     const right = t.getBoundingClientRect().right - box.left;
     const left = end.right - box.left + 10;
+    // No room even for the icon: no chip (a score's popover still has the method in its corner, D321).
+    if (right - left < 22) return;
     const c = chipHtml(sl);
     const b = el("button", `wla wsm${c.clash ? " clash" : ""}`);
     b.type = "button";
@@ -461,9 +463,10 @@ function init(): void {
     b.innerHTML = c.html;
     Object.assign(b.style, { left: `${left}px`, top: `${end.top - box.top + 1}px`, height: `${Math.max(0, end.height - 2)}px`, maxWidth: `${Math.max(0, right - left)}px` });
     wls.append(b);
-    // Review r2: where the words don't fit after the line, the chip keeps its icon alone (its label still says it).
+    // Review r2–r4: where the words don't fit after the line, the chip keeps its icon alone (its label still says it).
+    // Measured, and also estimated at 7px a character, so a face that loads after the measure can't clip the words.
     const words = b.querySelector("span");
-    if (words && words.scrollWidth > words.clientWidth) b.classList.add("ico");
+    if (words && (words.scrollWidth > words.clientWidth || right - left < (words.textContent ?? "").length * 7 + 32)) b.classList.add("ico");
   }
   /** D308: an add fix is a faint `+ Add Subclass, Spells` at the end of its line (the level-up lens's look); one click
    *  writes the lines. Where the full label doesn't fit, it says how many (`+ Add 3 lines`). */
@@ -550,6 +553,8 @@ function init(): void {
   reflow.observe(hl);
   reflow.observe(ed);
   void document.fonts?.ready.then(() => placeNotes());
+  // T8.4 review r4: a face first used by a chip loads after `ready`; place the chips again when it arrives.
+  document.fonts?.addEventListener?.("loadingdone", () => placeNotes());
   /** Sets innerHTML only when it changed: most keystrokes leave the summary, Problems and hints as they were. */
   const shown = new WeakMap<Element, string>();
   const put = (e: Element, html: string) => {
