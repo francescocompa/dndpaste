@@ -5,7 +5,7 @@
  * It only ever suggests. A name the list doesn't know is never flagged or replaced (D151): Enter keeps its new line
  * unless an arrow picked a row (D154).
  */
-import { ABILITIES, classSequence, familyOf, keyDef, keyGroup, levelCap, parse, splitMarker } from "../../../src/dndpaste.ts";
+import { ABILITIES, classSequence, familyOf, keyDef, keyGroup, levelCap, loadoutAt, parse, splitMarker } from "../../../src/dndpaste.ts";
 import { needsQuotes } from "../render.ts";
 import { findSeparator, LEVEL_RE } from "./highlight.ts";
 import { keyHints } from "./hints.ts";
@@ -53,6 +53,11 @@ export interface Spot {
   /** The block the line is in (D227): a Species or Background block and its name, or a level block, its class and
    *  whether the class joins there (`join`: "first" at the build's L1, "multi" at a later class's first level). */
   block?: { kind: "S" | "B" | "L"; name: string; join?: "first" | "multi" };
+  /** D361 (D337, SPEC 0.12): on a level's `Masteries` line, the masteries the build holds before that level (the
+   *  library's `loadoutAt`); `drop`: the name is written after a `-`. Masteries add up: a held one is no new pick, and
+   *  `-Name` drops one. */
+  held?: string[];
+  drop?: true;
   /** The name starts right at the key's `:` (D302): an empty `Spells:` as `emit` writes it, or `Spells:fi` typed
    *  after it. A pick writes the space the line lacks. */
   pad?: true;
@@ -66,6 +71,10 @@ export interface Suggestion {
   tag?: string;
   /** A name from your own sources: its book, shown on the row when no `|SOURCE` is written (D250). */
   book?: string;
+  /** D361 (D334): what the row shows for a `+N` item, the name without it (`Ammunition`), and the `+N` as a chip
+   *  after it (`+1`). The pick still writes `name`. */
+  label?: string;
+  plus?: string;
   /** Above the highest level the spot's class can pick yet (D162), or outside the short list the spot's species or
    *  class chooses from (D227): shown, ranked last, dimmed. */
   dim?: boolean;
@@ -104,7 +113,7 @@ function split(s: string, sep: string): string[] {
 }
 
 /** The paste's `Rules:` edition, the classes ranking first at line `at` (0-based) and their class levels there. */
-function setting(text: string, lines: string[], at: number): { rules: Edition | null; classes: string[]; levels: Map<string, number>; block: Spot["block"] } {
+function setting(text: string, lines: string[], at: number): { rules: Edition | null; classes: string[]; levels: Map<string, number>; block: Spot["block"]; level: number | null } {
   let rules: Edition | null = null;
   let header: [string, number][] = [];
   let block: [string, number] | null = null;
@@ -136,7 +145,7 @@ function setting(text: string, lines: string[], at: number): { rules: Edition | 
     for (const [cls, k] of header) if (k) levels.set(lc(cls), k);
     if (opened) where = opened;
   }
-  return { rules, classes: block ? [block[0]] : header.map((h) => h[0]), levels, block: where };
+  return { rules, classes: block ? [block[0]] : header.map((h) => h[0]), levels, block: where, level: block ? block[1] : null };
 }
 
 /** The cursor at `pos` is inside an empty `[ ]` (only spaces between the brackets): a click there opens the list (D229). */
@@ -232,7 +241,8 @@ export function spotAt(text: string, pos: number): Spot | null {
   if (depth && key === "L") return null;
   let s = depth ? detail : item;
   while (s < cur && value[s] === " ") s++;
-  if (!depth && value[s] === "-") s++;
+  const dash = !depth && value[s] === "-";
+  if (dash) s++;
   const q = value[s] === '"';
   const nameStart = q ? s + 1 : s;
   let typed = value.slice(nameStart, cur);
@@ -271,17 +281,20 @@ export function spotAt(text: string, pos: number): Spot | null {
   // The line without the name being typed: what's left are the names already there.
   const rest = value.slice(0, s) + value.slice(e);
   const others = depth ? split((rest.slice(open + 1).split("]")[0] ?? "").split(";")[slot] ?? "", ",") : split(rest, listSep);
-  const taken = new Set(others.map((x) => lc(clean(x.replace(/\[[^\]]*\]?/g, "").replace(/\s+x\d+\s*$/, "").replace(/^\+\d+\s+/, "")))).filter(Boolean));
+  // An ASI's `+2 CHA` is CHA; a Gear item's `+1 Longsword` is its own name (D361), so Longsword is still offered.
+  const taken = new Set(others.map((x) => lc(clean(x.replace(/\[[^\]]*\]?/g, "").replace(/\s+x\d+\s*$/, "").replace(depth ? /^\+\d+\s+/ : /$^/, "")))).filter(Boolean));
 
   const where = setting(text, lines, at);
   // D302: a level header's list leads with the build's own classes (`Classes:`), not the block above's one class.
   const classes = key === "L" ? setting(text, lines, -1).classes : where.classes;
+  const held = key === "Masteries" && !depth && where.level !== null ? loadoutAt(parse(text), where.level - 1).masteries.map((it) => it.ref.name) : null;
   return {
     key, marker, cap, family, rules: where.rules, classes, levels: where.levels,
     start: ls + vs + s, end: ls + vs + e, typed, hasSource, parent, ...(depth ? { parentSource } : {}), slot, groups, taken,
     ...(where.block ? { block: where.block } : {}),
     ...(glued && !depth && s === 0 ? { pad: true as const } : {}),
     ...(values ? { values } : {}),
+    ...(held ? { held, ...(dash ? { drop: true as const } : {}) } : {}),
   };
 }
 
@@ -319,7 +332,16 @@ export function alternativeList(n: Names, sp: Spot, text: string, limit = LIST_L
   return suggestList(n, { ...sp, typed: "", taken: new Set([...sp.taken, cur]) }, limit, true);
 }
 
-interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean }
+interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean; tag?: string; lead?: number }
+
+/** D362 (D336): which half of the items a Gear list shows, Mundane by default; the list's head switches it (ac.ts keeps
+ *  the visitor's choice). */
+export type GearHalf = "mundane" | "magic";
+let gearHalf: GearHalf = "mundane";
+export function setGearHalf(h: GearHalf): void { gearHalf = h; }
+export function getGearHalf(): GearHalf { return gearHalf; }
+/** D361: a `+N ` prefix, shown as a chip after the name so the list sorts by name: `+1 Ammunition` → Ammunition, +1. */
+const PLUS = /^(\+\d+)\s+(.+)$/;
 
 /** The family codes an open `Options (<marker>)` names, matched to the table's family names and codes as the checker
  *  does (D185): `Options (Eldritch Invocation)` → `EI`. Empty when none fits: the line then takes any option. */
@@ -356,7 +378,30 @@ function candidates(n: Names, sp: Spot): Cand[] {
   const off = (bits: number) => (filter && !(bits & filter) ? { out: true } : {});
   const spells = (level: (l: number) => boolean, only = 0): Cand[] =>
     n.SPELLS.filter((s) => level(s[2]) && (!only || s[3] & only)).map((s) => ({ name: s[0], books: s[1], first: Boolean(s[3] & mine), level: s[2] }));
-  const items = (mundane: boolean): Cand[] => n.ITEMS.filter((i) => !mundane || i[2]).map((i) => ({ name: i[0], books: i[1], first: false }));
+  const gear = (): Cand[] => {
+    // D362: the half the list's head picked; a `+N` item matches on its name too (`amm` finds `+1 Ammunition`).
+    const want = gearHalf === "magic" ? 0 : 1;
+    const half = n.ITEMS.filter((i) => i[2] === want).map((i): Cand => {
+      const m = PLUS.exec(i[0]);
+      return { name: i[0], books: i[1], first: false, ...(m ? { alt: m[2] } : {}) };
+    });
+    // D362 (D336): in a Background block, or the build's L1 block, that block's starting gear leads: its option letters,
+    // then the items its choices name, then the packs. The letters lead either half; the items and packs are mundane.
+    const b = sp.block;
+    if (sp.parent !== null || !b || !(b.kind === "B" || (b.kind === "L" && b.join === "first"))) return half;
+    const hits = n.GEAR_OPTIONS.filter((r) => r[0] === (b.kind === "B" ? "B" : "C") && lc(r[1]) === lc(b.name));
+    const ed = BOOKS.filter((x) => x[2] === sp.rules).reduce((a, x) => a | x[1], 0);
+    const row = ed ? hits.find((r) => r[2] & ed) : hits[hits.length - 1];
+    const lead: Cand[] = (row?.[3] ?? []).map((l) => ({ name: l, books: 0, first: true, tag: "option", lead: 0 }));
+    if (want) {
+      const groups = new Set((row?.[4] ?? []).map(lc));
+      const packs = n.ITEMS.filter((i) => i[2] && /'s Pack$/i.test(i[0]) && !groups.has(lc(i[0])));
+      for (const g of row?.[4] ?? []) lead.push({ name: g, books: n.ITEMS.find((i) => lc(i[0]) === lc(g))?.[1] ?? 0, first: true, lead: 1 });
+      for (const p of packs) lead.push({ name: p[0], books: p[1], first: true, lead: 2 });
+    }
+    const led = new Set(lead.map((c) => lc(c.name)));
+    return [...lead, ...half.filter((c) => !led.has(lc(c.name)))];
+  };
   const tools = (): Cand[] => {
     const seen = new Set(n.TOOLS.map(lc));
     const kit = n.ITEMS.filter((i) => i[2] && /tools|supplies|kit\b|set\b|utensils/i.test(i[0]) && !seen.has(lc(i[0])));
@@ -456,8 +501,16 @@ function candidates(n: Names, sp: Spot): Cand[] {
       });
     case "Classes": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: false }));
     case "L": return n.CLASS_ROWS.map((c) => ({ name: c[0], books: c[1], first: sp.classes.some((k) => lc(k) === lc(c[0])) }));
-    case "Gear": return items(false);
-    case "Masteries": return n.MASTERY_WEAPONS.map((w) => ({ name: w[0], books: w[1], first: false })); // weapons only (D165)
+    case "Gear": return gear();
+    case "Masteries": {
+      const ws = n.MASTERY_WEAPONS.map((w) => ({ name: w[0], books: w[1], first: false })); // weapons only (D165)
+      if (!sp.held) return ws;
+      // D361: a level line adds up (D337). After a `-`, the masteries held so far, to drop one; else the weapons not
+      // held yet, since writing a held one again changes nothing.
+      const held = new Set(sp.held.map(lc));
+      if (!sp.drop) return ws.filter((w) => !held.has(lc(w.name)));
+      return sp.held.map((h) => ({ name: h, books: ws.find((w) => lc(w.name) === lc(h))?.books ?? 0, first: true }));
+    }
     case "Skills": {
       // D227: a species' or class's short list leads; the skills it can't take are shown, last and dimmed.
       const bits = skillList(n, sp);
@@ -582,9 +635,11 @@ export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = 
     // T29 (review): a name the build's edition lacks ranks after the edition's own and is dimmed, as not available
     // by default; its `|SOURCE` (the book a pick writes, D155) says which.
     const other = other0;
+    const m = sp.key === "Gear" ? PLUS.exec(c.name) : null;
     return {
       name: c.name, source: sp.hasSource ? null : sourceFor(c.books, sp.rules, own(c.name)), level: c.level, dim, other,
-      grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over,
+      grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over, tag: c.tag, lead: c.lead ?? 9,
+      label: m ? m[2] : null, plus: m ? m[1] : null,
     };
   });
   // The name is already written as it should be: nothing to suggest, unless a longer name starts with it (D303 review:
@@ -593,14 +648,19 @@ export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = 
   // A spell above the level cap comes last (D162): it can't be picked yet. Before it, outside the spot's short list
   // (D227 skills, D241 another class's subclass, D243 another class's spell, feature or option), after the other
   // edition: the class's own subclass from the other book still comes before another class's.
-  rows.sort((a, b) => Number(b.exact) - Number(a.exact) || Number(a.over) - Number(b.over) || Number(a.out) - Number(b.out) || Number(Boolean(a.other)) - Number(Boolean(b.other)) || a.grade - b.grade || a.t - b.t ||
-    (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  // D361: a `+N` item sorts by its name, then by the bonus (Ammunition, +1 Ammunition, +2 Ammunition). D362: a block's
+  // starting gear leads in its own order (letters, its items, packs).
+  const sortName = (r: { name: string; label: string | null }) => r.label ?? r.name;
+  rows.sort((a, b) => Number(b.exact) - Number(a.exact) || Number(a.over) - Number(b.over) || Number(a.out) - Number(b.out) || Number(Boolean(a.other)) - Number(Boolean(b.other)) || a.lead - b.lead || a.grade - b.grade || a.t - b.t ||
+    (sortName(a) < sortName(b) ? -1 : sortName(a) > sortName(b) ? 1 : 0) || (a.plus ?? "").localeCompare(b.plus ?? ""));
   const top = rows.slice(0, limit);
   // A cantrip says so only among other kinds of names (the general list); a list of cantrips doesn't repeat it.
   const mixed = top.some((r) => r.level !== 0);
-  return { more: rows.length - top.length, rows: top.map(({ name, source, level, dim }) => {
+  return { more: rows.length - top.length, rows: top.map(({ name, source, level, dim, tag, label, plus }) => {
     const s: Suggestion = { name, source };
     if (level !== undefined && (level > 0 || (mixed && level === 0))) s.tag = ORD[level];
+    if (tag) s.tag = tag;
+    if (label && plus) { s.label = label; s.plus = plus; }
     // D250: a name of yours shows its book, unless the row already shows the one a pick writes.
     const books = own(name);
     if (books.length && !source) s.book = books.find((b) => BOOKS.some(([c, , ed]) => c === b && ed === sp.rules)) ?? books[0];
@@ -677,6 +737,15 @@ export function afterPick(n: Names, sp: Spot, picked: string): string {
 /** The text a pick writes over the spot's range: quoted when the name needs it, then its source. */
 export function written(sp: Spot, s: Suggestion): string {
   return (sp.pad ? " " : "") + (needsQuotes(s.name) ? `"${s.name}"` : s.name) + (s.source && !sp.hasSource ? `|${s.source}` : "");
+}
+
+/** D361: a swap (D304) on a level's `Masteries` line, over a name held from an earlier level, writes the new name and
+ *  drops the old one: `Flail, -Sap` (masteries add up, D337; the held name written again changed nothing). Any other
+ *  swap writes the new name in place. `w`: what {@link written} gives. */
+export function swapWritten(sp: Spot, w: string, text: string): string {
+  const old = clean(text.slice(sp.start, sp.end));
+  if (!sp.held || sp.drop || !sp.held.some((h) => lc(h) === lc(old))) return w;
+  return `${w}, -${text.slice(sp.start, sp.end)}`;
 }
 
 /** Keys whose items never carry details (SPEC §5.3): a pick there is never written with brackets. */

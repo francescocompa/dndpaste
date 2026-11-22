@@ -362,7 +362,7 @@ export function merge(n: Names, sources: readonly SourceRec[], sw: Switches): Me
   const yours = nameRows(withVariants, {}, { bookOf: ownBits, classes: n.CLASSES, skills: n.SKILLS, featCategories: n.FEAT_CATEGORIES, bases: n.SPECIES.map((r) => r[0]) });
   out.CLASSES = yours.CLASSES;
   for (const [arr] of BOOK_ROWS) out[arr] = [...out[arr], ...(yours[arr as keyof typeof yours] as J[])];
-  for (const k of ["CLASS_FEATURES", "LINEAGES", "SPECIES_FEATURES", "SPECIES_FIXED", "DETAILS", "CASTERS", "SKILL_LISTS"] as const) out[k] = [...out[k], ...yours[k]];
+  for (const k of ["CLASS_FEATURES", "LINEAGES", "SPECIES_FEATURES", "SPECIES_FIXED", "DETAILS", "CASTERS", "SKILL_LISTS", "GEAR_OPTIONS"] as const) out[k] = [...out[k], ...yours[k]];
   const union = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])].sort();
   out.LANGUAGES = union(n.LANGUAGES, yours.LANGUAGES);
   out.TOOLS = union(n.TOOLS, yours.TOOLS);

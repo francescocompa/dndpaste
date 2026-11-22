@@ -49,8 +49,9 @@ export const SUBCLASSES: readonly (readonly [string, Books, number, string])[] =
 export const SPECIES: readonly (readonly [string, Books])[] = ${q(n.SPECIES)};
 /** [name, books] */
 export const BACKGROUNDS: readonly (readonly [string, Books])[] = ${q(n.BACKGROUNDS)};
-/** [name, books, category name, abilities its first slot takes, class versions, cantrips to pick, spells to pick] */
-export const FEATS: readonly (readonly [string, Books, string, AbilityBits, readonly string[], number, number])[] = [
+/** [name, books, category name, abilities its first slot takes, class versions, cantrips to pick, spells to pick,
+ *  abilities it raises by +1 with no pick (D340)] */
+export const FEATS: readonly (readonly [string, Books, string, AbilityBits, readonly string[], number, number, AbilityBits])[] = [
 ${list(feats)}
 ];
 /** [name, books, classes its families belong to, 1 if a fighting style, picks it asks, family codes] (D186) */
@@ -86,6 +87,9 @@ export const SPECIES_FEATURES: readonly (readonly [string, readonly string[]])[]
 /** [species, source, edition, fixed increases STR…CHA]: a printing's score increases, numbers only, for the score
  *  popover's final (D331) */
 export const SPECIES_FIXED: readonly (readonly [string, string, string, readonly number[]])[] = ${q(n.SPECIES_FIXED)};
+/** [C class or B background, name, books, its starting-gear option letters, the items its choice groups name]: the
+ *  gear that leads a Background or L1 block's \`Gear\` list (D336, D362). Names only. */
+export const GEAR_OPTIONS: readonly (readonly ["C" | "B", string, Books, readonly string[], readonly string[]])[] = ${q(n.GEAR_OPTIONS)};
 `);
 console.log(`${out}: ${spells.length} spells, ${feats.length} feats, ${options.length} options, ${items.length} items, ${masteryWeapons.length} mastery weapons, ` +
   `${n.SPECIES.length} species, ${n.BACKGROUNDS.length} backgrounds, ${n.SUBCLASSES.length} subclasses, ${classes.length} classes, ${lineages.length} lineage rows, ${features.length} class features, ${casters.length} casters`);

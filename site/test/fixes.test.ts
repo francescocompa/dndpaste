@@ -177,3 +177,13 @@ test("D317: an add chip writes each line at its canonical place, so Tidy has not
   assert.equal(status(out).canTidy, false, "Tidy stays quiet");
   assert.equal(tidyPlan(`Vesk\n${out}`), null, "and its badge counts nothing (D313: the open brackets are no change)");
 });
+
+test("D361 (D342): a 0.11 snapshot Masteries line (W008) shows the library's fix; it writes the drop", () => {
+  const text = "Rules: 2024\nClasses: Fighter 10\n\nL1 Fighter\nMasteries: Longsword, Sap, Handaxe\n\nL4 Fighter\nMasteries: Longsword, Sap, Handaxe, Lance\n\nL10 Fighter\nMasteries: Longsword, Handaxe, Lance, Flail\n";
+  const f = at(text, 11, "lib");
+  assert.ok(f, "a fix on the L10 line");
+  assert.equal(f.act, "Drop Sap");
+  assert.equal(f.why, "Write -Sap to drop it");
+  assert.equal(f.apply(text)?.split("\n")[10], "Masteries: Flail, -Sap");
+  assert.equal(at(text, 8, "lib"), undefined, "a line that only adds has no fix: Tidy folds it");
+});

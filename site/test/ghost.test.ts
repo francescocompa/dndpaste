@@ -85,8 +85,9 @@ Masteries: Longsword, Shortbow, Handaxe, Greatsword
     // A wizard taken later owes no skills: an empty Skills line has no ghost (D131).
     "L2 Cantrips:": "0 of 3",
     "L2 Spells:": "0 of 6",
-    // L5 is Fighter class level 4: the loadout grows to 4.
-    "L5 Masteries: Longsword, Shortbow, Handaxe, Greatsword": "4 of 4",
+    // L5 is Fighter class level 4: the loadout grows by one. Masteries add up (D337, D361): the three held names
+    // written again count for nothing, Greatsword is the one new pick.
+    "L5 Masteries: Longsword, Shortbow, Handaxe, Greatsword": "1 of 1",
   });
 });
 
@@ -143,10 +144,14 @@ test("no ghost: Other class, an unknown edition or source, a count the table lac
   none("", "an empty editor");
 });
 
-test("2024 Paladin, Ranger and Rogue masteries: the supplement's fixed count, a loadout at every level", () => {
+test("2024 Paladin, Ranger and Rogue masteries: the supplement's fixed count, owed once at L1 (D361)", () => {
   for (const cls of ["Paladin", "Ranger", "Rogue"]) {
+    // The count never grows: a later line owes nothing new, so an empty one has no ghost (D131).
     assert.deepEqual(byLine(`Rules: 2024\nClasses: ${cls} 3\n\nL1 ${cls}\nMasteries: Longsword\n\nL3 ${cls}\nMasteries:\n`),
-      { "L1 Masteries: Longsword": "1 of 2", "L3 Masteries:": "0 of 2" }, cls);
+      { "L1 Masteries: Longsword": "1 of 2" }, cls);
+    // A swap at a later level: one `-Name` lets one new name in.
+    assert.deepEqual(byLine(`Rules: 2024\nClasses: ${cls} 3\n\nL1 ${cls}\nMasteries: Longsword, Sickle\n\nL3 ${cls}\nMasteries: -Sickle\n`),
+      { "L1 Masteries: Longsword, Sickle": "2 of 2", "L3 Masteries: -Sickle": "0 of 1" }, cls);
   }
   none2014("Rules: 2014\nClasses: Rogue 1\n\nL1 Rogue\nMasteries:\n");
 });
@@ -346,4 +351,27 @@ test("D190 review: Switch to Prepared renames the Spells line, or merges it into
   assert.equal(toPrepared(two, 8), head + "Prepared: Bless\n\nL2 Cleric\nPrepared: Aid\n");
   assert.equal(toPrepared(head + "Spells (3rd): Revivify\n", 5), head + "Prepared (3rd): Revivify\n", "a cap stays");
   assert.equal(toPrepared(head + "Gear: Mace\n", 5), null, "not a Spells line");
+});
+
+test("D361 (D337, SPEC 0.12): a level's Masteries line counts the new slots and the names new to the build", () => {
+  const text = `Rules: 2024
+Classes: Fighter 10
+
+L1 Fighter
+Masteries: Longsword, Sap, Handaxe
+
+L4 Fighter
+Masteries: Lance
+
+L10 Fighter
+Masteries: Flail, -Sap
+`;
+  assert.deepEqual(byLine(text), {
+    "L1 Masteries: Longsword, Sap, Handaxe": "3 of 3",
+    "L4 Masteries: Lance": "1 of 1",
+    // Fighter 10 adds one, and the swap one more.
+    "L10 Masteries: Flail, -Sap": "1 of 2",
+  });
+  // The 0.11 snapshot still counts its one new name; a held name again is no pick.
+  assert.equal(byLine(text.replace("Masteries: Lance", "Masteries: Longsword, Sap, Handaxe, Lance"))["L4 Masteries: Longsword, Sap, Handaxe, Lance"], "1 of 1");
 });

@@ -26,7 +26,7 @@ export interface NameRows {
   CLASSES: string[]; CLASS_ROWS: Row[]; SPELLS: Row[]; SUBCLASSES: Row[]; SPECIES: Row[]; BACKGROUNDS: Row[]; FEATS: Row[];
   OPTIONS: Row[]; FAMILIES: Record<string, string>; ITEMS: Row[]; MASTERY_WEAPONS: Row[]; SKILLS: string[]; SKILL_LISTS: J[][];
   LANGUAGES: string[]; TOOLS: string[]; CLASS_FEATURES: J[][]; CASTERS: J[][]; DETAILS: Row[]; LINEAGES: J[][];
-  SPECIES_FEATURES: J[][]; SPECIES_FIXED: J[][];
+  SPECIES_FEATURES: J[][]; SPECIES_FIXED: J[][]; GEAR_OPTIONS: J[][];
 }
 
 const ABILITY: Record<string, number> = { str: 1, dex: 2, con: 4, int: 8, wis: 16, cha: 32 };
@@ -88,8 +88,9 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
   };
   const SPECIES = rows(vals("species").filter((e) => !variantOf(e)), () => []);
   const BACKGROUNDS = rows(vals("backgrounds"), () => []);
+  // D340: the last field is a half feat's fixed +1s (Durable's CON) as ability bits; every one in the data is +1.
   const FEATS = rows(vals("feats"), (f) => [cats[f.category] ?? "", abilityBits(f.abilityChoose),
-    f.versions ?? [], f.cantripChoose ?? 0, f.spellChoose ?? 0]);
+    f.versions ?? [], f.cantripChoose ?? 0, f.spellChoose ?? 0, abilityBits(Object.keys(f.abilityFixed ?? {}))]);
   const OPTIONS = rows(vals("optionalFeatures"), (op) => [
     (op.types ?? []).reduce((a: number, t: string) => a | classBit(FAMILY_CLASS[t] ?? ""), 0),
     (op.types ?? []).some((t: string) => t.startsWith("FS")) ? 1 : 0,
@@ -225,9 +226,27 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
     .map((e) => [e.name, e.source, e.edition ?? "", ["str", "dex", "con", "int", "wis", "cha"].map((a) => e.ability.fixed[a] ?? 0)])
     .sort((a, b) => byName(a, b) || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
 
+  // D362 (D336): a class's or background's starting gear, names only: its option letters (2024: `A`, `B`) and the
+  // items its choice groups name (2014: `Mace` or `Warhammer`). [C class or B background, name, books, letters, items].
+  const GEAR_OPTIONS: J[][] = [];
+  for (const [kind, table] of [["C", "classes"], ["B", "backgrounds"]]) {
+    for (const e of vals(table).filter(keep)) {
+      const letters: string[] = [...(e.equipmentOptions ?? [])];
+      const items: string[] = [];
+      for (const g of e.equipmentGroups ?? []) for (const list of Object.values(g) as string[][]) {
+        for (const x of list ?? []) { const nm = String(x).split("|")[0]; if (nm && !items.includes(nm)) items.push(nm); }
+      }
+      if (!letters.length && !items.length) continue;
+      const had = GEAR_OPTIONS.find((r) => r[0] === kind && r[1] === e.name && JSON.stringify([r[3], r[4]]) === JSON.stringify([letters, items]));
+      if (had) had[2] |= o.bookOf(e);
+      else GEAR_OPTIONS.push([kind, e.name, o.bookOf(e), letters, items]);
+    }
+  }
+  GEAR_OPTIONS.sort((a, b) => byName([a[1] + a[0]], [b[1] + b[0]]) || a[2] - b[2]);
+
   return {
     CLASSES: classes, CLASS_ROWS: rows(vals("classes"), () => []), SPELLS, SUBCLASSES, SPECIES, BACKGROUNDS, FEATS, OPTIONS,
     FAMILIES: { ...(slots.families ?? {}) }, ITEMS, MASTERY_WEAPONS, SKILLS, SKILL_LISTS, LANGUAGES: words(languages), TOOLS: words(tools),
-    CLASS_FEATURES, CASTERS, DETAILS, LINEAGES, SPECIES_FEATURES, SPECIES_FIXED,
+    CLASS_FEATURES, CASTERS, DETAILS, LINEAGES, SPECIES_FEATURES, SPECIES_FIXED, GEAR_OPTIONS,
   };
 }

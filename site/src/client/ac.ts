@@ -16,7 +16,8 @@ import { nextOpen } from "../preset.ts";
 import { ABILITIES, methodWords, resolveKey } from "../../../src/dndpaste.ts";
 import type { ScoreKind } from "../../../src/dndpaste.ts";
 import { levelUp, nextLevel } from "../levelup.ts";
-import { LIST_LIMIT, afterPick, alternativeList, bracketTrim, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggestList, suggestKeys, swapAt, written, writtenKey } from "./complete.ts";
+import { gearPref } from "./prefs.ts";
+import { LIST_LIMIT, afterPick, alternativeList, bracketTrim, getGearHalf, isKnown, setGearHalf, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggestList, suggestKeys, swapAt, swapWritten, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import type { Status } from "./status.ts";
 import { bonusSpotAt, fitBackground } from "../background.ts";
@@ -101,6 +102,13 @@ export function mountAc(h: AcHost): Ac {
   let acSwap = false;
   /** D306: how many more rows fit past the list's 60; its last row counts them. */
   let acMore = 0;
+  /** D362: nothing typed matches in the Gear list's half, but this many do in the other one. */
+  let acGearOther = 0;
+  const gear = gearPref(() => window.localStorage);
+  setGearHalf(gear.get());
+  const GEAR_HALVES = [["mundane", "Mundane"], ["magic", "Magic"]] as const;
+  /** D362 (D336): a Gear list's head holds the Mundane · Magic switch; it follows a swap's "Swap for". */
+  const gearList = () => Boolean(acSpot && acSpot.key === "Gear" && acSpot.parent === null && !acKey && !acScore && !acBonus);
   /** T8.4: the list is a score list on the header's base Scores line: `fill`, the next ability's numbers while the line
    *  is written (D322); `pop`, a clicked score's options (D321); `method`, the method list (D323), reached from the
    *  line's chip (`back` null) or the list's corner chip (`back`: the list to go back to). */
@@ -128,6 +136,7 @@ export function mountAc(h: AcHost): Ac {
     acEmpty = false;
     acSwap = false;
     acMore = 0;
+    acGearOther = 0;
     h.dock.classList.remove("ac-on");
     acAria();
   };
@@ -175,17 +184,24 @@ export function mountAc(h: AcHost): Ac {
     // D304: a swap list says so, so it doesn't read as completion.
     // D351 review: Custom, first in a Background list, stands apart from the backgrounds by a rule under it.
     const sepAt = acSpot?.key === "Background" && acRows.length > 1 && acRows[0].name === "Custom" && !acRows[0].source ? 0 : -1;
-    const hint = acBonus ? `<div class="ah" aria-hidden="true">${esc(bonusHead(acBonus))}</div>` : acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
+    const half = getGearHalf();
+    const gearHead = gearList()
+      ? `<div class="ah acs agh">${acSwap ? `<span class="acst" aria-hidden="true">Swap for</span>` : ""}<span class="acg" role="group" aria-label="Which items">` +
+        GEAR_HALVES.map(([k, label]) => `<button type="button" class="${k === half ? "on" : ""}" data-g="${k}" tabindex="-1" aria-pressed="${k === half}">${label}</button>`).join("") + `</span></div>`
+      : "";
+    const hint = gearHead ? gearHead : acBonus ? `<div class="ah" aria-hidden="true">${esc(bonusHead(acBonus))}</div>` : acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
     // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
     ac.innerHTML = acScore ? scoreListHtml(onPhone) : (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
       hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}${sepAt === i ? " sep" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
-      `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
+      `<span class="an">${esc(r.label ?? r.name)}</span>${r.plus ? `<span class="apl">${esc(r.plus)}</span>` : ""}${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
       `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("") +
       // D306: a list past 60 says how many it leaves out; typing narrows it.
-      (acMore > 0 ? `<div class="am" aria-hidden="true">${acMore} more · keep typing</div>` : "");
+      (acMore > 0 ? `<div class="am" aria-hidden="true">${acMore} more · keep typing</div>` : "") +
+      // D362: the half shown has no match, the other has some.
+      (acGearOther > 0 ? `<div class="am" aria-hidden="true">None in ${half === "magic" ? "Magic" : "Mundane"} · ${acGearOther} in ${half === "magic" ? "Mundane" : "Magic"}</div>` : "");
     // Phone: the dock's last row, right on the keyboard (D157 amended).
     const home = onPhone ? h.dock : h.ed;
     if (ac.parentElement !== home) { if (onPhone) h.dock.append(ac); else h.ed.append(ac); }
@@ -193,7 +209,8 @@ export function mountAc(h: AcHost): Ac {
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : acBonus ? "bonus" : "name";
-      acSays.textContent = acScore ? scoreSays() : acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${acMore > 0 ? `, ${acMore} more` : ""}${onPhone ? "" : ". Tab takes the first"}.` : what;
+      const items = gearList() ? `${half === "magic" ? "Magic" : "Mundane"} items. ` : "";
+      acSays.textContent = acGearOther > 0 ? `${items}None match here, ${acGearOther} in ${half === "magic" ? "Mundane" : "Magic"}.` : items + (acScore ? scoreSays() : acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${acMore > 0 ? `, ${acMore} more` : ""}${onPhone ? "" : ". Tab takes the first"}.` : what);
     }
     ac.setAttribute("aria-label", acKey ? "Keys" : acScore ? "Ability scores" : "Names");
     ac.hidden = false;
@@ -223,6 +240,7 @@ export function mountAc(h: AcHost): Ac {
       acKey = ks;
       acRows = rows;
       acMore = kk.length - rows.length;
+      acGearOther = 0;
       acHint = null;
       acDraw();
       return;
@@ -235,9 +253,19 @@ export function mountAc(h: AcHost): Ac {
     const hint = sp ? slotHint(h.names, sp) : null;
     // D256: while no source is added, a name of 3+ letters that matches nothing keeps one line open, linking to /sources.
     // D303: a name already written in full is not "no matches": the list closes there.
-    const none = Boolean(sp && !rows.length && !hint && sp.typed.replace(/\s/g, "").length >= 3 && !readSummary().n && !isKnown(h.names, sp));
-    if (!sp || !(rows.length || (hint && !sp.typed.trim()) || none)) { acClose(); return; }
+    // D362: a Gear name that matches only in the other half says so, under the switch, rather than "no matches".
+    let other = 0;
+    if (sp && !rows.length && sp.key === "Gear" && sp.parent === null && sp.typed.trim()) {
+      const was = getGearHalf();
+      setGearHalf(was === "magic" ? "mundane" : "magic");
+      const o = suggestList(h.names, sp);
+      other = o.rows.length + o.more;
+      setGearHalf(was);
+    }
+    const none = Boolean(sp && !rows.length && !other && !hint && sp.typed.replace(/\s/g, "").length >= 3 && !readSummary().n && !isKnown(h.names, sp));
+    if (!sp || !(rows.length || (hint && !sp.typed.trim()) || none || other)) { acClose(); return; }
     acEmpty = none;
+    acGearOther = other;
     const same = acSpot?.start === sp.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
     if (!same) acOn = -1;
     acSpot = sp;
@@ -259,6 +287,7 @@ export function mountAc(h: AcHost): Ac {
     acHint = null;
     acEmpty = false;
     acMore = 0;
+    acGearOther = 0;
     acScore = next;
     acRows = next.mode === "method" ? METHODS.map((k) => ({ name: METHOD_NAMES[k], source: null }))
       : next.rows.map((r) => ({ name: scoreRowName(r), source: null }));
@@ -413,6 +442,7 @@ export function mountAc(h: AcHost): Ac {
     acSpot = sw;
     acRows = rows;
     acMore = got.more;
+    acGearOther = 0;
     acHint = null;
     acEmpty = false;
     acSwap = true;
@@ -446,7 +476,7 @@ export function mountAc(h: AcHost): Ac {
     // D242: a pick that asks a detail comes with its brackets, the cursor inside, and the list for its first group.
     const le = h.ta.value.indexOf("\n", sp.end);
     const br = Boolean(h.names) && opensDetails(h.names as Names, sp, r, h.ta.value.slice(sp.end, le < 0 ? undefined : le));
-    const w = written(sp, r);
+    const w = swapping ? swapWritten(sp, written(sp, r), h.ta.value) : written(sp, r);
     // T8.2 (D305): a class picked on the bare header of the build's next level, the last block, is a level-up: the
     // block gets its owed keys and Classes: goes up by one.
     const ls = h.ta.value.lastIndexOf("\n", sp.start - 1) + 1;
@@ -539,6 +569,15 @@ export function mountAc(h: AcHost): Ac {
     }
     if ((e.target as Element).closest("[data-m]") && acScore && acScore.mode !== "method") {
       showScore({ ...acScore, mode: "method", back: acScore.mode, anchor: null });
+      return;
+    }
+    // D362: the Gear list's switch; the same list again, in the other half, remembered for this visitor.
+    const g = (e.target as Element).closest<HTMLElement>("[data-g]");
+    if (g) {
+      const half = g.dataset.g === "magic" ? "magic" : "mundane";
+      gear.set(half);
+      setGearHalf(half);
+      if (acSwap) { if (!swapList()) acClose(); } else complete(true);
       return;
     }
     const o = (e.target as Element).closest<HTMLElement>("[data-i]");

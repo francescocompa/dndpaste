@@ -1,11 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ABILITIES, parse } from "../../src/dndpaste.ts";
 import type { Paste } from "../../src/dndpaste.ts";
 import { build } from "esbuild";
 import * as N from "../src/names.gen.ts";
+import { nameRows } from "../src/namerows.ts";
 import { fillScore, finalFoot, finalOf, finalTitle, methodOf, pickScore, scoreLineAt, scoreRows } from "../src/scores.ts";
 import { renderPaste, scoreMark } from "../src/render.ts";
 import { FIXTURES, textOf } from "./helpers.ts";
@@ -32,6 +33,40 @@ for (const [name, text] of [...FIXTURES, ...EXTRA.map((t, i): [string, string] =
     assert.deepEqual(site.map((f) => f?.final ?? null), ABILITIES.map((a) => lib[a.toLowerCase()]), name);
   });
 }
+
+// D340, D341 (T9.5): a half feat's fixed +1 counts with nothing written; an ASI's bare ability is +2 alone, +1/+1 for two.
+test("D341: an ASI's bare ability counts: alone +2, beside another +1", () => {
+  const head = "Rules: 2024\nScores: STR 15/DEX 14/CON 13/INT 8/WIS 12/CHA 10\nClasses: Fighter 4\n\nL1 Fighter\n\nL4 Fighter\n";
+  const fin = (feat: string) => finalOf(parse(head + feat + "\n"), N).map((f) => f?.final ?? null);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [STR]"), [17, 14, 13, 8, 12, 10]);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [STR, CON]"), [16, 14, 14, 8, 12, 10]);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [+1 STR, CON]"), [16, 14, 14, 8, 12, 10]);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [+2 STR]"), [17, 14, 13, 8, 12, 10], "the written form, as before");
+  const p = parse(head + "Feat: Ability Score Improvement [CON]\n");
+  assert.equal(finalFoot(finalOf(p, N)[2]!), "13 base, +2 L4 feat");
+  assert.deepEqual(finalOf(p, N).map((f) => f?.final ?? null), ABILITIES.map((a) => finalScores(p, slots).scores![a.toLowerCase()]), "the library agrees");
+});
+
+// The full table (gitignored, data/slots.json) has the half feats with a fixed increase; the SRD subset has none.
+const fullUrl = new URL("../../data/slots.json", import.meta.url);
+const full = existsSync(fullUrl) ? JSON.parse(readFileSync(fileURLToPath(fullUrl), "utf8")) : null;
+test("D340: a half feat with a fixed increase counts with nothing written, as finalScores() does", { skip: !full?.feats || !Object.values(full.feats).some((f: any) => f.abilityFixed) ? "no regenerated data/slots.json" : false }, () => {
+  const BOOK: Record<string, number> = { PHB: 1, XPHB: 2, DMG: 4, XDMG: 8 };
+  const names = nameRows(full, {}, { bookOf: (e: { source: string }) => BOOK[e.source] ?? 0 }) as unknown as Parameters<typeof finalOf>[1];
+  const head = "Rules: 2024\nScores: STR 15/DEX 14/CON 13/INT 8/WIS 12/CHA 10\nClasses: Fighter 4\n\nL1 Fighter\n\nL4 Fighter\n";
+  for (const [feat, want] of [
+    ["Feat: Durable", [15, 14, 14, 8, 12, 10]],
+    ["Feat: Keen Mind", [15, 14, 13, 9, 12, 10]],
+    ["Feat: Great Weapon Master", [16, 14, 13, 8, 12, 10]],
+    ["Feat: Ability Score Improvement [DEX]", [15, 16, 13, 8, 12, 10]],
+  ] as [string, number[]][]) {
+    const p = parse(head + feat + "\n");
+    const site = finalOf(p, names).map((f) => f?.final ?? null);
+    assert.deepEqual(site, want, feat);
+    assert.deepEqual(site, ABILITIES.map((a) => finalScores(p, full).scores![a.toLowerCase()]), `${feat}: the library agrees`);
+  }
+  assert.equal(finalFoot(finalOf(parse(head + "Feat: Durable\n"), names)[2]!), "13 base, +1 L4 feat");
+});
 
 test("D321: the title and the foot say where the final comes from", () => {
   const p = parse("Rules: 2024\nScores: STR 8/DEX 14/CON 13/INT 10/WIS 15/CHA 12\nClasses: Cleric 4\n\nBackground: Acolyte\nScores: +2 WIS, +1 CON\n\nL1 Cleric\n\nL4 Cleric\nFeat: Ability Score Improvement [+2 WIS]\n");
