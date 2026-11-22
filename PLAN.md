@@ -141,7 +141,7 @@ L<n> <Class>                   level block, n = character level
 - [x] T8.5 Evaluate (no build) an opt-in strict rules toggle + final score totals: what it would check, what the checker
   already gives, cost, risks to the open-format stance · Done when: a short write-up and his call, logged as a decision.
 
-### M9 — Editor round 2: backgrounds, gear, masteries, feat bonuses (D334; scoped D335–D337) · size M/L · split library and site workers
+### M9 — Editor round 2: backgrounds, gear, masteries, feat bonuses (D334; scoped D335–D337) · ⏳ built and merged 04734be; release 0.12.0 + deploy next · size M/L
 Workers: **lib** (T9.4 format + T9.5 library, Opus@high, ids D340–D349) ∥ **site-a** (T9.0, T9.1, T9.2, T9.4 bug, Opus@high,
 ids D350–D359); then **site-b** (T9.3, T9.4 and T9.5 site side, after lib and site-a merge, ids D360–D369); then release 0.12.0.
 - [x] T9.0 Split `form.js` (D335): the autocomplete and popovers into their own module, loaded on first editor focus, checked as

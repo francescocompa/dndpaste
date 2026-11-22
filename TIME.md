@@ -1,5 +1,10 @@
 # Time log
 
+## 2026-11-22
+- 10:19–13:03 (2h44m) — M9 scoping, workers and merges
+
+**Day total: 2h44m**
+
 ## 2026-11-21
 - 19:46–23:31 (3h45m) — M8 close: scores jam, SPEC 0.11 and the 0.11.0 release
 - 09:45–10:25 (0h40m) — Troll Bandit build for the Reddit post
