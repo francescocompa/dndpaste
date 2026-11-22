@@ -1,12 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ABILITIES, parse } from "../../src/dndpaste.ts";
 import type { Paste } from "../../src/dndpaste.ts";
 import { build } from "esbuild";
 import * as N from "../src/names.gen.ts";
-import { fillScore, finalFoot, finalOf, finalTitle, methodOf, pickScore, scoreLineAt, scoreRows } from "../src/scores.ts";
+import { nameRows } from "../src/namerows.ts";
+import { fillScore, finalFoot, finalOf, finalTitle, listRows, methodOf, pickScore, scoreLineAt, scoreRows, stepScore } from "../src/scores.ts";
 import { renderPaste, scoreMark } from "../src/render.ts";
 import { FIXTURES, textOf } from "./helpers.ts";
 
@@ -32,6 +33,40 @@ for (const [name, text] of [...FIXTURES, ...EXTRA.map((t, i): [string, string] =
     assert.deepEqual(site.map((f) => f?.final ?? null), ABILITIES.map((a) => lib[a.toLowerCase()]), name);
   });
 }
+
+// D340, D341 (T9.5): a half feat's fixed +1 counts with nothing written; an ASI's bare ability is +2 alone, +1/+1 for two.
+test("D341: an ASI's bare ability counts: alone +2, beside another +1", () => {
+  const head = "Rules: 2024\nScores: STR 15/DEX 14/CON 13/INT 8/WIS 12/CHA 10\nClasses: Fighter 4\n\nL1 Fighter\n\nL4 Fighter\n";
+  const fin = (feat: string) => finalOf(parse(head + feat + "\n"), N).map((f) => f?.final ?? null);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [STR]"), [17, 14, 13, 8, 12, 10]);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [STR, CON]"), [16, 14, 14, 8, 12, 10]);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [+1 STR, CON]"), [16, 14, 14, 8, 12, 10]);
+  assert.deepEqual(fin("Feat: Ability Score Improvement [+2 STR]"), [17, 14, 13, 8, 12, 10], "the written form, as before");
+  const p = parse(head + "Feat: Ability Score Improvement [CON]\n");
+  assert.equal(finalFoot(finalOf(p, N)[2]!), "13 base, +2 L4 feat");
+  assert.deepEqual(finalOf(p, N).map((f) => f?.final ?? null), ABILITIES.map((a) => finalScores(p, slots).scores![a.toLowerCase()]), "the library agrees");
+});
+
+// The full table (gitignored, data/slots.json) has the half feats with a fixed increase; the SRD subset has none.
+const fullUrl = new URL("../../data/slots.json", import.meta.url);
+const full = existsSync(fullUrl) ? JSON.parse(readFileSync(fileURLToPath(fullUrl), "utf8")) : null;
+test("D340: a half feat with a fixed increase counts with nothing written, as finalScores() does", { skip: !full?.feats || !Object.values(full.feats).some((f: any) => f.abilityFixed) ? "no regenerated data/slots.json" : false }, () => {
+  const BOOK: Record<string, number> = { PHB: 1, XPHB: 2, DMG: 4, XDMG: 8 };
+  const names = nameRows(full, {}, { bookOf: (e: { source: string }) => BOOK[e.source] ?? 0 }) as unknown as Parameters<typeof finalOf>[1];
+  const head = "Rules: 2024\nScores: STR 15/DEX 14/CON 13/INT 8/WIS 12/CHA 10\nClasses: Fighter 4\n\nL1 Fighter\n\nL4 Fighter\n";
+  for (const [feat, want] of [
+    ["Feat: Durable", [15, 14, 14, 8, 12, 10]],
+    ["Feat: Keen Mind", [15, 14, 13, 9, 12, 10]],
+    ["Feat: Great Weapon Master", [16, 14, 13, 8, 12, 10]],
+    ["Feat: Ability Score Improvement [DEX]", [15, 16, 13, 8, 12, 10]],
+  ] as [string, number[]][]) {
+    const p = parse(head + feat + "\n");
+    const site = finalOf(p, names).map((f) => f?.final ?? null);
+    assert.deepEqual(site, want, feat);
+    assert.deepEqual(site, ABILITIES.map((a) => finalScores(p, full).scores![a.toLowerCase()]), `${feat}: the library agrees`);
+  }
+  assert.equal(finalFoot(finalOf(parse(head + "Feat: Durable\n"), names)[2]!), "13 base, +1 L4 feat");
+});
 
 test("D321: the title and the foot say where the final comes from", () => {
   const p = parse("Rules: 2024\nScores: STR 8/DEX 14/CON 13/INT 10/WIS 15/CHA 12\nClasses: Cleric 4\n\nBackground: Acolyte\nScores: +2 WIS, +1 CON\n\nL1 Cleric\n\nL4 Cleric\nFeat: Ability Score Improvement [+2 WIS]\n");
@@ -106,4 +141,19 @@ test("D325: the view and print carry the mark after the base row; the marker sho
   assert.ok(textOf(html).startsWith("Scores (point buy):STR 13/DEX 13/CON 13/INT 12/WIS 12/CHA 10 Point Buy 2/27"));
   assert.match(renderPaste(parse("Scores (standard array): STR 18\n")), /class="smk clash" title="[^"]+">Std\. Array</);
   assert.ok(!/smk/.test(renderPaste(parse("Scores: +2 CHA\n"))), "an increase has no mark");
+});
+
+test("D360: a Custom score's list is a stepper: one row, the typed or written number, else 10, kept inside 1-30", () => {
+  const v = [15, null, 13, null, null, null];
+  assert.deepEqual(listRows("custom", v, 1, true).map((r) => r.n), [10], "nothing typed or written: 10");
+  assert.deepEqual(listRows("custom", v, 1, true, "1").map((r) => r.n), [1], "what is typed");
+  assert.deepEqual(listRows("custom", v, 0).map((r) => r.n), [15], "a click on a written score starts there");
+  assert.deepEqual([stepScore(10, 1), stepScore(10, -5), stepScore(30, 1), stepScore(1, -1), stepScore(3, -5)], [11, 5, 30, 1, 1]);
+  // The other methods keep their lists, a fill narrowed by what is typed.
+  assert.deepEqual(listRows("standard-array", [15, null, null, null, null, null], 1, true, "1").map((r) => r.n), [14, 13, 12, 10]);
+  assert.deepEqual(listRows("point-buy", v, 1, false).map((r) => r.n), scoreRows("point-buy", v, 1).map((r) => r.n));
+  // The stepper's number is written as any pick is: a fill moves on to the next ability.
+  const text = "Scores: STR 15/DEX ";
+  const sl = scoreLineAt(text, text.length)!;
+  assert.deepEqual(fillScore(text, sl, stepScore(listRows("custom", sl.values, 1, true)[0].n, 2)), { text: "Scores: STR 15/DEX 12/CON ", cursor: 26, done: false });
 });

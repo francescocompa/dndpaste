@@ -49,7 +49,7 @@ export const KEY_HOLDS: Readonly<Record<string, string>> = {
   Expertise: "Skills chosen for expertise.",
   Feat: "Feats, with their choices in brackets. An ability score improvement is the feat Ability Score Improvement. " +
     "To name the slot that a feat fills, put it in parentheses after the key: Feat (Fighting Style), Feat (Origin).",
-  Masteries: "Weapon masteries.",
+  Masteries: "Weapon masteries. A level lists only its new ones. To swap one out, write -Name.",
   Invocations: "Eldritch invocations.",
   Metamagic: "Metamagic options.",
   Maneuvers: "Battle Master maneuvers.",

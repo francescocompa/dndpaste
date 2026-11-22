@@ -150,15 +150,20 @@ ids D350–D359); then **site-b** (T9.3, T9.4 and T9.5 site side, after lib and 
   "Custom" is always the first row of the Background list · Done when: built, site tests, /ui-review approved.
 - [x] T9.2 Scores in a Background block suggest picking the scores and the bonus; Start a build drops "Skip" and a new
   build starts on Custom (amends D322) · Done when: built, site tests, /ui-review approved.
-- [ ] T9.3 Gear list: a `+1`/`+2` prefix shows after the name as a chip, so names sort by name; packs and the background's
+- [x] T9.3 ✅ 2026-11-22 (site-b, /ui-review r1–r3 approved) Gear list: a `+1`/`+2` prefix shows after the name as a chip, so names sort by name; packs and the background's
   and class's gear options suggested in their blocks; a Mundane · Magic toggle (D336; its phone place is a review item) · Done when: built,
   /ui-review approved.
-- [ ] T9.4 Masteries: the error that shows right after the first pick is fixed on every counted line, not only
+- [x] T9.4 ✅ 2026-11-22 (site-b, /ui-review r1–r3 approved) Masteries: the error that shows right after the first pick is fixed on every counted line, not only
   Masteries · Masteries additive with `-Name` (D337, SPEC 0.12): library parse, warning on the snapshot shape, Tidy;
   the editor counts only new slots · Done when: the bug fixed with a regression test; SPEC 0.12 drafted, library and site tests.
-- [ ] T9.5 Feat bonuses count without an explicit `+x`: a half feat is +1; an ASI with one ability is +2, with two is
+- [x] T9.5 ✅ 2026-11-22 (site-b, /ui-review r1–r3 approved) Feat bonuses count without an explicit `+x`: a half feat is +1; an ASI with one ability is +2, with two is
   +1/+1; the ASI pick no longer reads as ability only (library `finalScores` + the site's mirror, D331) · Done when:
   library and site tests, the popover's final checked in /ui-review.
+
+- ⚑ Parked (Francesco, 2026-11-22, r2 gear-bg): a gold-only starting-gear option (`B  50 GP`) could let you pick the items
+  you buy with it.
+- ⚑ Open (Francesco, 2026-11-22, r2 note): Classes should update itself when a level block is removed.
+  Not in site-b's brief: the overseer's call.
 
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).

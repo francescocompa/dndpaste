@@ -486,7 +486,7 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Enforced by:* `test/spec12.test.ts` (D341 suite), `test/spec08.test.ts`.
 
 - **D342 — Tidy leaves a `W008` line as written; the warning's fix, not safe, writes the new names and the drop
-  (`Masteries: Flail, -Sap`). DECIDED (2026-11-22).** `W008`: a later level line repeats held masteries and leaves one
+  (`Masteries: Flail, -Sap`). DECIDED (2026-11-22); AMENDED → D364 (Tidy folds the `W008` line too, keeping the swap).** `W008`: a later level line repeats held masteries and leaves one
   out (the 0.11 snapshot shape). Tidy and `normalise` fold only the snapshot lines that just add (`foldMasteries`), so a
   swap-by-omission keeps its warning until the author answers it.
   *Raw note:* picked "Leave it as written (Recommended)".
@@ -574,3 +574,81 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   be fixed everywhere".
   *Rejected:* a hold in each pick path (the score fill already had one of its own; the next path would miss it).
   *Enforced by:* `site/test/form.test.ts` ("D354 (T9.4)…").
+
+## M9 site-b (2026-11-22) — mechanism: worker build, AskUserQuestion (2 rounds), /ui-review r1; ids D360–D369
+
+- **D360 — A Custom base `Scores` line opens a stepper: −, the number, +. DECIDED (2026-11-22); his answer to site-a's
+  open flag.** While the line is filled, and on a click on a written score, the list is one row: the typed number, else
+  the score written, else 10, held inside 1–30. The arrow keys step it (Shift: by 5); Tab, Enter after a step, or a
+  click on the number writes it, and a fill moves on to the next ability. Typing still works.
+  *Raw note:* "A custom panel with for example steppers or a slider, something that can aide type a number" (over the
+  offered 3–18 list, a short common-values list, or no list).
+  *Rejected:* a 3–18 list (rows to scroll for one number); common values only; no list.
+  *Enforced by:* `site/test/scores.test.ts` ("D360…"); /ui-review r1 approved.
+
+- **D361 — The editor reads Masteries as additive (D337): a level's line counts the slots new at that class level, one
+  more per `-Name`, and only the names new to the build. DECIDED (2026-11-22), T9.4 site.** `ghost.ts` takes `have`
+  from the library's `masteryWalk` (`added`); the list on a level line leaves out held weapons, and after a `-` lists
+  the held ones (`loadoutAt`, level − 1). A swap (D304) over a held name writes `New, -Old`. The W008 fix reaches the
+  line through `libraryFixes`. The key tip says a level lists only its new ones.
+  *Rejected:* counting the loadout total (the 0.11 snapshot reading).
+  *Enforced by:* `site/test/ghost.test.ts`, `site/test/complete.test.ts`, `site/test/fixes.test.ts` ("D361…"); r1 approved.
+
+- **D362 — The Gear list shows one half, Mundane or Magic, switched by two chips in its head; a block's starting gear
+  leads. DECIDED (2026-11-22), builds D336.** The pick is kept in `localStorage` (`dndpaste.gear`, try/catch). On phone
+  the switch leads the dock's chip row (r1 approved). A name only the other half has shows "None in Mundane · N in
+  Magic". In a Background block or the build's L1 block: the option letters (tag `option`, both halves), then the
+  class's or background's choice items (2014), then the packs. Names table: `GEAR_OPTIONS` (letters and item names per
+  class and background, names only).
+  *Review r1:* "A, B and C aren't clear enough by themselves, can we offer more info?" and "lists where some options
+  are given priority … should have a divider between the parts" → owed, round 2 (hand-over note).
+  *Review r2:* both answered: D365 (the letters' contents) and D366 (the rule). Approved.
+  *Enforced by:* `site/test/complete.test.ts`, `site/test/prefs.test.ts` ("D362…").
+
+- **D363 — A Gear item's `+N` prefix shows as a chip after its name, and the list sorts by the name. DECIDED
+  (2026-11-22), builds D334.** `+1 Ammunition` reads "Ammunition +1"; the pick writes the name as it is. A `+1
+  Longsword` on the line no longer hides the plain Longsword. The site's `finalOf` mirrors D340 (a feat row's fixed
+  +1s) and D341 (an ASI's bare ability).
+  *Enforced by:* `site/test/complete.test.ts`, `site/test/scores.test.ts` ("D340…", "D341…"); r1 approved.
+
+- **D364 — Tidy folds a W008 line too, keeping the 0.11 author's swap: `Longsword, Handaxe, Lance, Flail` becomes
+  `Flail, -Sickle`, and the warning goes. DECIDED (2026-11-22); amends D342.** His r1 note: "Remove the warning from
+  the header, simply make it a step for Tidy". He picked dropping the left-out name.
+  *Rejected:* Tidy keeps the name (the swap lost silently); D342 as it was.
+  *Enforced by:* `test/spec12.test.ts` ("D364…" tests), SPEC §5.4, §7, §14; site: `site/test/fixes.test.ts` ("D364…");
+  /ui-review r2 approved.
+
+- **D365 — Each 2024 starting-gear letter shows what it holds: the contents after the letter, cut to the list's width,
+  and a chevron that opens them in full in the list's place. W008 stays in the library but is a Tidy step on the site.
+  DECIDED (2026-11-22); builds D362 and D364.** Data: the extractor keeps `equipmentSets` per class and background
+  (`{ "A": { "items": [["Javelin", 8], …], "cp": 400 } }`): item names, a kind for a generic entry (`Musical
+  Instrument`), a short special name (`Spellbook`, 24 characters at most, longer specials are prose and are left out),
+  and the coin. Names and numbers only. The committed SRD subset gained only this field (grafted, so the mirror's other
+  drift stays out). The names table's `GEAR_OPTIONS` rows carry the sets as display lines: `Javelin ×8` (a count, no
+  plurals to get wrong) and `4 GP`. The list: `A  Chain Mail, Greatsword, …` in muted text that never widens the list
+  (r2: "Keep the panel narrower as it was before"); the chevron, or Right on a highlighted letter, opens the detail view:
+  a back chevron at the top left with "Option A", one entry a line, then "Take A" (Enter or Tab). Left or Escape goes
+  back. On phone the detail is one sideways row. The site side of D364: `status` leaves W008 out of Problems, the
+  summary and the underlines, Tidy is on while a snapshot line is there, and its badge lists one step per line
+  ("Masteries: Only the new ones at L4", "Masteries: Drop Sickle at L10"); a struck-through step leaves its line, and
+  `foldMasteries` takes an `only` filter for that. The library keeps W008: apps with no Tidy still need to see the swap
+  (D344). The no-JS form keeps listing it (it has no Tidy).
+  *Raw note:* r1: "A, B and C aren't clear enough by themselves, can we offer more info?"; his pick: "Inline, cut to fit
+  + a chevron that opens it fully into the panel (with a top left chevron to go back and an option to select from this
+  detail panel)"; r1 mast-snap: "Remove the warning from the header, simply make it a step for Tidy".
+  *Rejected:* the full contents on a second line (taller rows); the first two items and a count; retiring W008 from
+  the library (breaks D344's "the moved shape warns" for other apps).
+  *Parked:* r2 gear-bg: "For B, we could consider selecting which items you buy with that amount" (⚑ PLAN M9).
+  *Enforced by:* `test/extract.test.ts` ("D365…"), `site/test/complete.test.ts` ("D365…"), `site/test/fixes.test.ts`
+  ("D364…"); /ui-review r2 approved.
+
+- **D366 — A group that leads a list, not dimmed, gets a rule under its last row. DECIDED (2026-11-22); his r1 rule;
+  generalises D351's Custom rule.** `suggestList` marks `sep` on the last row of each leading group, a starting-gear
+  part (`lead`) or the names ranked first (D156), when the next row is not dimmed. Gear in an L1 or Background block:
+  after the letters or a 2014 class's items, and after the packs; a level header: after the build's own classes;
+  Background: after Custom. A dimmed tail (Skills' short list, another class's spells) parts itself: no rule. Desktop
+  list only, as before.
+  *Raw note:* r1: "When you have lists where the order isn't simply alphabetical but some options are given priority
+  (but still the second part isn't greyed out), we should have a divider between the parts."
+  *Rejected:* a rule per list by hand (Custom's own case, D351): the next list would miss it.
+  *Enforced by:* `site/test/complete.test.ts` ("D366…"); /ui-review r2 approved.

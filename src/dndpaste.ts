@@ -973,7 +973,7 @@ export function parse(text: string): Paste {
   }
 
   // Masteries add up (D337, SPEC 0.12): a later line that repeats held names and leaves one out is the 0.11 snapshot
-  // shape, which meant a swap. It reads as adding (the left-out name stays); the warning offers the drop (D342).
+  // shape, which meant a swap. It reads as adding (the left-out name stays); the warning offers the drop (D342), and Tidy makes it (D364).
   for (const step of masteryWalk(paste)) {
     if (!step.repeated.length || !step.leftOut.length) continue;
     const at = seen.get(step.level.lines)?.get("masteries") ?? headerLine.get(step.level.n) ?? 0;
@@ -1307,21 +1307,23 @@ export function masteryWalk(paste: Paste): MasteryStep[] {
 }
 /**
  * Rewrites each 0.11 snapshot `Masteries` line as an additive one (D337): the names the build already held go, and a
- * line left with nothing goes. A line that leaves a held name out (W008) stays as written, so its warning stays until
- * the author answers it (D342). Changes the paste in place; returns how many lines it rewrote. Tidy and the checker's
+ * line left with nothing goes. A line that leaves a held name out (W008) keeps the 0.11 author's swap: the name left
+ * out becomes `-Name` after the new ones, as the warning's fix writes it (D364, amends D342). The walk runs again after
+ * each line, so a later snapshot line reads against the folded one. `only` limits it to some level blocks (an editor's
+ * Tidy that leaves one line out). Changes the paste in place; returns how many lines it rewrote. Tidy and the checker's
  * `normalise` call it.
  */
-export function foldMasteries(paste: Paste): number {
+export function foldMasteries(paste: Paste, only: (level: LevelBlock) => boolean = () => true): number {
   let folded = 0;
-  for (const step of masteryWalk(paste)) {
-    if (!step.repeated.length || step.leftOut.length) continue;
+  for (;;) {
+    const step = masteryWalk(paste).find((s) => s.repeated.length && only(s.level));
+    if (!step) return folded;
     const v = step.level.lines.get("Masteries");
-    if (!v || v.type !== "items") continue;
-    const kept = v.items.filter((it) => !step.repeated.includes(it));
+    if (!v || v.type !== "items") return folded;
+    const kept = [...v.items.filter((it) => !step.repeated.includes(it)), ...step.leftOut.map((it) => ({ ...it, drop: true, qty: null }))];
     if (kept.length) step.level.lines.set("Masteries", { type: "items", items: kept }); else step.level.lines.delete("Masteries");
     folded++;
   }
-  return folded;
 }
 /** What a build has ready at a level (§5.4): its weapon masteries, and its default prepared spells. */
 export interface Loadout {
@@ -1364,7 +1366,7 @@ export interface TidyOptions {
 }
 /**
  * The editor's Tidy (D203): makes every safe fix (a header key moved out of a block, duplicate lines joined, `/`
- * between classes, a space after a colon), rewrites 0.11 snapshot `Masteries` lines as additive ones (D337), folds
+ * between classes, a space after a colon), rewrites 0.11 snapshot `Masteries` lines as additive ones (D337, D364), folds
  * `Options` lines when it knows their family, then writes the canonical form. It never refuses: a line it can't fix stays as written (D202).
  */
 export function tidy(text: string, opts: TidyOptions = {}): string {

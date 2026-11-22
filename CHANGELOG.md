@@ -7,15 +7,18 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
   masteries new at that level; `-Name` drops one (a swap is `Masteries: Flail, -Sap`); a name the build already holds
   is ignored. `Prepared` stays a snapshot. A 0.11 paste whose later lines only add reads the same, with no
   diagnostic. A later line that repeats held names and leaves one out now keeps that one and warns **`W008`**; its
-  fix (not safe) writes the new names and the drop. Tidy and the checker's `normalise` rewrite the lines that only
-  add as additive ones and leave a `W008` line as written; `emit` alone keeps every line.
+  fix (not safe) writes the new names and the drop. Tidy and the checker's `normalise` rewrite every snapshot line
+  as an additive one; a `W008` line keeps its swap (`Flail, -Sap`), so the warning goes (D364). `emit` alone keeps
+  every line.
 - **Feat bonuses count with no `+x`** (D334, D340, D341). `Feat: Ability Score Improvement [CHA]` is +2 CHA;
   `[INT, CON]` and `[+1 INT, CON]` are +1 INT, +1 CON; the checker no longer reports the bare form. A half feat with
   a fixed increase and no pick (`Durable`, `Keen Mind`, the 2024 `Great Weapon Master`, 25 feats in 5etools) adds its
   +1 in `finalScores`. A picked half feat (`Grappler [STR]`) counted already.
 - Library: `loadoutAt(paste, level)` gives the masteries held and the `Prepared` snapshot at a level, data-free
   (also from `dndpaste/check`); `masteryWalk(paste)` reads each level's line (added, repeated, left out, held);
-  `foldMasteries(paste)` is Tidy's rewrite. The slot table's feats get `abilityFixed` (`{ "con": 1 }`), written
+  `foldMasteries(paste[, only])` is Tidy's rewrite (`only` limits it to some level blocks). The slot table's
+  classes and backgrounds get `equipmentSets` (what each starting-gear letter holds: item names, counts, coin; D365),
+  and its feats get `abilityFixed` (`{ "con": 1 }`), written
   only when a feat has one: regenerate `data/slots.json`. `SPEC_VERSION` is `"0.12"`.
 - Fixtures: `masteries-fighter` in 0.12 form; `fixtures/v0.11/masteries-fighter` keeps the snapshot lines, and a
   test checks it reads the same at every level and converts.
@@ -29,6 +32,13 @@ Newest first. Versions follow `package.json`; the spec has its own number inside
   abilities until the +3 is spent. Start a build has no Skip; a new build starts on Custom.
 - Site (T9.4, D354): the error that showed right after the first pick on a counted line (Masteries, Cantrips, …) now
   waits while the line is still being written, as it does for typing.
+- Site (T9.3, D362, D363, D365, D366): the Gear list shows Mundane or Magic items, switched in its head; a `+1` shows
+  after the name as a chip. In an L1 or Background block the starting gear leads: each option letter with what it
+  holds (`A  Chain Mail, Greatsword, …`), a chevron for all of it, then the packs. A rule parts a list's leading
+  rows from the rest when the rest is not dimmed.
+- Site (T9.4, T9.5, D360, D361, D364): Masteries count only the new slots at each level; `-` lists the ones held.
+  An old 0.11 Masteries line is a Tidy step, not a warning. The score popover counts a half feat's fixed +1 and an
+  ASI's bare ability. A Custom base score opens a stepper.
 ### Migrating from 0.11
 Readers: use `loadoutAt` (or sum the lines) for a level's masteries instead of reading the last `Masteries` line.
 Writers: write only the new masteries per level, and `-Name` for a swap. Saved pastes go through Tidy once.
@@ -36,7 +46,7 @@ Writers: write only the new masteries per level, and `-Name` for a swap. Saved p
 | 0.11 | 0.12 |
 |---|---|
 | `L4` `Masteries: Longsword, Sap, Handaxe, Lance` (after `L1` `Masteries: Longsword, Sap, Handaxe`) | `L4` `Masteries: Lance` |
-| `L10` `Masteries: Longsword, Handaxe, Lance, Flail` (Sap left out: a swap) | `L10` `Masteries: Flail, -Sap` (the `W008` fix) |
+| `L10` `Masteries: Longsword, Handaxe, Lance, Flail` (Sap left out: a swap) | `L10` `Masteries: Flail, -Sap` (the `W008` fix, and Tidy's) |
 | `Feat: Ability Score Improvement [+2 CHA]` | unchanged; `[CHA]` also reads as +2 |
 | `Feat: Ability Score Improvement [+1 INT, +1 CON]` | unchanged; `[INT, CON]` also reads as +1/+1 |
 

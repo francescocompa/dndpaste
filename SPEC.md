@@ -670,7 +670,7 @@ no species and the rest is one that offers that lineage (D287); `normalise` writ
 | W005 | renamed key: a 0.7 key read as its 0.8 form (§2.6, §5.6) |
 | W006 | a 0.9 defining-pick `Feature` line in the Species block, moved onto the `Species` line (§5.8, D283) |
 | W007 | a 0.9 species name with its variant in parentheses (`Elf (Wood)`), read as `Elf [Wood]` (§5.8, D282) |
-| W008 | a level's `Masteries` line repeats masteries already held and leaves one out (the 0.11 snapshot form): the one left out is still held. Its fix, not safe, writes the new names and the drop: `Masteries: Flail, -Sap` (§5.4, D337, D342) |
+| W008 | a level's `Masteries` line repeats masteries already held and leaves one out (the 0.11 snapshot form): the one left out is still held. Its fix, not safe, writes the new names and the drop: `Masteries: Flail, -Sap`; Tidy makes it too (§5.4, D337, D342, D364) |
 
 **Hints and fixes** (D192, D203). Every error and most warnings carry a `hint`: how to fix it, in a few
 words ("Move above Species", "Did you mean Classes?", "Join with commas", "Use / between classes"). When
@@ -678,9 +678,9 @@ the parser can write the fix, `fix` holds it as text edits on the paste as writt
 `applyFix(text, fix)` makes them. A fix marked `safe` changes no choice: it moves a header key out of a
 block, joins a key's duplicate lines, puts `/` between classes written with commas, or adds the space
 after a colon. A guess (a did-you-mean, a comment turned into a `Note`) is not safe. The library's
-`tidy(text)` makes every safe fix of every error, writes a 0.11 snapshot `Masteries` line that only adds as
-an additive one (§14), then writes the canonical form; a line it cannot fix stays as written (D202). A
-`W008` line stays as written, so its warning stays until the author answers it (D342).
+`tidy(text)` makes every safe fix of every error, writes each 0.11 snapshot `Masteries` line as an additive
+one (§14), then writes the canonical form; a line it cannot fix stays as written (D202). A `W008` line keeps the
+0.11 author's swap: Tidy writes the warning's fix, so the warning goes (D364).
 
 ---
 
@@ -953,7 +953,8 @@ form.
 
 0.12 (D337, D340–D343) changes what a level's `Masteries` line means; it renames no key and needs no alias. A 0.11
 paste whose later `Masteries` lines only add reads the same, with no new diagnostic. One that drops a mastery by
-leaving it out now keeps it, with `W008`. Tidy writes the snapshot lines that only add as additive ones.
+leaving it out now keeps it, with `W008`. Tidy writes every snapshot line as an additive one, and keeps the swap:
+the name left out becomes `-Name` (D364).
 
 - **`Masteries` adds up, like `Spells`** (D337; amends §5.1 and §5.4). A level line lists only the masteries new at
   that level, and `-Name` drops one. Kind: a meaning change inside `Paste: 1`, read the same wherever the 0.11 line
@@ -970,7 +971,7 @@ leaving it out now keeps it, with `W008`. Tidy writes the snapshot lines that on
   ```
 
   Read as 0.12, the left column's L10 line keeps Sap and warns `W008`; its fix writes the right column's line. Tidy
-  rewrites the L4 line and leaves the L10 line as written (D342). `Prepared` stays a snapshot.
+  rewrites both lines as the right column (D364, amends D342). `Prepared` stays a snapshot.
 - **An ASI and a half feat count with no `+x`** (D341, D340; amends §5.3). `Feat: Ability Score Improvement [CHA]` is
   `[+2 CHA]`; `[INT, CON]` is `[+1 INT, +1 CON]`. A half feat with a fixed increase (`Feat: Durable`) raises its score
   with nothing written. Kind: an addition; every 0.11 line means the same.

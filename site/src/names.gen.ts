@@ -363,26 +363,27 @@ export const SUBCLASSES: readonly (readonly [string, Books, number, string])[] =
 export const SPECIES: readonly (readonly [string, Books])[] = [["Dragonborn",3],["Dwarf",3],["Elf",3],["Gnome",3],["Goliath",2],["Half-Elf",1],["Half-Orc",1],["Halfling",3],["Human",3],["Orc",2],["Tiefling",3]];
 /** [name, books] */
 export const BACKGROUNDS: readonly (readonly [string, Books])[] = [["Acolyte",3],["Criminal",3],["Folk Hero",1],["Noble",1],["Sage",3],["Soldier",3],["Variant Criminal (Spy)",1]];
-/** [name, books, category name, abilities its first slot takes, class versions, cantrips to pick, spells to pick] */
-export const FEATS: readonly (readonly [string, Books, string, AbilityBits, readonly string[], number, number])[] = [
-  ["Ability Score Improvement",2,"General",63,[],0,0],
-  ["Alert",2,"Origin",0,[],0,0],
-  ["Archery",2,"Fighting Style",0,[],0,0],
-  ["Boon of Combat Prowess",2,"Epic Boon",63,[],0,0],
-  ["Boon of Dimensional Travel",2,"Epic Boon",63,[],0,0],
-  ["Boon of Fate",2,"Epic Boon",63,[],0,0],
-  ["Boon of Irresistible Offense",2,"Epic Boon",3,[],0,0],
-  ["Boon of Spell Recall",2,"Epic Boon",56,[],0,0],
-  ["Boon of Truesight",2,"Epic Boon",63,[],0,0],
-  ["Boon of the Night Spirit",2,"Epic Boon",63,[],0,0],
-  ["Defense",2,"Fighting Style",0,[],0,0],
-  ["Grappler",1,"",0,[],0,0],
-  ["Grappler",2,"General",3,[],0,0],
-  ["Great Weapon Fighting",2,"Fighting Style",0,[],0,0],
-  ["Magic Initiate",2,"Origin",56,["Cleric","Druid","Wizard"],2,1],
-  ["Savage Attacker",2,"Origin",0,[],0,0],
-  ["Skilled",2,"Origin",0,[],0,0],
-  ["Two-Weapon Fighting",2,"Fighting Style",0,[],0,0],
+/** [name, books, category name, abilities its first slot takes, class versions, cantrips to pick, spells to pick,
+ *  abilities it raises by +1 with no pick (D340)] */
+export const FEATS: readonly (readonly [string, Books, string, AbilityBits, readonly string[], number, number, AbilityBits])[] = [
+  ["Ability Score Improvement",2,"General",63,[],0,0,0],
+  ["Alert",2,"Origin",0,[],0,0,0],
+  ["Archery",2,"Fighting Style",0,[],0,0,0],
+  ["Boon of Combat Prowess",2,"Epic Boon",63,[],0,0,0],
+  ["Boon of Dimensional Travel",2,"Epic Boon",63,[],0,0,0],
+  ["Boon of Fate",2,"Epic Boon",63,[],0,0,0],
+  ["Boon of Irresistible Offense",2,"Epic Boon",3,[],0,0,0],
+  ["Boon of Spell Recall",2,"Epic Boon",56,[],0,0,0],
+  ["Boon of Truesight",2,"Epic Boon",63,[],0,0,0],
+  ["Boon of the Night Spirit",2,"Epic Boon",63,[],0,0,0],
+  ["Defense",2,"Fighting Style",0,[],0,0,0],
+  ["Grappler",1,"",0,[],0,0,0],
+  ["Grappler",2,"General",3,[],0,0,0],
+  ["Great Weapon Fighting",2,"Fighting Style",0,[],0,0,0],
+  ["Magic Initiate",2,"Origin",56,["Cleric","Druid","Wizard"],2,1,0],
+  ["Savage Attacker",2,"Origin",0,[],0,0,0],
+  ["Skilled",2,"Origin",0,[],0,0,0],
+  ["Two-Weapon Fighting",2,"Fighting Style",0,[],0,0,0],
 ];
 /** [name, books, classes its families belong to, 1 if a fighting style, picks it asks, family codes] (D186) */
 export const OPTIONS: readonly (readonly [string, Books, ClassBits, number, number, readonly string[]])[] = [
@@ -1179,3 +1180,6 @@ export const SPECIES_FEATURES: readonly (readonly [string, readonly string[]])[]
 /** [species, source, edition, fixed increases STR…CHA]: a printing's score increases, numbers only, for the score
  *  popover's final (D331) */
 export const SPECIES_FIXED: readonly (readonly [string, string, string, readonly number[]])[] = [["Dragonborn","PHB","2014",[2,0,0,0,0,1]],["Dwarf","PHB","2014",[0,0,2,0,0,0]],["Dwarf (Hill)","PHB","2014",[0,0,2,0,1,0]],["Dwarf (Mountain)","PHB","2014",[2,0,2,0,0,0]],["Elf","PHB","2014",[0,2,0,0,0,0]],["Elf (High)","PHB","2014",[0,2,0,1,0,0]],["Elf (Wood)","PHB","2014",[0,2,0,0,1,0]],["Gnome","PHB","2014",[0,0,0,2,0,0]],["Gnome (Rock)","PHB","2014",[0,0,1,2,0,0]],["Half-Elf","PHB","2014",[0,0,0,0,0,2]],["Half-Orc","PHB","2014",[2,0,1,0,0,0]],["Halfling","PHB","2014",[0,2,0,0,0,0]],["Halfling (Lightfoot)","PHB","2014",[0,2,0,0,0,1]],["Halfling (Stout)","PHB","2014",[0,2,1,0,0,0]],["Tiefling","PHB","2014",[0,0,0,1,0,2]]];
+/** [C class or B background, name, books, its starting-gear option letters, the items its choice groups name]: the
+ *  gear that leads a Background or L1 block's `Gear` list (D336, D362). Names only. */
+export const GEAR_OPTIONS: readonly (readonly ["C" | "B", string, Books, readonly string[], readonly string[], readonly (readonly string[])[]])[] = [["B","Acolyte",2,["A","B"],[],[["Book","Calligrapher's Supplies","Holy Symbol","Parchment ×10","Robe","8 GP"],["50 GP"]]],["C","Barbarian",2,["A","B"],[],[["Greataxe","Handaxe ×4","Explorer's Pack","15 GP"],["75 GP"]]],["C","Bard",1,[],["Diplomat's Pack","Entertainer's Pack"],[]],["C","Bard",2,["A","B"],[],[["Leather Armor","Dagger ×2","Musical Instrument","Entertainer's Pack","19 GP"],["90 GP"]]],["C","Cleric",1,[],["Mace","Warhammer","Scale Mail","Leather Armor","Chain Mail","Priest's Pack","Explorer's Pack"],[]],["C","Cleric",2,["A","B"],[],[["Chain Shirt","Shield","Mace","Holy Symbol","Priest's Pack","7 GP"],["110 GP"]]],["B","Criminal",2,["A","B"],[],[["Dagger ×2","Thieves' Tools","Crowbar","Pouch ×2","Traveler's Clothes","16 GP"],["50 GP"]]],["C","Druid",2,["A","B"],[],[["Leather Armor","Shield","Sickle","Druidic Focus","Explorer's Pack","Herbalism Kit","9 GP"],["50 GP"]]],["C","Fighter",1,[],["Chain Mail","Leather Armor","Longbow","Arrows (20)","Light Crossbow","Crossbow Bolts (20)","Handaxe","Dungeoneer's Pack","Explorer's Pack"],[]],["C","Fighter",2,["A","B","C"],[],[["Chain Mail","Greatsword","Flail","Javelin ×8","Dungeoneer's Pack","4 GP"],["Studded Leather Armor","Scimitar","Shortsword","Longbow","Arrows (20)","Quiver","Dungeoneer's Pack","11 GP"],["155 GP"]]],["C","Monk",1,[],["Dungeoneer's Pack","Explorer's Pack"],[]],["C","Monk",2,["A","B"],[],[["Spear","Dagger ×5","Musical Instrument or Artisan's Tools","Explorer's Pack","11 GP"],["50 GP"]]],["C","Paladin",1,[],["Priest's Pack","Explorer's Pack"],[]],["C","Paladin",2,["A","B"],[],[["Chain Mail","Shield","Longsword","Javelin ×6","Holy Symbol","Priest's Pack","9 GP"],["150 GP"]]],["C","Ranger",1,[],["Scale Mail","Leather Armor","Dungeoneer's Pack","Explorer's Pack"],[]],["C","Ranger",2,["A","B"],[],[["Studded Leather Armor","Scimitar","Shortsword","Longbow","Arrows (20)","Quiver","Sprig of Mistletoe","Explorer's Pack","7 GP"],["150 GP"]]],["C","Rogue",1,[],["Rapier","Shortsword","Shortbow","Arrows (20)","Burglar's Pack","Dungeoneer's Pack","Explorer's Pack"],[]],["C","Rogue",2,["A","B"],[],[["Leather Armor","Dagger ×2","Shortsword","Shortbow","Arrows (20)","Quiver","Thieves' Tools","Burglar's Pack","8 GP"],["100 GP"]]],["B","Sage",2,["A","B"],[],[["Quarterstaff","Calligrapher's Supplies","Book","Parchment ×8","Robe","8 GP"],["50 GP"]]],["B","Soldier",1,[],["Dice Set","Playing Card Set"],[]],["B","Soldier",2,["A","B"],[],[["Spear","Shortbow","Arrows (20)","Gaming Set","Healer's Kit","Quiver","Traveler's Clothes","14 GP"],["50 GP"]]],["C","Sorcerer",1,[],["Dungeoneer's Pack","Explorer's Pack"],[]],["C","Sorcerer",2,["A","B"],[],[["Spear","Dagger ×2","Crystal","Dungeoneer's Pack","28 GP"],["50 GP"]]],["C","Warlock",1,[],["Scholar's Pack","Dungeoneer's Pack"],[]],["C","Warlock",2,["A","B"],[],[["Leather Armor","Sickle","Dagger ×2","Orb","Book","Scholar's Pack","15 GP"],["100 GP"]]],["C","Wizard",1,[],["Quarterstaff","Dagger","Scholar's Pack","Explorer's Pack"],[]],["C","Wizard",2,["A","B"],[],[["Dagger ×2","Quarterstaff","Robe","Spellbook","Scholar's Pack","5 GP"],["55 GP"]]]];

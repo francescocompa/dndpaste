@@ -223,6 +223,39 @@ function equipmentChoiceGroups(groups: J, itemsByKey: Map<string, J>): Record<st
   }
   return out;
 }
+// ── 2024 starting-equipment sets (D365) ──────────────────────────────────────
+// What each option letter holds, names and numbers only: an item's name and how many, a kind of item for a generic
+// entry (`Musical Instrument`), a short special name (`Spellbook`), and the coin, in copper. Written only when a letter
+// has something, so an editor can show "A: Chain Mail, Greatsword, …, 4 GP" beside the letter.
+const EQUIPMENT_TYPES: Record<string, string> = {
+  instrumentMusical: "Musical Instrument", toolArtisan: "Artisan's Tools", setGaming: "Gaming Set",
+  weaponSimple: "Simple Weapon", weaponSimpleMelee: "Simple Melee Weapon", weaponSimpleRanged: "Simple Ranged Weapon",
+  weaponMartial: "Martial Weapon", weaponMartialMelee: "Martial Melee Weapon", weaponMartialRanged: "Martial Ranged Weapon",
+  focusSpellcastingHoly: "Holy Symbol", focusSpellcastingDruidic: "Druidic Focus", focusSpellcastingArcane: "Arcane Focus",
+};
+/** One option letter's contents: `[name, count]` per entry, and its coin in copper. */
+export interface EquipmentSet { items: [string, number][]; cp: number }
+function equipmentSets(groups: J, itemsByKey: Map<string, J>): { equipmentSets?: Record<string, EquipmentSet> } {
+  const out: Record<string, EquipmentSet> = {};
+  for (const g of Array.isArray(groups) ? groups : []) {
+    for (const [letter, entries] of Object.entries(g ?? {}) as [string, J][]) {
+      if (!/^[A-Z]$/.test(letter) || !Array.isArray(entries)) continue;
+      const set: EquipmentSet = { items: [], cp: 0 };
+      for (const e of entries) {
+        const qty = typeof e?.quantity === "number" && e.quantity > 0 ? e.quantity : 1;
+        if (typeof e === "string" || typeof e?.item === "string") set.items.push([resolveItemName(typeof e === "string" ? e : e.item, itemsByKey).split("|")[0], qty]);
+        else if (typeof e?.value === "number") set.cp += e.value;
+        else if (typeof e?.equipmentType === "string" && EQUIPMENT_TYPES[e.equipmentType]) set.items.push([EQUIPMENT_TYPES[e.equipmentType], qty]);
+        else if (Array.isArray(e?.equipmentTypes)) {
+          const kinds = e.equipmentTypes.map((t: string) => EQUIPMENT_TYPES[t]).filter(Boolean);
+          if (kinds.length) set.items.push([kinds.join(" or "), qty]);
+        } else if (typeof e?.special === "string" && e.special.length <= 24) set.items.push([e.special, qty]);
+      }
+      if (set.items.length || set.cp) out[letter] = set;
+    }
+  }
+  return Object.keys(out).length ? { equipmentSets: out } : {};
+}
 const letterKeys = (groups: J): string[] => (Array.isArray(groups) ? groups : []).flatMap((o: J) => Object.keys(o ?? {}).filter((k) => /^[A-Z]$/.test(k)));
 
 /** The slot table: the checker's data (src/check.ts `Slots`), names and numbers only. */
@@ -314,6 +347,7 @@ export function extractSlots(data: DataSet, opts: ExtractOptions = {}): SlotTabl
       skills: chooseSpec(sp.skills), tools: chooseSpec(sp.tools), multiclassSkills: chooseSpec(c.multiclassing?.proficienciesGained?.skills),
       equipmentOptions: letterKeys(c.startingEquipment?.defaultData),
       equipmentGroups: equipmentChoiceGroups(c.startingEquipment?.defaultData, itemsByKey),
+      ...equipmentSets(c.startingEquipment?.defaultData, itemsByKey),
       casting: c.spellcastingAbility ? {
         ability: c.spellcastingAbility, progression: c.casterProgression ?? null, preparedChange: c.preparedSpellsChange ?? null,
         cantrips: c.cantripProgression ?? null, prepared: c.preparedSpellsProgression ?? null, known: c.spellsKnownProgression ?? null,
@@ -387,6 +421,7 @@ export function extractSlots(data: DataSet, opts: ExtractOptions = {}): SlotTabl
       feats: (Array.isArray(b.feats) ? b.feats : []).flatMap((f: J) => Object.keys(f ?? {}).map((k) => k.split("|")[0])),
       equipmentOptions: letterKeys(b.startingEquipment),
       equipmentGroups: equipmentChoiceGroups(b.startingEquipment, itemsByKey),
+      ...equipmentSets(b.startingEquipment, itemsByKey),
     };
   }
 

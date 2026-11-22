@@ -7,9 +7,10 @@
  * Per level: the class comes from the reading rule (`classSequence`, D49), the class level from how many levels that
  * class has had so far, and each class from its own table, so a multiclass build needs no rule of its own. Gains for
  * Skills, Expertise, Cantrips, Spells and Options (a `-` drop lets one more pick in, as the checker's owed + dropped);
- * the loadout total for Masteries and Prepared (SPEC: "the default loadout from that level").
+ * the loadout total for Prepared (SPEC: "the default loadout from that level"). Masteries add up since SPEC 0.12
+ * (D337, D361): a level's line counts the slots new at that class level and the names new to the build.
  */
-import { ABILITIES, classSequence, isAbilitySlot, keyGroup, resolveKey } from "../../src/dndpaste.ts";
+import { ABILITIES, classSequence, isAbilitySlot, keyGroup, masteryWalk, resolveKey } from "../../src/dndpaste.ts";
 import type { Item, Paste, Ref } from "../../src/dndpaste.ts";
 import { BACKGROUND_PRESETS, PRESETS, SPECIES_PRESETS } from "./presets.ts";
 import { esc, icon } from "./render.ts";
@@ -174,6 +175,8 @@ export function ghostCounts(paste: Paste, text: string): Ghost[] {
   }
 
   const out: Ghost[] = [...speciesGhosts(paste, lines, rules), ...backgroundGhosts(paste, lines, rules)];
+  let steps: ReturnType<typeof masteryWalk> | null = null;
+  const walk = () => (steps ??= masteryWalk(paste));
   for (const { n, key, lines: at1, scopes } of groups.values()) {
     const here = at.get(n);
     if (!here || !here.table.counted.includes(key)) continue;
@@ -186,8 +189,14 @@ export function ghostCounts(paste: Paste, text: string): Ghost[] {
     let of = table.counts[k - 1]?.[key] ?? 0;
     if (key === "Skills" && k === 1) of += table.skills[n === 1 ? 0 : 1];
     const items = scopes.flatMap((sk) => { const v = blocks.get(n)?.lines.get(sk); return v && v.type === "items" ? v.items : []; });
-    const have = items.filter((it) => !it.drop).length;
-    if (!LOADOUT.has(key)) of += items.length - have;
+    let have = items.filter((it) => !it.drop).length;
+    if (key === "Masteries") {
+      // D361 (D337, SPEC 0.12): masteries add up, like Spells. The line counts the new slots at this class level, one
+      // more for each `-Name` (a swap), and only the names new to the build (a held one written again is ignored).
+      of -= k > 1 ? table.counts[k - 2]?.[key] ?? 0 : 0;
+      of += items.length - have;
+      have = walk().find((st) => st.level.n === n)?.added.length ?? 0;
+    } else if (!LOADOUT.has(key)) of += items.length - have;
     if (of === 0 && have === 0) continue;   // owed nothing here and empty: no ghost (D131)
     const g: Ghost = { line: at1[0], n, have, of };
     if (at1.length > 1) g.also = at1.slice(1);

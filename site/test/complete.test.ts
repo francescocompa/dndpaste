@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as N from "../src/names.gen.ts";
-import { LIST_LIMIT, OPEN_EVERY_SPOT, afterPick, alternativeList, alternatives, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, suggestList, swapAt, written, writtenKey } from "../src/client/complete.ts";
+import { LIST_LIMIT, OPEN_EVERY_SPOT, afterPick, alternativeList, alternatives, bracketTrim, ghostWord, inEmptyBrackets, isKnown, keySpotAt, minTyped, opensDetails, opensOnClick, slotHint, sourceFor, spellCap, spotAt, suggest, suggestKeys, suggestList, setGearHalf, swapAt, swapWritten, written, writtenKey } from "../src/client/complete.ts";
 import type { Spot } from "../src/client/complete.ts";
 import { presetText } from "../src/preset.ts";
 import { EXAMPLE } from "../src/example.ts";
@@ -83,8 +83,10 @@ test("D156: each key offers its own kind", () => {
   assert.ok(names("Classes: Fighter 1 / wa¦")?.includes("Warlock"));
   assert.ok(names("L3 Wiz¦")?.includes("Wizard"), "the level header's class");
   assert.ok(names("Gear: long¦")?.includes("Longsword"));
+  setGearHalf("magic");   // D362: magic items are the Gear list's other half
   assert.ok(names("Gear: flame t¦")?.includes("Flame Tongue"), "magic items");
   assert.ok(names("Gear: +1 ar¦")?.includes("+1 Armor"), "magic variants");
+  setGearHalf("mundane");
   assert.ok(names("Masteries: long¦")?.includes("Longsword"));
   assert.ok(!names("Masteries: flame t¦")?.length, "weapons only");
   assert.ok(names("Skills: ar¦")?.includes("Arcana"));
@@ -194,6 +196,7 @@ test("insertion: the name under the cursor is replaced whole, its drop, quotes a
 
 test("insertion: names that need quotes get them (SPEC §3.1)", () => {
   const bag = N.ITEMS.find((i) => i[0].includes(","));
+  if (bag && !bag[2]) { setGearHalf("magic"); test.after?.(() => setGearHalf("mundane")); }
   assert.ok(bag, "an item name with a comma");
   const typed = bag[0].split(",")[0];
   const s = spot(`Gear: ${typed}¦`);
@@ -656,4 +659,90 @@ test("D351 (D334): Custom is always the Background list's first row, never dimme
   assert.ok(!names("Background: sa¦")?.includes("Custom"), "typing still narrows it");
   const s = spot("Background: Custom¦");
   assert.ok(s && isKnown(N, s), "no 'No matches' line for Custom");
+});
+
+test("D361 (D337): a level's Masteries line offers weapons not held yet; after a `-`, the ones held, to drop", () => {
+  const head = "Rules: 2024\nClasses: Fighter 10\n\nL1 Fighter\nMasteries: Longsword, Sap, Handaxe\n\nL4 Fighter\nMasteries: Lance\n\nL10 Fighter\n";
+  const all = (src: string) => { const s = spot(src); return s ? suggest(N, s, 99).map((x) => x.name) : null; };
+  const add = all(head + "Masteries: ¦\n") ?? [];
+  assert.ok(add.includes("Flail") && !add.includes("Longsword") && !add.includes("Lance"), "a held weapon is no new pick");
+  assert.deepEqual(all(head + "Masteries: Flail, -¦\n"), ["Handaxe", "Lance", "Longsword", "Sap"], "the held ones");
+  assert.deepEqual(all(head + "Masteries: Flail, -s¦\n"), ["Sap"]);
+  assert.deepEqual(all(head + "Masteries: -Sap, -¦\n"), ["Handaxe", "Lance", "Longsword"], "one already dropped on the line");
+  // The header's line and L1 hold nothing before: every weapon.
+  assert.ok(all("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nMasteries: ¦\n")?.includes("Longsword"));
+  // A swap over a held name written again (the 0.11 snapshot) writes the new name and drops the old one.
+  const text = head + "Masteries: Longsword, Handaxe, Lance, Sap\n";
+  const at = text.lastIndexOf("Sap") + 1;
+  const sw = swapAt(text, at)!;
+  assert.deepEqual(sw.held, ["Longsword", "Sap", "Handaxe", "Lance"]);
+  assert.equal(swapWritten(sw, "Flail", text), "Flail, -Sap");
+  // A name new at this level swaps in place.
+  const t2 = head + "Masteries: Flail\n";
+  assert.equal(swapWritten(swapAt(t2, t2.lastIndexOf("Flail") + 2)!, "Whip", t2), "Whip");
+});
+
+test("D362, D363 (D334, D336): the Gear list shows a +N as a chip after the name, one half at a time, the block's gear first", () => {
+  const rows = (src: string, k = 99) => { const sp = spot(src); return sp ? suggest(N, sp, k) : []; };
+  const show = (src: string, k = 99) => rows(src, k).map((r) => `${r.label ?? r.name}${r.plus ? ` ${r.plus}` : ""}${r.tag ? ` (${r.tag})` : ""}`);
+  try {
+    // Mundane by default: no magic item, no +N.
+    assert.ok(!rows("Gear: ¦").some((r) => r.plus || r.name === "Flame Tongue"));
+    setGearHalf("magic");
+    assert.deepEqual(show("Gear: rop¦"), ["Rope of Climbing", "Rope of Entanglement"], "only magic items");
+    // The prefix is a chip; the names sort by name: Ammunition +1, +2, +3, then Ammunition of Slaying.
+    assert.deepEqual(show("Gear: amm¦").slice(0, 4), ["Ammunition +1", "Ammunition +2", "Ammunition +3", "Ammunition of Slaying"]);
+    const a1 = rows("Gear: amm¦")[0];
+    assert.equal(a1.name, "+1 Ammunition", "the pick writes the name as it is");
+    assert.equal(take("Gear: amm¦"), "Gear: +1 Ammunition");
+    assert.ok(show("Gear: +2 ar¦").includes("Armor +2"), "typing the bonus still finds it");
+    assert.deepEqual(show("Gear: ¦", 2), ["Adamantine Armor", "Ammunition +1"], "no +N name leads the list (D334)");
+    // An L1 block's letters lead either half.
+    assert.deepEqual(show("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n", 3), ["A", "B", "C"]);
+  } finally { setGearHalf("mundane"); }
+  // Mundane: the letters, then the packs (2024); a 2014 class's choice items, then the packs.
+  const fighter = show("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n", 11);
+  assert.deepEqual(fighter.slice(0, 4), ["A", "B", "C", "Burglar's Pack"]);
+  assert.ok(fighter.includes("Explorer's Pack") && fighter.indexOf("Explorer's Pack") < 10);
+  const cleric = show("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nGear: ¦\n", 12);
+  assert.deepEqual(cleric.slice(0, 7).sort(), ["Chain Mail", "Explorer's Pack", "Leather Armor", "Mace", "Priest's Pack", "Scale Mail", "Warhammer"]);
+  assert.equal(cleric[7], "Burglar's Pack", "the other packs after the class's own items");
+  assert.deepEqual(show("Rules: 2024\n\nBackground: Sage\nGear: ¦\n", 2), ["A", "B"], "a Background block");
+  // Not in a later level, nor a multiclass's first level, nor the header: gear gained in play.
+  assert.ok(!show("Rules: 2024\nClasses: Fighter 2\n\nL1 Fighter\n\nL2 Fighter\nGear: ¦\n", 5).includes("A"));
+  assert.ok(!show("Rules: 2024\nClasses: Fighter 1 / Wizard 1\n\nL1 Fighter\n\nL2 Wizard\nGear: ¦\n", 5).includes("A"));
+  assert.ok(!show("Rules: 2024\nClasses: Fighter 1\nGear: ¦\n", 5).includes("A"));
+  // A +1 Longsword on the line leaves the plain Longsword on offer.
+  assert.ok(names("Gear: +1 Longsword, long¦", 20)?.includes("Longsword"));
+});
+
+test("D366 (review r1): a group that leads the list, not dimmed, gets a rule under its last row", () => {
+  const seps = (src: string) => { const sp = spot(src); return sp ? suggest(N, sp, 99).flatMap((r, i) => (r.sep ? [`${i}:${r.name}`] : [])) : []; };
+  // 2024 L1: the letters, then the packs, then the rest.
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n"), ["2:C", "9:Scholar's Pack"]);
+  // 2014 L1: the class's items (its own packs among them), then the other packs, then the rest.
+  assert.deepEqual(seps("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nGear: ¦\n"), ["6:Warhammer", "11:Scholar's Pack"]);
+  // Custom, first in a Background list (D351 review), now by the same rule.
+  assert.deepEqual(seps("Rules: 2024\n\nBackground: ¦\n"), ["0:Custom"]);
+  // A level header: the build's classes lead, and the other classes are not dimmed.
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1 / Wizard 1\n\nL1 Fighter\n\nL2 ¦"), ["1:Wizard"]);
+  // A dimmed tail parts itself: no rule (Skills' short list, another class's cantrips).
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nSkills: ¦\n"), []);
+  assert.deepEqual(seps("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips: ¦\n"), []);
+  // A list with nothing ranked first has none.
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1\nGear: ¦\n"), []);
+});
+
+test("D365 (review r1): a starting-gear letter carries what it holds, cut to one line and in full for its detail view", () => {
+  const rows = (src: string) => { const sp = spot(src); return sp ? suggest(N, sp, 99) : []; };
+  const [a, b, c] = rows("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n");
+  assert.deepEqual(a.detail, ["Chain Mail", "Greatsword", "Flail", "Javelin ×8", "Dungeoneer's Pack", "4 GP"]);
+  assert.equal(a.note, "Chain Mail, Greatsword, Flail, Javelin ×8, Dungeoneer's Pack, 4 GP");
+  assert.equal(a.tag, undefined, "the contents say what the letter is");
+  assert.ok(b.detail?.includes("Arrows (20)") && b.detail.at(-1) === "11 GP");
+  assert.deepEqual(c.detail, ["155 GP"], "a coin-only option");
+  const sage = rows("Rules: 2024\n\nBackground: Sage\nGear: ¦\n");
+  assert.deepEqual(sage.slice(0, 2).map((r) => r.note), ["Quarterstaff, Calligrapher's Supplies, Book, Parchment ×8, Robe, 8 GP", "50 GP"]);
+  // A 2014 class's choice items carry none.
+  assert.ok(rows("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nGear: ¦\n").every((r) => !r.detail));
 });

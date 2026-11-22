@@ -119,6 +119,26 @@ export function scoreRows(method: ScoreKind, values: readonly (number | null)[],
   return [];
 }
 
+/** D360: a Custom score's stepper keeps to 1–30, the range a score can have. */
+export const CUSTOM_MIN = 1;
+export const CUSTOM_MAX = 30;
+/** D360: one step of a Custom score's stepper, held inside 1–30. */
+export function stepScore(n: number, by: number): number {
+  return Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, n + by));
+}
+/**
+ * The rows a score list shows (D321, D322, D360). Standard array and point buy: their numbers ({@link scoreRows}), a
+ * fill narrowed by what is typed. Custom: one row, the stepper's value: what is typed, else the score written, else 10.
+ */
+export function listRows(method: ScoreKind, values: readonly (number | null)[], i: number, fill = false, typed = ""): ScoreRow[] {
+  if (method === "custom") {
+    const start = typed ? Number(typed) : values[i] ?? 10;
+    return [{ n: stepScore(Number.isFinite(start) ? start : 10, 0), swap: null, cost: null, over: false }];
+  }
+  const rows = scoreRows(method, values, i, fill);
+  return fill ? rows.filter((r) => String(r.n).startsWith(typed)) : rows;
+}
+
 /** The base value in the named slash form (D320): `STR 15/DEX 14`. */
 export function namedScores(values: readonly (number | null)[]): string {
   return emitValue({ type: "scores", values: [...values], increase: null });
@@ -146,7 +166,8 @@ export function fillScore(text: string, sl: ScoreLine, n: number): { text: strin
 
 // ─── The final (D321, D331) ─────────────────────────────────────────────────
 
-/** What the final reads from the names table: feats and species rows, and the species' fixed increases. */
+/** What the final reads from the names table: feats and species rows, and the species' fixed increases. A feat row's
+ *  eighth field holds its fixed +1s as ability bits (D340). */
 export interface FinalNames {
   FEATS: readonly (readonly [string, number, string, number, ...unknown[]])[];
   SPECIES: readonly (readonly [string, number, ...unknown[]])[];
@@ -169,6 +190,20 @@ function bonusesOf(group: readonly Detail[]): Bonus[] | null {
     const m = /^\+(\d+)\s+(STR|DEX|CON|INT|WIS|CHA)$/i.exec(d.ref.name);
     if (!m || d.ref.source) return null;
     out.push({ amount: Number(m[1]), ability: m[2].toUpperCase() as Ability });
+  }
+  return out;
+}
+
+/** D341 (the library's `asiBonuses`): `+2 CHA` as written, and a bare ability with no `+x`: +2 when it is the group's
+ *  only detail, else +1 (`[INT, CON]`, `[+1 INT, CON]`). Null when a detail is neither. */
+function asiBonuses(group: readonly Detail[]): Bonus[] | null {
+  const out: Bonus[] = [];
+  for (const d of group) {
+    const bare = d.ref.source ? null : abilityOf([d]);
+    if (bare && !/^\+/.test(d.ref.name)) { out.push({ amount: group.length === 1 ? 2 : 1, ability: bare }); continue; }
+    const b = bonusesOf([d]);
+    if (!b) return null;
+    out.push(...b);
   }
   return out;
 }
@@ -239,12 +274,17 @@ export function finalOf(paste: Paste, n: FinalNames): (Final | null)[] {
     for (const k of [...scope.keys()].filter(isFeatKey)) {
       for (const it of itemsOf(scope, k)) {
         if (it.drop) continue;
-        if (lc(it.ref.name) === ASI_FEAT || lc(it.ref.name) === "asi") { for (const b of bonusesOf(it.details[0] ?? []) ?? []) bump(b.ability, b.amount, `${where} feat`); continue; }
+        // D341: an ASI's bare ability counts, +2 alone, +1 beside another.
+        if (lc(it.ref.name) === ASI_FEAT || lc(it.ref.name) === "asi") { for (const b of asiBonuses(it.details[0] ?? []) ?? []) bump(b.ability, b.amount, `${where} feat`); continue; }
+        const rows = featRows(n, it, rules);
+        // D340: a half feat's fixed increase (Durable's CON) counts with nothing written, before and beside a pick.
+        const fixed = rows.find((x) => x[7]);
+        if (fixed) ABILITIES.forEach((a, i) => { if (Number(fixed[7]) & (2 ** i)) bump(a, 1, `${where} feat`, fixed[2] === "Epic Boon" ? 30 : 20); });
         const pick = it.details[0]?.[0];
         if (!pick) continue;
         const ability = abilityOf([pick]) ?? pick.ref.name;
         const bit = 1 << idx(ability);
-        const r = featRows(n, it, rules).find((x) => x[2] !== "Origin" && x[3] & bit);
+        const r = rows.find((x) => x[2] !== "Origin" && x[3] & bit);
         if (r && idx(ability) >= 0) bump(ability, 1, `${where} feat`, r[2] === "Epic Boon" ? 30 : 20);
       }
     }

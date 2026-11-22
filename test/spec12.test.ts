@@ -97,10 +97,28 @@ describe("D337, D342: the 0.11 snapshot shape warns (W008)", () => {
     assert.deepEqual(codes(parse(build("L4 Fighter", "Masteries: Longsword, Sap"))), []);
     assert.deepEqual(codes(parse(build("L1 Fighter", "Masteries: Longsword, Sap", "", "L4 Fighter", "Masteries: Sap, -Longsword"))), [], "a drop is not a left-out name");
   });
-  test("Tidy leaves a W008 line as written, so the warning stays (D342)", () => {
+  test("D364 (amends D342): Tidy folds a W008 line and keeps the swap: the name left out becomes -Name", () => {
     const out = tidy(swap);
-    assert.ok(out.includes("Masteries: Longsword, Handaxe, Flail"));
-    assert.ok(codes(parse(out)).includes("W008"));
+    assert.ok(out.includes("L4 Fighter\nMasteries: Flail, -Sap\n"), out);
+    assert.deepEqual(codes(parse(out)), [], "the warning goes");
+    assert.deepEqual(masteriesAt(out, 4), ["Longsword", "Handaxe", "Flail"], "the 0.11 author's swap holds");
+    assert.equal(out.split("\n").find((l) => l.startsWith("Masteries: Flail")), applyFix(swap, parse(swap).diagnostics.find((d) => d.code === "W008")!.fix!).split("\n")[7], "Tidy writes the fix's line");
+    assert.equal(tidy(out), out, "Tidy is idempotent");
+  });
+  test("D364: a later snapshot line reads against the folded one, so a name dropped once is not dropped again", () => {
+    const t = build("L1 Fighter", "Masteries: Longsword, Sickle, Handaxe", "", "L4 Fighter", "Masteries: Longsword, Sickle, Handaxe, Lance",
+      "", "L10 Fighter", "Masteries: Longsword, Handaxe, Lance, Flail", "", "L16 Fighter", "Masteries: Longsword, Handaxe, Lance, Flail, Greataxe");
+    const out = tidy(t);
+    assert.ok(out.includes("L4 Fighter\nMasteries: Lance\n"), out);
+    assert.ok(out.includes("L10 Fighter\nMasteries: Flail, -Sickle\n"), out);
+    assert.ok(out.includes("L16 Fighter\nMasteries: Greataxe"), out);
+    assert.deepEqual(codes(parse(out)), []);
+    assert.deepEqual(masteriesAt(out, 16), ["Longsword", "Handaxe", "Lance", "Flail", "Greataxe"]);
+  });
+  test("D364: a W008 line's own drops stay, before the names left out", () => {
+    const t = build("L1 Fighter", "Masteries: Longsword, Sap, Handaxe", "", "L4 Fighter", "Masteries: Longsword, Flail, -Handaxe");
+    assert.ok(codes(parse(t)).includes("W008"));
+    assert.ok(tidy(t).includes("Masteries: Flail, -Handaxe, -Sap"), tidy(t));
   });
 });
 
@@ -114,10 +132,13 @@ describe("D337: Tidy and normalise write a snapshot as additive lines", () => {
     assert.ok(emit(parse(t)).includes("Masteries: Longsword, Sap, Flail"));
     for (const n of [1, 4, 6, 10]) assert.deepEqual(masteriesAt(out, n), masteriesAt(t, n), `L${n} reads the same`);
   });
-  test("foldMasteries changes the paste in place and counts the lines", () => {
+  test("foldMasteries changes the paste in place and counts the lines, a W008 line too (D364)", () => {
     const p = parse(build("L1 Fighter", "Masteries: Longsword", "", "L4 Fighter", "Masteries: Longsword, Flail"));
     assert.equal(foldMasteries(p), 1);
     assert.equal(foldMasteries(p), 0);
+    const q = parse(build("L1 Fighter", "Masteries: Longsword, Sap", "", "L4 Fighter", "Masteries: Longsword, Flail"));
+    assert.equal(foldMasteries(q), 1);
+    assert.match(emit(q), /Masteries: Flail, -Sap/);
   });
   test("normalise makes the lines additive too", () => {
     const t = build("L1 Fighter", "Masteries: Longsword, Greatsword, Handaxe", "", "L4 Fighter", "Masteries: Longsword, Greatsword, Handaxe, Javelin");
