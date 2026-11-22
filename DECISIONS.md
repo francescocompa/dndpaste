@@ -464,7 +464,52 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   get a new option? They should likely work like spells instead".
   *Rejected:* keeping the snapshot with an editor ghost of the earlier loadout (the lines stay long); `Prepared` additive
   as well (a wider format change and more migration than he asked for).
-  *Enforced by:* pending (T9.4 library tests, SPEC 0.12 §13).
+  *Enforced by:* `test/spec12.test.ts` (library: parse, `W008`, Tidy, `loadoutAt`); SPEC 0.12 §5.1, §5.4, §14; site side pending (T9.4 site, site-b).
+
+## M9 lib worker (2026-11-22) — mechanism: AskUserQuestion, 1 round (2 questions), lib worker; ids D340–D349
+
+- **D340 — A half feat with a fixed increase and no pick counts in `finalScores`: the slot table's feats carry
+  `abilityFixed` (`{ "con": 1 }`), abilities only, written only when present. DECIDED (2026-11-22).** 25 feats in 5etools
+  (Durable, Keen Mind, Actor, the 2024 Great Weapon Master, Sharpshooter, Crossbow Expert, …) added nothing before. A fixed
+  increase counts whatever the feat's category, capped at 20 (30 on an Epic Boon), beside a picked one. Numbers only.
+  *Raw note:* picked "Count them (Recommended)"; from D334: "half feats always grant a +1".
+  *Rejected:* picked half feats only (they counted already; the fixed ones would stay silently uncounted).
+  *Enforced by:* `test/spec12.test.ts` (D340 suite), `test/extract.test.ts`. *Affects:* the site's mirror (D331) needs
+  the field in its names table (site-b); `data/slots.json` must be regenerated on each machine.
+
+- **D341 — An ASI's bare ability counts: alone it is +2 (`[CHA]`), beside another it is +1 (`[INT, CON]`,
+  `[+1 INT, CON]`). DECIDED (2026-11-22); amends SPEC §5.3 (D109).** One group still; a second slot, three abilities, a
+  lone `+1`, or a total other than 2 stay the info finding. `emit` keeps what was written; `[+2 CHA]` stays valid.
+  *Raw note:* from D334: "for asi if you add a single choice it means +2, if you add two it means +1 +1".
+  *Rejected:* `[STR; CON]` (two slots) as +1/+1: an ASI holds its increases as one group (§5.3), and `;` would read as
+  a second slot everywhere else.
+  *Enforced by:* `test/spec12.test.ts` (D341 suite), `test/spec08.test.ts`.
+
+- **D342 — Tidy leaves a `W008` line as written; the warning's fix, not safe, writes the new names and the drop
+  (`Masteries: Flail, -Sap`). DECIDED (2026-11-22).** `W008`: a later level line repeats held masteries and leaves one
+  out (the 0.11 snapshot shape). Tidy and `normalise` fold only the snapshot lines that just add (`foldMasteries`), so a
+  swap-by-omission keeps its warning until the author answers it.
+  *Raw note:* picked "Leave it as written (Recommended)".
+  *Rejected:* fold it and keep the name (the warning would vanish and the 0.11 author's swap would be lost silently);
+  fold it and drop the name (changes the 0.12 reading, so not a safe fix, D202).
+  *Enforced by:* `test/spec12.test.ts` (D342 suite), SPEC §7.
+
+- **D343 — `loadoutAt(paste, level)` is the data-free way to read a level's loadout: `{ masteries, prepared }`.
+  DECIDED (2026-11-22); delegated to the lib worker.** Masteries: the header's unplaced line, then each level line up to
+  the level, additively (`-Name` may drop a header name). Prepared: the last level block up to the level with a
+  `Prepared` line (capped lines included), else the header's. Also `masteryWalk` (each level line read: added, repeated,
+  left out, held) and `foldMasteries`; `loadoutAt` is exported from `dndpaste/check` too, as `scoreKind` is (D326).
+  *Rejected:* a masteries-only helper (the loadout rule in §5.4 covers both keys, and a viewer shows both); folding in
+  `emit` (§0 rules 6 and 9: emit never drops).
+  *Enforced by:* `test/spec12.test.ts` (D343 suite).
+
+- **D344 — "Reading change" is a format-change kind of its own: a minor release, old pastes mean the same in the common
+  shape, the moved shape warns. DECIDED (2026-11-22); delegated to the lib worker, from D337.** 0.12's `Masteries` is the
+  first. It is not a Break (no major): D337 kept it in `Paste: 1` because the common 0.11 shape (lines that only add)
+  reads the same. It follows the fixture rule, plus a test that the old form reads the same at every level.
+  *Rejected:* calling it a Break (`Paste: 2` for one key whose common shape is unchanged); calling it an Addition (the
+  swap-by-omission shape does change meaning).
+  *Enforced by:* `FORMAT-UPDATES.md` §1; `test/spec12.test.ts` (the `fixtures/v0.11/` check).
 
 ## M9 site-a (2026-11-22) — mechanism: worker build, D350–D359
 

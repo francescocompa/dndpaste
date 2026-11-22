@@ -129,6 +129,11 @@ function abilitySpec(entries: J): J {
   }
   return Object.keys(out.fixed).length || out.choose ? out : null;
 }
+/** A feat's fixed score increases (a half feat with no pick, D340): `{ str: 1 }`; numbers only, written only when present. */
+function fixedAbilities(ab: J): { abilityFixed?: Record<string, number> } {
+  const out = Object.fromEntries(Object.entries(ab?.fixed ?? {}).filter(([k]) => ["str", "dex", "con", "int", "wis", "cha"].includes(k)));
+  return Object.keys(out).length ? { abilityFixed: out as Record<string, number> } : {};
+}
 function walk(node: J, fn: (n: J) => void): void {
   if (Array.isArray(node)) node.forEach((n) => walk(n, fn));
   else if (node && typeof node === "object") { fn(node); Object.values(node).forEach((v) => walk(v, fn)); }
@@ -392,7 +397,7 @@ export function extractSlots(data: DataSet, opts: ExtractOptions = {}): SlotTabl
     const ab = abilitySpec(f.ability);
     feats[uid(f)] = {
       name: f.name, source: f.source, edition: edition(f), srd: isSrd(f), category: f.category ?? null, repeatable: Boolean(f.repeatable),
-      abilityChoose: ab?.choose ? ab.choose.from ?? null : sp?.ability ?? null, skills: chooseSpec(f.skillProficiencies), tools: chooseSpec(f.toolProficiencies),
+      abilityChoose: ab?.choose ? ab.choose.from ?? null : sp?.ability ?? null, ...fixedAbilities(ab), skills: chooseSpec(f.skillProficiencies), tools: chooseSpec(f.toolProficiencies),
       expertise: chooseSpec(f.expertise), versions: (Array.isArray(f._versions) ? f._versions : []).map((v: J) => v?.name).filter(Boolean).map((n: string) => n.replace(new RegExp(`^${escape(f.name)}; `), "")),
       cantripChoose: sp?.cantripChoose ?? 0, spellChoose: sp?.choose ?? 0, grantedSpells: sp?.fixed ?? [],
       prereqLevel: prereqLevel(f),

@@ -73,7 +73,7 @@ the two are not the same list. `Note` is free text for people and means nothing 
 | `parse(text)` | The AST and its diagnostics. Never throws. A line with an error is kept as written in `paste.kept` (SPEC §4). |
 | `emit(paste)` | The canonical text. Idempotent: `emit(parse(emit(p))) === emit(p)`. It never drops a line: a line with an error comes back as written, at the end of its block. |
 | `isClean(paste)` | True when there is no error (warnings allowed). |
-| `tidy(text, opts?)` | The editor's Tidy: makes every safe fix (SPEC §7), folds `Options` lines when `opts.optionFamily` names their family, then emits. |
+| `tidy(text, opts?)` | The editor's Tidy: makes every safe fix (SPEC §7), writes 0.11 snapshot `Masteries` lines as additive ones, folds `Options` lines when `opts.optionFamily` names their family, then emits. |
 | `applyFix(text, fix)` | Makes one diagnostic's `fix`. Each diagnostic has `hint`, how to fix it in a few words, and often `fix`, the edit. |
 | `scopeLines(scope)` | A block's lines in canonical order, one entry per line. |
 | `classSequence(paste)` | The class of every character level, by the reading rule (SPEC §5.4). |
@@ -83,6 +83,8 @@ the two are not the same list. `Note` is free text for people and means nothing 
 | `levelCap(key)`, `familyOf(key)`, `familyKey(code)` | A spell line's level cap; an option line's family; the family key for a family code. |
 | `isAbilitySlot(group)`, `abilityOf(group)` | Whether a detail group is an ability pick, and which ability (`[CHA]`, or `[+1 CHA]` on a 2024 half feat). |
 | `foldOptions(paste, family)` | Moves plain `Options` lines onto their family key, with family data you supply. |
+| `loadoutAt(paste, level)` | What the build has ready at a level: its weapon masteries (added up, SPEC §5.4) and its `Prepared` snapshot. |
+| `masteryWalk(paste)`, `foldMasteries(paste)` | Each level's `Masteries` line read additively (added, repeated, left out, held); the rewrite of 0.11 snapshot lines that Tidy makes. |
 
 SPEC 0.7 keys still parse, with a `W005` warning, and emit in their 0.8 form (SPEC §2.6, §5.6). The 0.9 lineage forms
 (`Feature: Elven Lineage [WIS; Wood]`, `Species: Elf (Wood)|PHB`) parse with `W006`/`W007` and emit as
@@ -110,7 +112,7 @@ Findings are warnings or infos, never errors. Each has a code:
 | C006 | extra | a pick beyond what the rules grant; accepted, since a DM may allow it |
 
 `normalise(paste, slots, supplement)` returns a new paste with redundant lines removed, repeated
-Gear names written as `x2`, and `Options` lines moved onto their family key. `finalScores` adds up
+Gear names written as `x2`, `Options` lines moved onto their family key, and 0.11 snapshot `Masteries` lines made additive. `finalScores` adds up
 the ability scores; `scoreKind` (data-free, in the main module too) says whether a base is the
 standard array, point-buy legal (with the points left of 27) or custom. `UA_SOURCES` (`dndpaste/sources`) lists the Unearthed Arcana codes the checker
 knows.

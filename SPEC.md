@@ -1,6 +1,6 @@
 # dndpaste — format specification
 
-**Version:** 0.11 (2026-11-21) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10); 0.9 adds option family keys (`Invocations`, …), a family marker on `Options`, a level cap on `Spells` and `Prepared`, a free-text `Note` key, form details on summons and pact boons, and keeps a line with an error instead of dropping it (§11); 0.10 puts a species' lineage and its spellcasting ability in brackets on the `Species` line, `Species: Elf [Drow; WIS]` (§12); 0.11 writes the base `Scores` line named, `STR 8/DEX 14/…`, and adds an optional method marker, `Scores (point buy): …` (§13). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113, D180–D185, D200–D206, D220–D221, D280–D287, D320, D323, D326.
+**Version:** 0.12 (draft, 2026-11-22) · **Status:** signed off at 0.3; 0.4 adds `Items` and the extras policy; 0.5 adds named partial `Scores`, `Classes` runs and the class-per-level reading rule; 0.6 adds the optional `HP` key; 0.7 adds the optional `Producer` stamp; 0.8 has fewer keys: ability picks move into details, `Scores` carries increases, `Feat` takes a slot marker, `Gear` replaces `Equipment` and `Items`, and an empty value is a to-do (§10); 0.9 adds option family keys (`Invocations`, …), a family marker on `Options`, a level cap on `Spells` and `Prepared`, a free-text `Note` key, form details on summons and pact boons, and keeps a line with an error instead of dropping it (§11); 0.10 puts a species' lineage and its spellcasting ability in brackets on the `Species` line, `Species: Elf [Drow; WIS]` (§12); 0.11 writes the base `Scores` line named, `STR 8/DEX 14/…`, and adds an optional method marker, `Scores (point buy): …` (§13); 0.12 makes `Masteries` add up across levels, like `Spells`, with `-Name` to drop one (§14). 0.7 keys are still read, with a warning, for as long as `Paste: 1` (§2.6, D142) · Decisions: `DECISIONS.md` D1–D113, D180–D185, D200–D206, D220–D221, D280–D287, D320, D323, D326, D337, D340–D343.
 
 A dndpaste is a short plain-text document that replays a character build through its
 *meaningful choice points*, by reference only. It never contains rules text. Anything a
@@ -277,7 +277,7 @@ an Unearthed Arcana one. A name that only Unearthed Arcana prints always carries
 | `Languages` | items | H, S, B, L | languages chosen |
 | `Expertise` | items | H, L | |
 | `Feat` | items | H, S, B, L | any feat: origin feat asked by a species or custom background, ASI-slot feat at a level. A level's ASI is the feat line in both editions: `Feat: Ability Score Improvement [+2 CHA]` (D109). The key takes an optional **slot marker** naming the limited slot the feat fills: `Feat (Fighting Style): Archery`, `Feat (Origin): Alert`, `Feat (Epic Boon): Boon of Fate [CHA]` (D110). Open list: any text, kept by emit; the checker matches it to the 5etools feat categories. A fighting style is `Feat (Fighting Style)` in both editions, 2014 optional feature or 2024 feat. Details per §5.3 |
-| `Masteries` | items | H, L | weapon-mastery loadout from that level on (a snapshot: masteries swap on long rests). An `Options` family (D182): `Options (Masteries)` reads as `Masteries` (§5.7) |
+| `Masteries` | items | H, L | weapon masteries **added** at that level, like `Spells` (D337): a level line lists only the new masteries, `-Name` drops one held (a swap is `Masteries: Flail, -Sap`), and a name the build already holds is ignored. The loadout at a level is the sum (§5.4). In H: the masteries held, unplaced. An `Options` family (D182): `Options (Masteries)` reads as `Masteries` (§5.7) |
 | `Invocations` `Metamagic` `Maneuvers` `Infusions` `Arcane Shots` `Runes` `Disciplines` `Pact Boon` | items | H, L | **option family keys** (D180): an `Options` line that also names its family, one key per family, in this order. Same details and rules as `Options` (§5.3). §5.7 |
 | `Options` | items | H, L | **any optional feature**, of any family: a family key's options, or one whose family has no key. Takes an optional **family marker**, an open list (D181): `Options (Soul Techniques): …`; a marker that names a family key folds into it (§5.7). 5etools tags each option's family, so a new family needs no new key (D27). Details = the option's own picks |
 | `Feature` | items | H, S, B, L | a **named feature with a pick and no dedicated key**: `Feature: Divine Order [Warden]`, `Feature: Spellcasting [INT]`, `Feature: Size [Small]`, `Feature: Draconic Ancestry [Red]` for a Draconic Sorcerer; also an **optional class feature adopted** with no pick (`Feature: Favored Foe|TCE`). A feature the build gets anyway is not written; a build may still name one, bare, in the block where it arrives, to **highlight** it (`L2 Wizard` / `Feature: Portent`, D201). Details = the picks (§5.3). Placed in S/B/L it belongs to that entity; unplaced in H the consumer finds the owner (D28) |
@@ -346,7 +346,9 @@ fighting-style feat), `+1 CHA` is accepted as the same pick: `Grappler [+1 STR]`
   or a casting-ability choice (`Magic Initiate [WIS; Cleric; Guidance, Sacred Flame; Bless]`),
   then the feat's own printed order. A later upgrade of the feat is stamped `@n` on its detail.
   `Ability Score Improvement` (short name `ASI`) holds its increases as one group:
-  `[+2 CHA]`, `[+1 INT, +1 CON]` (D109).
+  `[+2 CHA]`, `[+1 INT, +1 CON]` (D109). The `+x` may be left out (D341): one ability alone is +2
+  (`[CHA]` is `[+2 CHA]`), and an ability beside another is +1 (`[INT, CON]` and `[+1 INT, CON]` are
+  `[+1 INT, +1 CON]`). `emit` keeps what was written.
 - **`Options`** and the **family keys** (§5.7): the option's picks in printed order (`Agonizing Blast [True Strike]`). An
   option that grants a feat names the feat as its pick (`Lessons of the First Ones [Alert]`).
   When that feat has picks of its own, a `Feat` line for it in the **same level block**
@@ -393,8 +395,12 @@ fighting-style feat), `+1 CHA` is accepted as the same pick: `Grappler [+1 STR]`
 - `-Item` in a level block drops an item added earlier; the checker verifies it.
 - `HP` in a level block is that level's method only; a level with no `HP` line takes the header's
   method, or none when the header has no `HP` (D59).
-- `Prepared` and `Masteries` in a level block describe the default loadout from that level
-  until the next such line.
+- **The loadout at a level** (D337). `Prepared` in a level block is a snapshot: the default
+  prepared spells from that level until the next `Prepared` line. `Masteries` adds up: the
+  masteries held at a level are the header's line, then each level block's line up to that level
+  in order, each name added once, each `-Name` taking one away. A later line that repeats held
+  names and leaves one out is the 0.11 snapshot form: it reads as adding (the name left out is
+  still held) and warns `W008`. The library's `loadoutAt(paste, level)` gives both, data-free.
 - **Defaults are silent** (rule 8): no starting `Gear` means option A under 2024 rules; a
   lineage with a printed default means that default; a species that offers Small or Medium is
   **Medium unless `Feature: Size [Small]` says otherwise** (D39).
@@ -532,7 +538,7 @@ mismatch); two or more such matches stay unresolved as before (D43).
 On a `Rules: 2014` paste the L1 class block and the background owe one named item per
 starting-equipment choice group (`missing`/info); groups with a generic option ("any simple
 weapon") are not judged. `finalScores` sums the base `Scores` line with species, background, header and level increases
-(`Scores: +…`), `Ability Score Improvement` feat lines and feat increments over played levels (D36); an increment past 20 is `misplaced`/warning, and a
+(`Scores: +…`), `Ability Score Improvement` feat lines (a bare ability counted as in §5.3, D341) and feat increments over played levels (D36): a half feat's picked ability, and a half feat's fixed increase with nothing written (`Durable`, `Keen Mind`; the slot table's `abilityFixed`, D340); an increment past 20 is `misplaced`/warning, and a
 background bonus outside the background's three abilities stays the existing info finding. An
 ability the named `Scores` form leaves out has an **unknown** final score (`null`): it is never
 assumed 10, and increases on it are not cap-checked (D46).
@@ -664,6 +670,7 @@ no species and the rest is one that offers that lineage (D287); `normalise` writ
 | W005 | renamed key: a 0.7 key read as its 0.8 form (§2.6, §5.6) |
 | W006 | a 0.9 defining-pick `Feature` line in the Species block, moved onto the `Species` line (§5.8, D283) |
 | W007 | a 0.9 species name with its variant in parentheses (`Elf (Wood)`), read as `Elf [Wood]` (§5.8, D282) |
+| W008 | a level's `Masteries` line repeats masteries already held and leaves one out (the 0.11 snapshot form): the one left out is still held. Its fix, not safe, writes the new names and the drop: `Masteries: Flail, -Sap` (§5.4, D337, D342) |
 
 **Hints and fixes** (D192, D203). Every error and most warnings carry a `hint`: how to fix it, in a few
 words ("Move above Species", "Did you mean Classes?", "Join with commas", "Use / between classes"). When
@@ -671,8 +678,9 @@ the parser can write the fix, `fix` holds it as text edits on the paste as writt
 `applyFix(text, fix)` makes them. A fix marked `safe` changes no choice: it moves a header key out of a
 block, joins a key's duplicate lines, puts `/` between classes written with commas, or adds the space
 after a colon. A guess (a did-you-mean, a comment turned into a `Note`) is not safe. The library's
-`tidy(text)` makes every safe fix of every error, then writes the canonical form; a line it cannot fix
-stays as written (D202).
+`tidy(text)` makes every safe fix of every error, writes a 0.11 snapshot `Masteries` line that only adds as
+an additive one (§14), then writes the canonical form; a line it cannot fix stays as written (D202). A
+`W008` line stays as written, so its warning stays until the author answers it (D342).
 
 ---
 
@@ -940,3 +948,32 @@ form.
 - Library: the `scores` value's optional `method` (§4); `scoreKind` with the constants `STANDARD_ARRAY`,
   `POINT_BUY_COST`, `POINT_BUY_BUDGET`, data-free, also exported from `dndpaste/check` (D326, §6); `lineOfValue`
   and `methodWords`.
+
+## 14. Changes from 0.11
+
+0.12 (D337, D340–D343) changes what a level's `Masteries` line means; it renames no key and needs no alias. A 0.11
+paste whose later `Masteries` lines only add reads the same, with no new diagnostic. One that drops a mastery by
+leaving it out now keeps it, with `W008`. Tidy writes the snapshot lines that only add as additive ones.
+
+- **`Masteries` adds up, like `Spells`** (D337; amends §5.1 and §5.4). A level line lists only the masteries new at
+  that level, and `-Name` drops one. Kind: a meaning change inside `Paste: 1`, read the same wherever the 0.11 line
+  only added (`FORMAT-UPDATES.md` §1).
+
+  ```
+  0.11 (snapshot)                               0.12 (additive)
+  L1 Fighter                                    L1 Fighter
+  Masteries: Longsword, Sap, Handaxe            Masteries: Longsword, Sap, Handaxe
+  L4 Fighter                                    L4 Fighter
+  Masteries: Longsword, Sap, Handaxe, Lance     Masteries: Lance
+  L10 Fighter                                   L10 Fighter
+  Masteries: Longsword, Handaxe, Lance, Flail   Masteries: Flail, -Sap
+  ```
+
+  Read as 0.12, the left column's L10 line keeps Sap and warns `W008`; its fix writes the right column's line. Tidy
+  rewrites the L4 line and leaves the L10 line as written (D342). `Prepared` stays a snapshot.
+- **An ASI and a half feat count with no `+x`** (D341, D340; amends §5.3). `Feat: Ability Score Improvement [CHA]` is
+  `[+2 CHA]`; `[INT, CON]` is `[+1 INT, +1 CON]`. A half feat with a fixed increase (`Feat: Durable`) raises its score
+  with nothing written. Kind: an addition; every 0.11 line means the same.
+- Library: `W008`; `masteryWalk`, `foldMasteries` (called by `tidy` and the checker's `normalise`) and `loadoutAt`,
+  data-free, `loadoutAt` also exported from `dndpaste/check` (D343); the slot table's feat field `abilityFixed`
+  (regenerate `data/slots.json`, D340); `finalScores` counts both feat forms.
