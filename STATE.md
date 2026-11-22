@@ -14,7 +14,7 @@
 
 Working set: none
 
-Spawned: m9-site-a `local_91a85b8b-8c2c-46de-88b9-191956a1c26c` now on **site-b** (T9.3 Gear toggle, T9.4 additive Masteries + T9.5 site mirror, D360–D369; main checkout, branch `claude/m9-site-b`) → next: overseer merges, releases 0.12.0 (D57, D299), deploys. lib and site-a merged afadd6a (root 315, site 361, check:bundle ok)
+Spawned: m9-site-b proposed as card `task_9fefe0f6` (site-a hit ~380k, he picked a fresh session), on **site-b** (T9.3 Gear toggle, T9.4 additive Masteries + T9.5 site mirror, D360–D369; main checkout, branch `claude/m9-site-b`) → next: overseer merges, releases 0.12.0 (D57, D299), deploys. lib and site-a merged afadd6a (root 315, site 361, check:bundle ok)
 
 - **Library:** 0.11.0 on main (SPEC 0.11; 0.7 keys read with W005, 0.9 lineage forms with W006/W007). Releases per D57. The full slot table is
   gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
