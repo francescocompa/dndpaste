@@ -19,6 +19,8 @@ import { levelUp, nextLevel } from "../levelup.ts";
 import { LIST_LIMIT, afterPick, alternativeList, bracketTrim, isKnown, keySpotAt, opensDetails, opensOnClick, slotHint, spotAt, suggestList, suggestKeys, swapAt, written, writtenKey } from "./complete.ts";
 import type { KeySpot, Names, Spot, Suggestion } from "./complete.ts";
 import type { Status } from "./status.ts";
+import { bonusSpotAt, fitBackground } from "../background.ts";
+import type { BonusSpot } from "../background.ts";
 export { useYourPresets } from "../ghost.ts";
 
 /** What the lists read and write in the form (form.ts). Getters, since the form swaps its textarea and redraws its state. */
@@ -100,6 +102,8 @@ export function mountAc(h: AcHost): Ac {
   /** T8.4: the list is a score list on the header's base Scores line: `fill`, the next ability's numbers while the line
    *  is written (D322); `pop`, a clicked score's options (D321); `method`, the method list (D323), reached from the
    *  line's chip (`back` null) or the list's corner chip (`back`: the list to go back to). */
+  /** D352: the list is a Background block's Scores line's bonuses (`+2 INT`); a pick replaces what is typed. */
+  let acBonus: BonusSpot | null = null;
   let acScore: { sl: ScoreLine; i: number; mode: "fill" | "pop" | "method"; rows: ScoreRow[]; back: "fill" | "pop" | null; pos: number; anchor: Element | null } | null = null;
   const acAria = () => {
     h.ta.setAttribute("aria-autocomplete", "list");
@@ -109,9 +113,10 @@ export function mountAc(h: AcHost): Ac {
     else h.ta.removeAttribute("aria-activedescendant");
   };
   const acClose = () => {
-    if (ac.hidden && !acSpot && !acScore) return;
+    if (ac.hidden && !acSpot && !acScore && !acBonus) return;
     ac.hidden = true;
     acScore = null;
+    acBonus = null;
     acSpot = null;
     acKey = null;
     acRows = [];
@@ -143,7 +148,7 @@ export function mountAc(h: AcHost): Ac {
     return t.getBoundingClientRect();
   };
   const acPlace = () => {
-    const from = acSpot?.start ?? acKey?.start ?? acScore?.pos;
+    const from = acSpot?.start ?? acKey?.start ?? acBonus?.start ?? acScore?.pos;
     const at = acScore?.anchor?.isConnected ? acScore.anchor.getBoundingClientRect() : from === undefined ? null : caretBox(from);
     if (!at) return;
     const box = h.ed.getBoundingClientRect();
@@ -166,7 +171,7 @@ export function mountAc(h: AcHost): Ac {
     const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
     // D266: the slot title only where the brackets take two picks or more; one slot needs no title.
     // D304: a swap list says so, so it doesn't read as completion.
-    const hint = acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
+    const hint = acBonus ? `<div class="ah" aria-hidden="true">${esc(bonusHead(acBonus))}</div>` : acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
     // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
@@ -183,7 +188,7 @@ export function mountAc(h: AcHost): Ac {
     h.dock.classList.toggle("ac-on", onPhone);
     if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
-      const kind = acKey ? "key" : "name";
+      const kind = acKey ? "key" : acBonus ? "bonus" : "name";
       acSays.textContent = acScore ? scoreSays() : acEmpty ? "No matches. Add sources for more books." : acSwap ? `${acRows.length} to swap for. Click one, or keep typing.` : acRows.length ? `${what}${acRows.length === 1 ? `1 ${kind}` : `${acRows.length} ${kind}s`}${acMore > 0 ? `, ${acMore} more` : ""}${onPhone ? "" : ". Tab takes the first"}.` : what;
     }
     ac.setAttribute("aria-label", acKey ? "Keys" : acScore ? "Ability scores" : "Names");
@@ -201,6 +206,8 @@ export function mountAc(h: AcHost): Ac {
     if (!typing && acScore?.mode === "method") return;
     if (!h.suggestOn() || document.activeElement !== h.ta || h.ta.selectionStart !== h.ta.selectionEnd) { acClose(); return; }
     if (scoreFill()) return;
+    if (bonusFill()) return;
+    acBonus = null;
     // A key at the line's start (D170): the hint strip's keys, narrowed by what was typed.
     const ks = keySpotAt(h.ta.value, h.ta.selectionStart);
     const kk = ks ? suggestKeys(h.ta.value, ks) : [];
@@ -242,6 +249,7 @@ export function mountAc(h: AcHost): Ac {
   /** Opens a score list: its rows become the list's, so the arrows, Tab and Enter work on them as on names. */
   const showScore = (next: NonNullable<typeof acScore>) => {
     const same = acScore?.mode === next.mode && acScore.i === next.i && acScore.rows.length === next.rows.length;
+    acBonus = null;
     acKey = null;
     acSpot = null;
     acHint = null;
@@ -357,12 +365,45 @@ export function mountAc(h: AcHost): Ac {
     if (!next.done) complete(true);
     else toNextOpen(lineEnd(next.cursor) + 1);
   };
+  /** D352: the list's head on a Background Scores line: what is left of the +3, and from which abilities. */
+  const bonusHead = (b: BonusSpot): string => `+${3 - b.have} to add from ${b.abilities.length === 6 ? "any ability" : b.abilities.join(", ")}`;
+  /** D352: the caret at the end of a Background block's Scores line: the bonuses still to pick there. */
+  const bonusFill = (): boolean => {
+    const b = bonusSpotAt(h.ta.value, h.ta.selectionStart);
+    if (!b) return false;
+    if (!b.rows.length) { acClose(); return true; }
+    const same = acBonus?.start === b.start && acBonus.rows.length === b.rows.length && acBonus.rows.every((r, i) => r === b.rows[i]);
+    acKey = null;
+    acSpot = null;
+    acScore = null;
+    acHint = null;
+    acEmpty = false;
+    acSwap = false;
+    acMore = 0;
+    acBonus = b;
+    acRows = b.rows.map((name) => ({ name, source: null }));
+    if (!same) acOn = -1;
+    acDraw();
+    return true;
+  };
+  /** D352: a pick writes the bonus; with points left, `, ` and the list again (D307), else on to the next open choice (D310). */
+  const takeBonus = (i: number) => {
+    const b = acBonus!;
+    const r = b.rows[i];
+    if (!r) return;
+    acClose();
+    const more = b.have + Number(r[1]) < 3;
+    h.insert(`${b.pad ? " " : ""}${r}${more ? ", " : ""}`, b.start, b.end);
+    if (more) complete(true);
+    else toNextOpen(lineEnd(h.ta.selectionStart) + 1);
+  };
   /** D304: a click in or at the end of a written name lists what it can be swapped for. */
   const swapList = (): boolean => {
     const sw = h.names ? swapAt(h.ta.value, h.ta.selectionStart) : null;
     const got = sw && h.names ? alternativeList(h.names, sw, h.ta.value) : { rows: [], more: 0 };
     const rows = got.rows;
     if (!sw || !rows.length) return false;
+    acBonus = null;
     acKey = null;
     acOn = -1;
     acSpot = sw;
@@ -376,6 +417,7 @@ export function mountAc(h: AcHost): Ac {
   };
   const acTake = (i: number) => {
     if (acScore) { takeScore(i); return; }
+    if (acBonus) { takeBonus(i); return; }
     const sp = acSpot;
     const r = acRows[i];
     const ks = acKey;
@@ -415,6 +457,11 @@ export function mountAc(h: AcHost): Ac {
       }
     }
     h.insert(w + (br ? " []" : "") + sep, a, b);
+    // D351: a background picked (or swapped in) fits its block: the lines it asks for, none of the empty ones it doesn't.
+    if (sp.key === "Background" && sp.parent === null) {
+      const fitted = fitBackground(h.ta.value, a + w.length);
+      if (fitted) { h.writeChange(fitted); h.ta.setSelectionRange(a + w.length, a + w.length); }
+    }
     if (br) {
       h.ta.setSelectionRange(a + w.length + 2, a + w.length + 2);
       complete(true);
@@ -510,7 +557,7 @@ export function mountAc(h: AcHost): Ac {
       const here = e.target === h.ta && h.ta.selectionStart === h.ta.selectionEnd;
       if (here && h.suggestOn() && scorePop()) return;
       if (here && h.names && h.suggestOn() && !opensOnClick(h.ta.value, h.ta.selectionStart) && swapList()) return;
-      complete(here && (opensOnClick(h.ta.value, h.ta.selectionStart) || Boolean(scoreLineAt(h.ta.value, h.ta.selectionStart)?.fill)));
+      complete(here && (opensOnClick(h.ta.value, h.ta.selectionStart) || Boolean(scoreLineAt(h.ta.value, h.ta.selectionStart)?.fill) || Boolean(bonusSpotAt(h.ta.value, h.ta.selectionStart))));
     },
   };
 }

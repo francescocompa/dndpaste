@@ -16,7 +16,7 @@ const sup = load("supplement.json");
 const EDITION = { PHB: "2014", XPHB: "2024" };
 
 // The rows themselves: src/presetrows.ts, shared with the browser for a visitor's own classes (D246).
-const { rows, species } = presetRows(slots, sup, (e) => e.core && e.source in EDITION);
+const { rows, species, backgrounds } = presetRows(slots, sup, (e) => e.core && e.source in EDITION);
 
 const q = (v) => JSON.stringify(v);
 const out = process.argv[2] ?? fileURLToPath(new URL("../src/presets.ts", import.meta.url));
@@ -60,6 +60,14 @@ export interface SpeciesPreset { name: string; source: string; edition?: Edition
 
 export const SPECIES_PRESETS: readonly SpeciesPreset[] = [
 ${species.map((r) => `  { name: ${q(r.name)}, source: ${q(r.source)}, lines: ${q(r.lines)} },`).join("\n")}
+];
+
+/** D351: what a background's block owes: the abilities its \`Scores\` increase takes (2024; none in 2014), and
+ *  [key, picks] for the Skills, Tools and Languages it leaves to choose. */
+export interface BackgroundPreset { name: string; source: string; abilities: readonly string[]; lines: readonly (readonly [string, number])[] }
+
+export const BACKGROUND_PRESETS: readonly BackgroundPreset[] = [
+${backgrounds.map((r) => `  { name: ${q(r.name)}, source: ${q(r.source)}, abilities: ${q(r.abilities)}, lines: ${q(r.lines)} },`).join("\n")}
 ];
 `);
 console.log(`${out}: ${rows.length} presets (${rows.filter((r) => r.source === "PHB").length} 2014, ${rows.filter((r) => r.source === "XPHB").length} 2024)`);

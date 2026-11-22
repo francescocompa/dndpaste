@@ -445,7 +445,8 @@ function candidates(n: Names, sp: Spot): Cand[] {
       return [...cls, ...traits, ...n.SPECIES_FEATURES.map((l) => ({ name: l[0], books: 0, first: kind === "S", ...(kind === "L" ? { out: true } : {}) }))];
     }
     case "Species": return n.SPECIES.map((s) => ({ name: s[0], books: s[1], first: false }));
-    case "Background": return n.BACKGROUNDS.map((s) => ({ name: s[0], books: s[1], first: false }));
+    // D351 (D334): Custom, a background built from its own block, is always the list's first row; it has no book.
+    case "Background": return [{ name: "Custom", books: 0, first: true }, ...n.BACKGROUNDS.map((s) => ({ name: s[0], books: s[1], first: false }))];
     case "Subclass":
       // D241: the line's class leads (the level block's, else the header's Classes); other classes' subclasses follow,
       // dimmed, still pickable. No class known: no dimming.

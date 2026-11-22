@@ -22,7 +22,7 @@ const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
 const COUNTED = ["Skills", "Expertise", "Cantrips", "Spells", "Options", "Masteries", "Prepared"];
 
 /** The class presets and species lines of a slot table, for the entries `keep` lets in. */
-export function presetRows(slots: J, sup: J, keep: (e: J) => boolean): { rows: J[]; species: J[] } {
+export function presetRows(slots: J, sup: J, keep: (e: J) => boolean): { rows: J[]; species: J[]; backgrounds: J[] } {
 const rows: J[] = [];
 for (const cd of Object.values(slots.classes ?? {}) as J[]) {
   if (!keep(cd)) continue;
@@ -109,5 +109,18 @@ for (const sd of Object.values(slots.species ?? {}) as J[]) {
   if (lines.length) species.push({ name: sd.name, source: sd.source, lines });
 }
 species.sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source));
-return { rows, species };
+
+// D351: what a background's block owes, the way the checker's Background block counts it: the abilities its Scores
+// increase takes (2024), and the Skills, Tools and Languages it leaves to choose. What it grants is not a line.
+// A background the table has no parts for (a variant) gets no row. Key names, ability codes and counts only.
+const backgrounds: J[] = [];
+for (const bd of Object.values(slots.backgrounds ?? {}) as J[]) {
+  if (!keep(bd) || (!bd.ability && !bd.skills && !bd.tools && !bd.languages)) continue;
+  const abilities = (bd.ability?.choose?.from ?? []).map((a: string) => a.toUpperCase());
+  const lines: [string, number][] = [];
+  for (const [key, n] of [["Skills", count(bd.skills)], ["Tools", count(bd.tools)], ["Languages", count(bd.languages)]] as [string, number][]) if (n > 0) lines.push([key, n]);
+  backgrounds.push({ name: bd.name, source: bd.source, abilities, lines });
+}
+backgrounds.sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source));
+return { rows, species, backgrounds };
 }

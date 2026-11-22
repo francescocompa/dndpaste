@@ -10,14 +10,14 @@ import { CLASS_NAMES, MAX_LEVEL, OTHER_NAME, presetText, totalLevels } from "../
 import type { Edition, Row } from "../preset.ts";
 import type { ScoreKind } from "../../../src/dndpaste.ts";
 
-/** D322: how the build's ability scores are made, or Skip (the Scores line stays empty, as before). */
-export type ScoreChoice = ScoreKind | "skip";
-const SCORE_CHOICES: readonly [ScoreChoice, string][] = [["standard-array", "Standard array"], ["point-buy", "Point buy"], ["custom", "Custom"], ["skip", "Skip"]];
-/** The last choice made on this browser (D322); the first time, Skip. */
+/** D322: how the build's ability scores are made. D353 (D334): no Skip; a choice of Skip kept from before reads as Custom. */
+export type ScoreChoice = ScoreKind;
+const SCORE_CHOICES: readonly [ScoreChoice, string][] = [["standard-array", "Standard array"], ["point-buy", "Point buy"], ["custom", "Custom"]];
+/** The last choice made on this browser (D322); the first time, Custom (D353). */
 const SCORES_KEY = "dndpaste.start.scores";
 export const scoreChoiceStore = (get: () => Storage = () => localStorage) => ({
   read(): ScoreChoice {
-    try { const v = get().getItem(SCORES_KEY); return SCORE_CHOICES.some(([k]) => k === v) ? v as ScoreChoice : "skip"; } catch { return "skip"; }
+    try { const v = get().getItem(SCORES_KEY); return SCORE_CHOICES.some(([k]) => k === v) ? v as ScoreChoice : "custom"; } catch { return "custom"; }
   },
   write(v: ScoreChoice): void { try { get().setItem(SCORES_KEY, v); } catch { /* storage blocked: the choice lasts this visit */ } },
 });
@@ -36,7 +36,7 @@ export const startReady = (rows: readonly StarterRow[]): boolean =>
   rows.every(nameOk) && rows.some((r) => r.cls && (r.cls !== OTHER || r.name.trim()));
 
 /** The builder's HTML for one state; pure, so the tests can read it. */
-export function starterHtml(edition: Edition, rows: readonly StarterRow[], scores: ScoreChoice = "skip"): string {
+export function starterHtml(edition: Edition, rows: readonly StarterRow[], scores: ScoreChoice = "custom"): string {
   const total = totalLevels(rows);
   const seg = (["2024", "2014"] as const).map((e) =>
     `<button type="button" role="radio" aria-checked="${e === edition}" tabindex="${e === edition ? 0 : -1}" class="${e === edition ? "on" : ""}" data-ed="${e}">${e}</button>`).join("");
@@ -72,8 +72,8 @@ export function starterHtml(edition: Edition, rows: readonly StarterRow[], score
     `<span class="muted">or type, paste or open a file. See the <a href="/guide">format guide</a>.</span></div>`;
 }
 
-/** Mounts the builder in `box`; `fill` gets the laid-out text and the score method (null for Skip). */
-export function mountStarter(box: HTMLElement, fill: (text: string, method: ScoreKind | null) => void): void {
+/** Mounts the builder in `box`; `fill` gets the laid-out text and the score method (D322, D353). */
+export function mountStarter(box: HTMLElement, fill: (text: string, method: ScoreKind) => void): void {
   let edition: Edition = "2024";
   const store = scoreChoiceStore();
   let scores = store.read();
@@ -121,7 +121,7 @@ export function mountStarter(box: HTMLElement, fill: (text: string, method: Scor
       draw(rows.length > 1 ? `.sbrow[data-i="${Math.min(i, rows.length - 1)}"] .sbdel` : `.sbrow select[data-f="cls"]`);
     } else if (t.classList.contains("sbmake") && startReady(rows)) {
       const text = presetText(edition, presetRows(rows));
-      if (text) fill(text, scores === "skip" ? null : scores);
+      if (text) fill(text, scores);
     }
   });
   // Arrow keys move between the two rules buttons, as in a radio group.

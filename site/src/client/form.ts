@@ -651,6 +651,12 @@ function init(): void {
     try { ok = document.execCommand("insertText", false, text); } catch { ok = false; }
     bulk = false;
     if (!ok) ta.setRangeText(text, start, end, "end");
+    // D354 (T9.4): an edit from a pick is typing by other means. A pick that leaves its line open for the next one
+    // (`Masteries: Longsword, `, D307) holds that line's error as a keystroke would (D90, D176); before, the bulk
+    // flag kept the input handler from holding it and the error showed at once.
+    holdLine = cursorLine() + 1;
+    clearTimeout(holdTimer);
+    holdTimer = window.setTimeout(release, HOLD_MS);
     refresh();
   };
   /**

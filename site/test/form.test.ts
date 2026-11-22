@@ -432,3 +432,19 @@ test("D240: client code never writes a style attribute (the live CSP drops it; p
     assert.ok(!/style=|setAttribute\(\s*["']style["']/.test(code), `${f} writes a style attribute`);
   }
 });
+
+test("D354 (T9.4): a pick that leaves its line open for the next holds the line's error, as typing does", () => {
+  // The state the first pick on a counted line leaves (D307 writes `, ` and reopens the list): an error while open.
+  for (const [t, line] of [["Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nMasteries: Longsword, ", 5],
+    ["Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips: Light, ", 5],
+    ["Rules: 2024\n\nBackground: Sage\nScores: +2 INT, ", 4]] as const) {
+    assert.ok(status(t).errors > 0, `${t}: the open line reads as an error`);
+    const held = status(t, line);
+    assert.deepEqual([held.errors, held.held], [0, 1], `${t}: held while its line is being written`);
+  }
+  // Every pick writes through form.ts's `insert`: it holds the caret's line before it redraws. Before D354 the bulk
+  // flag kept the input handler (the typing hold) from running there, so the error showed right after the pick.
+  const form = readFileSync(new URL("../src/client/form.ts", import.meta.url), "utf8");
+  const body = /const insert = \(text: string[\s\S]*?\n {2}\};/.exec(form)?.[0] ?? "";
+  assert.match(body, /bulk = true;[\s\S]*holdLine = cursorLine\(\) \+ 1;\s*clearTimeout\(holdTimer\);\s*holdTimer = window\.setTimeout\(release, HOLD_MS\);\s*refresh\(\);/);
+});
