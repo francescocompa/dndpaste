@@ -15,7 +15,7 @@
 
 Working set: none
 
-Spawned: none (scores jam, T8.3 and T8.4 done, merged 0828dfb, released 0.11.0)
+Spawned: disk-free `local_f322ed00-31c9-4539-bcaf-343e9fe963ef` (running, Mac, frees disk to ≥ 15 GB) → next: lib ∥ site-a (PLAN M9), each in its own worktree
 
 - **Library:** 0.11.0 on main (SPEC 0.11; 0.7 keys read with W005, 0.9 lineage forms with W006/W007). Releases per D57. The full slot table is
   gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
