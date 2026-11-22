@@ -2,6 +2,10 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- Site (T9.0, D335, D350): the editor's lists and score popovers ship as their own bundle, `/assets/ac.js`,
+  loaded with the names on the first focus. form.js drops from 149.4 KB to 124.6 KB. Nothing changes on screen.
+
 ## 0.11.0 — 2026-11-21
 - **SPEC 0.11: scores** (D320, D323, D326). Tidy and `emit` write the base `Scores` line named, with `/`, full or
   partial: `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`, `Scores: DEX 16/CHA 17`. Six numbers

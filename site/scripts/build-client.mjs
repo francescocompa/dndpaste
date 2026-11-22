@@ -6,6 +6,7 @@
 //            before the first paint (no flash), then wires the header, the Display menu and the view page (slice 3).
 //   share.js ESM module, the share image (D119): site.js imports it the first time a reader opens Share.
 //   names.js ESM module, the autocomplete's SRD names (D158): form.js imports it the first time the editor gets focus.
+//   ac.js    ESM module, the editor's lists and popovers (D335): form.js imports it with names.js, on the first focus.
 //   sources.js ESM module, the /sources page (D247): adding, checking and switching your own sources.
 //   yours.js ESM module, your own sources for the editor (D246): form.js imports it after names.js when a source exists.
 // First it writes the build stamp, src/build.gen.ts (scripts/stamp.mjs), which the Worker and site.js import.
@@ -22,6 +23,7 @@ export const CLIENTS = [
   { ...base, entryPoints: [join(site, "src/client/site.ts")], format: "iife", out: "site.js" },
   { ...base, entryPoints: [join(site, "src/client/share.ts")], format: "esm", out: "share.js" },
   { ...base, entryPoints: [join(site, "src/names.gen.ts")], format: "esm", out: "names.js" },
+  { ...base, entryPoints: [join(site, "src/client/ac.ts")], format: "esm", out: "ac.js" },
   { ...base, entryPoints: [join(site, "src/client/sources.ts")], format: "esm", out: "sources.js" },
   { ...base, entryPoints: [join(site, "src/client/sync.ts")], format: "esm", out: "yours.js" },
 ];

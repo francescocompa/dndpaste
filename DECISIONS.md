@@ -465,3 +465,18 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* keeping the snapshot with an editor ghost of the earlier loadout (the lines stay long); `Prepared` additive
   as well (a wider format change and more migration than he asked for).
   *Enforced by:* pending (T9.4 library tests, SPEC 0.12 §13).
+
+## M9 site-a (2026-11-22) — mechanism: worker build, D350–D359
+
+- **D350 — `ac.js` holds the editor's lists: names, keys, swaps and the base Scores line's popover and method list.
+  DECIDED (2026-11-22); builds D335.** `site/src/client/ac.ts` exports `mountAc(host)`. form.ts imports it with
+  `names.js` the first time the editor gets focus, and keeps every editor listener in its old place and order. The
+  listeners call the lists once they have loaded. A click before then (the method chip) waits for the load. form.js
+  went from 149.4 KB to 124.6 KB, and ac.js is 78.7 KB. Both sit under the same 150 KB check. The Keys tooltip, the Tidy
+  list and the fix panel stay in form.js, because they open without the editor's focus. ghost.ts keeps your own
+  presets in module state, and each bundle has its own copy of it. So form.js sets your presets in ac.js's copy too:
+  then the key list and the level-up see your classes.
+  *Rejected:* esbuild code splitting (a shared chunk, so the one-output-per-bundle build and check change for a
+  one-off); moving the Keys tooltip too (it shows on hover before any focus, so it would load later than it does now).
+  *Enforced by:* `site/test/names.test.ts` ("D335: the editor's lists ship as their own bundle…"),
+  `site/scripts/check-bundle.mjs` (the 150 KB cap per client bundle).
