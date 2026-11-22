@@ -5,8 +5,8 @@
   (`/version` 0.11.0, commit 22dcfb6). M8 done: the r/3d6 round-1 feedback (D302–D319) plus scores, SPEC 0.11 (D320–D333):
   `Scores: STR 8/DEX 14/…`, optional `Scores (point buy)` marker, score popover and method chip; no strict toggle (D330).
   Library 290 + site 346 pass. M9 queued (D334).
-- **Single next action:** M9 (D334, his notes after 0.11.0): scope it with him (the two 🔶 calls, the form.js cap ⚑), then
-  library and site workers. T3.11 posts (his) run alongside.
+- **Single next action:** M9, scoped (D335–D337): start the **lib** ∥ **site-a** workers (PLAN M9 workers line); next
+  **site-b** after both merge, then release 0.12.0. T3.11 posts (his) run alongside.
 - **Manual for Francesco:** ① T3.11 posts: rewrite the r/3d6 body by hand for r/onednd and r/dndnext (draft
   `.claude/drafts/reddit-3d6.md`, Troll Bandit paste `.claude/drafts/troll-bandit.dndpaste`, D300); not Mon/Sat
   ② archive the done sessions (M8: scores jam, T8.3 library, T8.4 site, plus the older copy-pass, editor-fixes, M6/T6.3,
@@ -23,8 +23,8 @@ Spawned: none (scores jam, T8.3 and T8.4 done, merged 0828dfb, released 0.11.0)
   2026-11-21; old copy `5etools-src-main.bak-2.38.0`). The extract script also rewrites `data/srd/slots.json` meta: revert it
   (`git checkout -- data/srd/slots.json`) unless the SRD subset is meant to change.
 - **Site:** scope D65–D74, D90–D116, look D80–D89, brief `SITE.md`. Deploy: `cd site && npm run build && npx wrangler deploy`
-  (a push does not deploy). The live CSP drops inline `style=` attributes: set positions through CSSOM (D240). ⚑ `form.js` is
-  149.4 KB of the 150 KB `check:bundle` cap (overseer, 2026-11-21): the next editor feature needs a split or a cap call first.
+  (a push does not deploy). The live CSP drops inline `style=` attributes: set positions through CSSOM (D240). `form.js` is 149.4 KB
+  of the 150 KB cap: T9.0 splits it (D335).
 - **Follow-ups (post-launch):** a real logo (D148). Open: O1, O4, O5, O6, the format-update ⚑ (DECISIONS.md).
 - **Gotchas:** On a turn a child's report started, the app refuses `start_session`: propose a card; briefs `cd` into the
   worktree. Workers past ~300k hand off with a brief in `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`.
@@ -34,4 +34,3 @@ Spawned: none (scores jam, T8.3 and T8.4 done, merged 0828dfb, released 0.11.0)
 
 
 
-⟳ Rename previous session → "M8 close: scores jam, SPEC 0.11 and the 0.11.0 release"  · session: local_79bf2756-c9c7-4ed3-85d5-12ef8f88b2de

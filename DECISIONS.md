@@ -434,3 +434,34 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   +1, for asi if you add a single choice it means +2, if you add two it means +1 +1)"
   *Rejected:* none offered.
   *Enforced by:* PLAN M9.
+
+## M9 scoping (2026-11-22) — mechanism: /start, AskUserQuestion, 1 round (3 questions), overseer
+
+- **D335 — `form.js` makes room by a split, not a bigger cap: the autocomplete and the popovers move into their own module,
+  loaded the first time the editor gets focus (as `names.js`, D158). DECIDED (2026-11-22); closes the `form.js` cap ⚑.** The
+  150 KB gate in `site/scripts/check-bundle.mjs` stays as it is, and the new module is checked as its own client bundle.
+  It is the first M9 site task, before T9.1–T9.3.
+  *Raw note:* picked "Split, lazy-load (Recommended)".
+  *Rejected:* raising the cap to 200 KB (every form load keeps growing, and the gate stops pushing back); a split plus a 175 KB cap (more work up front for headroom nobody has asked for yet).
+  *Enforced by:* `site/scripts/check-bundle.mjs` (the 150 KB cap, now per bundle).
+
+- **D336 — The Gear list has a Mundane · Magic toggle: two chips in the list's header, remembered per visitor, Mundane by
+  default. DECIDED (2026-11-22).** The toggle sets which items the list shows. A `+N` prefix shows as a chip after the name
+  (D334). In a Background or class block, that block's gear options and packs lead the list. Typing still filters inside
+  the chosen half.
+  *Raw note:* picked "Mundane · Magic toggle".
+  *Rejected:* mundane first with a "Magic items" divider and no control (cheaper, but he wants the intent explicit); jamming it first.
+  *Risk carried to /ui-review:* the phone dock is already full (D157). Where the toggle sits on phone is a review item.
+  *Enforced by:* pending (T9.3 site tests).
+
+- **D337 — Masteries are additive, like Spells: a level line lists only the new masteries, `-Name` drops one (like `-Item`),
+  and a name the build already holds is ignored. SPEC 0.12. DECIDED (2026-11-22); amends SPEC §4 (`Masteries` "a
+  snapshot") and §5.4 (`Prepared` and `Masteries` as a loadout).** `Prepared` stays a snapshot. Old snapshot pastes read the
+  same as long as they only add. A snapshot that left a name out with no `-Name` keeps that name, and the parser warns
+  when a later `Masteries` line repeats earlier names but leaves one out (the snapshot shape). Tidy rewrites a snapshot as
+  additive lines. Aliases and old forms keep reading (D142).
+  *Raw note:* picked "Additive, -Name to swap (Recommended)"; from D334: "should masteries repeat themselves each time you
+  get a new option? They should likely work like spells instead".
+  *Rejected:* keeping the snapshot with an editor ghost of the earlier loadout (the lines stay long); `Prepared` additive
+  as well (a wider format change and more migration than he asked for).
+  *Enforced by:* pending (T9.4 library tests, SPEC 0.12 §13).

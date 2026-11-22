@@ -141,21 +141,24 @@ L<n> <Class>                   level block, n = character level
 - [x] T8.5 Evaluate (no build) an opt-in strict rules toggle + final score totals: what it would check, what the checker
   already gives, cost, risks to the open-format stance · Done when: a short write-up and his call, logged as a decision.
 
-### M9 — Editor round 2: backgrounds, gear, masteries, feat bonuses (D334) · size M/L · split library and site workers
+### M9 — Editor round 2: backgrounds, gear, masteries, feat bonuses (D334; scoped D335–D337) · size M/L · split library and site workers
+Workers: **lib** (T9.4 format + T9.5 library, Opus@high, ids D340–D349) ∥ **site-a** (T9.0, T9.1, T9.2, T9.4 bug, Opus@high,
+ids D350–D359); then **site-b** (T9.3, T9.4 and T9.5 site side, after lib and site-a merge, ids D360–D369); then release 0.12.0.
+- [ ] T9.0 Split `form.js` (D335): the autocomplete and popovers into their own module, loaded on first editor focus, checked as
+  its own bundle under the 150 KB cap · Done when: `check:bundle` green with room, site tests pass, no behaviour change.
 - [ ] T9.1 Background block: parsed correctly in the editor, and it suggests its `Scores`, `Skills` and `Tools` lines;
   "Custom" is always the first row of the Background list · Done when: built, site tests, /ui-review approved.
 - [ ] T9.2 Scores in a Background block suggest picking the scores and the bonus; Start a build drops "Skip" and a new
   build starts on Custom (amends D322) · Done when: built, site tests, /ui-review approved.
 - [ ] T9.3 Gear list: a `+1`/`+2` prefix shows after the name as a chip, so names sort by name; packs and the background's
-  and class's gear options suggested in their blocks; 🔶 a mundane/magic switch (design first) · Done when: built,
+  and class's gear options suggested in their blocks; a Mundane · Magic toggle (D336; its phone place is a review item) · Done when: built,
   /ui-review approved.
 - [ ] T9.4 Masteries: the error that shows right after the first pick is fixed on every counted line, not only
-  Masteries · 🔶 do Masteries accumulate across levels like Spells, instead of repeating each time one is gained (a
-  format call) · Done when: the bug fixed with a regression test; the format call decided and logged.
+  Masteries · Masteries additive with `-Name` (D337, SPEC 0.12): library parse, warning on the snapshot shape, Tidy;
+  the editor counts only new slots · Done when: the bug fixed with a regression test; SPEC 0.12 drafted, library and site tests.
 - [ ] T9.5 Feat bonuses count without an explicit `+x`: a half feat is +1; an ASI with one ability is +2, with two is
   +1/+1; the ASI pick no longer reads as ability only (library `finalScores` + the site's mirror, D331) · Done when:
   library and site tests, the popover's final checked in /ui-review.
-- ⚑ `form.js` is 149.4 KB of the 150 KB cap (STATE): split it or decide the cap before T9.1–T9.3 land.
 
 ### Later
 - My-spellbook export (was M3, L5.5 / A-03): copy `dist/dndpaste.umd.cjs`, `levelGains`/`timelinePicks` → AST → `emit`. Moved here by D74: My Spellbook went independent (cf-D1986), so it is that repo's call (ms-D176).
