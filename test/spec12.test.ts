@@ -72,7 +72,7 @@ describe("D337, D342: the 0.11 snapshot shape warns (W008)", () => {
     const w = p.diagnostics.filter((d) => d.code === "W008");
     assert.equal(w.length, 1);
     assert.equal(w[0].line, 8);
-    assert.match(w[0].message, /Sap still held at L4/);
+    assert.match(w[0].message, /still held: Sap, at L4 \(D337\)/);
     assert.equal(w[0].hint, "Write -Sap to drop it");
     assert.deepEqual(masteriesAt(swap, 4), ["Longsword", "Sap", "Handaxe", "Flail"]);
   });

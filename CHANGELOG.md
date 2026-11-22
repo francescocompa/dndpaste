@@ -2,6 +2,35 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- **SPEC 0.12 (draft): Masteries add up, like Spells** (D337, D342–D344). A level's `Masteries` line lists only the
+  masteries new at that level; `-Name` drops one (a swap is `Masteries: Flail, -Sap`); a name the build already holds
+  is ignored. `Prepared` stays a snapshot. A 0.11 paste whose later lines only add reads the same, with no
+  diagnostic. A later line that repeats held names and leaves one out now keeps that one and warns **`W008`**; its
+  fix (not safe) writes the new names and the drop. Tidy and the checker's `normalise` rewrite the lines that only
+  add as additive ones and leave a `W008` line as written; `emit` alone keeps every line.
+- **Feat bonuses count with no `+x`** (D334, D340, D341). `Feat: Ability Score Improvement [CHA]` is +2 CHA;
+  `[INT, CON]` and `[+1 INT, CON]` are +1 INT, +1 CON; the checker no longer reports the bare form. A half feat with
+  a fixed increase and no pick (`Durable`, `Keen Mind`, the 2024 `Great Weapon Master`, 25 feats in 5etools) adds its
+  +1 in `finalScores`. A picked half feat (`Grappler [STR]`) counted already.
+- Library: `loadoutAt(paste, level)` gives the masteries held and the `Prepared` snapshot at a level, data-free
+  (also from `dndpaste/check`); `masteryWalk(paste)` reads each level's line (added, repeated, left out, held);
+  `foldMasteries(paste)` is Tidy's rewrite. The slot table's feats get `abilityFixed` (`{ "con": 1 }`), written
+  only when a feat has one: regenerate `data/slots.json`. `SPEC_VERSION` is `"0.12"`.
+- Fixtures: `masteries-fighter` in 0.12 form; `fixtures/v0.11/masteries-fighter` keeps the snapshot lines, and a
+  test checks it reads the same at every level and converts.
+
+### Migrating from 0.11
+Readers: use `loadoutAt` (or sum the lines) for a level's masteries instead of reading the last `Masteries` line.
+Writers: write only the new masteries per level, and `-Name` for a swap. Saved pastes go through Tidy once.
+
+| 0.11 | 0.12 |
+|---|---|
+| `L4` `Masteries: Longsword, Sap, Handaxe, Lance` (after `L1` `Masteries: Longsword, Sap, Handaxe`) | `L4` `Masteries: Lance` |
+| `L10` `Masteries: Longsword, Handaxe, Lance, Flail` (Sap left out: a swap) | `L10` `Masteries: Flail, -Sap` (the `W008` fix) |
+| `Feat: Ability Score Improvement [+2 CHA]` | unchanged; `[CHA]` also reads as +2 |
+| `Feat: Ability Score Improvement [+1 INT, +1 CON]` | unchanged; `[INT, CON]` also reads as +1/+1 |
+
 ## 0.11.0 — 2026-11-21
 - **SPEC 0.11: scores** (D320, D323, D326). Tidy and `emit` write the base `Scores` line named, with `/`, full or
   partial: `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`, `Scores: DEX 16/CHA 17`. Six numbers

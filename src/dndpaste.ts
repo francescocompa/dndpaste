@@ -983,7 +983,7 @@ export function parse(text: string): Paste {
     const drops = mv && mv.type === "items" ? mv.items.filter((it) => it.drop) : [];
     // The fix writes the line as 0.12 reads the author's intent: the new names, then each drop (D342).
     const value = [...step.added, ...drops, ...step.leftOut.map((it) => ({ ...it, drop: true, qty: null }))];
-    diag.add("W008", at, `${names.join(", ")} still held at L${step.level.n} (D337)`, { hint: `Write ${names.map((n) => `-${n}`).join(", ")} to drop ${names.length > 1 ? "them" : "it"}`, fix: { label, safe: false, edits: [{ line: at, text: `Masteries: ${value.map(fmtItem).join(", ")}` }] } });
+    diag.add("W008", at, `${names.join(", ")}, at L${step.level.n} (D337)`, { hint: `Write ${names.map((n) => `-${n}`).join(", ")} to drop ${names.length > 1 ? "them" : "it"}`, fix: { label, safe: false, edits: [{ line: at, text: `Masteries: ${value.map(fmtItem).join(", ")}` }] } });
   }
 
   // Whole-document checks.
