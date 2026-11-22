@@ -2,7 +2,7 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
-## Unreleased
+## 0.12.0 — 2026-11-22
 - **SPEC 0.12 (draft): Masteries add up, like Spells** (D337, D342–D344). A level's `Masteries` line lists only the
   masteries new at that level; `-Name` drops one (a swap is `Masteries: Flail, -Sap`); a name the build already holds
   is ignored. `Prepared` stays a snapshot. A 0.11 paste whose later lines only add reads the same, with no
