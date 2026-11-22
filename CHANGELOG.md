@@ -2,6 +2,17 @@
 
 Newest first. Versions follow `package.json`; the spec has its own number inside `SPEC.md`.
 
+## Unreleased
+- Site (T9.0, D335, D350): the editor's lists and score popovers ship as their own bundle, `/assets/ac.js`,
+  loaded with the names on the first focus. form.js drops from 149.4 KB to 124.6 KB. Nothing changes on screen.
+- Site (T9.1, D351): "Custom" is the first row of the Background list. A Background block shows counts from the
+  background picked. Picking or swapping a background fits its block: an official 2024 one keeps `Scores` and drops
+  the empty `Skills` and `Tools` lines it grants; Custom gets `Scores`, `Skills`, `Tools` and `Feat`.
+- Site (T9.2, D352, D353): a Background block's `Scores` line lists `+2 INT`-style rows from the background's
+  abilities until the +3 is spent. Start a build has no Skip; a new build starts on Custom.
+- Site (T9.4, D354): the error that showed right after the first pick on a counted line (Masteries, Cantrips, …) now
+  waits while the line is still being written, as it does for typing.
+
 ## 0.11.0 — 2026-11-21
 - **SPEC 0.11: scores** (D320, D323, D326). Tidy and `emit` write the base `Scores` line named, with `/`, full or
   partial: `Scores: STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15`, `Scores: DEX 16/CHA 17`. Six numbers

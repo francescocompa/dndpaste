@@ -148,3 +148,20 @@ export const SPECIES_PRESETS: readonly SpeciesPreset[] = [
   { name: "Human (Variant)", source: "PHB", lines: [["Skills",1],["Languages",1]] },
   { name: "Tiefling", source: "XPHB", lines: [["Species","Fiendish Legacy"]] },
 ];
+
+/** D351: what a background's block owes: the abilities its `Scores` increase takes (2024; none in 2014), and
+ *  [key, picks] for the Skills, Tools and Languages it leaves to choose. */
+export interface BackgroundPreset { name: string; source: string; abilities: readonly string[]; lines: readonly (readonly [string, number])[] }
+
+export const BACKGROUND_PRESETS: readonly BackgroundPreset[] = [
+  { name: "Acolyte", source: "PHB", abilities: [], lines: [["Languages",2]] },
+  { name: "Acolyte", source: "XPHB", abilities: ["INT","WIS","CHA"], lines: [] },
+  { name: "Criminal", source: "PHB", abilities: [], lines: [["Tools",1]] },
+  { name: "Criminal", source: "XPHB", abilities: ["DEX","CON","INT"], lines: [] },
+  { name: "Folk Hero", source: "PHB", abilities: [], lines: [["Tools",1]] },
+  { name: "Noble", source: "PHB", abilities: [], lines: [["Tools",1],["Languages",1]] },
+  { name: "Sage", source: "PHB", abilities: [], lines: [["Languages",2]] },
+  { name: "Sage", source: "XPHB", abilities: ["CON","INT","WIS"], lines: [] },
+  { name: "Soldier", source: "PHB", abilities: [], lines: [["Tools",1]] },
+  { name: "Soldier", source: "XPHB", abilities: ["STR","DEX","CON"], lines: [["Tools",1]] },
+];

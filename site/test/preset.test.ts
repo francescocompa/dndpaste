@@ -170,3 +170,14 @@ test("the builder (round 1 pins): no order note, the total level alone, Start th
   assert.deepEqual(presetRows([{ cls: "other", name: " Artificer ", levels: 2 }, ...two]).map((r) => r.cls), ["Artificer", "Fighter", "Warlock"]);
   assert.ok(starterHtml("2024", [{ cls: "Monk", name: "", levels: 20 }]).includes(`class="bt ghost sbadd" disabled`), "Add a class off at 20");
 });
+
+test("D353 (amends D322): Start a build has no Skip; a new build starts on Custom, and a kept Skip reads as Custom", async () => {
+  const { scoreChoiceStore } = await import("../src/client/starter.ts");
+  const html = starterHtml("2024", [{ cls: "", name: "", levels: 1 }]);
+  assert.ok(!/Skip|value="skip"/.test(html));
+  assert.match(html, /<option value="custom" selected>Custom<\/option>/);
+  const mem = (v: string | null): Storage => ({ getItem: () => v, setItem: () => {} }) as unknown as Storage;
+  assert.equal(scoreChoiceStore(() => mem(null)).read(), "custom");
+  assert.equal(scoreChoiceStore(() => mem("skip")).read(), "custom");
+  assert.equal(scoreChoiceStore(() => mem("point-buy")).read(), "point-buy");
+});

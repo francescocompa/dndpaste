@@ -465,3 +465,67 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   *Rejected:* keeping the snapshot with an editor ghost of the earlier loadout (the lines stay long); `Prepared` additive
   as well (a wider format change and more migration than he asked for).
   *Enforced by:* pending (T9.4 library tests, SPEC 0.12 §13).
+
+## M9 site-a (2026-11-22) — mechanism: worker build, D350–D359
+
+- **D350 — `ac.js` holds the editor's lists: names, keys, swaps and the base Scores line's popover and method list.
+  DECIDED (2026-11-22); builds D335.** `site/src/client/ac.ts` exports `mountAc(host)`. form.ts imports it with
+  `names.js` the first time the editor gets focus, and keeps every editor listener in its old place and order. The
+  listeners call the lists once they have loaded. A click before then (the method chip) waits for the load. form.js
+  went from 149.4 KB to 124.6 KB, and ac.js is 78.7 KB. Both sit under the same 150 KB check. The Keys tooltip, the Tidy
+  list and the fix panel stay in form.js, because they open without the editor's focus. ghost.ts keeps your own
+  presets in module state, and each bundle has its own copy of it. So form.js sets your presets in ac.js's copy too:
+  then the key list and the level-up see your classes.
+  *Rejected:* esbuild code splitting (a shared chunk, so the one-output-per-bundle build and check change for a
+  one-off); moving the Keys tooltip too (it shows on hover before any focus, so it would load later than it does now).
+  *Enforced by:* `site/test/names.test.ts` ("D335: the editor's lists ship as their own bundle…"),
+  `site/scripts/check-bundle.mjs` (the 150 KB cap per client bundle).
+
+- **D351 — The Background block follows the background picked: Custom first in the list, counts from the SRD table, and
+  a pick fits the block. DECIDED (2026-11-22), T9.1; his pick in an AskUserQuestion round.** "Custom" is the first row
+  of every Background list. It has no book and is a known name, so it never shows "No matches". `presets.ts` gets
+  `BACKGROUND_PRESETS` from the SRD table: the abilities a background's increase takes (2024) and the Skills, Tools
+  and Languages it leaves to choose. What it grants is no line. The block shows counts: `Scores` counts bonus points
+  (`+2 INT, +1 WIS` is 3/3); Custom 2024 owes Scores 3, Skills 2, Tools 1 and Feat 1, and Custom 2014 owes Skills 2.
+  A background picked or swapped in fits its block. It adds the lines that background asks for, in the key table's
+  order. It drops the empty Scores, Skills, Tools, Languages and Feat lines it doesn't ask for. A line with names in
+  it, and any other key, stays. A background the table doesn't know (a variant, your own, a homebrew one) gets no
+  counts and no fitting.
+  *Raw note:* picked "Fit the block (Recommended)"; from D334: "Background need to be correctly parsed and suggest
+  scores, skills and tools, first option in backgrounds should always be "Custom"".
+  *Rejected:* keeping the lines with a "granted: Arcana, History" note (the block still carries lines the format says
+  it doesn't hold); counts only (empty granted lines stay in To choose).
+  *Review r1 (approved):* a rule under Custom sets it apart from the backgrounds ("I think it needs a divider between
+  custom and the next option"), desktop list only.
+  *Enforced by:* `site/test/background.test.ts`, `site/test/complete.test.ts` ("D351 (D334): Custom is always…").
+
+- **D352 — A Background block's `Scores` line lists bonus and ability rows: `+2 INT`, `+1 WIS`. DECIDED (2026-11-22),
+  T9.2; his pick in the same round.** At the line's end, the list offers the bonuses that still fit the +3, from the
+  background's abilities (any for Custom). The increase is +2 and +1 on two abilities, or +1 on three. An ability
+  already given a bonus is not offered again. A pick with points left writes `, ` and opens the list again (D307).
+  The last pick moves on to the next open choice (D310). Typing narrows the rows by bonus or by ability (`w` →
+  `+1 WIS`). A click on the empty line opens it too (D302). The list's head says what is left: `+3 to add from CON,
+  INT, WIS`. No list on 2014 backgrounds, which give no increase.
+  *Raw note:* picked "Bonus + ability rows (Recommended)"; from D334: "scores in background should in general suggest
+  you to pick scores and bonus".
+  *Rejected:* the split first (`+2 / +1` or `+1 / +1 / +1`), then each ability (two lists for one line).
+  *Enforced by:* `site/test/background.test.ts`.
+
+- **D353 — Start a build has no Skip; a new build starts on Custom. DECIDED (2026-11-22) in D334; built in T9.2. Amends
+  D322.** The `Ability scores` select offers Standard array, Point buy and Custom. It still starts on the last choice
+  made on this browser. The first time, and where an old Skip was kept, it starts on Custom.
+  *Raw note:* from D334: "remove skip as option, by default start in new build with custom".
+  *Rejected:* none offered.
+  *Enforced by:* `site/test/preset.test.ts` ("D353 (amends D322)…").
+
+- **D354 — A pick holds its line's error the way typing does. DECIDED (2026-11-22), T9.4 bug.** Every pick writes
+  through form.ts's `insert`, and that ran the edit with the `bulk` flag set, so the input handler that holds a line
+  being typed (D90, D176) never ran. A first pick on a counted line writes `, ` for the next pick (D307). The line
+  then reads as an error, and the error showed at once: on Masteries, as he saw, and on every other counted line.
+  `insert` now holds the caret's line as a keystroke does, until the caret leaves it or typing pauses.
+  Review r1: the pause doesn't let go while a list is open on that line and the line ends open (`, `); leaving the
+  line, Escape or a click elsewhere still does.
+  *Raw note:* from D334: "masteries still had the issue of error right after inserting the first option, this needs to
+  be fixed everywhere".
+  *Rejected:* a hold in each pick path (the score fill already had one of its own; the next path would miss it).
+  *Enforced by:* `site/test/form.test.ts` ("D354 (T9.4)…").

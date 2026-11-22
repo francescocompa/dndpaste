@@ -9,9 +9,9 @@
  * Skills, Expertise, Cantrips, Spells and Options (a `-` drop lets one more pick in, as the checker's owed + dropped);
  * the loadout total for Masteries and Prepared (SPEC: "the default loadout from that level").
  */
-import { classSequence, isAbilitySlot, keyGroup, resolveKey } from "../../src/dndpaste.ts";
+import { ABILITIES, classSequence, isAbilitySlot, keyGroup, resolveKey } from "../../src/dndpaste.ts";
 import type { Item, Paste, Ref } from "../../src/dndpaste.ts";
-import { PRESETS, SPECIES_PRESETS } from "./presets.ts";
+import { BACKGROUND_PRESETS, PRESETS, SPECIES_PRESETS } from "./presets.ts";
 import { esc, icon } from "./render.ts";
 import type { ClassPreset, SpeciesPreset } from "./presets.ts";
 
@@ -173,7 +173,7 @@ export function ghostCounts(paste: Paste, text: string): Ghost[] {
     else groups.set(id, { n: cur, key, lines: [i + 1], scopes: [r.key] });
   }
 
-  const out: Ghost[] = [...speciesGhosts(paste, lines, rules)];
+  const out: Ghost[] = [...speciesGhosts(paste, lines, rules), ...backgroundGhosts(paste, lines, rules)];
   for (const { n, key, lines: at1, scopes } of groups.values()) {
     const here = at.get(n);
     if (!here || !here.table.counted.includes(key)) continue;
@@ -212,6 +212,50 @@ function speciesGhosts(paste: Paste, lines: readonly string[], rules: string | n
     const have = v.items.filter((it) => !it.drop).length;
     const g: Ghost = { line, n: 0, have, of: of + v.items.length - have };
     out.push(g);
+  }
+  return out;
+}
+
+/**
+ * D351: what a Background block owes, as the checker counts it. An official background: the abilities its `Scores`
+ * increase takes (2024) and the Skills, Tools and Languages it leaves to choose; what it grants is no line of the
+ * block. `Custom` holds everything (SPEC §5.1): 2024, a +3 increase from any ability, two skills, a tool and an origin
+ * feat; 2014, two skills, and tools or languages. A name the table doesn't know (a variant, your own) gets none.
+ * `keys`: the lines the block holds, in order; `counts`: the picks each one expects.
+ */
+export interface BackgroundSpec { name: string; custom: boolean; abilities: readonly string[]; keys: readonly string[]; counts: ReadonlyMap<string, number> }
+export function backgroundSpec(ref: Ref, rules: string | null): BackgroundSpec | null {
+  if (ref.name.trim().toLowerCase() === "custom") {
+    const old = rules === "2014";
+    const counts = new Map<string, number>(old ? [["Skills", 2]] : [["Scores", 3], ["Skills", 2], ["Tools", 1], ["Feat", 1]]);
+    return { name: "Custom", custom: true, abilities: old ? [] : ABILITIES, keys: old ? ["Skills", "Tools", "Languages"] : ["Scores", "Skills", "Tools", "Feat"], counts };
+  }
+  const row = findRow(BACKGROUND_PRESETS, [], ref, rules);
+  if (!row) return null;
+  const counts = new Map<string, number>(row.lines.map(([k, n]) => [k, n]));
+  if (row.abilities.length) counts.set("Scores", 3);
+  return { name: row.name, custom: false, abilities: row.abilities, keys: [...(row.abilities.length ? ["Scores"] : []), ...row.lines.map(([k]) => k)], counts };
+}
+
+/** D351: the Background block's counts, from {@link backgroundSpec}; `Scores` counts its bonus points (+2 and +1 is 3/3).
+ *  n is -1: the block keeps its own column, as the Species block's 0 does. */
+function backgroundGhosts(paste: Paste, lines: readonly string[], rules: string | null): Ghost[] {
+  const bg = paste.entities.find((e) => e.key === "Background");
+  const spec = bg?.item ? backgroundSpec(bg.item.ref, rules) : null;
+  if (!bg || !spec) return [];
+  const out: Ghost[] = [];
+  for (const [key, v] of bg.lines) {
+    const of = spec.counts.get(key);
+    if (of === undefined) continue;
+    const line = blockLine(lines, "Background", key);
+    if (!line) continue;
+    if (key === "Scores") {
+      if (v.type !== "scores" || v.values.some((x) => x !== null)) continue;
+      out.push({ line, n: -1, have: (v.increase ?? []).reduce((a, b) => a + b.amount, 0), of });
+    } else if (v.type === "items") {
+      const have = v.items.filter((it) => !it.drop).length;
+      out.push({ line, n: -1, have, of: of + v.items.length - have });
+    }
   }
   return out;
 }

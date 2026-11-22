@@ -644,3 +644,16 @@ test("D306: every list holds up to 60 rows; past that, it counts the rest", () =
   assert.equal(alt.rows.length, LIST_LIMIT, "the swap list too");
   assert.ok(alt.more > 0);
 });
+
+test("D351 (D334): Custom is always the Background list's first row, never dimmed, and a known name", () => {
+  for (const r of ["", "Rules: 2014\n", "Rules: 2024\n"]) {
+    const rows = (() => { const s = spot(`${r}\nBackground: ¦`); return s ? suggest(N, s, 60) : []; })();
+    assert.deepEqual([rows[0]?.name, rows[0]?.source, rows[0]?.dim], ["Custom", null, undefined], r);
+    assert.ok(rows.some((x) => x.name === "Sage"));
+  }
+  assert.equal(names("Background: cu¦")?.[0], "Custom");
+  assert.equal(names("Background: c¦")?.[0], "Custom", "ahead of Criminal");
+  assert.ok(!names("Background: sa¦")?.includes("Custom"), "typing still narrows it");
+  const s = spot("Background: Custom¦");
+  assert.ok(s && isKnown(N, s), "no 'No matches' line for Custom");
+});

@@ -301,6 +301,9 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ac .ao { display: flex; gap: 8px; align-items: center; white-space: nowrap; cursor: pointer; }
 .ed .ac .ao { padding: 3px 8px; border-radius: 5px; min-height: 1.9em; }
 .ed .ac .ao:hover { background: var(--chip); }
+/* D351 review: a rule under Custom, the Background list's first row, sets it apart from the backgrounds. */
+.ed .ac .ao.sep { position: relative; margin-bottom: 9px; }
+.ed .ac .ao.sep::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: -5px; border-bottom: 1px solid var(--rule); }
 .ac .ao.on { background: color-mix(in srgb, var(--acc) 14%, var(--chip)); }
 .ac .an { overflow: hidden; text-overflow: ellipsis; }
 .ac .as { color: var(--src); }

@@ -28,6 +28,18 @@ test("D158: the names ship as their own client bundle, loaded on focus, not insi
   assert.match(form, /\/assets\/names\.js/);
 });
 
+test("D335: the editor's lists ship as their own bundle, ac.js, loaded on focus, not inside form.js", () => {
+  assert.match(readFileSync(new URL("../scripts/build-client.mjs", import.meta.url), "utf8"), /src\/client\/ac\.ts"\)\], format: "esm", out: "ac\.js"/);
+  const form = readFileSync(new URL("../src/client/form.ts", import.meta.url), "utf8");
+  const code = form.replace(/import type[^;]+;/g, "");
+  assert.ok(!/from "\.\/(ac|complete)\.ts"[^;]*;/.test(code.replace(/import \{ ghostWord \} from "\.\/complete\.ts";/, "")), "form.ts imports the lists at run time only");
+  assert.match(form, /const AC_JS = "\/assets\/ac\.js"/);
+  assert.match(form, /ed\.addEventListener\("focusin", \(\) => \{ loadNames\(\); tryAc\(\); \}\)/);
+  // ghost.ts keeps your own presets in module state: both bundles' copies get them (D246).
+  assert.match(form, /acMod\?\.useYourPresets\(\.\.\.yourPresets\)/);
+  assert.match(form, /if \(yourPresets\) m\.useYourPresets\(\.\.\.yourPresets\)/);
+});
+
 test("D165: MASTERY_WEAPONS lists mundane weapons from the 2024 books only", () => {
   const mundane = new Set(N.ITEMS.filter((i) => i[2]).map((i) => i[0]));
   assert.ok(N.MASTERY_WEAPONS.length >= 30);
