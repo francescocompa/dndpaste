@@ -96,6 +96,23 @@ const commaSetup = async (x, name) => {
   typeMore(', ')
   await x.sleep(400)
 }
+// M9 (D351–D354): Start a build (Fighter 1, 2024), then the caret at the end of a line with its list opened by a click
+// (D302), then, for a pick, the list's row whose name starts with `row`.
+const m9Click = async (x, name, line) => {
+  await x.waitFor('form.pform textarea.src')
+  if (editor().value) { typeIn(''); await x.sleep(100) }   // each item starts from a fresh layout
+  await laidPreset(x, name, [['Fighter', 1]])
+  const ta = editor(), at = ta.value.indexOf(line) + line.length
+  ta.focus(); ta.setSelectionRange(at, at)
+  ta.dispatchEvent(new MouseEvent('click', { bubbles: true })); await x.sleep(250)
+}
+const pickRow = async (x, row) => {
+  await x.waitFor('.ac:not([hidden]) .ao')
+  const o = [...document.querySelectorAll('.ac .ao')].find((e) => e.querySelector('.an')?.textContent.startsWith(row))
+  if (!o) { x.toast(`No ${row} row`); return }
+  o.click(); await x.sleep(250)
+}
+const m9Pick = async (x, name, line, row) => { await m9Click(x, name, line); await pickRow(x, row) }
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 // A preset laid out in the editor, from an empty form (any draft bar cleared first). Skips when it is already there.
@@ -620,5 +637,11 @@ uiReview.config({
       ta.focus(); ta.setSelectionRange(at, at)
       ta.dispatchEvent(new MouseEvent('click', { bubbles: true })); await x.sleep(200)
     },
+    // M9 site-a (D351–D354): the Background block, its Scores bonuses, Start a build on Custom, a pick's held error.
+    'm9-start': async (x) => { await x.waitFor('form.pform textarea.src'); if (editor().value) typeIn(''); await x.waitFor('.sb:not([hidden])') },
+    'm9-bglist': (x) => m9Click(x, 'm9-bglist', 'Background:'),
+    'm9-fit': (x) => m9Pick(x, 'm9-fit', 'Background:', 'Sage'),
+    'm9-custom': (x) => m9Pick(x, 'm9-custom', 'Background:', 'Custom'),
+    'm9-mast-open': (x) => m9Click(x, 'm9-mast-open', 'Masteries:'),
   },
 })

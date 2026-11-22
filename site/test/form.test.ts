@@ -446,5 +446,7 @@ test("D354 (T9.4): a pick that leaves its line open for the next holds the line'
   // flag kept the input handler (the typing hold) from running there, so the error showed right after the pick.
   const form = readFileSync(new URL("../src/client/form.ts", import.meta.url), "utf8");
   const body = /const insert = \(text: string[\s\S]*?\n {2}\};/.exec(form)?.[0] ?? "";
-  assert.match(body, /bulk = true;[\s\S]*holdLine = cursorLine\(\) \+ 1;\s*clearTimeout\(holdTimer\);\s*holdTimer = window\.setTimeout\(release, HOLD_MS\);\s*refresh\(\);/);
+  assert.match(body, /bulk = true;[\s\S]*holdLine = cursorLine\(\) \+ 1;\s*clearTimeout\(holdTimer\);\s*holdTimer = window\.setTimeout\(pauseRelease, HOLD_MS\);\s*refresh\(\);/);
+  // Review r1: the pause doesn't let go while a list is open on the line and the line ends open for the next pick.
+  assert.match(form, /const pauseRelease = \(\) => \{\s*const open = holdLine > 0 && acs\?\.openLine\(\) === holdLine && \/\[,;\[\]\\s\*\$\//);
 });

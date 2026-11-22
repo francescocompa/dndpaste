@@ -59,6 +59,8 @@ export interface Ac {
   /** The names table arrived: an open score popover gets its final, anything else shows what typing showed. */
   namesArrived(): void;
   keydown(e: KeyboardEvent): void;
+  /** The 1-based line the list is open on (the caret's); 0 when closed. */
+  openLine(): number;
   keyup(e: KeyboardEvent): void;
   click(e: MouseEvent): void;
 }
@@ -171,12 +173,14 @@ export function mountAc(h: AcHost): Ac {
     const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
     // D266: the slot title only where the brackets take two picks or more; one slot needs no title.
     // D304: a swap list says so, so it doesn't read as completion.
+    // D351 review: Custom, first in a Background list, stands apart from the backgrounds by a rule under it.
+    const sepAt = acSpot?.key === "Background" && acRows.length > 1 && acRows[0].name === "Custom" && !acRows[0].source ? 0 : -1;
     const hint = acBonus ? `<div class="ah" aria-hidden="true">${esc(bonusHead(acBonus))}</div>` : acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
     // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
     ac.innerHTML = acScore ? scoreListHtml(onPhone) : (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
-      hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+      hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}${sepAt === i ? " sep" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
       `<span class="an">${esc(r.name)}</span>${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
       `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("") +
@@ -549,6 +553,7 @@ export function mountAc(h: AcHost): Ac {
     openMethods,
     namesArrived: () => { if (acScore && acScore.mode !== "fill" && !ac.hidden) acDraw(); else complete(true); },
     keydown,
+    openLine: () => (ac.hidden ? 0 : h.ta.value.slice(0, h.ta.selectionStart).split("\n").length),
     // D229, D302: a key release updates or closes the list; a release in the list itself does nothing.
     keyup: (e) => { if (!ac.contains(e.target as Node)) complete(false); },
     click: (e) => {

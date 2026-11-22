@@ -495,6 +495,8 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   scores, skills and tools, first option in backgrounds should always be "Custom"".
   *Rejected:* keeping the lines with a "granted: Arcana, History" note (the block still carries lines the format says
   it doesn't hold); counts only (empty granted lines stay in To choose).
+  *Review r1 (approved):* a rule under Custom sets it apart from the backgrounds ("I think it needs a divider between
+  custom and the next option"), desktop list only.
   *Enforced by:* `site/test/background.test.ts`, `site/test/complete.test.ts` ("D351 (D334): Custom is always…").
 
 - **D352 — A Background block's `Scores` line lists bonus and ability rows: `+2 INT`, `+1 WIS`. DECIDED (2026-11-22),
@@ -521,6 +523,8 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   being typed (D90, D176) never ran. A first pick on a counted line writes `, ` for the next pick (D307). The line
   then reads as an error, and the error showed at once: on Masteries, as he saw, and on every other counted line.
   `insert` now holds the caret's line as a keystroke does, until the caret leaves it or typing pauses.
+  Review r1: the pause doesn't let go while a list is open on that line and the line ends open (`, `); leaving the
+  line, Escape or a click elsewhere still does.
   *Raw note:* from D334: "masteries still had the issue of error right after inserting the first option, this needs to
   be fixed everywhere".
   *Rejected:* a hold in each pick path (the score fill already had one of its own; the next path would miss it).

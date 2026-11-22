@@ -260,6 +260,13 @@ function init(): void {
     holdLine = 0;
     refresh();
   };
+  /** D354 review: the typing pause lets go of the held line (D176), unless a list is open on it waiting for the next
+   *  pick and the line ends open (`Masteries: Longsword, `): choosing is not a pause. Leaving the line still lets go. */
+  const pauseRelease = () => {
+    const open = holdLine > 0 && acs?.openLine() === holdLine && /[,;[]\s*$/.test(ta.value.split("\n")[holdLine - 1] ?? "");
+    if (open) { holdTimer = window.setTimeout(pauseRelease, HOLD_MS); return; }
+    release();
+  };
   let badgeTimer: ReturnType<typeof setTimeout> | undefined;
   /** Changes struck through in the badge's list (D229 review): Tidy leaves them out until they're clicked again. */
   const tidySkip = new Set<string>();
@@ -656,7 +663,7 @@ function init(): void {
     // flag kept the input handler from holding it and the error showed at once.
     holdLine = cursorLine() + 1;
     clearTimeout(holdTimer);
-    holdTimer = window.setTimeout(release, HOLD_MS);
+    holdTimer = window.setTimeout(pauseRelease, HOLD_MS);
     refresh();
   };
   /**
@@ -759,7 +766,7 @@ function init(): void {
       loadNames: () => loadNames(),
       effMethod, chipHtml, writeChange, insert, refreshHints, drawRows,
       changed: () => changed(),
-      hold: (line) => { holdLine = line; clearTimeout(holdTimer); holdTimer = window.setTimeout(release, HOLD_MS); },
+      hold: (line) => { holdLine = line; clearTimeout(holdTimer); holdTimer = window.setTimeout(pauseRelease, HOLD_MS); },
       tabGhost,
     });
     acs = a;
@@ -901,7 +908,7 @@ function init(): void {
     if (/^(insertText|insertCompositionText|insertReplacementText|deleteContent)/.test(kind ?? "")) {
       holdLine = cursorLine() + 1;
       clearTimeout(holdTimer);
-      holdTimer = window.setTimeout(release, HOLD_MS);
+      holdTimer = window.setTimeout(pauseRelease, HOLD_MS);
     } else {
       clearTimeout(holdTimer);
       holdLine = 0;
