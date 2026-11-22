@@ -15,7 +15,7 @@
 
 Working set: none
 
-Spawned: disk-free `local_f322ed00-31c9-4539-bcaf-343e9fe963ef` (running, Mac, frees disk to ≥ 15 GB) → next: lib ∥ site-a (PLAN M9), each in its own worktree
+Spawned: m9-lib `local_3752a063-3df8-4966-9d71-e83194658a34` (running, own worktree, T9.4+T9.5 library, D340–D349) ∥ m9-site-a (running, main checkout on `claude/m9-site-a`, T9.0–T9.2 + T9.4 bug, D350–D359) → next: overseer merges both, then site-b (T9.3, T9.4/T9.5 site side, D360–D369), then release 0.12.0. disk-free done (9 GB; BlueStacks 44 GB, his move later)
 
 - **Library:** 0.11.0 on main (SPEC 0.11; 0.7 keys read with W005, 0.9 lineage forms with W006/W007). Releases per D57. The full slot table is
   gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
