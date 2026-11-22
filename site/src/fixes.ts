@@ -21,7 +21,7 @@
  *
  * The library's fixes win over the site's own fix on a line (D225).
  */
-import { KEYS, applyFix, classSequence, emit, familyOf, isAbilitySlot, keyGroup, parse, resolveKey } from "../../src/dndpaste.ts";
+import { KEYS, applyFix, classSequence, emit, emitValue, familyOf, foldMasteries, isAbilitySlot, keyGroup, masteryWalk, parse, resolveKey } from "../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../src/dndpaste.ts";
 import { isWholeList, speciesPreset, tableFor, toPrepared } from "./ghost.ts";
 import { lineageRow } from "./client/complete.ts";
@@ -516,6 +516,17 @@ export function tidyPlan(text: string, n: Names | null = null, skip: ReadonlySet
     }
     if (!made) break;
   }
+  // D337, D364: each 0.11 snapshot Masteries line becomes additive, one level at a time, so a struck-through row
+  // leaves its line as written and the later lines read against it. A W008 line keeps its swap (`Flail, -Sickle`).
+  for (let pass = 0; pass < 40; pass++) {
+    const steps = masteryWalk(parse(t)).filter((s) => s.repeated.length);
+    const label = (s: (typeof steps)[number]) => `Masteries: ${s.leftOut.length ? `Drop ${s.leftOut.map((x) => x.ref.name).join(" and ")}` : "Only the new ones"} at L${s.level.n}`;
+    const go = steps.find((s) => { const off = skip.has(label(s)); note(label(s), off); return !off; });
+    if (!go) break;
+    const next = foldMasteryLine(t, go.level.n);
+    if (next === t) break;
+    t = next;
+  }
   if (n) {
     for (let pass = 0; pass < 20; pass++) {
       const fold = nameFixes(n, t, parse(t)).map((f) => ({ f, label: `${f.kind === "lineage" ? "Species" : "Options"}: ${f.act}` }));
@@ -534,6 +545,24 @@ export function tidyPlan(text: string, n: Names | null = null, skip: ReadonlySet
   }
   if (!changes.length) return null;
   return { text: t, changes };
+}
+
+/** The text with level `n`'s Masteries line folded as Tidy folds it (D364): rewritten, or gone when nothing is left. */
+function foldMasteryLine(text: string, n: number): string {
+  const p = parse(text);
+  if (!foldMasteries(p, (l) => l.n === n)) return text;
+  const v = p.levels.find((l) => l.n === n)?.lines.get("Masteries");
+  const lines = text.split("\n");
+  let level = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i].trim();
+    const m = LEVEL_RE.exec(s);
+    if (m && !keyOf(s)) { level = Number(m[1]); continue; }
+    if (level !== n || resolveKey(keyOf(s) ?? "").def?.key !== "Masteries") continue;
+    if (v) lines[i] = `Masteries: ${emitValue(v)}`; else lines.splice(i, 1);
+    return lines.join("\n");
+  }
+  return text;
 }
 
 /**

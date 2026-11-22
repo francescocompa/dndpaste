@@ -51,3 +51,26 @@ test("D246: entries without a name and a source are skipped; the SRD subset keep
   assert.equal(t.spells["Kept|MYHB"].edition, null, "an unknown book has no edition");
   assert.deepEqual(Object.keys(srdSubset(t).spells), ["Kept|MYHB"]);
 });
+
+test("D365: a starting-equipment letter keeps what it holds, names and numbers only", () => {
+  const data = mergeData([
+    { item: [{ name: "Long Rifle", source: "MYHB" }, { name: "Bullets (10)", source: "MYHB" }] },
+    { class: [{
+      name: "Gunslinger", source: "MYHB", hd: { faces: 8 },
+      startingEquipment: { defaultData: [{
+        A: [{ item: "long rifle|myhb" }, { item: "bullets (10)|myhb", quantity: 3 }, { equipmentType: "toolArtisan" }, { special: "Spellbook" }, { special: DESCRIPTION }, { value: 450 }],
+        B: [{ value: 7500 }],
+      }], entries: [DESCRIPTION] },
+    }] },
+    { background: [{ name: "Drifter", source: "MYHB", startingEquipment: [{ A: [{ equipmentTypes: ["instrumentMusical", "setGaming"] }], B: [{ value: 5000 }] }] },
+      { name: "Hermit", source: "MYHB", startingEquipment: [{ _: [{ item: "long rifle|myhb" }] }] }] },
+  ]);
+  const t = extractSlots(data, { generated: "2026-11-22" });
+  assert.deepEqual(t.classes["Gunslinger|MYHB"].equipmentSets, {
+    A: { items: [["Long Rifle", 1], ["Bullets (10)", 3], ["Artisan's Tools", 1], ["Spellbook", 1]], cp: 450 },
+    B: { items: [], cp: 7500 },
+  }, "a long special is prose, not a name: left out");
+  assert.deepEqual(t.backgrounds["Drifter|MYHB"].equipmentSets, { A: { items: [["Musical Instrument or Gaming Set", 1]], cp: 0 }, B: { items: [], cp: 5000 } });
+  assert.equal("equipmentSets" in t.backgrounds["Hermit|MYHB"], false, "no letters, no field");
+  assert.ok(!JSON.stringify(t).includes(DESCRIPTION));
+});

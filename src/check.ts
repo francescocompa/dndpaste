@@ -18,7 +18,7 @@ interface FeatureSlot { level: number; options: string[] }
 export interface ClassSlots {
   name: string; source: string; edition: string | null; subclassLevel: number | null; asiLevels: number[]; expertiseLevels: number[];
   features: Record<string, FeatureSlot>; optionalClassFeatures?: Record<string, { level: number; source: string }>; options: Record<string, Progression>; featProgression: Record<string, Progression>;
-  hd?: number | null; masteries: number[] | null; hasMastery?: boolean; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
+  hd?: number | null; masteries: number[] | null; hasMastery?: boolean; skills: ChooseSpec | null; multiclassSkills: ChooseSpec | null; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[]; equipmentSets?: Record<string, { items: [string, number][]; cp: number }>;
   casting: { ability: string; progression: string | null; preparedChange: string | null; cantrips: number[] | null; prepared: number[] | null; known: number[] | null } | null;
 }
 export interface SubclassSlots {
@@ -32,7 +32,7 @@ export interface SpeciesSlots {
 }
 export interface BackgroundSlots {
   name: string; source: string; edition: string | null; ability: { choose: { from: string[]; weights?: number[] } | null } | null;
-  skills: ChooseSpec | null; tools: ChooseSpec | null; languages: ChooseSpec | null; feats: string[]; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
+  skills: ChooseSpec | null; tools: ChooseSpec | null; languages: ChooseSpec | null; feats: string[]; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[]; equipmentSets?: Record<string, { items: [string, number][]; cp: number }>;
 }
 export interface FeatSlots { name: string; source: string; edition?: string | null; category: string | null; repeatable: boolean; abilityChoose: string[] | null; abilityFixed?: Record<string, number> | null; versions: string[]; cantripChoose: number; spellChoose: number; grantedSpells: string[]; prereqLevel: number | null }
 /** `feats`: feats the option itself grants (5etools featProgression), e.g. Lessons of the First Ones → one Origin feat (D50, D51). */

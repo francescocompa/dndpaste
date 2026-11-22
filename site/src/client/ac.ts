@@ -104,6 +104,8 @@ export function mountAc(h: AcHost): Ac {
   let acMore = 0;
   /** D362: nothing typed matches in the Gear list's half, but this many do in the other one. */
   let acGearOther = 0;
+  /** D365 (review r1): the row whose detail view fills the list (a starting-gear letter's contents); null: the rows. */
+  let acDetail: string | null = null;
   const gear = gearPref(() => window.localStorage);
   setGearHalf(gear.get());
   const GEAR_HALVES = [["mundane", "Mundane"], ["magic", "Magic"]] as const;
@@ -131,6 +133,7 @@ export function mountAc(h: AcHost): Ac {
     acKey = null;
     acRows = [];
     acOn = -1;
+    acDetail = null;
     acSays.textContent = "";
     acHint = null;
     acEmpty = false;
@@ -175,6 +178,11 @@ export function mountAc(h: AcHost): Ac {
     ac.style.top = `${Math.round((below ? at.bottom + 2 : at.top - 2 - lh) - box.top)}px`;
     ac.style.left = `${Math.round(Math.max(0, Math.min(at.left - box.left - 9, h.ed.clientWidth - ac.offsetWidth)))}px`;
   };
+  /** D365: a starting-gear letter's detail view, in the list's place. */
+  const detailHtml = (r: Suggestion, i: number, onPhone: boolean): string =>
+    `<div class="ah acs adh"><button type="button" class="acb" data-dback aria-label="Back to the list">${icon("chevron-left")}</button><span>Option <b>${esc(r.name)}</b></span></div>` +
+    `<div class="adls">${(r.detail ?? []).map((x) => `<div class="adl">${esc(x)}</div>`).join("")}</div>` +
+    `<div role="option" id="ac-${i}" class="ao adt on" aria-selected="true" data-i="${i}"><span class="an">Take ${esc(r.name)}</span>${onPhone ? "" : `<kbd>Enter</kbd>`}</div>`;
   const acDraw = () => {
     const onPhone = phone.matches;
     // Desktop: every group, the cursor's in bold. Phone: only the cursor's group and where it is (round 3: the full
@@ -182,8 +190,8 @@ export function mountAc(h: AcHost): Ac {
     const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
     // D266: the slot title only where the brackets take two picks or more; one slot needs no title.
     // D304: a swap list says so, so it doesn't read as completion.
-    // D351 review: Custom, first in a Background list, stands apart from the backgrounds by a rule under it.
-    const sepAt = acSpot?.key === "Background" && acRows.length > 1 && acRows[0].name === "Custom" && !acRows[0].source ? 0 : -1;
+    // D351 review, D366: a group that leads the list (Custom, the spot's classes, a block's starting gear) stands
+    // apart from the rest by a rule under its last row (`sep`), when the rest is not dimmed.
     const half = getGearHalf();
     const gearHead = gearList()
       ? `<div class="ah acs agh">${acSwap ? `<span class="acst" aria-hidden="true">Swap for</span>` : ""}<span class="acg" role="group" aria-label="Which items">` +
@@ -192,12 +200,17 @@ export function mountAc(h: AcHost): Ac {
     const hint = gearHead ? gearHead : acBonus ? `<div class="ah" aria-hidden="true">${esc(bonusHead(acBonus))}</div>` : acSwap ? `<div class="ah" aria-hidden="true">Swap for</div>` : !acHint || acHint.slots.length < 2 ? "" : onPhone
       ? `<div class="ah" aria-hidden="true"><b>${esc(cap(acHint.slots[acHint.at]))}</b>${acHint.slots.length > 1 ? ` ${acHint.at + 1}/${acHint.slots.length}` : ""}</div>`
       : `<div class="ah" aria-hidden="true">${acHint.slots.map((x, i) => (i === acHint?.at ? `<b>${esc(x)}</b>` : esc(x))).join("; ")}</div>`;
+    // D365: a letter's detail view: back at the top left, what it holds one entry a line, then the row that takes it.
+    const det = acDetail === null || acScore || acKey ? -1 : acRows.findIndex((r) => r.name === acDetail && r.detail?.length);
+    if (det < 0) acDetail = null;
+    const dr = det < 0 ? null : acRows[det];
     // D266: two quiet rows, since it mostly follows a typo; D270: a rule between them.
-    ac.innerHTML = acScore ? scoreListHtml(onPhone) : (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
-      hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}${sepAt === i ? " sep" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
-      `<span class="an">${esc(r.label ?? r.name)}</span>${r.plus ? `<span class="apl">${esc(r.plus)}</span>` : ""}${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
+    ac.innerHTML = acScore ? scoreListHtml(onPhone) : dr ? detailHtml(dr, det, onPhone) : (acEmpty ? `<div class="ae"><span>No matches</span><a href="/sources">${icon("plus")}Add sources</a></div>` : "") +
+      hint + acRows.map((r, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}${r.dim ? " dim" : ""}${r.sep ? " sep" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+      `<span class="an">${esc(r.label ?? r.name)}</span>${r.note && !onPhone ? `<span class="ant">${esc(r.note)}</span>` : ""}${r.plus ? `<span class="apl">${esc(r.plus)}</span>` : ""}${r.source ? `<span class="as">|${esc(r.source)}</span>` : ""}${r.book ? `<span class="abk">${esc(r.book)}</span>` : ""}` +
       `${r.tag ? `<span class="al">${esc(r.tag)}</span>` : ""}` +
-      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}</div>`).join("") +
+      `${!onPhone && i === 0 && acOn < 0 ? `<kbd>Tab</kbd>` : ""}` +
+      `${r.detail?.length ? `<button type="button" class="adb" data-det="${i}" tabindex="-1" aria-label="What ${esc(r.name)} holds">${icon("chevron-right")}</button>` : ""}</div>`).join("") +
       // D306: a list past 60 says how many it leaves out; typing narrows it.
       (acMore > 0 ? `<div class="am" aria-hidden="true">${acMore} more · keep typing</div>` : "") +
       // D362: the half shown has no match, the other has some.
@@ -206,7 +219,8 @@ export function mountAc(h: AcHost): Ac {
     const home = onPhone ? h.dock : h.ed;
     if (ac.parentElement !== home) { if (onPhone) h.dock.append(ac); else h.ed.append(ac); }
     h.dock.classList.toggle("ac-on", onPhone);
-    if (ac.hidden) {
+    if (dr) acSays.textContent = `Option ${dr.name}: ${dr.detail?.join(", ")}. Enter takes it, Left goes back.`;
+    else if (ac.hidden) {
       const what = acHint ? `${acHint.slots[acHint.at]}. ` : "";
       const kind = acKey ? "key" : acBonus ? "bonus" : "name";
       const items = gearList() ? `${half === "magic" ? "Magic" : "Mundane"} items. ` : "";
@@ -267,7 +281,7 @@ export function mountAc(h: AcHost): Ac {
     acEmpty = none;
     acGearOther = other;
     const same = acSpot?.start === sp.start && rows.length === acRows.length && rows.every((r, i) => r.name === acRows[i].name);
-    if (!same) acOn = -1;
+    if (!same) { acOn = -1; acDetail = null; }
     acSpot = sp;
     acRows = rows;
     acMore = got.more;
@@ -564,6 +578,20 @@ export function mountAc(h: AcHost): Ac {
       return;
     }
     const plain = !e.altKey && !e.ctrlKey && !e.metaKey;
+    // D365: in a letter's detail view, Enter or Tab takes it, Left or Escape goes back to the rows; Right on a
+    // highlighted letter opens it.
+    const di = acDetail === null ? -1 : acRows.findIndex((r) => r.name === acDetail);
+    if (di >= 0 && plain && !e.shiftKey) {
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); acTake(di); return; }
+      if (e.key === "ArrowLeft" || e.key === "Escape") { e.preventDefault(); acDetail = null; acOn = di; acDraw(); return; }
+      if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowRight") { e.preventDefault(); return; }
+    }
+    if (e.key === "ArrowRight" && plain && !e.shiftKey && acOn >= 0 && acRows[acOn]?.detail?.length && !acScore && !acKey) {
+      e.preventDefault();
+      acDetail = acRows[acOn].name;
+      acDraw();
+      return;
+    }
     if (isStepper() && (e.key === "ArrowDown" || e.key === "ArrowUp") && plain) {
       // D360: on a Custom score the arrows change the number (Shift: by 5), Enter or Tab writes it.
       e.preventDefault();
@@ -609,6 +637,10 @@ export function mountAc(h: AcHost): Ac {
       if (!ac.hidden) acSays.textContent = `${half === "magic" ? "Magic" : "Mundane"} items, ${acRows.length}${acMore > 0 ? `, ${acMore} more` : ""}.`;
       return;
     }
+    // D365: a letter's chevron opens its detail view; the view's back chevron returns to the rows.
+    const dt = (e.target as Element).closest<HTMLElement>("[data-det]");
+    if (dt) { acDetail = acRows[Number(dt.dataset.det)]?.name ?? null; acDraw(); return; }
+    if ((e.target as Element).closest("[data-dback]")) { const i = acRows.findIndex((r) => r.name === acDetail); acDetail = null; acOn = i; acDraw(); return; }
     const o = (e.target as Element).closest<HTMLElement>("[data-i]");
     if (o) acTake(Number(o.dataset.i));
   });

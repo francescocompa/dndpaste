@@ -337,6 +337,20 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ac .ao .al svg.i { width: 12px; height: 12px; }
 /* D363 (D334): a `+N` item shows the bonus as a chip after its name, so the list sorts by name. */
 .ac .apl { flex-shrink: 0; font: 11px/1 var(--mono); color: var(--fg); background: var(--chip); border-radius: 4px; padding: 2px 5px; }
+/* D365 (review r1, r2): a starting-gear letter's contents after it, cut to fit and never widening the list; its chevron opens them in full, in the
+   list's place: back at the top left, one entry a line, then the row that takes the letter. */
+.ac .ao:has(.ant) .an { flex-shrink: 0; min-width: 1ch; }
+.ac .ant { flex: 1 1 0; width: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 12px/1.3 var(--sans); color: var(--mute); }
+.ac .adb { flex-shrink: 0; margin-left: auto; display: inline-flex; align-items: center; border: 0; background: none; padding: 2px;
+  border-radius: 4px; color: var(--mute); cursor: pointer; }
+.ac .ant + .adb, .ac .al + .adb, .ac kbd + .adb { margin-left: 0; }
+.ac .adb:hover { color: var(--fg); background: var(--chip); }
+.ac .adb svg.i { width: 14px; height: 14px; }
+.ac .adh { gap: 4px; }
+.ac .adh .acb svg.i { width: 14px; height: 14px; }
+.ed .ac .adh { padding-left: 6px; }
+.ed .ac .adls { padding: 0 8px 6px; font: 13px/1.65 var(--sans); }
+.ed .ac .adt { border-top: 1px solid var(--rule); border-radius: 0 0 5px 5px; }
 /* D362 (D336): the Gear list's head, Mundane · Magic, two chips; the half shown is filled. */
 .ac .agh { overflow: visible; }
 .ac .acg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 6px; background: color-mix(in srgb, var(--chip) 60%, transparent); }
@@ -498,6 +512,10 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
   .pdock .ac .al { margin-left: 6px; }
   .pdock .ac .ah { flex-shrink: 0; padding-right: 9px; margin-right: 4px; border-right: 1px solid var(--rule); align-self: stretch; display: flex; align-items: center; gap: 4px; }
   .pdock.ac-on .krow { display: none; }
+  /* D365: on phone the letter's chip holds its chevron; the detail view is one sideways row: back, the contents, Take. */
+  .pdock .ac .adb { padding: 0 0 0 6px; margin: -4px 0; }
+  .pdock .ac .adls { display: flex; flex-shrink: 0; font: 13px/1 var(--sans); white-space: nowrap; }
+  .pdock .ac .adl:not(:last-child)::after { content: ","; margin-right: 6px; }
   .pdock .srow { display: flex; gap: 8px; align-items: center; padding: 8px 14px; }
   .pdock .srow .grow { flex: 1; min-width: 0; display: flex; }
   .pdock .perr { display: inline-flex; gap: 5px; align-items: center; color: var(--err); background: none; border: 0; padding: 0; font: 13px/1.15 var(--sans);

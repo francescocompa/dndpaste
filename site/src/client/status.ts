@@ -2,7 +2,7 @@
  * The form's live state, DOM-free: diagnostics, size, whether Save and Tidy are on, and the HTML for the problem
  * summary, the Problems list, the To choose row (D149), the phone dock's problem line and the link-import bar (D83–D86, D88 d).
  */
-import { emit, parse } from "../../../src/dndpaste.ts";
+import { emit, masteryWalk, parse } from "../../../src/dndpaste.ts";
 import type { Diagnostic, Paste } from "../../../src/dndpaste.ts";
 import { ghostCounts } from "../ghost.ts";
 import type { Ghost } from "../ghost.ts";
@@ -43,6 +43,9 @@ export interface Status {
 
 const enc = new TextEncoder();
 
+/** D364: a 0.11 snapshot Masteries line (W008) is a Tidy step, not a warning: Tidy keeps its swap. */
+export const isTidyStep = (d: Diagnostic): boolean => d.code === "W008";
+
 /** D149: an empty "not chosen yet" line. Shown under To choose, not under Problems. */
 export const isToChoose = (d: Diagnostic): boolean => d.code === "W004";
 
@@ -62,7 +65,7 @@ export function status(text: string, holdLine = 0): Status {
   const paste = parse(t);
   const isHeld = (d: Diagnostic) => holdLine > 0 && d.code.startsWith("E") && d.line === holdLine;
   const held = paste.diagnostics.filter(isHeld).length;
-  const diagnostics = held ? paste.diagnostics.filter((d) => !isHeld(d)) : paste.diagnostics;
+  const diagnostics = paste.diagnostics.filter((d) => !isHeld(d) && !isTidyStep(d));
   const errors = diagnostics.filter((d) => d.code.startsWith("E")).length;
   const empties = diagnostics.filter(isToChoose);
   const ghosts = ghostCounts(paste, t);
@@ -77,7 +80,8 @@ export function status(text: string, holdLine = 0): Status {
     canSave: !empty && !over && !errors && !held && !bare,
     canon,
     // D313: an empty `[]` is an open choice, like an empty key: on its own it gives Tidy nothing to do.
-    canTidy: !empty && !held && (canon !== null ? canon.trimEnd() !== t.replace(/ ?\[\s*\]/g, "").trimEnd() : tidyPlan(t) !== null),
+    // D364: a snapshot Masteries line is Tidy's to fold, though the text is already canonical.
+    canTidy: !empty && !held && (canon !== null ? canon.trimEnd() !== t.replace(/ ?\[\s*\]/g, "").trimEnd() || masteryWalk(paste).some((s) => s.repeated.length) : tidyPlan(t) !== null),
     held,
     paste,
     fixes: lineFixes(t, paste, diagnostics, ghosts),

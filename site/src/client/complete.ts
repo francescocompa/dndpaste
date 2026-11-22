@@ -78,6 +78,13 @@ export interface Suggestion {
   /** Above the highest level the spot's class can pick yet (D162), or outside the short list the spot's species or
    *  class chooses from (D227): shown, ranked last, dimmed. */
   dim?: boolean;
+  /** D365 (review r1): a starting-gear letter's contents, one line cut to fit (`note`), and in full for its detail
+   *  view (`detail`, one entry a line: `Javelin ×8`, `4 GP`). */
+  note?: string;
+  detail?: readonly string[];
+  /** D366 (review r1): the last row of a group that leads the list (the spot's classes, a block's starting gear,
+   *  Custom) when the next row is not dimmed: a rule under it parts the groups. */
+  sep?: boolean;
 }
 
 /** D172 trial: every empty spot opens its list, whatever its size. False goes back to D164's letters by size. */
@@ -332,7 +339,7 @@ export function alternativeList(n: Names, sp: Spot, text: string, limit = LIST_L
   return suggestList(n, { ...sp, typed: "", taken: new Set([...sp.taken, cur]) }, limit, true);
 }
 
-interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean; tag?: string; lead?: number }
+interface Cand { name: string; books: number; first: boolean; alt?: string; level?: number; out?: boolean; tag?: string; lead?: number; set?: readonly string[] }
 
 /** D362 (D336): which half of the items a Gear list shows, Mundane by default; the list's head switches it (ac.ts keeps
  *  the visitor's choice). */
@@ -392,7 +399,8 @@ function candidates(n: Names, sp: Spot): Cand[] {
     const hits = n.GEAR_OPTIONS.filter((r) => r[0] === (b.kind === "B" ? "B" : "C") && lc(r[1]) === lc(b.name));
     const ed = BOOKS.filter((x) => x[2] === sp.rules).reduce((a, x) => a | x[1], 0);
     const row = ed ? hits.find((r) => r[2] & ed) : hits[hits.length - 1];
-    const lead: Cand[] = (row?.[3] ?? []).map((l) => ({ name: l, books: 0, first: true, tag: "option", lead: 0 }));
+    // D365: a letter carries what it holds (`Chain Mail`, …, `4 GP`); with none, the tag says what it is.
+    const lead: Cand[] = (row?.[3] ?? []).map((l, i) => { const set = row?.[5]?.[i] ?? []; return { name: l, books: 0, first: true, lead: 0, ...(set.length ? { set } : { tag: "option" }) }; });
     if (want) {
       const groups = new Set((row?.[4] ?? []).map(lc));
       const packs = n.ITEMS.filter((i) => i[2] && /'s Pack$/i.test(i[0]) && !groups.has(lc(i[0])));
@@ -638,7 +646,7 @@ export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = 
     const m = sp.key === "Gear" ? PLUS.exec(c.name) : null;
     return {
       name: c.name, source: sp.hasSource ? null : sourceFor(c.books, sp.rules, own(c.name)), level: c.level, dim, other,
-      grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over, tag: c.tag, lead: c.lead ?? 9,
+      grade: dim ? 2 : c.first ? 0 : 1, t, exact: norm(c.name) === q, out: Boolean(c.out), over, tag: c.tag, lead: c.lead ?? 9, set: c.set,
       label: m ? m[2] : null, plus: m ? m[1] : null,
     };
   });
@@ -656,11 +664,18 @@ export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = 
   const top = rows.slice(0, limit);
   // A cantrip says so only among other kinds of names (the general list); a list of cantrips doesn't repeat it.
   const mixed = top.some((r) => r.level !== 0);
-  return { more: rows.length - top.length, rows: top.map(({ name, source, level, dim, tag, label, plus }) => {
+  // D366: a leading group is a starting-gear part (`lead`) or the names ranked first (`grade` 0); a dimmed tail parts
+  // itself already.
+  const group = (r: (typeof top)[number]) => `${r.lead}:${r.grade}`;
+  const leads = (r: (typeof top)[number]) => !r.dim && (r.lead < 9 || r.grade === 0);
+  return { more: rows.length - top.length, rows: top.map(({ name, source, level, dim, tag, label, plus, set }, i) => {
     const s: Suggestion = { name, source };
+    const next = top[i + 1];
+    if (next && !next.dim && leads(top[i]) && group(next) !== group(top[i])) s.sep = true;
     if (level !== undefined && (level > 0 || (mixed && level === 0))) s.tag = ORD[level];
     if (tag) s.tag = tag;
     if (label && plus) { s.label = label; s.plus = plus; }
+    if (set?.length) { s.note = set.join(", "); s.detail = set; }
     // D250: a name of yours shows its book, unless the row already shows the one a pick writes.
     const books = own(name);
     if (books.length && !source) s.book = books.find((b) => BOOKS.some(([c, , ed]) => c === b && ed === sp.rules)) ?? books[0];

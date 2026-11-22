@@ -698,20 +698,51 @@ test("D362, D363 (D334, D336): the Gear list shows a +N as a chip after the name
     assert.ok(show("Gear: +2 ar¦").includes("Armor +2"), "typing the bonus still finds it");
     assert.deepEqual(show("Gear: ¦", 2), ["Adamantine Armor", "Ammunition +1"], "no +N name leads the list (D334)");
     // An L1 block's letters lead either half.
-    assert.deepEqual(show("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n", 3), ["A (option)", "B (option)", "C (option)"]);
+    assert.deepEqual(show("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n", 3), ["A", "B", "C"]);
   } finally { setGearHalf("mundane"); }
   // Mundane: the letters, then the packs (2024); a 2014 class's choice items, then the packs.
   const fighter = show("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n", 11);
-  assert.deepEqual(fighter.slice(0, 4), ["A (option)", "B (option)", "C (option)", "Burglar's Pack"]);
+  assert.deepEqual(fighter.slice(0, 4), ["A", "B", "C", "Burglar's Pack"]);
   assert.ok(fighter.includes("Explorer's Pack") && fighter.indexOf("Explorer's Pack") < 10);
   const cleric = show("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nGear: ¦\n", 12);
   assert.deepEqual(cleric.slice(0, 7).sort(), ["Chain Mail", "Explorer's Pack", "Leather Armor", "Mace", "Priest's Pack", "Scale Mail", "Warhammer"]);
   assert.equal(cleric[7], "Burglar's Pack", "the other packs after the class's own items");
-  assert.deepEqual(show("Rules: 2024\n\nBackground: Sage\nGear: ¦\n", 2), ["A (option)", "B (option)"], "a Background block");
+  assert.deepEqual(show("Rules: 2024\n\nBackground: Sage\nGear: ¦\n", 2), ["A", "B"], "a Background block");
   // Not in a later level, nor a multiclass's first level, nor the header: gear gained in play.
-  assert.ok(!show("Rules: 2024\nClasses: Fighter 2\n\nL1 Fighter\n\nL2 Fighter\nGear: ¦\n", 5).includes("A (option)"));
-  assert.ok(!show("Rules: 2024\nClasses: Fighter 1 / Wizard 1\n\nL1 Fighter\n\nL2 Wizard\nGear: ¦\n", 5).includes("A (option)"));
-  assert.ok(!show("Rules: 2024\nClasses: Fighter 1\nGear: ¦\n", 5).includes("A (option)"));
+  assert.ok(!show("Rules: 2024\nClasses: Fighter 2\n\nL1 Fighter\n\nL2 Fighter\nGear: ¦\n", 5).includes("A"));
+  assert.ok(!show("Rules: 2024\nClasses: Fighter 1 / Wizard 1\n\nL1 Fighter\n\nL2 Wizard\nGear: ¦\n", 5).includes("A"));
+  assert.ok(!show("Rules: 2024\nClasses: Fighter 1\nGear: ¦\n", 5).includes("A"));
   // A +1 Longsword on the line leaves the plain Longsword on offer.
   assert.ok(names("Gear: +1 Longsword, long¦", 20)?.includes("Longsword"));
+});
+
+test("D366 (review r1): a group that leads the list, not dimmed, gets a rule under its last row", () => {
+  const seps = (src: string) => { const sp = spot(src); return sp ? suggest(N, sp, 99).flatMap((r, i) => (r.sep ? [`${i}:${r.name}`] : [])) : []; };
+  // 2024 L1: the letters, then the packs, then the rest.
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n"), ["2:C", "9:Scholar's Pack"]);
+  // 2014 L1: the class's items (its own packs among them), then the other packs, then the rest.
+  assert.deepEqual(seps("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nGear: ¦\n"), ["6:Warhammer", "11:Scholar's Pack"]);
+  // Custom, first in a Background list (D351 review), now by the same rule.
+  assert.deepEqual(seps("Rules: 2024\n\nBackground: ¦\n"), ["0:Custom"]);
+  // A level header: the build's classes lead, and the other classes are not dimmed.
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1 / Wizard 1\n\nL1 Fighter\n\nL2 ¦"), ["1:Wizard"]);
+  // A dimmed tail parts itself: no rule (Skills' short list, another class's cantrips).
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nSkills: ¦\n"), []);
+  assert.deepEqual(seps("Rules: 2024\nClasses: Wizard 1\n\nL1 Wizard\nCantrips: ¦\n"), []);
+  // A list with nothing ranked first has none.
+  assert.deepEqual(seps("Rules: 2024\nClasses: Fighter 1\nGear: ¦\n"), []);
+});
+
+test("D365 (review r1): a starting-gear letter carries what it holds, cut to one line and in full for its detail view", () => {
+  const rows = (src: string) => { const sp = spot(src); return sp ? suggest(N, sp, 99) : []; };
+  const [a, b, c] = rows("Rules: 2024\nClasses: Fighter 1\n\nL1 Fighter\nGear: ¦\n");
+  assert.deepEqual(a.detail, ["Chain Mail", "Greatsword", "Flail", "Javelin ×8", "Dungeoneer's Pack", "4 GP"]);
+  assert.equal(a.note, "Chain Mail, Greatsword, Flail, Javelin ×8, Dungeoneer's Pack, 4 GP");
+  assert.equal(a.tag, undefined, "the contents say what the letter is");
+  assert.ok(b.detail?.includes("Arrows (20)") && b.detail.at(-1) === "11 GP");
+  assert.deepEqual(c.detail, ["155 GP"], "a coin-only option");
+  const sage = rows("Rules: 2024\n\nBackground: Sage\nGear: ¦\n");
+  assert.deepEqual(sage.slice(0, 2).map((r) => r.note), ["Quarterstaff, Calligrapher's Supplies, Book, Parchment ×8, Robe, 8 GP", "50 GP"]);
+  // A 2014 class's choice items carry none.
+  assert.ok(rows("Rules: 2014\nClasses: Cleric 1\n\nL1 Cleric\nGear: ¦\n").every((r) => !r.detail));
 });

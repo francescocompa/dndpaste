@@ -671,6 +671,11 @@ uiReview.config({
       const ta = editor(), at = ta.value.indexOf('Scores:') + 7
       await clickAt(x, ta.value, at)
     },
+    // M9 site-b r2 (D364–D366): a letter's detail view, a level header's divider, the snapshot line as a Tidy step.
+    'm9b2-detail': async (x) => { await acSetup(x, 'm9b2-detail', 'Vesk\nRules: 2024\nClasses: Fighter 1\n\nL1 Fighter|XPHB\nGear: '); await gearHalf(x, 'mundane'); await x.click('.ac [data-det="0"]'); await x.sleep(200) },
+    'm9b2-bg': async (x) => { await acSetup(x, 'm9b2-bg', 'Vesk\nRules: 2024\nClasses: Fighter 1\n\nBackground: Sage\nGear: '); await gearHalf(x, 'mundane') },
+    'm9b2-level': (x) => acSetup(x, 'm9b2-level', 'Vesk\nRules: 2024\nClasses: Fighter 1 / Wizard 1\n\nL1 Fighter|XPHB\n\nL2 '),
+    'm9b2-tidy': async (x) => { await acSetup(x, 'm9b2-tidy', M9B_SNAP); editor().blur(); await x.sleep(600) },
     'm9b-custom-pop': (x) => scoreClick(x, 'm9b-custom-pop', S_ARRAY.replace('Scores:', 'Scores (custom):').replace('STR 8/', 'STR 17/'), 'STR 17'),
   },
 })

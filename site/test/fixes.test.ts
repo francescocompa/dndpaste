@@ -6,6 +6,7 @@ import { ghostCounts } from "../src/ghost.ts";
 import { CANONICAL, fixCursor, lineFixes, markFixes, nameFixes, startBlocks, tidyPlan } from "../src/fixes.ts";
 import type { Fix } from "../src/fixes.ts";
 import { highlightRows } from "../src/client/highlight.ts";
+import { status } from "../src/client/status.ts";
 import * as N from "../src/names.gen.ts";
 
 const fixes = (text: string): Fix[] => {
@@ -170,7 +171,6 @@ test("D313: a level's add chip names a feature with a pick and writes it with op
 });
 
 test("D317: an add chip writes each line at its canonical place, so Tidy has nothing to reorder", async () => {
-  const { status } = await import("../src/client/status.ts");
   const t = "Rules: 2024\nClasses: Cleric 1\n\nSpecies: Elf\n\nBackground: Sage\n\nL1 Cleric|XPHB\nSkills: Insight, Religion\nGear: A\n";
   const out = at(t, 8, "level-lines")?.apply(t) ?? "";
   assert.match(out, /\nL1 Cleric\|XPHB\nSkills: Insight, Religion\nFeature: Divine Order \[\]\nCantrips:\nPrepared:\nGear: A\n/, out);
@@ -178,12 +178,19 @@ test("D317: an add chip writes each line at its canonical place, so Tidy has not
   assert.equal(tidyPlan(`Vesk\n${out}`), null, "and its badge counts nothing (D313: the open brackets are no change)");
 });
 
-test("D361 (D342): a 0.11 snapshot Masteries line (W008) shows the library's fix; it writes the drop", () => {
+test("D364 (amends D342, D361): a 0.11 snapshot Masteries line is a Tidy step, not a warning; Tidy keeps the swap", () => {
   const text = "Rules: 2024\nClasses: Fighter 10\n\nL1 Fighter\nMasteries: Longsword, Sap, Handaxe\n\nL4 Fighter\nMasteries: Longsword, Sap, Handaxe, Lance\n\nL10 Fighter\nMasteries: Longsword, Handaxe, Lance, Flail\n";
-  const f = at(text, 11, "lib");
-  assert.ok(f, "a fix on the L10 line");
-  assert.equal(f.act, "Drop Sap");
-  assert.equal(f.why, "Write -Sap to drop it");
-  assert.equal(f.apply(text)?.split("\n")[10], "Masteries: Flail, -Sap");
-  assert.equal(at(text, 8, "lib"), undefined, "a line that only adds has no fix: Tidy folds it");
+  const st = status(text);
+  assert.equal(st.diagnostics.some((d) => d.code === "W008"), false, "out of Problems and the summary");
+  assert.equal(st.warnings, 0);
+  assert.equal(st.fixes.some((f) => f.kind === "lib"), false, "no underline: Tidy does it");
+  assert.equal(st.canTidy, true, "Tidy is on, though the text is canonical");
+  const p = tidyPlan(text);
+  assert.deepEqual(p?.changes.map((c) => c.label), ["Masteries: Only the new ones at L4", "Masteries: Drop Sap at L10"]);
+  assert.match(p!.text, /L4 Fighter\nMasteries: Lance\n\nL10 Fighter\nMasteries: Flail, -Sap\n/);
+  assert.equal(status(p!.text).canTidy, false, "nothing left to tidy");
+  const left = tidyPlan(text, null, new Set(["Masteries: Drop Sap at L10"]));
+  assert.ok(left?.text.includes("Masteries: Longsword, Handaxe, Lance, Flail"), "a struck-through row leaves its line as written");
+  assert.ok(left?.text.includes("L4 Fighter\nMasteries: Lance\n"));
+  assert.ok(left?.changes.find((c) => c.label === "Masteries: Drop Sap at L10")?.off);
 });

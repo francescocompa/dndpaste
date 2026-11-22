@@ -89,7 +89,7 @@ export const SPECIES_FEATURES: readonly (readonly [string, readonly string[]])[]
 export const SPECIES_FIXED: readonly (readonly [string, string, string, readonly number[]])[] = ${q(n.SPECIES_FIXED)};
 /** [C class or B background, name, books, its starting-gear option letters, the items its choice groups name]: the
  *  gear that leads a Background or L1 block's \`Gear\` list (D336, D362). Names only. */
-export const GEAR_OPTIONS: readonly (readonly ["C" | "B", string, Books, readonly string[], readonly string[]])[] = ${q(n.GEAR_OPTIONS)};
+export const GEAR_OPTIONS: readonly (readonly ["C" | "B", string, Books, readonly string[], readonly string[], readonly (readonly string[])[]])[] = ${q(n.GEAR_OPTIONS)};
 `);
 console.log(`${out}: ${spells.length} spells, ${feats.length} feats, ${options.length} options, ${items.length} items, ${masteryWeapons.length} mastery weapons, ` +
   `${n.SPECIES.length} species, ${n.BACKGROUNDS.length} backgrounds, ${n.SUBCLASSES.length} subclasses, ${classes.length} classes, ${lineages.length} lineage rows, ${features.length} class features, ${casters.length} casters`);

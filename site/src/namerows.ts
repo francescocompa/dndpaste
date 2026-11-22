@@ -227,7 +227,10 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
     .sort((a, b) => byName(a, b) || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
 
   // D362 (D336): a class's or background's starting gear, names only: its option letters (2024: `A`, `B`) and the
-  // items its choice groups name (2014: `Mace` or `Warhammer`). [C class or B background, name, books, letters, items].
+  // items its choice groups name (2014: `Mace` or `Warhammer`). [C class or B background, name, books, letters, items,
+  // sets]. D365: `sets` holds what each letter holds, in the letters' order: `Javelin ×8`, then the coin (`4 GP`).
+  const coin = (cp: number) => [[Math.floor(cp / 100), "GP"], [Math.floor((cp % 100) / 10), "SP"], [cp % 10, "CP"]].filter(([v]) => v).map(([v, u]) => `${v} ${u}`).join(" ");
+  const setOf = (x: J): string[] => [...(x?.items ?? []).map(([nm, q]: [string, number]) => (q > 1 ? `${nm} ×${q}` : nm)), ...(x?.cp ? [coin(x.cp)] : [])];
   const GEAR_OPTIONS: J[][] = [];
   for (const [kind, table] of [["C", "classes"], ["B", "backgrounds"]]) {
     for (const e of vals(table).filter(keep)) {
@@ -237,9 +240,10 @@ export function nameRows(slots: J, sup: J, o: RowOptions): NameRows {
         for (const x of list ?? []) { const nm = String(x).split("|")[0]; if (nm && !items.includes(nm)) items.push(nm); }
       }
       if (!letters.length && !items.length) continue;
-      const had = GEAR_OPTIONS.find((r) => r[0] === kind && r[1] === e.name && JSON.stringify([r[3], r[4]]) === JSON.stringify([letters, items]));
+      const sets = letters.map((l) => setOf(e.equipmentSets?.[l]));
+      const had = GEAR_OPTIONS.find((r) => r[0] === kind && r[1] === e.name && JSON.stringify([r[3], r[4], r[5]]) === JSON.stringify([letters, items, sets]));
       if (had) had[2] |= o.bookOf(e);
-      else GEAR_OPTIONS.push([kind, e.name, o.bookOf(e), letters, items]);
+      else GEAR_OPTIONS.push([kind, e.name, o.bookOf(e), letters, items, sets]);
     }
   }
   GEAR_OPTIONS.sort((a, b) => byName([a[1] + a[0]], [b[1] + b[0]]) || a[2] - b[2]);
