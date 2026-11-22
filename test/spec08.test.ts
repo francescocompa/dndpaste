@@ -116,7 +116,8 @@ describe("D109: a level's ASI is the feat line, both editions", () => {
   });
   test("bad or missing increases are reported at info", () => {
     assert.ok(has(run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: ASI [+2 CHA, +1 STR]"), "unresolved", /\+2 to one ability or \+1 to two/));
-    assert.ok(has(run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: ASI [CHA]"), "unresolved", /\+2 to one ability or \+1 to two/));
+    // A bare ability counts (D341): `[CHA]` is +2, so only a third ability is too many.
+    assert.ok(has(run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: ASI [CHA, WIS, INT]"), "unresolved", /\+2 to one ability or \+1 to two/));
     const m = run("Rules: 2024\nClasses: Fighter 4\n\nL4 Fighter\nFeat: Ability Score Improvement").find((x) => /asks for its increases/.test(x.message));
     assert.ok(m && m.kind === "missing" && m.severity === "info");
   });

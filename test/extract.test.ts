@@ -23,7 +23,7 @@ const files = [
   // A second file about the same spell (fewer fields) and a spell → class map.
   { spell: [{ name: "Moonbeam Lance", source: "MYHB", extra: 1 }] },
   { myhb: { "moonbeam lance": { class: { MYHB: { Gunslinger: true } } } } },
-  { feat: [{ name: "Lucky Streak", source: "MYHB", category: "O", ability: [{ choose: { from: ["str", "dex"] } }] }] },
+  { feat: [{ name: "Lucky Streak", source: "MYHB", category: "O", ability: [{ choose: { from: ["str", "dex"] } }] }, { name: "Steady Hands", source: "MYHB", category: "G", ability: [{ dex: 1, max: 20 }] }] },
 ];
 
 test("D246: extractSlots keeps names, counts and option lists, never text", () => {
@@ -39,6 +39,8 @@ test("D246: extractSlots keeps names, counts and option lists, never text", () =
   assert.deepEqual(t.spells["Moonbeam Lance|MYHB"].classes, ["Gunslinger"]);
   assert.equal(t.spells["Ember Ward|MYHB"].level, 0);
   assert.deepEqual(t.feats["Lucky Streak|MYHB"].abilityChoose, ["str", "dex"]);
+  assert.equal("abilityFixed" in t.feats["Lucky Streak|MYHB"], false, "a feat with no fixed increase has no field");
+  assert.deepEqual(t.feats["Steady Hands|MYHB"].abilityFixed, { dex: 1 }, "a fixed half feat keeps its abilities only (D340)");
   assert.deepEqual(t.meta.sources, ["MYHB"]);
   assert.ok(!JSON.stringify(t).includes("description"), "no text in the table");
 });

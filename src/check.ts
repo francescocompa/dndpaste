@@ -7,7 +7,7 @@
 import type { Paste, Item, Ref, Scope, Value, LevelBlock, Bonus, Detail } from "./dndpaste.js";
 // The one runtime import: the reading rule and the key helpers live in the data-free library (the UMD build inlines
 // both modules).
-import { classSequence, classTotals, isFeatKey, isAbilitySlot, abilityOf, splitMarker, keyGroup, levelCap, familyOf, familyKey, foldOptions, ASI_FEAT, KEYS, shortLineage } from "./dndpaste.js";
+import { classSequence, classTotals, isFeatKey, isAbilitySlot, abilityOf, splitMarker, keyGroup, levelCap, familyOf, familyKey, foldOptions, foldMasteries, ASI_FEAT, KEYS, shortLineage } from "./dndpaste.js";
 import { UA_SOURCES } from "./sources.js";
 
 // ─── Slot table types (loose on purpose: the extract may grow fields) ────────
@@ -34,7 +34,7 @@ export interface BackgroundSlots {
   name: string; source: string; edition: string | null; ability: { choose: { from: string[]; weights?: number[] } | null } | null;
   skills: ChooseSpec | null; tools: ChooseSpec | null; languages: ChooseSpec | null; feats: string[]; equipmentOptions: string[]; equipmentGroups?: Record<string, string[]>[];
 }
-export interface FeatSlots { name: string; source: string; edition?: string | null; category: string | null; repeatable: boolean; abilityChoose: string[] | null; versions: string[]; cantripChoose: number; spellChoose: number; grantedSpells: string[]; prereqLevel: number | null }
+export interface FeatSlots { name: string; source: string; edition?: string | null; category: string | null; repeatable: boolean; abilityChoose: string[] | null; abilityFixed?: Record<string, number> | null; versions: string[]; cantripChoose: number; spellChoose: number; grantedSpells: string[]; prereqLevel: number | null }
 /** `feats`: feats the option itself grants (5etools featProgression), e.g. Lessons of the First Ones → one Origin feat (D50, D51). */
 export interface OptionalFeatureSlots { name: string; source: string; types: string[]; prereqLevel: number | null; feats?: { category: string[]; count: number }[]; grantedSpells?: string[] }
 export interface Slots {
@@ -268,6 +268,22 @@ function bonusesOf(group: readonly Detail[]): Bonus[] | null {
     const m = /^\+(\d+)\s+(STR|DEX|CON|INT|WIS|CHA)$/i.exec(d.ref.name);
     if (!m || d.ref.source) return null;
     out.push({ amount: Number(m[1]), ability: m[2].toUpperCase() as Bonus["ability"] });
+  }
+  return out;
+}
+/**
+ * An Ability Score Improvement's increases (D109, D341): `+2 CHA` details as written, and a bare ability counts with
+ * no `+x`: alone it is +2 (`[CHA]`), beside another it is +1 (`[INT, CON]`, `[+1 INT, CON]`). Null when a detail is
+ * neither.
+ */
+function asiBonuses(group: readonly Detail[]): Bonus[] | null {
+  const out: Bonus[] = [];
+  for (const d of group) {
+    const bare = d.ref.source ? null : abilityOf([d]);
+    if (bare && !/^\+/.test(d.ref.name)) { out.push({ amount: group.length === 1 ? 2 : 1, ability: bare }); continue; }
+    const b = bonusesOf([d]);
+    if (!b) return null;
+    out.push(...b);
   }
   return out;
 }
@@ -952,11 +968,11 @@ export function check(input: Paste, slots: Slots, supplement: Supplement = {}): 
     else add("unresolved", "info", where, `Feat (${marker}): not a feat category in the loaded data — accepted`, `Feat (${marker})`, marker);
     return [];
   }
-  /** A level's ASI as a feat (D109): `[+2 CHA]` or `[+1 INT, +1 CON]`, read as the 2014 class ASI too. */
+  /** A level's ASI as a feat (D109): `[+2 CHA]` or `[+1 INT, +1 CON]`, or the bare `[CHA]`, `[INT, CON]` (D341); read as the 2014 class ASI too. */
   function checkAsiFeat(it: Item, where: string) {
     const g = it.details[0];
     if (!g?.length) { add("missing", "info", where, `${ASI_FEAT} asks for its increases in brackets: [+2 CHA] or [+1 INT, +1 CON]`, "Feat", ASI_FEAT); return; }
-    const b = bonusesOf(g);
+    const b = asiBonuses(g);
     if (!b || it.details.length > 1 || b.length > 2 || b.reduce((a, x) => a + x.amount, 0) !== 2) add("unresolved", "info", where, `${ASI_FEAT} takes +2 to one ability or +1 to two: [+2 CHA] or [+1 INT, +1 CON]`, "Feat", ASI_FEAT);
   }
   function checkFeat(it: Item, marker: string | null, where: string, scope: "H" | "S" | "B" | "L", n: number | null, beyond: boolean) {
@@ -1046,6 +1062,7 @@ export function normalise(paste: Paste, slots: Slots, supplement: Supplement = {
   const rv = paste.header.get("Rules");
   const rules = rv && rv.type === "enum" ? rv.value : null;
   foldOptions(out, (ref) => ix.options.resolve(ref, rules).hit?.types[0] ?? null);
+  foldMasteries(out); // 0.11 snapshot Masteries lines become additive (D337)
   out.entities = withLineage(out, ix.species, supplement, rules).paste.entities;
   const redundant = findings.filter((f) => f.kind === "redundant" && f.key !== "Gear");
   const scopeFor = (where: string): Scope | null => {
@@ -1123,6 +1140,8 @@ function checkStartingEquipment2014(
 // The base's kind (standard array, point buy, custom) is data-free and lives in the parser module (D326); it is
 // exported here too, beside the arithmetic that feeds the same popover.
 export { scoreKind, STANDARD_ARRAY, POINT_BUY_COST, POINT_BUY_BUDGET, type ScoreKind } from "./dndpaste.js";
+// The loadout at a level (D343) is data-free too; exported here beside the checker for consumers that import only it.
+export { loadoutAt, type Loadout } from "./dndpaste.js";
 
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 const ABILITY_KEYS: readonly AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
@@ -1171,16 +1190,21 @@ function finalScoresWith(paste: Paste, ix: Pick<Indexes, "species" | "feats">, s
     for (const { item: it } of featItems(scope)) {
       if (it.drop) continue;
       // A level's ASI as a feat (D109): its bracket holds the increases themselves.
-      if (isAsiFeat(it)) { for (const b of bonusesOf(it.details[0] ?? []) ?? []) bump(b.ability, b.amount, where, 20, "Feat"); continue; }
+      // A level's ASI as a feat (D109): its bracket holds the increases, `+x` written or not (D341).
+      if (isAsiFeat(it)) { for (const b of asiBonuses(it.details[0] ?? []) ?? []) bump(b.ability, b.amount, where, 20, "Feat"); continue; }
       const r = ix.feats.resolve(it.ref, rules);
+      if ((r.status !== "ok" && r.status !== "alias") || !r.hit) continue;
+      const cap = r.hit.category === "EB" ? 30 : 20;
+      // A half feat with a fixed increase and no pick (Durable, Keen Mind) counts with nothing written (D340).
+      for (const [ability, amount] of Object.entries(r.hit.abilityFixed ?? {})) bump(ability, amount, where, cap, "Feat");
       // Origin feats (Magic Initiate, …) reuse the same bracket slot for a casting-ability pick, not a
       // score bonus (SPEC §5.3): only a non-Origin feat's ability pick raises the score.
-      if ((r.status !== "ok" && r.status !== "alias") || !r.hit?.abilityChoose || r.hit.category === "O") continue;
+      if (!r.hit.abilityChoose || r.hit.category === "O") continue;
       const pick = it.details[0]?.[0];
       if (!pick) continue; // absent-when-owed is already reported as "missing" by check()
       const ability = abilityOf([pick]) ?? pick.ref.name;   // `[+1 CHA]` is `[CHA]` on a 2024 half feat (D206)
       if (!r.hit.abilityChoose.some((a) => a.toLowerCase() === ability.toLowerCase())) { add("unresolved", "warning", where, `"${r.hit.name}" ability pick "${ability}" is not one of: ${r.hit.abilityChoose.map((a) => a.toUpperCase()).join(", ")}`, "Feat", r.hit.name); continue; }
-      bump(ability, 1, where, r.hit.category === "EB" ? 30 : 20, "Feat");
+      bump(ability, 1, where, cap, "Feat");
     }
   };
 

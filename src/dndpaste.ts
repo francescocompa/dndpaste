@@ -5,7 +5,7 @@
  * Zero dependencies; no game data; never infers; never throws on input.
  */
 
-export const SPEC_VERSION = "0.11";
+export const SPEC_VERSION = "0.12";
 export const PASTE_MAJOR = 1;
 
 // ─── AST ────────────────────────────────────────────────────────────────────
@@ -306,6 +306,7 @@ const MESSAGES: Record<string, string> = {
   W005: "renamed key (SPEC 0.7)",
   W006: "the lineage pick goes on the Species line (SPEC 0.10)",
   W007: "the species variant goes in [brackets] (SPEC 0.10)",
+  W008: "Masteries add up (SPEC 0.12): a mastery left out of a later line is still held",
 };
 
 /** How to fix each code, in as few words as it takes (D192). A line may get a more precise hint or a fix. */
@@ -329,6 +330,7 @@ const HINTS: Record<string, string> = {
   W005: "Tidy writes the new key",
   W006: "Tidy moves it onto the Species line",
   W007: "Tidy writes it in brackets",
+  W008: "Drop it with -Name, or list only the new masteries",
 };
 
 class Diag {
@@ -970,6 +972,20 @@ export function parse(text: string): Paste {
     } else diag.add("W005", a.no, "Ability kept as written: write the ability as the first detail of the Feat, Feature or Options that asks it (D107)", { hint: "Move the ability into the brackets of what asks it" });
   }
 
+  // Masteries add up (D337, SPEC 0.12): a later line that repeats held names and leaves one out is the 0.11 snapshot
+  // shape, which meant a swap. It reads as adding (the left-out name stays); the warning offers the drop (D342).
+  for (const step of masteryWalk(paste)) {
+    if (!step.repeated.length || !step.leftOut.length) continue;
+    const at = seen.get(step.level.lines)?.get("masteries") ?? headerLine.get(step.level.n) ?? 0;
+    const names = step.leftOut.map((it) => it.ref.name);
+    const label = `Drop ${names.join(" and ")}`;
+    const mv = step.level.lines.get("Masteries");
+    const drops = mv && mv.type === "items" ? mv.items.filter((it) => it.drop) : [];
+    // The fix writes the line as 0.12 reads the author's intent: the new names, then each drop (D342).
+    const value = [...step.added, ...drops, ...step.leftOut.map((it) => ({ ...it, drop: true, qty: null }))];
+    diag.add("W008", at, `${names.join(", ")} still held at L${step.level.n} (D337)`, { hint: `Write ${names.map((n) => `-${n}`).join(", ")} to drop ${names.length > 1 ? "them" : "it"}`, fix: { label, safe: false, edits: [{ line: at, text: `Masteries: ${value.map(fmtItem).join(", ")}` }] } });
+  }
+
   // Whole-document checks.
   const pv = paste.header.get("Paste");
   if (pv && pv.type === "int" && pv.value !== PASTE_MAJOR) diag.add("E015", lineOf(lines, "paste"), `Paste: ${pv.value}`);
@@ -1250,6 +1266,93 @@ export function foldOptions(paste: Paste, family: (ref: Ref) => string | null): 
   return folded;
 }
 
+/** One level block's `Masteries` line read additively (D337): what it adds, what it repeats, what it leaves out. */
+export interface MasteryStep {
+  level: LevelBlock;
+  /** Names new to the build on this line, in written order. */
+  added: Item[];
+  /** Names the build already held, written again (ignored by the reading). */
+  repeated: Item[];
+  /** Held names this line neither repeats nor drops; non-empty with `repeated` is the 0.11 snapshot shape (W008). */
+  leftOut: Item[];
+  /** The masteries held after this line. */
+  held: Item[];
+}
+const nameKey = (it: Item) => it.ref.name.toLowerCase();
+/**
+ * The level blocks' `Masteries` lines in level order, read additively (D337, SPEC 0.12 §5.4): a name adds, `-Name`
+ * drops a held one, a name already held is ignored. The header's unplaced line is not part of the walk. Data-free.
+ */
+export function masteryWalk(paste: Paste): MasteryStep[] {
+  const held = new Map<string, Item>();
+  const out: MasteryStep[] = [];
+  for (const level of [...paste.levels].sort((a, b) => a.n - b.n)) {
+    const v = level.lines.get("Masteries");
+    if (!v || v.type !== "items" || !v.items.length) continue;
+    const before = new Set(held.keys());
+    const added: Item[] = [], repeated: Item[] = [];
+    const named = new Set<string>();
+    for (const it of v.items) {
+      const k = nameKey(it);
+      named.add(k);
+      if (it.drop) { held.delete(k); continue; }
+      if (held.has(k)) { repeated.push(it); continue; }
+      held.set(k, it);
+      added.push(it);
+    }
+    const leftOut = [...before].filter((k) => !named.has(k) && held.has(k)).map((k) => held.get(k) as Item);
+    out.push({ level, added, repeated, leftOut, held: [...held.values()] });
+  }
+  return out;
+}
+/**
+ * Rewrites each 0.11 snapshot `Masteries` line as an additive one (D337): the names the build already held go, and a
+ * line left with nothing goes. A line that leaves a held name out (W008) stays as written, so its warning stays until
+ * the author answers it (D342). Changes the paste in place; returns how many lines it rewrote. Tidy and the checker's
+ * `normalise` call it.
+ */
+export function foldMasteries(paste: Paste): number {
+  let folded = 0;
+  for (const step of masteryWalk(paste)) {
+    if (!step.repeated.length || step.leftOut.length) continue;
+    const v = step.level.lines.get("Masteries");
+    if (!v || v.type !== "items") continue;
+    const kept = v.items.filter((it) => !step.repeated.includes(it));
+    if (kept.length) step.level.lines.set("Masteries", { type: "items", items: kept }); else step.level.lines.delete("Masteries");
+    folded++;
+  }
+  return folded;
+}
+/** What a build has ready at a level (§5.4): its weapon masteries, and its default prepared spells. */
+export interface Loadout {
+  /** The masteries held at the level: the header's unplaced line, then each level line up to it, additively (D337). */
+  masteries: Item[];
+  /** The `Prepared` snapshot in force: the last level block up to the level with a `Prepared` line (capped lines
+   *  included), else the header's. */
+  prepared: Item[];
+}
+/**
+ * The loadout at character level `level` (D343), data-free: what a viewer shows for a level, without walking the
+ * blocks itself. A level past the last block reads as the last block's loadout; a flat paste reads as its header.
+ */
+export function loadoutAt(paste: Paste, level: number): Loadout {
+  const listOf = (scope: Scope, group: string) => scopeLines(scope).filter(([k]) => keyGroup(k) === group).flatMap(([, v]) => (v.type === "items" ? v.items : []));
+  const masteries = new Map<string, Item>();
+  for (const it of listOf(paste.header, "Masteries")) if (!it.drop) masteries.set(nameKey(it), it);
+  const steps = masteryWalk(paste).filter((s) => s.level.n <= level);
+  const last = steps[steps.length - 1];
+  if (last) {
+    // The walk's held set starts empty; header names it never dropped stay.
+    const dropped = new Set(steps.flatMap((s) => { const v = s.level.lines.get("Masteries"); return v?.type === "items" ? v.items.filter((it) => it.drop).map(nameKey) : []; }));
+    for (const k of dropped) masteries.delete(k);
+    for (const it of last.held) if (!masteries.has(nameKey(it))) masteries.set(nameKey(it), it);
+  }
+  const blocks = [...paste.levels].filter((l) => l.n <= level).sort((a, b) => b.n - a.n);
+  const withPrepared = blocks.find((l) => listOf(l.lines, "Prepared").length);
+  const prepared = listOf(withPrepared?.lines ?? paste.header, "Prepared").filter((it) => !it.drop);
+  return { masteries: [...masteries.values()], prepared };
+}
+
 export interface TidyOptions {
   /** A pick's option family, for folding a plain `Options` line into its family key (see `foldOptions`). */
   optionFamily?: (ref: Ref) => string | null;
@@ -1261,8 +1364,8 @@ export interface TidyOptions {
 }
 /**
  * The editor's Tidy (D203): makes every safe fix (a header key moved out of a block, duplicate lines joined, `/`
- * between classes, a space after a colon), folds `Options` lines when it knows their family, then writes the
- * canonical form. It never refuses: a line it can't fix stays as written (D202).
+ * between classes, a space after a colon), rewrites 0.11 snapshot `Masteries` lines as additive ones (D337), folds
+ * `Options` lines when it knows their family, then writes the canonical form. It never refuses: a line it can't fix stays as written (D202).
  */
 export function tidy(text: string, opts: TidyOptions = {}): string {
   let t = text.replace(/\r\n?/g, "\n");
@@ -1274,6 +1377,7 @@ export function tidy(text: string, opts: TidyOptions = {}): string {
     t = r.text;
   }
   const p = parse(t);
+  foldMasteries(p);
   if (opts.optionFamily) foldOptions(p, opts.optionFamily);
   const sp = p.entities.find((e) => e.key === "Species");
   const rv = p.header.get("Rules");

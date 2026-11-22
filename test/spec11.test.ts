@@ -16,7 +16,7 @@ const codes = (p: Paste) => p.diagnostics.map((d) => d.code);
 const canon = (t: string) => emit(parse(t));
 const scores = (t: string) => { const v = parse(t).header.get("Scores"); return v?.type === "scores" ? v : null; };
 
-test("the library implements SPEC 0.11", () => assert.equal(SPEC_VERSION, "0.11"));
+test("the library implements SPEC 0.11 or later", () => assert.ok(Number(SPEC_VERSION) >= 0.11));
 
 describe("D320: the base Scores line is named, `/`-separated, full or partial", () => {
   test("six numbers, named with commas and named with slashes all read the same, with no diagnostic", () => {
@@ -166,7 +166,7 @@ describe("D326: scoreKind, data-free, beside finalScores", () => {
 
 test("the UMD build loads and carries scoreKind and the method marker", () => {
   const umd = createRequire(import.meta.url)(join(root, "dist", "dndpaste.umd.cjs")) as typeof import("../src/dndpaste.js");
-  assert.equal(umd.SPEC_VERSION, "0.11");
+  assert.equal(umd.SPEC_VERSION, SPEC_VERSION);
   assert.deepEqual(umd.scoreKind([8, 14, 13, 12, 10, 15]), { kind: "standard-array", left: 0 });
   assert.equal(umd.tidy("Scores (Point Buy): 8/14/13/12/10/15"), "Scores (point buy): STR 8/DEX 14/CON 13/INT 12/WIS 10/CHA 15\n");
   assert.equal(typeof umd.shortLineage, "function");
