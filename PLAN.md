@@ -144,11 +144,11 @@ L<n> <Class>                   level block, n = character level
 ### M9 — Editor round 2: backgrounds, gear, masteries, feat bonuses (D334; scoped D335–D337) · size M/L · split library and site workers
 Workers: **lib** (T9.4 format + T9.5 library, Opus@high, ids D340–D349) ∥ **site-a** (T9.0, T9.1, T9.2, T9.4 bug, Opus@high,
 ids D350–D359); then **site-b** (T9.3, T9.4 and T9.5 site side, after lib and site-a merge, ids D360–D369); then release 0.12.0.
-- [ ] T9.0 Split `form.js` (D335): the autocomplete and popovers into their own module, loaded on first editor focus, checked as
+- [x] T9.0 Split `form.js` (D335): the autocomplete and popovers into their own module, loaded on first editor focus, checked as
   its own bundle under the 150 KB cap · Done when: `check:bundle` green with room, site tests pass, no behaviour change.
-- [ ] T9.1 Background block: parsed correctly in the editor, and it suggests its `Scores`, `Skills` and `Tools` lines;
+- [x] T9.1 Background block: parsed correctly in the editor, and it suggests its `Scores`, `Skills` and `Tools` lines;
   "Custom" is always the first row of the Background list · Done when: built, site tests, /ui-review approved.
-- [ ] T9.2 Scores in a Background block suggest picking the scores and the bonus; Start a build drops "Skip" and a new
+- [x] T9.2 Scores in a Background block suggest picking the scores and the bonus; Start a build drops "Skip" and a new
   build starts on Custom (amends D322) · Done when: built, site tests, /ui-review approved.
 - [ ] T9.3 Gear list: a `+1`/`+2` prefix shows after the name as a chip, so names sort by name; packs and the background's
   and class's gear options suggested in their blocks; a Mundane · Magic toggle (D336; its phone place is a review item) · Done when: built,

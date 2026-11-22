@@ -5,8 +5,7 @@
   (`/version` 0.11.0, commit 22dcfb6). M8 done: the r/3d6 round-1 feedback (D302–D319) plus scores, SPEC 0.11 (D320–D333):
   `Scores: STR 8/DEX 14/…`, optional `Scores (point buy)` marker, score popover and method chip; no strict toggle (D330).
   Library 290 + site 346 pass. M9 queued (D334).
-- **Single next action:** M9, scoped (D335–D337): start the **lib** ∥ **site-a** workers (PLAN M9 workers line); next
-  **site-b** after both merge, then release 0.12.0. T3.11 posts (his) run alongside.
+- **Single next action:** M9 site-b (running, Spawned line); then merge, release 0.12.0 and deploy. T3.11 posts (his) run alongside.
 - **Manual for Francesco:** ① T3.11 posts: rewrite the r/3d6 body by hand for r/onednd and r/dndnext (draft
   `.claude/drafts/reddit-3d6.md`, Troll Bandit paste `.claude/drafts/troll-bandit.dndpaste`, D300); not Mon/Sat
   ② archive the done sessions (M8: scores jam, T8.3 library, T8.4 site, plus the older copy-pass, editor-fixes, M6/T6.3,
@@ -15,7 +14,7 @@
 
 Working set: none
 
-Spawned: m9-lib `local_3752a063-3df8-4966-9d71-e83194658a34` (running, own worktree, T9.4+T9.5 library, D340–D349) ∥ m9-site-a (running, main checkout on `claude/m9-site-a`, T9.0–T9.2 + T9.4 bug, D350–D359) → next: overseer merges both, then site-b (T9.3, T9.4/T9.5 site side, D360–D369), then release 0.12.0. disk-free done (9 GB; BlueStacks 44 GB, his move later)
+Spawned: m9-site-a `local_91a85b8b-8c2c-46de-88b9-191956a1c26c` now on **site-b** (T9.3 Gear toggle, T9.4 additive Masteries + T9.5 site mirror, D360–D369; main checkout, branch `claude/m9-site-b`) → next: overseer merges, releases 0.12.0 (D57, D299), deploys. lib and site-a merged afadd6a (root 315, site 361, check:bundle ok)
 
 - **Library:** 0.11.0 on main (SPEC 0.11; 0.7 keys read with W005, 0.9 lineage forms with W006/W007). Releases per D57. The full slot table is
   gitignored (`data/slots.json`, regenerate with `node scripts/extract-slots.mjs "$HOME/Documents/D&D/5etool_mirror/5etools-src-main/data"`
@@ -23,8 +22,8 @@ Spawned: m9-lib `local_3752a063-3df8-4966-9d71-e83194658a34` (running, own workt
   2026-11-21; old copy `5etools-src-main.bak-2.38.0`). The extract script also rewrites `data/srd/slots.json` meta: revert it
   (`git checkout -- data/srd/slots.json`) unless the SRD subset is meant to change.
 - **Site:** scope D65–D74, D90–D116, look D80–D89, brief `SITE.md`. Deploy: `cd site && npm run build && npx wrangler deploy`
-  (a push does not deploy). The live CSP drops inline `style=` attributes: set positions through CSSOM (D240). `form.js` is 149.4 KB
-  of the 150 KB cap: T9.0 splits it (D335).
+  (a push does not deploy). The live CSP drops inline `style=` attributes: set positions through CSSOM (D240). `form.js` 127.8 KB and
+  `ac.js` 84.4 KB after the T9.0 split (D335, D350).
 - **Follow-ups (post-launch):** a real logo (D148). Open: O1, O4, O5, O6, the format-update ⚑ (DECISIONS.md).
 - **Gotchas:** On a turn a child's report started, the app refuses `start_session`: propose a card; briefs `cd` into the
   worktree. Workers past ~300k hand off with a brief in `~/Library/Application Support/Claude/side-session-notes/<overseer id>/`.
