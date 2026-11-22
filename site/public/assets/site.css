@@ -335,7 +335,7 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ac .ao.asr .al { display: inline-flex; align-items: center; gap: 3px; }
 .ac .ao.asr .al svg.i { width: 12px; height: 12px; }
 .ac .ao .al svg.i { width: 12px; height: 12px; }
-/* D361 (D334): a `+N` item shows the bonus as a chip after its name, so the list sorts by name. */
+/* D363 (D334): a `+N` item shows the bonus as a chip after its name, so the list sorts by name. */
 .ac .apl { flex-shrink: 0; font: 11px/1 var(--mono); color: var(--fg); background: var(--chip); border-radius: 4px; padding: 2px 5px; }
 /* D362 (D336): the Gear list's head, Mundane · Magic, two chips; the half shown is filled. */
 .ac .agh { overflow: visible; }
@@ -344,6 +344,17 @@ details.lvb[open] .mk .i-chevron-right, details.lvb[open] .mk .cnt, details.lvb:
 .ac .acg button { border: 0; background: none; padding: 2px 8px; border-radius: 4px; font: 11px/1.3 var(--sans); color: var(--mute); cursor: pointer; }
 .ac .acg button:hover { color: var(--fg); }
 .ac .acg button.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 0 0 1px var(--rule); }
+/* D360: a Custom score's stepper: less, the number, more; the arrows step it, Tab writes it. */
+.ac .ao.ast { gap: 6px; }
+.ac .ao.ast .an { min-width: 2.5ch; text-align: center; font-weight: 600; }
+.ac .asb { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 1px solid var(--rule);
+  border-radius: 5px; background: var(--bg); color: var(--fg); padding: 0; cursor: pointer; }
+.ac .asb:hover { background: var(--chip); }
+.ac .asb:disabled { color: var(--mute); cursor: default; background: none; }
+.ac .asb svg.i { width: 12px; height: 12px; }
+.pdock .ac .asb { width: 32px; height: 32px; }
+/* D362: on phone the switch leads the dock's row, at a tap's size. */
+.pdock .ac .acg button { padding: 7px 10px; font-size: 13px; }
 .ac .af { font: 12px/1.35 var(--sans); color: var(--mute); white-space: normal; }
 .ed .ac .af { margin: 4px -4px 0; padding: 6px 12px 3px; border-top: 1px solid var(--rule); }
 .ed .ac .af.solo { border-top: 0; margin-top: 0; padding-top: 0; }

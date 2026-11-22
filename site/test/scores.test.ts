@@ -7,7 +7,7 @@ import type { Paste } from "../../src/dndpaste.ts";
 import { build } from "esbuild";
 import * as N from "../src/names.gen.ts";
 import { nameRows } from "../src/namerows.ts";
-import { fillScore, finalFoot, finalOf, finalTitle, methodOf, pickScore, scoreLineAt, scoreRows } from "../src/scores.ts";
+import { fillScore, finalFoot, finalOf, finalTitle, listRows, methodOf, pickScore, scoreLineAt, scoreRows, stepScore } from "../src/scores.ts";
 import { renderPaste, scoreMark } from "../src/render.ts";
 import { FIXTURES, textOf } from "./helpers.ts";
 
@@ -141,4 +141,19 @@ test("D325: the view and print carry the mark after the base row; the marker sho
   assert.ok(textOf(html).startsWith("Scores (point buy):STR 13/DEX 13/CON 13/INT 12/WIS 12/CHA 10 Point Buy 2/27"));
   assert.match(renderPaste(parse("Scores (standard array): STR 18\n")), /class="smk clash" title="[^"]+">Std\. Array</);
   assert.ok(!/smk/.test(renderPaste(parse("Scores: +2 CHA\n"))), "an increase has no mark");
+});
+
+test("D360: a Custom score's list is a stepper: one row, the typed or written number, else 10, kept inside 1-30", () => {
+  const v = [15, null, 13, null, null, null];
+  assert.deepEqual(listRows("custom", v, 1, true).map((r) => r.n), [10], "nothing typed or written: 10");
+  assert.deepEqual(listRows("custom", v, 1, true, "1").map((r) => r.n), [1], "what is typed");
+  assert.deepEqual(listRows("custom", v, 0).map((r) => r.n), [15], "a click on a written score starts there");
+  assert.deepEqual([stepScore(10, 1), stepScore(10, -5), stepScore(30, 1), stepScore(1, -1), stepScore(3, -5)], [11, 5, 30, 1, 1]);
+  // The other methods keep their lists, a fill narrowed by what is typed.
+  assert.deepEqual(listRows("standard-array", [15, null, null, null, null, null], 1, true, "1").map((r) => r.n), [14, 13, 12, 10]);
+  assert.deepEqual(listRows("point-buy", v, 1, false).map((r) => r.n), scoreRows("point-buy", v, 1).map((r) => r.n));
+  // The stepper's number is written as any pick is: a fill moves on to the next ability.
+  const text = "Scores: STR 15/DEX ";
+  const sl = scoreLineAt(text, text.length)!;
+  assert.deepEqual(fillScore(text, sl, stepScore(listRows("custom", sl.values, 1, true)[0].n, 2)), { text: "Scores: STR 15/DEX 12/CON ", cursor: 26, done: false });
 });

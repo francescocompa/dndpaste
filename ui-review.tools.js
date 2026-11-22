@@ -113,6 +113,15 @@ const pickRow = async (x, row) => {
   o.click(); await x.sleep(250)
 }
 const m9Pick = async (x, name, line, row) => { await m9Click(x, name, line); await pickRow(x, row) }
+// M9 site-b (D360–D363): a Gear line, a Fighter 10 with additive Masteries, a Custom score.
+const M9B_MAST = 'Vesk\nRules: 2024\nClasses: Fighter 10\n\nL1 Fighter|XPHB\nMasteries: Longsword, Sickle, Handaxe\n\nL4 Fighter|XPHB\nMasteries: Lance\n\nL10 Fighter|XPHB\nMasteries: Flail, -Sickle\n'
+const M9B_SNAP = 'Vesk\nRules: 2024\nClasses: Fighter 10\n\nL1 Fighter|XPHB\nMasteries: Longsword, Sickle, Handaxe\n\nL4 Fighter|XPHB\nMasteries: Longsword, Sickle, Handaxe, Lance\n\nL10 Fighter|XPHB\nMasteries: Longsword, Handaxe, Lance, Flail\n'
+const gearHalf = async (x, half) => { await x.waitFor('.ac:not([hidden]) [data-g]'); const b = document.querySelector(`.ac [data-g="${half}"]`); if (b && !b.classList.contains('on')) { b.click(); await x.sleep(250) } }
+// A click at the end of `line`'s last occurrence (or inside `word` on it), the way the mouse puts the caret there.
+const clickAt = async (x, text, at) => {
+  const ta = editor(); ta.focus(); ta.setSelectionRange(at, at)
+  ta.dispatchEvent(new MouseEvent('click', { bubbles: true })); await x.sleep(300)
+}
 const ERROR_TEXT ='Vice\nSpecies: Tiefling|MPMM\nBackground: Charlatan\n\nL1 Warlock\nSpels: Eldritch Blast\n'
 
 // A preset laid out in the editor, from an empty form (any draft bar cleared first). Skips when it is already there.
@@ -643,5 +652,25 @@ uiReview.config({
     'm9-fit': (x) => m9Pick(x, 'm9-fit', 'Background:', 'Sage'),
     'm9-custom': (x) => m9Pick(x, 'm9-custom', 'Background:', 'Custom'),
     'm9-mast-open': (x) => m9Click(x, 'm9-mast-open', 'Masteries:'),
+    // M9 site-b (D360–D363).
+    'm9b-gear': async (x) => { await acSetup(x, 'm9b-gear', 'Vesk\nRules: 2024\nClasses: Fighter 1\nGear: '); await gearHalf(x, 'mundane') },
+    'm9b-magic': async (x) => { await acSetup(x, 'm9b-magic', 'Vesk\nRules: 2024\nClasses: Fighter 1\nGear: amm'); await gearHalf(x, 'magic') },
+    'm9b-other': async (x) => { await acSetup(x, 'm9b-other', 'Vesk\nRules: 2024\nClasses: Fighter 1\nGear: '); await gearHalf(x, 'mundane'); typeMore('flame t'); await x.sleep(300) },
+    'm9b-l1': async (x) => { await acSetup(x, 'm9b-l1', 'Vesk\nRules: 2024\nClasses: Fighter 1\n\nL1 Fighter|XPHB\nGear: '); await gearHalf(x, 'mundane') },
+    'm9b-l1-2014': async (x) => { await acSetup(x, 'm9b-l1-2014', 'Vesk\nRules: 2014\nClasses: Cleric 1\n\nL1 Cleric|PHB\nGear: '); await gearHalf(x, 'mundane') },
+    'm9b-mast': async (x) => { await acSetup(x, 'm9b-mast', M9B_MAST); editor().blur(); await x.sleep(200) },
+    'm9b-drop': (x) => acSetup(x, 'm9b-drop', M9B_MAST.replace('Masteries: Flail, -Sickle\n', 'Masteries: Flail, -')),
+    'm9b-snap': async (x) => { await acSetup(x, 'm9b-snap', M9B_SNAP); editor().blur(); await x.sleep(200) },
+    'm9b-swap': async (x) => { await acSetup(x, 'm9b-swap', M9B_SNAP); await clickAt(x, M9B_SNAP, M9B_SNAP.lastIndexOf('Handaxe') + 3) },
+    'm9b-asi': (x) => scoreClick(x, 'm9b-asi', S_ARRAY.replace('[+2 WIS]', '[WIS]'), 'WIS 15'),
+    'm9b-asi2': (x) => scoreClick(x, 'm9b-asi2', S_ARRAY.replace('[+2 WIS]', '[WIS, CON]'), 'CON 13'),
+    'm9b-custom': async (x) => {
+      await x.waitFor('form.pform textarea.src'); if (editor().value) typeIn(''); await x.waitFor('.sb:not([hidden])')
+      const sel = document.querySelector('#sbsc'); sel.value = 'custom'; sel.dispatchEvent(new Event('change', { bubbles: true }))
+      starter([['Fighter', 1]]); await x.sleep(100); await x.click('.sbmake'); await x.sleep(400)
+      const ta = editor(), at = ta.value.indexOf('Scores:') + 7
+      await clickAt(x, ta.value, at)
+    },
+    'm9b-custom-pop': (x) => scoreClick(x, 'm9b-custom-pop', S_ARRAY.replace('Scores:', 'Scores (custom):').replace('STR 8/', 'STR 17/'), 'STR 17'),
   },
 })

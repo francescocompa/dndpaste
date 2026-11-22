@@ -682,7 +682,7 @@ test("D361 (D337): a level's Masteries line offers weapons not held yet; after a
   assert.equal(swapWritten(swapAt(t2, t2.lastIndexOf("Flail") + 2)!, "Whip", t2), "Whip");
 });
 
-test("D361, D362 (D334, D336): the Gear list shows a +N as a chip after the name, one half at a time, the block's gear first", () => {
+test("D362, D363 (D334, D336): the Gear list shows a +N as a chip after the name, one half at a time, the block's gear first", () => {
   const rows = (src: string, k = 99) => { const sp = spot(src); return sp ? suggest(N, sp, k) : []; };
   const show = (src: string, k = 99) => rows(src, k).map((r) => `${r.label ?? r.name}${r.plus ? ` ${r.plus}` : ""}${r.tag ? ` (${r.tag})` : ""}`);
   try {

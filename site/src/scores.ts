@@ -119,6 +119,26 @@ export function scoreRows(method: ScoreKind, values: readonly (number | null)[],
   return [];
 }
 
+/** D360: a Custom score's stepper keeps to 1–30, the range a score can have. */
+export const CUSTOM_MIN = 1;
+export const CUSTOM_MAX = 30;
+/** D360: one step of a Custom score's stepper, held inside 1–30. */
+export function stepScore(n: number, by: number): number {
+  return Math.max(CUSTOM_MIN, Math.min(CUSTOM_MAX, n + by));
+}
+/**
+ * The rows a score list shows (D321, D322, D360). Standard array and point buy: their numbers ({@link scoreRows}), a
+ * fill narrowed by what is typed. Custom: one row, the stepper's value: what is typed, else the score written, else 10.
+ */
+export function listRows(method: ScoreKind, values: readonly (number | null)[], i: number, fill = false, typed = ""): ScoreRow[] {
+  if (method === "custom") {
+    const start = typed ? Number(typed) : values[i] ?? 10;
+    return [{ n: stepScore(Number.isFinite(start) ? start : 10, 0), swap: null, cost: null, over: false }];
+  }
+  const rows = scoreRows(method, values, i, fill);
+  return fill ? rows.filter((r) => String(r.n).startsWith(typed)) : rows;
+}
+
 /** The base value in the named slash form (D320): `STR 15/DEX 14`. */
 export function namedScores(values: readonly (number | null)[]): string {
   return emitValue({ type: "scores", values: [...values], increase: null });

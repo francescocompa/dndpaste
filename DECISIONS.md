@@ -574,3 +574,45 @@ Built in caa63f7 (library, checker, CLI, SPEC), 7d7196c (README), 30480f7 (guide
   be fixed everywhere".
   *Rejected:* a hold in each pick path (the score fill already had one of its own; the next path would miss it).
   *Enforced by:* `site/test/form.test.ts` ("D354 (T9.4)…").
+
+## M9 site-b (2026-11-22) — mechanism: worker build, AskUserQuestion (2 rounds), /ui-review r1; ids D360–D369
+
+- **D360 — A Custom base `Scores` line opens a stepper: −, the number, +. DECIDED (2026-11-22); his answer to site-a's
+  open flag.** While the line is filled, and on a click on a written score, the list is one row: the typed number, else
+  the score written, else 10, held inside 1–30. The arrow keys step it (Shift: by 5); Tab, Enter after a step, or a
+  click on the number writes it, and a fill moves on to the next ability. Typing still works.
+  *Raw note:* "A custom panel with for example steppers or a slider, something that can aide type a number" (over the
+  offered 3–18 list, a short common-values list, or no list).
+  *Rejected:* a 3–18 list (rows to scroll for one number); common values only; no list.
+  *Enforced by:* `site/test/scores.test.ts` ("D360…"); /ui-review r1 approved.
+
+- **D361 — The editor reads Masteries as additive (D337): a level's line counts the slots new at that class level, one
+  more per `-Name`, and only the names new to the build. DECIDED (2026-11-22), T9.4 site.** `ghost.ts` takes `have`
+  from the library's `masteryWalk` (`added`); the list on a level line leaves out held weapons, and after a `-` lists
+  the held ones (`loadoutAt`, level − 1). A swap (D304) over a held name writes `New, -Old`. The W008 fix reaches the
+  line through `libraryFixes`. The key tip says a level lists only its new ones.
+  *Rejected:* counting the loadout total (the 0.11 snapshot reading).
+  *Enforced by:* `site/test/ghost.test.ts`, `site/test/complete.test.ts`, `site/test/fixes.test.ts` ("D361…"); r1 approved.
+
+- **D362 — The Gear list shows one half, Mundane or Magic, switched by two chips in its head; a block's starting gear
+  leads. DECIDED (2026-11-22), builds D336.** The pick is kept in `localStorage` (`dndpaste.gear`, try/catch). On phone
+  the switch leads the dock's chip row (r1 approved). A name only the other half has shows "None in Mundane · N in
+  Magic". In a Background block or the build's L1 block: the option letters (tag `option`, both halves), then the
+  class's or background's choice items (2014), then the packs. Names table: `GEAR_OPTIONS` (letters and item names per
+  class and background, names only).
+  *Review r1:* "A, B and C aren't clear enough by themselves, can we offer more info?" and "lists where some options
+  are given priority … should have a divider between the parts" → owed, round 2 (hand-over note).
+  *Enforced by:* `site/test/complete.test.ts`, `site/test/prefs.test.ts` ("D362…").
+
+- **D363 — A Gear item's `+N` prefix shows as a chip after its name, and the list sorts by the name. DECIDED
+  (2026-11-22), builds D334.** `+1 Ammunition` reads "Ammunition +1"; the pick writes the name as it is. A `+1
+  Longsword` on the line no longer hides the plain Longsword. The site's `finalOf` mirrors D340 (a feat row's fixed
+  +1s) and D341 (an ASI's bare ability).
+  *Enforced by:* `site/test/complete.test.ts`, `site/test/scores.test.ts` ("D340…", "D341…"); r1 approved.
+
+- **D364 — Tidy folds a W008 line too, keeping the 0.11 author's swap: `Longsword, Handaxe, Lance, Flail` becomes
+  `Flail, -Sickle`, and the warning goes. DECIDED (2026-11-22); amends D342.** His r1 note: "Remove the warning from
+  the header, simply make it a step for Tidy". He picked dropping the left-out name.
+  *Rejected:* Tidy keeps the name (the swap lost silently); D342 as it was.
+  *Enforced by:* owed (library `foldMasteries`, SPEC §7 and §14 wording, `test/spec12.test.ts`); see the site-b
+  hand-over note.

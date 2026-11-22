@@ -9,7 +9,7 @@
  * (`useYourPresets`, re-exported below), so the key list and the level-up see your classes as form.js does.
  */
 import { esc, icon } from "../render.ts";
-import { fillScore, finalFoot, finalOf, finalTitle, pickScore, scoreLineAt, scoreRows } from "../scores.ts";
+import { fillScore, finalFoot, finalOf, finalTitle, listRows, pickScore, scoreLineAt, stepScore } from "../scores.ts";
 import type { ScoreLine, ScoreRow } from "../scores.ts";
 import { readSummary } from "./summary.ts";
 import { nextOpen } from "../preset.ts";
@@ -300,7 +300,7 @@ export function mountAc(h: AcHost): Ac {
     const m = sl?.fill ? h.effMethod(sl) : null;
     if (!sl?.fill || !m) return false;
     const f = sl.fill;
-    const rows = scoreRows(m, sl.values, f.i, true).filter((r) => String(r.n).startsWith(f.typed));
+    const rows = listRows(m, sl.values, f.i, true, f.typed);
     if (!rows.length) { acClose(); return true; }
     acSwap = false;
     showScore({ sl, i: f.i, mode: "fill", rows, back: null, pos: h.ta.selectionStart, anchor: null });
@@ -313,7 +313,7 @@ export function mountAc(h: AcHost): Ac {
     if (!h.names) h.loadNames();
     const m = h.effMethod(sl) ?? "custom";
     acSwap = true;
-    showScore({ sl, i: sl.at, mode: "pop", rows: scoreRows(m, sl.values, sl.at), back: null, pos: h.ta.selectionStart, anchor: null });
+    showScore({ sl, i: sl.at, mode: "pop", rows: listRows(m, sl.values, sl.at), back: null, pos: h.ta.selectionStart, anchor: null });
     return true;
   };
   /** D323, D324: the method list, from the line's chip; a pick steers the lists and the chip and writes nothing. */
@@ -346,6 +346,7 @@ export function mountAc(h: AcHost): Ac {
     const rows = s.mode === "method"
       ? METHODS.map((k, i) => `<div role="option" id="ac-${i}" class="ao${i === acOn ? " on" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
         `<span class="an">${esc(METHOD_NAMES[k])}</span>${k === now ? `<span class="al">${icon("check")}</span>` : ""}</div>`).join("")
+      : now === "custom" ? s.rows.map((r, i) => stepperHtml(r, i, onPhone)).join("")
       : s.rows.map((r, i) => `<div role="option" id="ac-${i}" class="ao asr${i === acOn ? " on" : ""}${r.over ? " dim" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
         `<span class="an">${r.n}</span>` +
         (r.swap !== null ? `<span class="al">${icon("arrow-left-right")}${ABILITIES[r.swap]}</span>` : "") +
@@ -353,9 +354,29 @@ export function mountAc(h: AcHost): Ac {
         `${!onPhone && i === 0 && acOn < 0 && s.mode === "fill" ? `<kbd>Tab</kbd>` : ""}</div>`).join("");
     return head + rows + foot;
   };
+  /** D360: a Custom score's stepper, one row: less, the number, more. Arrow keys step it; Tab or a click on the number
+   *  writes it. */
+  const stepperHtml = (r: ScoreRow, i: number, onPhone: boolean): string =>
+    `<div role="option" id="ac-${i}" class="ao asr ast${i === acOn ? " on" : ""}" aria-selected="${i === acOn}" data-i="${i}">` +
+    `<button type="button" class="asb" data-st="-1" tabindex="-1" aria-label="One less"${r.n <= 1 ? " disabled" : ""}>${icon("minus")}</button>` +
+    `<span class="an">${r.n}</span>` +
+    `<button type="button" class="asb" data-st="1" tabindex="-1" aria-label="One more"${r.n >= 30 ? " disabled" : ""}>${icon("plus")}</button>` +
+    `${onPhone ? "" : `<span class="al">↑↓</span><kbd>Tab</kbd>`}</div>`;
+  /** D360: the stepper's value moves by `by`; the row is then the one Enter takes. */
+  const stepCustom = (by: number) => {
+    const s = acScore;
+    const r = s?.rows[0];
+    if (!s || !r) return;
+    s.rows = [{ ...r, n: stepScore(r.n, by) }];
+    acRows = [{ name: String(s.rows[0].n), source: null }];
+    acOn = 0;
+    acDraw();
+  };
+  const isStepper = () => Boolean(acScore && acScore.mode !== "method" && scoreKindNow(acScore.sl) === "custom" && acScore.rows.length);
   const scoreSays = (): string => {
     const s = acScore!;
     if (s.mode === "method") return `Ability score method, ${METHOD_NAMES[scoreKindNow(s.sl)]}. Pick one.`;
+    if (isStepper()) return `${ABILITIES[s.i]} ${s.rows[0].n}. Arrow keys change it, ${phone.matches ? "tap it to write it" : "Tab writes it"}.`;
     const n = s.rows.length;
     return `${ABILITIES[s.i]}: ${n ? `${n} number${n === 1 ? "" : "s"}.` : "no numbers to pick."}${s.mode === "fill" && !phone.matches ? " Tab takes the first." : ""}`;
   };
@@ -373,7 +394,7 @@ export function mountAc(h: AcHost): Ac {
         h.writeChange(h.ta.value.slice(0, now.start) + `Scores (${methodWords(k)})` + h.ta.value.slice(colon));
       }
       const sl = scoreLineAt(h.ta.value, s.sl.start) ?? s.sl;
-      if (s.back === "pop") showScore({ ...s, sl, mode: "pop", back: null, rows: scoreRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
+      if (s.back === "pop") showScore({ ...s, sl, mode: "pop", back: null, rows: listRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
       else if (s.back === "fill") { acClose(); complete(true); }
       else acClose();
       h.drawRows();
@@ -543,7 +564,11 @@ export function mountAc(h: AcHost): Ac {
       return;
     }
     const plain = !e.altKey && !e.ctrlKey && !e.metaKey;
-    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && plain && !e.shiftKey) {
+    if (isStepper() && (e.key === "ArrowDown" || e.key === "ArrowUp") && plain) {
+      // D360: on a Custom score the arrows change the number (Shift: by 5), Enter or Tab writes it.
+      e.preventDefault();
+      stepCustom((e.key === "ArrowUp" ? 1 : -1) * (e.shiftKey ? 5 : 1));
+    } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && plain && !e.shiftKey) {
       e.preventDefault();
       const n = acRows.length;
       acOn = e.key === "ArrowDown" ? (acOn + 1) % n : acOn <= 0 ? n - 1 : acOn - 1;
@@ -564,13 +589,16 @@ export function mountAc(h: AcHost): Ac {
     if ((e.target as Element).closest("[data-back]") && acScore?.back) {
       const s = acScore;
       const sl = scoreLineAt(h.ta.value, s.sl.start) ?? s.sl;
-      if (s.back === "fill") { acClose(); complete(true); } else showScore({ ...s, sl, mode: "pop", back: null, rows: scoreRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
+      if (s.back === "fill") { acClose(); complete(true); } else showScore({ ...s, sl, mode: "pop", back: null, rows: listRows(scoreKindNow(sl), sl.values, s.i), anchor: null });
       return;
     }
     if ((e.target as Element).closest("[data-m]") && acScore && acScore.mode !== "method") {
       showScore({ ...acScore, mode: "method", back: acScore.mode, anchor: null });
       return;
     }
+    // D360: the stepper's less and more.
+    const st = (e.target as Element).closest<HTMLElement>("[data-st]");
+    if (st) { stepCustom(Number(st.dataset.st)); return; }
     // D362: the Gear list's switch; the same list again, in the other half, remembered for this visitor.
     const g = (e.target as Element).closest<HTMLElement>("[data-g]");
     if (g) {
@@ -578,6 +606,7 @@ export function mountAc(h: AcHost): Ac {
       gear.set(half);
       setGearHalf(half);
       if (acSwap) { if (!swapList()) acClose(); } else complete(true);
+      if (!ac.hidden) acSays.textContent = `${half === "magic" ? "Magic" : "Mundane"} items, ${acRows.length}${acMore > 0 ? `, ${acMore} more` : ""}.`;
       return;
     }
     const o = (e.target as Element).closest<HTMLElement>("[data-i]");

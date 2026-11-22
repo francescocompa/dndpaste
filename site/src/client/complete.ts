@@ -71,7 +71,7 @@ export interface Suggestion {
   tag?: string;
   /** A name from your own sources: its book, shown on the row when no `|SOURCE` is written (D250). */
   book?: string;
-  /** D361 (D334): what the row shows for a `+N` item, the name without it (`Ammunition`), and the `+N` as a chip
+  /** D363 (D334): what the row shows for a `+N` item, the name without it (`Ammunition`), and the `+N` as a chip
    *  after it (`+1`). The pick still writes `name`. */
   label?: string;
   plus?: string;
@@ -281,7 +281,7 @@ export function spotAt(text: string, pos: number): Spot | null {
   // The line without the name being typed: what's left are the names already there.
   const rest = value.slice(0, s) + value.slice(e);
   const others = depth ? split((rest.slice(open + 1).split("]")[0] ?? "").split(";")[slot] ?? "", ",") : split(rest, listSep);
-  // An ASI's `+2 CHA` is CHA; a Gear item's `+1 Longsword` is its own name (D361), so Longsword is still offered.
+  // An ASI's `+2 CHA` is CHA; a Gear item's `+1 Longsword` is its own name (D363), so Longsword is still offered.
   const taken = new Set(others.map((x) => lc(clean(x.replace(/\[[^\]]*\]?/g, "").replace(/\s+x\d+\s*$/, "").replace(depth ? /^\+\d+\s+/ : /$^/, "")))).filter(Boolean));
 
   const where = setting(text, lines, at);
@@ -340,7 +340,7 @@ export type GearHalf = "mundane" | "magic";
 let gearHalf: GearHalf = "mundane";
 export function setGearHalf(h: GearHalf): void { gearHalf = h; }
 export function getGearHalf(): GearHalf { return gearHalf; }
-/** D361: a `+N ` prefix, shown as a chip after the name so the list sorts by name: `+1 Ammunition` → Ammunition, +1. */
+/** D363: a `+N ` prefix, shown as a chip after the name so the list sorts by name: `+1 Ammunition` → Ammunition, +1. */
 const PLUS = /^(\+\d+)\s+(.+)$/;
 
 /** The family codes an open `Options (<marker>)` names, matched to the table's family names and codes as the checker
@@ -648,7 +648,7 @@ export function suggestList(n: Names, sp: Spot, limit = LIST_LIMIT, everySpot = 
   // A spell above the level cap comes last (D162): it can't be picked yet. Before it, outside the spot's short list
   // (D227 skills, D241 another class's subclass, D243 another class's spell, feature or option), after the other
   // edition: the class's own subclass from the other book still comes before another class's.
-  // D361: a `+N` item sorts by its name, then by the bonus (Ammunition, +1 Ammunition, +2 Ammunition). D362: a block's
+  // D363: a `+N` item sorts by its name, then by the bonus (Ammunition, +1 Ammunition, +2 Ammunition). D362: a block's
   // starting gear leads in its own order (letters, its items, packs).
   const sortName = (r: { name: string; label: string | null }) => r.label ?? r.name;
   rows.sort((a, b) => Number(b.exact) - Number(a.exact) || Number(a.over) - Number(b.over) || Number(a.out) - Number(b.out) || Number(Boolean(a.other)) - Number(Boolean(b.other)) || a.lead - b.lead || a.grade - b.grade || a.t - b.t ||
